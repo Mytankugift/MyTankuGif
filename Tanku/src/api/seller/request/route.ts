@@ -56,7 +56,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       },
     });
 
-    console.log("este es el resultadooooooo", result);
+
 
     const requestData = JSON.parse((req.body as any).requestData);
     if (!req.files) {
@@ -125,7 +125,7 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
 
   try {
     const { result } = await retrieveSellerRequestWorkflow(req.scope).run({
-      input: clientId as RetrieveSellerRequestInput,
+      input: { customerId: clientId } as RetrieveSellerRequestInput,
     });
 
     res.json({

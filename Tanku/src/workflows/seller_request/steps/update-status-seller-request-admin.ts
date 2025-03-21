@@ -12,12 +12,14 @@ export const updateStatusSellerRequestStep = createStep(
     const sellerRequestService: SellerRequestModuleService = container.resolve(
       SELLER_REQUEST_MODULE
     );
-
     const prevStatusId = await sellerRequestService
       .retrieveSellerRequest(id)
       .then((req) => ({ status_id: req.status_id, comment: req.status_id }));
 
-    let updateData: Partial<UpdateStatusSellerRequestInput> = { id, status_id };
+    let updateData: Partial<UpdateStatusSellerRequestInput> = {
+      id,
+      status_id,
+    };
 
     if (status_id === "id_correction" || status_id === "id_reject") {
       updateData.comment = comment;

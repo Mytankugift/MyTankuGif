@@ -17,7 +17,6 @@ const retrieveSellerRequestStep = createStep(
       });
 
       const sellerRequests = customerData[0]?.seller_request || {};
-
       return new StepResponse(sellerRequests);
     } catch (error) {
       console.error("Error retrieving seller request", error);

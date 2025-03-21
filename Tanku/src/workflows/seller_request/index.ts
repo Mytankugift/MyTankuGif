@@ -3,6 +3,8 @@ import {
   createStep,
   WorkflowResponse,
   StepResponse,
+  when,
+  transform,
 } from "@medusajs/framework/workflows-sdk";
 import { SELLER_REQUEST_MODULE } from "../../modules/seller_request";
 import createSellerRequestStep from "./steps/create-seller-request";
@@ -11,6 +13,7 @@ import { createRemoteLinkStep } from "@medusajs/medusa/core-flows";
 import { Modules } from "@medusajs/framework/utils";
 import retrieveListSellerRequestAdminStep from "./steps/retrieve-list-seller-request-admin";
 import updateStatusSellerRequestStep from "./steps/update-status-seller-request-admin";
+import createSellerStoreStep from "./steps/create-seller-store";
 
 export type CreateSellerRequestInput = {
   dataSellerRequest: {
@@ -84,6 +87,26 @@ export const updateStatusSellerRequestWorkflowAdmin = createWorkflow(
   "update-status-seller-request-workflow-Admin",
   (input: UpdateStatusSellerRequestInput) => {
     const sellerRequest = updateStatusSellerRequestStep(input);
+
+    let storeData; // Declare storeData outside to access in both when statements
+
+    when(
+      "accept-seller-condition",
+      input,
+      (data) => data.status_id === "id_accept"
+    ).then(() => {
+      storeData = createSellerStoreStep(input.id);
+    });
+
+    when(
+      "create-store-link",
+      { storeData },
+      (data) => data.storeData?.newStore?.id !== undefined
+    ).then(() => {
+      if (storeData?.linkDefinition) {
+        return createRemoteLinkStep([storeData.linkDefinition]);
+      }
+    });
 
     return new WorkflowResponse(sellerRequest);
   }
