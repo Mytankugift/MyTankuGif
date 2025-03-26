@@ -10,7 +10,7 @@ yarn-error.log
 coverage
 
 !src/**
-
+package-lock.json
 ./tsconfig.tsbuildinfo
 medusa-db.sql
 build

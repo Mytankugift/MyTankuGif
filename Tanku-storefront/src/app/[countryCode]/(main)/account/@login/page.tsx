@@ -10,29 +10,29 @@ export const metadata: Metadata = {
 }
 
 export default function Login() {
-  // return <LoginTemplate />
+  return <LoginTemplate />
 
 
-  return (
-    <div className="flex flex-col items-center">
-      <Link href="/dk/auth/login">
-        <Button
-          variant="secondary"
-          className="mb-4"
-        >
-          Sign in
-        </Button>
-      </Link> 
-      <Link href="/dk/auth/logout">
-        <Button
-          variant="danger"
-          className="mb-4"
-        >
-          Sign out
-        </Button>
-      </Link>
-    </div>
-  )
+  // return (
+  //   <div className="flex flex-col items-center">
+  //     <Link href="/dk/auth/login">
+  //       <Button
+  //         variant="secondary"
+  //         className="mb-4"
+  //       >
+  //         Sign in
+  //       </Button>
+  //     </Link> 
+  //     <Link href="/dk/auth/logout">
+  //       <Button
+  //         variant="danger"
+  //         className="mb-4"
+  //       >
+  //         Sign out
+  //       </Button>
+  //     </Link>
+  //   </div>
+  // )
 }
 
 
