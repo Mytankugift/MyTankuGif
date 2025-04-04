@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 
-import OverviewStore from "@modules/account/components/store-overview"
+import OverviewStore from "@modules/seller/components/store-overview"
 import { notFound } from "next/navigation"
 import { retrieveCustomer } from "@lib/data/customer"
 import { listOrders } from "@lib/data/orders"

@@ -15,7 +15,7 @@ const Store: React.FC<StoreProps> = ({ customer, children }) => {
         <div className="h-full">
           {customer && <SellerNav customer={customer} />}
         </div>
-        <div className="w-full m-[10%]">
+        <div className="w-full ">
           <div className="flex-1">{children}</div>
         </div>
       </div>
