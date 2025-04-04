@@ -12,11 +12,11 @@ type OverviewProps = {
 
 const Overview = ({ customer, orders }: OverviewProps) => {
   return (
-    <div data-testid="overview-page-wrapper">
+    <div data-testid="overview-page-wrapper" className="m-[10%]">
       <div className="hidden small:block">
         <div className="text-xl-semi flex justify-between items-center mb-4">
           <span data-testid="welcome-message" data-value={customer?.first_name}>
-            Hello {customer?.first_name} This Is Your Store
+            Hello {customer?.first_name} this is your store
           </span>
           <span className="text-small-regular text-ui-fg-base">
             Signed in as:{" "}
@@ -30,7 +30,7 @@ const Overview = ({ customer, orders }: OverviewProps) => {
           </span>
         </div>
       </div>
-    </div>
+      </div>
   )
 }
 

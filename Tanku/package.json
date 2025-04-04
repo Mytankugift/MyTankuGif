@@ -26,12 +26,16 @@
     "@medusajs/cli": "2.5.1",
     "@medusajs/framework": "2.5.1",
     "@medusajs/medusa": "2.5.1",
+    "@medusajs/ui": "^4.0.7",
     "@mikro-orm/core": "6.4.3",
     "@mikro-orm/knex": "6.4.3",
     "@mikro-orm/migrations": "6.4.3",
     "@mikro-orm/postgresql": "6.4.3",
     "awilix": "^8.0.1",
-    "pg": "^8.13.0"
+    "cors": "^2.8.5",
+    "medusa-ui": "github:medusajs/ui",
+    "pg": "^8.13.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@medusajs/test-utils": "2.5.1",

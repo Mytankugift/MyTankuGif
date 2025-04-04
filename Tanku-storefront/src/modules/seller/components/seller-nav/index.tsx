@@ -29,7 +29,7 @@ const SellerNav = ({
       <div className="small:hidden" data-testid="mobile-account-nav">
         {route !== `/${countryCode}/account` ? (
           <LocalizedClientLink
-            href="/account"
+            href="/seller"
             className="flex items-center gap-x-2 text-small-regular py-2"
             data-testid="account-main-link"
           >
@@ -41,20 +41,20 @@ const SellerNav = ({
         ) : (
           <>
             <div className="text-xl-semi mb-4 px-8">
-              Hello {customer?.first_name}
+              Hello {customer?.first_name} This Is Your Store
             </div>
             <div className="text-base-regular">
               <ul>
                 <li>
                   <LocalizedClientLink
-                    href="/account/profile"
+                    href="/seller/products"
                     className="flex items-center justify-between py-4 border-b border-gray-200 px-8"
                     data-testid="profile-link"
                   >
                     <>
                       <div className="flex items-center gap-x-2">
                         <User size={20} />
-                        <span>Profile</span>
+                        <span>Products</span>
                       </div>
                       <ChevronDown className="transform -rotate-90" />
                     </>
@@ -62,45 +62,18 @@ const SellerNav = ({
                 </li>
                 <li>
                   <LocalizedClientLink
-                    href="/account/addresses"
+                    href="/seller/orders"
                     className="flex items-center justify-between py-4 border-b border-gray-200 px-8"
                     data-testid="addresses-link"
                   >
                     <>
                       <div className="flex items-center gap-x-2">
                         <MapPin size={20} />
-                        <span>Addresses</span>
+                        <span>Orders</span>
                       </div>
                       <ChevronDown className="transform -rotate-90" />
                     </>
                   </LocalizedClientLink>
-                </li>
-                <li>
-                  <LocalizedClientLink
-                    href="/account/orders"
-                    className="flex items-center justify-between py-4 border-b border-gray-200 px-8"
-                    data-testid="orders-link"
-                  >
-                    <div className="flex items-center gap-x-2">
-                      <Package size={20} />
-                      <span>Orders</span>
-                    </div>
-                    <ChevronDown className="transform -rotate-90" />
-                  </LocalizedClientLink>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    className="flex items-center justify-between py-4 border-b border-gray-200 px-8 w-full"
-                    onClick={handleLogout}
-                    data-testid="logout-button"
-                  >
-                    <div className="flex items-center gap-x-2">
-                      <ArrowRightOnRectangle />
-                      <span>Log out</span>
-                    </div>
-                    <ChevronDown className="transform -rotate-90" />
-                  </button>
                 </li>
               </ul>
             </div>
@@ -119,38 +92,38 @@ const SellerNav = ({
             <ul className="flex mb-0 justify-start items-start flex-col gap-y-4">
               <li>
                 <AccountNavLink
-                  href="/seller/store"
+                  href="/seller"
                   route={route!}
-                  data-testid="overview-link"
+                  data-testid="store-link"
                 >
                   My store
                 </AccountNavLink>
               </li>
               <li>
                 <AccountNavLink
-                  href="/account/profile"
+                  href="/seller/products"
                   route={route!}
-                  data-testid="profile-link"
+                  data-testid="products-link"
                 >
                   Products
                 </AccountNavLink>
               </li>
               <li>
                 <AccountNavLink
-                  href="/account/addresses"
-                  route={route!}
-                  data-testid="addresses-link"
-                >
-                  Payments
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/orders"
+                  href="/seller/orders"
                   route={route!}
                   data-testid="orders-link"
                 >
                   Orders
+                </AccountNavLink>
+              </li>
+              <li>
+                <AccountNavLink
+                  href="/seller/payments"
+                  route={route!}
+                  data-testid="payments-link"
+                >
+                  Payments
                 </AccountNavLink>
               </li>
             </ul>
@@ -160,7 +133,7 @@ const SellerNav = ({
           <AccountNavLink
             href="/account"
             route={route!}
-            data-testid="account-store-link"
+            data-testid="account-link"
           >
             My Account
           </AccountNavLink>

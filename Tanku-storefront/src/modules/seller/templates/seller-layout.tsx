@@ -8,6 +8,7 @@ import { fetchSellerRequest } from "../actions/get-seller-request"
 import RequestInPending from "../components/request-sent"
 import RequestNeedsCorrection from "../components/request-to-correct"
 import RequestRejected from "../components/rejected-request"
+import { useStoreTanku } from "@lib/context/store-context"
 
 interface SellerLayoutProps {
   customer: HttpTypes.StoreCustomer | null
@@ -55,7 +56,7 @@ interface SellerRequest {
 
 const SellerLayout: React.FC<SellerLayoutProps> = ({ customer, children }) => {
   const [isSeller, setIsSeller] = React.useState<SellerRequest>()
-
+  const { setStoreId } = useStoreTanku()
   const [showModal, setShowModal] = React.useState(false)
 
   const handleSubmit = (e: FormDataValues, files: formFiles) => {
@@ -71,6 +72,7 @@ const SellerLayout: React.FC<SellerLayoutProps> = ({ customer, children }) => {
     if (!customer || !customer?.id) return alert("No se encontro un usuario ")
     fetchSellerRequest(customer.id).then((res) => {
       setIsSeller(res.dataSellerRequest)
+      setStoreId(res.dataSellerRequest.store)
     })
   }, [])
 
