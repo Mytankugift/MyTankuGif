@@ -27,9 +27,10 @@ export interface Product {
 interface CreateProductModalProps {
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
+  fetchProducts: () => Promise<void>
 }
 
-export function CreateProductModal({ open, setOpen }: CreateProductModalProps) {
+export function CreateProductModal({ open, setOpen, fetchProducts }: CreateProductModalProps) {
   const { storeId } = useStoreTanku()
   const [productData, setProductData] = useState<Product>({
     title: "",
@@ -130,6 +131,7 @@ export function CreateProductModal({ open, setOpen }: CreateProductModalProps) {
         variants: [],
         images: [],
       })
+      fetchProducts()
       setOpen(false)
     })
   }

@@ -100,19 +100,17 @@ const Shipping: React.FC<ShippingProps> = ({
             "flex flex-row text-3xl-regular gap-x-2 items-baseline",
             {
               "opacity-50 pointer-events-none select-none":
-                !isOpen && cart.shipping_methods?.length === 0,
+                isOpen && cart.shipping_methods?.length === 0,
             }
           )}
         >
           Delivery
-          {!isOpen && (cart.shipping_methods?.length ?? 0) > 0 && (
+          {isOpen && (cart.shipping_methods?.length ?? 0) > 0 && (
             <CheckCircleSolid />
           )}
         </Heading>
-        {!isOpen &&
-          cart?.shipping_address &&
-          cart?.billing_address &&
-          cart?.email && (
+        {isOpen &&
+           (
             <Text>
               <button
                 onClick={handleEdit}

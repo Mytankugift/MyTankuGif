@@ -1,5 +1,4 @@
 "use client"
-
 import { loadStripe } from "@stripe/stripe-js"
 import React from "react"
 import StripeWrapper from "./stripe-wrapper"
