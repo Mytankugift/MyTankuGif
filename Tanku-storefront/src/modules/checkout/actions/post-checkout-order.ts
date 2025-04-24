@@ -21,25 +21,33 @@ export interface AddressPayload {
   phone?: string
 }
 
-/**
- * Envía los datos del formulario de checkout al backend
- * @param data - Datos del formulario de checkout
- * @returns Promesa con la respuesta del servidor
- */
+interface DataCart {
+  customer_id: string
+  cart_id: string
+  producVariants: Array<{
+    variant_id: string
+    quantity: number
+    original_total: number
+    unit_price: number
+  }>
+}
+
 export const postCheckoutOrder = async (
-  data: CheckoutPayload
+  data: CheckoutPayload,
+  dataCart: DataCart
 ): Promise<any> => {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/checkout/add-order`,
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/checkout/add-order`,
       {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "x-publishable-api-key": process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY!,
+          "x-publishable-api-key":
+            process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY!,
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({dataForm: data, dataCart: dataCart}),
       }
     )
 

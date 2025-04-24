@@ -8,32 +8,63 @@ import { mapKeys } from "lodash"
 import React, { useEffect, useMemo, useState } from "react"
 import AddressSelect from "../address-select"
 import CountrySelect from "../country-select"
-import { postCheckoutOrder, CheckoutPayload, AddressPayload } from "@modules/checkout/actions/post-checkout-order"
+import {
+  postCheckoutOrder,
+  CheckoutPayload,
+  AddressPayload,
+} from "@modules/checkout/actions/post-checkout-order"
+import { retrieveCustomer } from "@lib/data/customer"
+import Script from "next/script"
 
-type AddressField = 
-  | 'first_name'
-  | 'last_name'
-  | 'address_1'
-  | 'address_2'
-  | 'company'
-  | 'postal_code'
-  | 'city'
-  | 'country_code'
-  | 'province'
-  | 'phone'
+type AddressField =
+  | "first_name"
+  | "last_name"
+  | "address_1"
+  | "address_2"
+  | "company"
+  | "postal_code"
+  | "city"
+  | "country_code"
+  | "province"
+  | "phone"
+
+  interface PaymentEpayco {
+    id: string
+    cart_id: string
+    email: string
+    payment_method: string
+    total_amount: number
+    first_name: string
+    last_name: string
+    address_1: string
+    address_2: string
+    company: string
+    postal_code: string
+    city: string
+    country_code: string
+    province: string
+    phone: string
+    status_id: string
+    shipping_address_id: string
+    created_at: string
+    updated_at: string
+    deleted_at: string | null
+    orderVariants: []
+  }
+   
 
 const isAddressField = (field: string): field is AddressField => {
   return [
-    'first_name',
-    'last_name',
-    'address_1',
-    'address_2',
-    'company',
-    'postal_code',
-    'city',
-    'country_code',
-    'province',
-    'phone'
+    "first_name",
+    "last_name",
+    "address_1",
+    "address_2",
+    "company",
+    "postal_code",
+    "city",
+    "country_code",
+    "province",
+    "phone",
   ].includes(field)
 }
 
@@ -45,7 +76,8 @@ const FormTanku = ({
   cart: HttpTypes.StoreCart | null
 }) => {
   const [showPaymentMethods, setShowPaymentMethods] = useState(false)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('')
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("")
+  const [paymentEpayco, setPaymentEpayco] = useState<PaymentEpayco | null>(null)
   const [formData, setFormData] = useState<Record<string, any>>({
     "shipping_address.first_name": cart?.shipping_address?.first_name || "",
     "shipping_address.last_name": cart?.shipping_address?.last_name || "",
@@ -54,7 +86,8 @@ const FormTanku = ({
     "shipping_address.company": cart?.shipping_address?.company || "",
     "shipping_address.postal_code": cart?.shipping_address?.postal_code || "",
     "shipping_address.city": cart?.shipping_address?.city || "",
-    "shipping_address.country_code": cart?.shipping_address?.country_code || "co",
+    "shipping_address.country_code":
+      cart?.shipping_address?.country_code || "co",
     "shipping_address.province": cart?.shipping_address?.province || "",
     "shipping_address.phone": cart?.shipping_address?.phone || "",
     "billing_address.first_name": cart?.billing_address?.first_name || "",
@@ -69,7 +102,6 @@ const FormTanku = ({
     "billing_address.phone": cart?.billing_address?.phone || "",
     email: cart?.email || "",
   })
-
   const [checked, setChecked] = useState(true)
 
   const countriesInRegion = useMemo(
@@ -134,25 +166,29 @@ const FormTanku = ({
 
   const isFormValid = () => {
     const requiredFields = [
-      'shipping_address.first_name',
-      'shipping_address.last_name',
-      'shipping_address.address_1',
-      'shipping_address.postal_code',
-      'shipping_address.city',
-      'shipping_address.country_code',
-      'email'
+      "shipping_address.first_name",
+      "shipping_address.last_name",
+      "shipping_address.address_1",
+      "shipping_address.postal_code",
+      "shipping_address.city",
+      "shipping_address.country_code",
+      "email",
     ]
 
-    const billingFields = checked ? [] : [
-      'billing_address.first_name',
-      'billing_address.last_name',
-      'billing_address.address_1',
-      'billing_address.postal_code',
-      'billing_address.city',
-      'billing_address.country_code'
-    ]
+    const billingFields = checked
+      ? []
+      : [
+          "billing_address.first_name",
+          "billing_address.last_name",
+          "billing_address.address_1",
+          "billing_address.postal_code",
+          "billing_address.city",
+          "billing_address.country_code",
+        ]
 
-    return [...requiredFields, ...billingFields].every(field => formData[field] && formData[field].trim() !== '')
+    return [...requiredFields, ...billingFields].every(
+      (field) => formData[field] && formData[field].trim() !== ""
+    )
   }
 
   const handleContinue = () => {
@@ -164,9 +200,14 @@ const FormTanku = ({
   const handlePaymentMethodSelect = (method: string) => {
     setSelectedPaymentMethod(method)
   }
-
+  
   const handlePayment = async () => {
-    if (selectedPaymentMethod === 'epayco') {
+    const userCustomer = await retrieveCustomer().catch(() => null)
+    
+    if(!userCustomer) {
+      return alert("Debe iniciar sesión para realizar el pago")
+    }
+    if (selectedPaymentMethod === "epayco") {
       try {
         // Handle ePayco payment
         const payload: CheckoutPayload = {
@@ -174,26 +215,28 @@ const FormTanku = ({
           billing_address: {} as AddressPayload,
           email: formData.email,
           payment_method: selectedPaymentMethod,
-          cart_id: cart?.id
+          cart_id: cart?.id,
         }
 
         // Map shipping address fields
-        Object.keys(formData).forEach(key => {
-          if (key.startsWith('shipping_address.')) {
-            const field = key.replace('shipping_address.', '')
+        Object.keys(formData).forEach((key) => {
+          if (key.startsWith("shipping_address.")) {
+            const field = key.replace("shipping_address.", "")
             if (isAddressField(field)) {
-              payload.shipping_address[field as keyof AddressPayload] = formData[key]
+              payload.shipping_address[field as keyof AddressPayload] =
+                formData[key]
             }
           }
         })
 
         // Map billing address fields
         if (!checked) {
-          Object.keys(formData).forEach(key => {
-            if (key.startsWith('billing_address.')) {
-              const field = key.replace('billing_address.', '')
+          Object.keys(formData).forEach((key) => {
+            if (key.startsWith("billing_address.")) {
+              const field = key.replace("billing_address.", "")
               if (isAddressField(field)) {
-                payload.billing_address[field as keyof AddressPayload] = formData[key]
+                payload.billing_address[field as keyof AddressPayload] =
+                  formData[key]
               }
             }
           })
@@ -201,14 +244,29 @@ const FormTanku = ({
           payload.billing_address = { ...payload.shipping_address }
         }
 
-      
-        const response = await postCheckoutOrder(payload)
        
-        
-       
+        const producVariants = cart?.items
+          ?.filter(item => item.variant_id !== undefined)
+          .map((item) => ({
+            variant_id: item.variant_id as string, 
+            quantity: item.quantity,
+            original_total: item.original_total || 0,
+            unit_price: item.unit_price || 0,
+          }))
+
+        if (!producVariants?.length) {
+          return
+        }
+
+        const response = await postCheckoutOrder(payload, {
+          customer_id: userCustomer?.id || "",
+          cart_id: cart?.id || "",
+          producVariants: producVariants,
+        }).then((response) => {
+          setPaymentEpayco(response.order)
+        })
       } catch (error) {
         console.error("Error al procesar el pedido:", error)
-        
       }
     }
   }
@@ -298,7 +356,6 @@ const FormTanku = ({
             autoComplete="address-line2"
             value={formData["shipping_address.address_2"] || ""}
             onChange={handleChange}
-          
             data-testid="shipping-address-2-input"
           />
         </div>
@@ -311,10 +368,10 @@ const FormTanku = ({
             onChange={() => {}}
             data-testid="shipping-country-input"
           />
-          <input 
-            type="hidden" 
-            name="shipping_address.country_code" 
-            value="co" 
+          <input
+            type="hidden"
+            name="shipping_address.country_code"
+            value="co"
           />
         </div>
         <Input
@@ -355,9 +412,12 @@ const FormTanku = ({
             if (!checked) {
               // Copy shipping address to billing address
               const newFormData = { ...formData }
-              Object.keys(formData).forEach(key => {
-                if (key.startsWith('shipping_address.')) {
-                  const billingKey = key.replace('shipping_address.', 'billing_address.')
+              Object.keys(formData).forEach((key) => {
+                if (key.startsWith("shipping_address.")) {
+                  const billingKey = key.replace(
+                    "shipping_address.",
+                    "billing_address."
+                  )
                   newFormData[billingKey] = formData[key]
                 }
               })
@@ -454,10 +514,9 @@ const FormTanku = ({
         </div>
       )}
 
-
       {!showPaymentMethods ? (
         <div className="flex justify-end">
-          <Button 
+          <Button
             onClick={handleContinue}
             className="min-w-[200px]"
             disabled={!isFormValid()}
@@ -475,25 +534,48 @@ const FormTanku = ({
                 id="epayco"
                 name="payment-method"
                 value="epayco"
-                checked={selectedPaymentMethod === 'epayco'}
-                onChange={() => handlePaymentMethodSelect('epayco')}
+                checked={selectedPaymentMethod === "epayco"}
+                onChange={() => handlePaymentMethodSelect("epayco")}
                 className="h-4 w-4"
               />
-              <div  className="text-base">
-                ePayco
-              </div>
+              <div className="text-base">ePayco</div>
             </div>
             {selectedPaymentMethod && (
               <div className="flex justify-end mt-6">
-                <Button 
-                  onClick={handlePayment}
-                  className="min-w-[200px]"
-                >
-                  Proceder al Pago
+                <Button onClick={handlePayment} className="min-w-[200px]">
+                  Seleccionar metodo de pago
                 </Button>
               </div>
             )}
           </div>
+          {paymentEpayco && (
+            <div className="flex justify-end mt-6">
+              <Button>
+                <form>
+                <Script 
+                    src={"https://checkout.epayco.co/checkout.js"}
+                    // @ts-ignore
+                    class='epayco-button' 
+                    data-epayco-key={process.env.NEXT_PUBLIC_EPAYCO_KEY}
+                    data-epayco-amount={"50000"} 
+                    data-epayco-name='Orden Tanku Test' 
+                    data-epayco-description={"PAGO DE PRODUCTO TANKU"} 
+                    data-epayco-currency='cop'    
+                    data-epayco-country='co' 
+                    data-epayco-test="true"
+                    data-epayco-external="false" 
+                    data-epayco-response={"http://localhost:8000/co/checkout?step=pagado"}  
+                    data-epayco-confirmation={"http://localhost:9000/webhook/epayco"}
+                    // data-epayco-button='https://multimedia.epayco.co/dashboard/btns/btn3.png'
+                    // data-epayco-methodconfirmation="get"
+                    // data-epayco-type-doc-billing={'CC'}
+                    // data-epayco-number-doc-billing={123456789}
+                    // data-epayco-name-billing={paymentEpayco.first_name}
+                    // data-epayco-mobilephone-billing={3124567891}
+                /></form> </Button>
+              
+            </div>
+          )}
         </div>
       )}
     </div>

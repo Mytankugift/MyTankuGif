@@ -21,6 +21,9 @@ module.exports = defineConfig({
       resolve: "./src/modules/variant_inventory_tanku",
     },
     {
+      resolve: "./src/modules/order_tanku",
+    },
+    {
       resolve: "@medusajs/medusa/file",
       options: {
         providers: [
