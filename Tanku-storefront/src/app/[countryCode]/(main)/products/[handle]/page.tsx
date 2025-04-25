@@ -19,7 +19,7 @@ export async function generateStaticParams() {
     }
 
     const products = await listProducts({
-      countryCode: "US",
+      countryCode: "co",
       queryParams: { fields: "handle" },
     }).then(({ response }) => response.products)
 

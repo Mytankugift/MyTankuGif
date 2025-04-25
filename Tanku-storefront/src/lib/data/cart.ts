@@ -123,9 +123,9 @@ export async function addToCart({
   if (!variantId) {
     throw new Error("Missing variant ID when adding to cart")
   }
-
+  
   const cart = await getOrSetCart(countryCode)
-
+ 
   if (!cart) {
     throw new Error("Error retrieving or creating cart")
   }
@@ -134,24 +134,68 @@ export async function addToCart({
     ...(await getAuthHeaders()),
   }
 
-  await sdk.store.cart
-    .createLineItem(
-      cart.id,
-      {
-        variant_id: variantId,
-        quantity,
-      },
-      {},
-      headers
-    )
-    .then(async () => {
-      const cartCacheTag = await getCacheTag("carts")
-      revalidateTag(cartCacheTag)
+  await postAddLineItem(
+    variantId,
+    quantity,
+    cart.id
+  ).then(async () => {
+    const cartCacheTag = await getCacheTag("carts")
+    revalidateTag(cartCacheTag)
 
-      const fulfillmentCacheTag = await getCacheTag("fulfillment")
-      revalidateTag(fulfillmentCacheTag)
-    })
-    .catch(medusaError)
+    const fulfillmentCacheTag = await getCacheTag("fulfillment")
+    revalidateTag(fulfillmentCacheTag)
+  })
+  .catch(medusaError)
+
+  // await sdk.store.cart
+  //   .createLineItem(
+  //     cart.id,
+  //     {
+  //       variant_id: variantId,
+  //       quantity,
+  //     },
+  //     {},
+  //     headers
+  //   )
+  //   .then(async () => {
+  //     const cartCacheTag = await getCacheTag("carts")
+  //     revalidateTag(cartCacheTag)
+
+  //     const fulfillmentCacheTag = await getCacheTag("fulfillment")
+  //     revalidateTag(fulfillmentCacheTag)
+  //   })
+  //   .catch(medusaError)
+}
+
+async function postAddLineItem(variantId: string, quantity: number, cartId: string){
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/cart/add-item`,
+      {
+        method: "POST",
+        credentials: "include",
+       
+        headers: {
+          "x-publishable-api-key":
+            process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          variant_id: variantId,
+          quantity,
+          cart_id: cartId,
+        })
+      }
+    )
+
+    const result = await response.json()
+    
+    return result.product
+  } catch (error) {
+    console.error("Error al obtener los datos:", error)
+    throw error
+  }
+
 }
 
 export async function updateLineItem({

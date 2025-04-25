@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { z } from "zod";
 import { MedusaError } from "@medusajs/framework/utils";
 import { uploadFilesWorkflow } from "@medusajs/medusa/core-flows";
+import { getProductsByStoreWorkflow } from "../../../workflows/seller_product";
 import { CreateSellerProductInput, createSellerProductWorkflow } from "../../../workflows/seller_product";
 
 // Esquema para los datos del producto
@@ -23,6 +24,22 @@ const productDataSchema = z.object({
     sku: z.string().min(1, "El SKU es obligatorio")
   })),
 });
+
+export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
+  
+    const storeId = req.query.storeid as string;
+    
+    if (!storeId) {
+      res.status(400).json({ message: "El ID de la tienda es requerido" });
+      return;
+    }
+
+    const { result: products } = await getProductsByStoreWorkflow(req.scope).run({
+      input: { storeId },
+    });
+
+    res.status(200).json({ products });
+};
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
   try {

@@ -18,6 +18,12 @@ module.exports = defineConfig({
       resolve: "./src/modules/seller_request",
     },
     {
+      resolve: "./src/modules/variant_inventory_tanku",
+    },
+    {
+      resolve: "./src/modules/order_tanku",
+    },
+    {
       resolve: "@medusajs/medusa/file",
       options: {
         providers: [
