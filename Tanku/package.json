@@ -1,5 +1,5 @@
 {
-  "name": "Tanku",
+  "name": "Tanku-production",
   "version": "0.0.1",
   "description": "A starter for Medusa projects.",
   "author": "Medusa (https://medusajs.com)",
@@ -13,6 +13,7 @@
     "medusa"
   ],
   "scripts": {
+    "predeploy": "medusa db:migrate",
     "build": "medusa build",
     "seed": "medusa exec ./src/scripts/seed.ts",
     "start": "medusa start",
