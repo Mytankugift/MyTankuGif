@@ -48,10 +48,10 @@ const getProductByHandleStep = createStep(
         });
 
         // Obtener los valores de opciones para esta variante
-        const optionValues = variant.options ? variant.options.reduce<Record<string, string>>((acc, option) => {
+        const optionValues = variant.options ? variant.options.reduce((acc: Record<string, string>, option) => {
           acc[option.option_id || "option"] = option.value;
           return acc;
-        }, {}) : {};
+        }, {} as Record<string, string>) : {};
 
         return {
           ...variant,
