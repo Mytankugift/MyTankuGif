@@ -34,6 +34,7 @@ export interface formFiles {
   idFile: File | null
 }
 interface SellerRequest {
+  store:string
   id: string
   first_name: string
   last_name: string
@@ -71,6 +72,7 @@ const SellerLayout: React.FC<SellerLayoutProps> = ({ customer, children }) => {
   useEffect(() => {
     if (!customer || !customer?.id) return alert("No se encontro un usuario ")
     fetchSellerRequest(customer.id).then((res) => {
+      console.log(res)
       setIsSeller(res.dataSellerRequest)
       setStoreId(res.dataSellerRequest.store)
     })
@@ -78,7 +80,7 @@ const SellerLayout: React.FC<SellerLayoutProps> = ({ customer, children }) => {
 
   return (
     <div>
-      {isSeller && Object.entries(isSeller).length === 0 ? (
+      {isSeller && Object.entries(isSeller).length === 0  ? (
         <Request
           customer={customer}
           onSubmit={handleSubmit}
