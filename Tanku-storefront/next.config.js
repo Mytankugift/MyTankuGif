@@ -6,6 +6,15 @@ checkEnvVariables()
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  source: "/(.*)", // Aplica a todas las rutas
+  headers: [
+    {
+      key: "X-Frame-Options",
+      value: "ALLOWALL", // ¡Esto permite iframes!
+    },{
+    key: "Content-Security-Policy",
+    value: "frame-ancestors 'self' https://mytanku.com", // solo permite ser embebido desde mytanku.com
+  },],
   reactStrictMode: true,
   logging: {
     fetches: {
