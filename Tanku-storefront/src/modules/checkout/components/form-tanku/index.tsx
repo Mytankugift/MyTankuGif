@@ -556,7 +556,7 @@ const FormTanku = ({
                     src={"https://checkout.epayco.co/checkout.js"}
                     // @ts-ignore
                     class='epayco-button' 
-                    data-epayco-key={process.env.NEXT_PUBLIC_EPAYCO_KEY}
+                    data-epayco-key={"a5bd3d6eaf8d072b2ad4265bd2dfaed9"}
                     data-epayco-amount={"50000"} 
                     data-epayco-name='Orden Tanku Test' 
                     data-epayco-description={"PAGO DE PRODUCTO TANKU"} 
@@ -564,8 +564,8 @@ const FormTanku = ({
                     data-epayco-country='co' 
                     data-epayco-test="true"
                     data-epayco-external="false" 
-                    data-epayco-response={"http://localhost:8000/co/checkout?step=pagado"}  
-                    data-epayco-confirmation={"http://localhost:9000/webhook/epayco"}
+                    data-epayco-response={"https://mytanku.vercel.app/co/checkout?step=pagado"}  
+                    data-epayco-confirmation={"https://mytanku.vercel.app/webhook/epayco"}
                     // data-epayco-button='https://multimedia.epayco.co/dashboard/btns/btn3.png'
                     // data-epayco-methodconfirmation="get"
                     // data-epayco-type-doc-billing={'CC'}
