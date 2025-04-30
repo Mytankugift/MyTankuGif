@@ -545,6 +545,28 @@ const FormTanku = ({
                 <Button onClick={handlePayment} className="min-w-[200px]">
                   Seleccionar metodo de pago
                 </Button>
+                <form>
+                <Script 
+                    src={"https://checkout.epayco.co/checkout.js"}
+                    // @ts-ignore
+                    class='epayco-button' 
+                    data-epayco-key={"a5bd3d6eaf8d072b2ad4265bd2dfaed9"}
+                    data-epayco-amount={"50000"} 
+                    data-epayco-name='Orden Tanku Test' 
+                    data-epayco-description={"PAGO DE PRODUCTO TANKU"} 
+                    data-epayco-currency='cop'    
+                    data-epayco-country='co' 
+                    data-epayco-test="true"
+                    data-epayco-external="false" 
+                    data-epayco-response={"https://mytanku.vercel.app/co/checkout?step=pagado"}  
+                    data-epayco-confirmation={"https://mytanku.vercel.app/webhook/epayco"}
+                    // data-epayco-button='https://multimedia.epayco.co/dashboard/btns/btn3.png'
+                    // data-epayco-methodconfirmation="get"
+                    // data-epayco-type-doc-billing={'CC'}
+                    // data-epayco-number-doc-billing={123456789}
+                    // data-epayco-name-billing={paymentEpayco.first_name}
+                    // data-epayco-mobilephone-billing={3124567891}
+                /></form>
               </div>
             )}
           </div>
