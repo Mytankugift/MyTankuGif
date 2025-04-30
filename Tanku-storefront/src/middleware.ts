@@ -104,52 +104,56 @@ async function getCountryCode(
  * Middleware to handle region selection and onboarding status.
  */
 export async function middleware(request: NextRequest) {
-  let redirectUrl = request.nextUrl.href
+  // let redirectUrl = request.nextUrl.href
 
-  let response = NextResponse.redirect(redirectUrl, 307)
+  // let response = NextResponse.redirect(redirectUrl, 307)
 
-  let cacheIdCookie = request.cookies.get("_medusa_cache_id")
+  // let cacheIdCookie = request.cookies.get("_medusa_cache_id")
 
-  let cacheId = cacheIdCookie?.value || crypto.randomUUID()
+  // let cacheId = cacheIdCookie?.value || crypto.randomUUID()
 
-  const regionMap = await getRegionMap(cacheId)
+  // const regionMap = await getRegionMap(cacheId)
 
-  const countryCode = regionMap && (await getCountryCode(request, regionMap))
+  // const countryCode = regionMap && (await getCountryCode(request, regionMap))
 
-  const urlHasCountryCode =
-    countryCode && request.nextUrl.pathname.split("/")[1].includes(countryCode)
+  // const urlHasCountryCode =
+  //   countryCode && request.nextUrl.pathname.split("/")[1].includes(countryCode)
 
-  // if one of the country codes is in the url and the cache id is set, return next
-  if (urlHasCountryCode && cacheIdCookie) {
-    return NextResponse.next()
-  }
+  // // if one of the country codes is in the url and the cache id is set, return next
+  // if (urlHasCountryCode && cacheIdCookie) {
+  //   return NextResponse.next()
+  // }
 
-  // if one of the country codes is in the url and the cache id is not set, set the cache id and redirect
-  if (urlHasCountryCode && !cacheIdCookie) {
-    response.cookies.set("_medusa_cache_id", cacheId, {
-      maxAge: 60 * 60 * 24,
-    })
+  // // if one of the country codes is in the url and the cache id is not set, set the cache id and redirect
+  // if (urlHasCountryCode && !cacheIdCookie) {
+  //   response.cookies.set("_medusa_cache_id", cacheId, {
+  //     maxAge: 60 * 60 * 24,
+  //   })
 
-    return response
-  }
+  //   return response
+  // }
 
-  // check if the url is a static asset
-  if (request.nextUrl.pathname.includes(".")) {
-    return NextResponse.next()
-  }
+  // // check if the url is a static asset
+  // if (request.nextUrl.pathname.includes(".")) {
+  //   return NextResponse.next()
+  // }
 
-  const redirectPath =
-    request.nextUrl.pathname === "/" ? "" : request.nextUrl.pathname
+  // const redirectPath =
+  //   request.nextUrl.pathname === "/" ? "" : request.nextUrl.pathname
 
-  const queryString = request.nextUrl.search ? request.nextUrl.search : ""
+  // const queryString = request.nextUrl.search ? request.nextUrl.search : ""
 
+  // REDIRECCIÓN COMENTADA: La siguiente sección redirigía a los usuarios a URLs específicas de región
+  // Si deseas volver a activar la redirección, simplemente descomenta el código
+  /*
   // If no country code is set, we redirect to the relevant region.
   if (!urlHasCountryCode && countryCode) {
     redirectUrl = `${request.nextUrl.origin}/${countryCode}${redirectPath}${queryString}`
     response = NextResponse.redirect(`${redirectUrl}`, 307)
   }
+  */
 
-  return response
+  return 
 }
 
 export const config = {

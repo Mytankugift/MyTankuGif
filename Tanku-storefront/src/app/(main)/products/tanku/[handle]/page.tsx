@@ -7,9 +7,9 @@ type Props = {
    params: { handle: string, countryCode: string }
 }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { handle } = params
- 
-const product = await fetchTankuProduct(handle)
+  const awaitedParams = await params
+  const handle = awaitedParams.handle
+  const product = await fetchTankuProduct(handle)
 
 return {
     title: `${product.title} | Tanku`,
@@ -24,7 +24,8 @@ return {
 }
 
 export default async function ProductPage({ params }: Props) {
-  const { handle } = params
+  const awaitedParams = await params
+  const handle = awaitedParams.handle
   const pricedProduct = await fetchTankuProduct(handle)
   if (!pricedProduct.result) {
     notFound()

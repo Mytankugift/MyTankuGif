@@ -2,7 +2,8 @@
 import { TankuProduct, TankuProductVariant } from "../../../../types/global"
 import { Button } from "@medusajs/ui"
 import { addToCart } from "@lib/data/cart"
-import { useParams } from "next/navigation"
+import { useRegion } from "@lib/context/region-context" 
+
 import { useState } from "react"
 
 type ProductActionsTankuProps = {
@@ -18,7 +19,10 @@ const ProductActionsTanku: React.FC<ProductActionsTankuProps> = ({
   const [selectedVariant, setSelectedVariant] = useState<TankuProductVariant | null>(product.variants[0])
   const [isAdding, setIsAdding] = useState(false)
   const [quantity, setQuantity] = useState(1)
-  const countryCode = useParams().countryCode as string
+  const { region } = useRegion()
+
+ 
+ 
 
   // Verificar si todas las opciones han sido seleccionadas
   const allOptionsSelected = product.options.every(option => 
@@ -68,7 +72,7 @@ const ProductActionsTanku: React.FC<ProductActionsTankuProps> = ({
       await addToCart({
         variantId: selectedVariant.id,
         quantity: quantity,
-        countryCode,
+        countryCode: region?.countries?.[0]?.iso_2 || "co",
       })
     } catch (error) {
       console.error("Error adding to cart:", error)

@@ -20,7 +20,7 @@ export default async function Home(props: {
 
   const { countryCode } = params
 
-  const region = await getRegion(countryCode)
+  // const region = await getRegion(countryCode)
 
   const { collections } = await listCollections({
     fields: "id, handle, title",
@@ -28,9 +28,9 @@ export default async function Home(props: {
 
   const products = await fetchListStoreProduct()
 
-  if (!collections || !region) {
-    return null
-  }
+  // if (!collections || !region) {
+  //   return null
+  // }
 
   return (
     <>
