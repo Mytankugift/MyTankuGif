@@ -1,26 +1,20 @@
-"use client"
-
 import { Metadata } from "next"
-import { usePathname } from "next/navigation"
-
-import { listCartOptions, retrieveCart } from "@lib/data/cart"
 import { getBaseURL } from "@lib/util/env"
-import { StoreCartShippingOption } from "@medusajs/types"
 import Footer from "@modules/layout/templates/footer"
 import Nav from "@modules/layout/templates/nav"
-import FreeShippingPriceNudge from "@modules/shipping/components/free-shipping-price-nudge"
+import ConditionalLayout from "@modules/layout/components/conditional-layout"
 
-
+export const metadata: Metadata = {
+  metadataBase: new URL(getBaseURL()),
+}
 
 export default function PageLayout(props: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const hideNavAndFooter = pathname?.includes('components');
-
   return (
-    <>
-      {!hideNavAndFooter && <Nav />}
+    <ConditionalLayout
+      navComponent={<Nav />}
+      footerComponent={<Footer />}
+    >
       {props.children}
-      {!hideNavAndFooter && <Footer />}
-    </>
+    </ConditionalLayout>
   )
 }
