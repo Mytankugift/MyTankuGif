@@ -1,4 +1,7 @@
+"use client"
+
 import { Metadata } from "next"
+import { usePathname } from "next/navigation"
 
 import { listCartOptions, retrieveCart } from "@lib/data/cart"
 import { getBaseURL } from "@lib/util/env"
@@ -7,16 +10,17 @@ import Footer from "@modules/layout/templates/footer"
 import Nav from "@modules/layout/templates/nav"
 import FreeShippingPriceNudge from "@modules/shipping/components/free-shipping-price-nudge"
 
-export const metadata: Metadata = {
-  metadataBase: new URL(getBaseURL()),
-}
 
-export default async function PageLayout(props: { children: React.ReactNode }) {
+
+export default function PageLayout(props: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const hideNavAndFooter = pathname?.includes('components');
+
   return (
     <>
-      <Nav />
+      {!hideNavAndFooter && <Nav />}
       {props.children}
-      <Footer />
+      {!hideNavAndFooter && <Footer />}
     </>
   )
 }

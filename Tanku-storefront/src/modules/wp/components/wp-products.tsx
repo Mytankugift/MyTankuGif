@@ -6,12 +6,12 @@ import Image from "next/image"
 import { Product } from "@modules/seller/components/table-products"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
-interface PreviewProductsTankuProps {
+interface WPProductsTankuProps {
   products: Product[]
   isFeatured?: boolean
 }
 
-export default function PreviewProductsTanku({ products, isFeatured = false }: PreviewProductsTankuProps) {
+export default function WPProductsTanku({ products, isFeatured = false }: WPProductsTankuProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
 
@@ -45,10 +45,8 @@ export default function PreviewProductsTanku({ products, isFeatured = false }: P
 
   return (
     <div className="w-full flex flex-col items-center justify-center ">
-      {/* Título con degradado */}
-      <div className="w-full   py-3 mb-8 rounded-lg">
-        <h2 className="text-5xl font-bold text-center text-blackTanku">Productos Destacados</h2>
-      </div>
+      
+      
       
       <div className="w-full flex items-center justify-center h-[300px] relative">
         {/* Botón Anterior */}

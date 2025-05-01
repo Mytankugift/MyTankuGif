@@ -34,6 +34,10 @@ module.exports = {
           80: "#1F2937",
           90: "#111827",
         },
+        blueTanku: "#66DEDB",
+        blackTanku: "#262626",
+        greenTanku: "#73FFA2",
+        greenBlueTanku: "#3B9BC3",
       },
       borderRadius: {
         none: "0px",
