@@ -22,6 +22,10 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
+        protocol: "https",
+        hostname: "tanku-production.up.railway.app",
+      },
+      {
         protocol: "http",
         hostname: "localhost",
       },
