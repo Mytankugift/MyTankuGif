@@ -16,11 +16,11 @@ export default async function Nav() {
     <div className="sticky top-0 inset-x-0 z-50 group">
       <header className="relative h-28 px-16 py-20  duration-200 bg-blackTanku ">
         <nav className=" txt-xsmall-plus text-ui-fg-subtle flex items-center justify-between w-full h-full text-small-regular">
-          <div className="flex-1 basis-0 h-full flex items-center mx-5">
+          <div className="flex-1 basis-0 h-full flex items-center">
             <Image src="/logoTanku.png" alt="Logo" width={90} height={90} />
           </div>
 
-          <div className="flex items-center gap-x-6 h-full w-[55%] justify-start">
+          <div className="flex items-center gap-x-6 h-full w-[50%] justify-start pl-10">
             <LocalizedClientLink href="https://mytanku.com/home/home/" className="flex items-center gap-x-2 txt-compact-xlarge-plus hover:text-greenBlueTanku uppercase text-white">
               <House className=" text-2xl" color="white"  />
               HOME

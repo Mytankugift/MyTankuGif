@@ -10,7 +10,7 @@ export default async function Footer() {
           {/* Logo */}
           <div className="flex">
             <Image 
-              src="/LogoTanku.png"
+              src="/logoTanku.png"
               alt="Tanku Logo"
               width={80}
               height={45}
