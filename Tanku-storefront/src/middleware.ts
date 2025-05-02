@@ -120,7 +120,8 @@ export async function middleware(request: NextRequest) {
 
   // if one of the country codes is in the url and the cache id is set, return next
   if (cacheIdCookie) {
-    return NextResponse.next()
+    return
+    // NextResponse.next()
   }
 
   // if one of the country codes is in the url and the cache id is not set, set the cache id and redirect
@@ -133,12 +134,14 @@ export async function middleware(request: NextRequest) {
   }
 
   if (request.nextUrl.pathname.includes("/auth")) {
-    return NextResponse.next()
+     return
+     // NextResponse.next()
   }
 
   // check if the url is a static asset
   if (request.nextUrl.pathname.includes(".")) {
-    return NextResponse.next()
+     return 
+    // NextResponse.next()
   }
 
   // const redirectPath =

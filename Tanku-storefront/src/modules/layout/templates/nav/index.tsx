@@ -14,23 +14,23 @@ export default async function Nav() {
 
   return (
     <div className="sticky top-0 inset-x-0 z-50 group">
-      <header className="relative h-16 px-16 py-4  duration-200 bg-blackTanku ">
+      <header className="relative h-28 px-16 py-20  duration-200 bg-blackTanku ">
         <nav className=" txt-xsmall-plus text-ui-fg-subtle flex items-center justify-between w-full h-full text-small-regular">
           <div className="flex-1 basis-0 h-full flex items-center">
-            <Image src="/logoTanku.png" alt="Logo" width={40} height={40} />
+            <Image src="/logoTanku.png" alt="Logo" width={90} height={90} />
           </div>
 
           <div className="flex items-center gap-x-6 h-full w-[65%] justify-start">
-            <LocalizedClientLink href="/" className="flex items-center gap-x-2 txt-compact-xlarge-plus hover:text-greenBlueTanku uppercase text-white">
-              <House className="text-ui-fg-interactive " color="white" />
+            <LocalizedClientLink href="https://mytanku.com/home/home/" className="flex items-center gap-x-2 txt-compact-xlarge-plus hover:text-greenBlueTanku uppercase text-white">
+              <House className="text-ui-fg-interactive" color="white" width={24} height={24} />
               HOME
             </LocalizedClientLink>
             <LocalizedClientLink
-              href="/"
+              href="https://mytanku.com/home/activity/"
               className="flex items-center txt-compact-xlarge-plus hover:text-greenBlueTanku uppercase text-white gap-x-2"
               data-testid="nav-store-link"
             >
-              <Image src="/miniLogo.png" alt="miniLogoTanku" width={17} height={17} />
+              <Image src="/miniLogo.png" alt="miniLogoTanku" width={24} height={24} className="object-contain" />
               MY TANKU
             </LocalizedClientLink>
           
@@ -39,53 +39,53 @@ export default async function Nav() {
               className="flex items-center txt-compact-xlarge-plus hover:text-greenBlueTanku uppercase text-white gap-x-2"
               data-testid="nav-store-link"
             >
-              <Image src="/CarritoTanku.png" alt="cartLogo" width={17} height={17} />
+              <Image src="/CarritoTanku.png" alt="cartLogo" width={24} height={24} className="object-contain" />
               SORPRENDE
             </LocalizedClientLink>
             </div>
 
           {/* Buscador */}
           <div className="flex items-center justify-center mr-6">
-            <div className="relative w-full max-w-md ">
+            <div className="relative w-full max-w-xl ">
               <input
                 type="text"
                 placeholder="Buscar"
                 className="w-full bg-transparent border border-white/30 rounded-full px-4 py-2  text-white placeholder-white/50 focus:outline-none focus:border-greenBlueTanku"
               />
               <button className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <MagnifyingGlass className="text-white" />
+                <MagnifyingGlass className="text-white" width={22} height={22} />
               </button>
             </div>
           </div>
 
           {/* Iconos de la derecha */}
           <div className="flex items-center gap-x-6 h-full flex-1 basis-0 justify-end">
-            <div className="flex items-center gap-x-4 h-full">
+            <div className="flex items-center gap-x-6 h-full">
               <LocalizedClientLink
-                className="hover:text-greenBlueTanku text-white"
+                className="hover:text-greenBlueTanku text-white flex items-center justify-center"
                 href="/account"
                 data-testid="nav-account-link"
                 aria-label="Cuenta"
               >
-                <User  />
+                <User width={24} height={24} />
               </LocalizedClientLink>
               
               <LocalizedClientLink
-                className="hover:text-greenBlueTanku text-white"
+                className="hover:text-greenBlueTanku text-white flex items-center justify-center"
                 href="/wishlist"
                 data-testid="nav-wishlist-link"
                 aria-label="Lista de deseos"
               >
-                <Heart  />
+                <Heart width={24} height={24} />
               </LocalizedClientLink>
                 
               <LocalizedClientLink
-                className="hover:text-greenBlueTanku text-white"
+                className="hover:text-greenBlueTanku text-white flex items-center justify-center"
                 href="/notifications"
                 data-testid="nav-notifications-link"
                 aria-label="Notificaciones"
               >
-                <BellAlert />
+                <BellAlert width={24} height={24} />
               </LocalizedClientLink>
               <Suspense
               fallback={
@@ -104,6 +104,7 @@ export default async function Nav() {
               <Avatar 
                 src="https://mytanku.com/wp-content/themes/socialv/assets/images/redux/default-avatar.jpg"
                 fallback="M"
+                className="w-8 h-8"
               />
             </div>
 
