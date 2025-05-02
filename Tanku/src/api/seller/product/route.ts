@@ -62,7 +62,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       thumbnail = result[0].url;
       images = result.map((r) => r.url);
     }
-    console.log("llega al puinto final Body1111111:", (req.body))
+    
     // Procesar datos del producto
     const rawProductData = JSON.parse((req.body as any).productData);
    
