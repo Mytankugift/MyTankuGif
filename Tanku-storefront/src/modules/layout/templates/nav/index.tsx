@@ -20,9 +20,9 @@ export default async function Nav() {
             <Image src="/logoTanku.png" alt="Logo" width={90} height={90} />
           </div>
 
-          <div className="flex items-center gap-x-6 h-full w-[65%] justify-start">
+          <div className="flex items-center gap-x-6 h-full w-[55%] justify-start">
             <LocalizedClientLink href="https://mytanku.com/home/home/" className="flex items-center gap-x-2 txt-compact-xlarge-plus hover:text-greenBlueTanku uppercase text-white">
-              <House className="text-ui-fg-interactive" color="white" width={24} height={24} />
+              <House className=" text-2xl" color="white"  />
               HOME
             </LocalizedClientLink>
             <LocalizedClientLink
@@ -30,7 +30,7 @@ export default async function Nav() {
               className="flex items-center txt-compact-xlarge-plus hover:text-greenBlueTanku uppercase text-white gap-x-2"
               data-testid="nav-store-link"
             >
-              <Image src="/miniLogo.png" alt="miniLogoTanku" width={24} height={24} className="object-contain" />
+              <Image src="/miniLogo.png" alt="miniLogoTanku" width={30} height={30} className="object-contain" />
               MY TANKU
             </LocalizedClientLink>
           
@@ -39,13 +39,13 @@ export default async function Nav() {
               className="flex items-center txt-compact-xlarge-plus hover:text-greenBlueTanku uppercase text-white gap-x-2"
               data-testid="nav-store-link"
             >
-              <Image src="/CarritoTanku.png" alt="cartLogo" width={24} height={24} className="object-contain" />
+              <Image src="/CarritoTanku.png" alt="cartLogo" width={30} height={30} className="object-contain" />
               SORPRENDE
             </LocalizedClientLink>
             </div>
 
           {/* Buscador */}
-          <div className="flex items-center justify-center mr-6">
+          <div className="flex items-center justify-center mr-6 w-[300px]">
             <div className="relative w-full max-w-xl ">
               <input
                 type="text"
@@ -53,7 +53,7 @@ export default async function Nav() {
                 className="w-full bg-transparent border border-white/30 rounded-full px-4 py-2  text-white placeholder-white/50 focus:outline-none focus:border-greenBlueTanku"
               />
               <button className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <MagnifyingGlass className="text-white" width={22} height={22} />
+                <MagnifyingGlass className="text-white"  />
               </button>
             </div>
           </div>
@@ -62,12 +62,12 @@ export default async function Nav() {
           <div className="flex items-center gap-x-6 h-full flex-1 basis-0 justify-end">
             <div className="flex items-center gap-x-6 h-full">
               <LocalizedClientLink
-                className="hover:text-greenBlueTanku text-white flex items-center justify-center"
+                className="hover:text-greenBlueTanku text-white flex items-end justify-center"
                 href="/account"
                 data-testid="nav-account-link"
                 aria-label="Cuenta"
               >
-                <User width={24} height={24} />
+                <User width={24} height={24} className="items-end pt-2" />
               </LocalizedClientLink>
               
               <LocalizedClientLink
@@ -76,7 +76,7 @@ export default async function Nav() {
                 data-testid="nav-wishlist-link"
                 aria-label="Lista de deseos"
               >
-                <Heart width={24} height={24} />
+                <Heart width={24} height={24} className="items-end pt-2" />
               </LocalizedClientLink>
                 
               <LocalizedClientLink
@@ -85,7 +85,7 @@ export default async function Nav() {
                 data-testid="nav-notifications-link"
                 aria-label="Notificaciones"
               >
-                <BellAlert width={24} height={24} />
+                <BellAlert width={24} height={24} className="items-end pt-2" />
               </LocalizedClientLink>
               <Suspense
               fallback={
@@ -98,18 +98,14 @@ export default async function Nav() {
                 </LocalizedClientLink>
               }
             >
-              
               <CartButton />
             </Suspense>
               <Avatar 
-                src="https://mytanku.com/wp-content/themes/socialv/assets/images/redux/default-avatar.jpg"
+                src="https://lh3.googleusercontent.com/a/ACg8ocLgNl6ZNCTRJBvqwPqxI9VmI8HAYh4shSAch-ipM3OcPyGs59rc=s96-c"
                 fallback="M"
-                className="w-8 h-8"
+                className="w-8 h-8 mx-3"
               />
             </div>
-
-            
-           
           </div>
         </nav>
       </header>

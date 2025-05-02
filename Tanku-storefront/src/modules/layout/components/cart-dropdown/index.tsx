@@ -81,13 +81,14 @@ const CartDropdown = ({
       onMouseLeave={close}
     >
       <Popover className="relative h-full">
-        <PopoverButton className="h-full w-[20px] flex items-center mb-10">
+        <PopoverButton className="h-full w-[20px] flex items-center ">
           
           <LocalizedClientLink
             className="flex w-auto text-white"
             href="/cart"
             data-testid="nav-cart-link"
-          ><Image src="/CarritoTanku.png" alt="Cart" width={40} height={40} />{`(${totalItems})`}</LocalizedClientLink>
+          ><Image src="/CarritoTanku.png" alt="Cart" width={40} height={40} />{`(${totalItems})`}
+          </LocalizedClientLink>
         </PopoverButton>
         <Transition
           show={cartDropdownOpen}
