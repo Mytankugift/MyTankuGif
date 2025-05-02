@@ -104,44 +104,39 @@ async function getCountryCode(
  * Middleware to handle region selection and onboarding status.
  */
 export async function middleware(request: NextRequest) {
-  let redirectUrl = request.nextUrl.href
-
-  let response = NextResponse.redirect(redirectUrl, 307)
+  // Detectar si la solicitud proviene de un iframe
+  if (request.headers.get("sec-fetch-dest") === "iframe") {
+    return NextResponse.next()
+  }
 
   let cacheIdCookie = request.cookies.get("_medusa_cache_id")
-
   let cacheId = cacheIdCookie?.value || crypto.randomUUID()
 
   const regionMap = await getRegionMap(cacheId)
-
   const countryCode = regionMap && (await getCountryCode(request, regionMap))
 
-
-
-  // if one of the country codes is in the url and the cache id is set, return next
+  // Si ya tenemos la cookie, simplemente continuar
   if (cacheIdCookie) {
-    return
-    // NextResponse.next()
+    return NextResponse.next()
   }
 
-  // if one of the country codes is in the url and the cache id is not set, set the cache id and redirect
+  // Si no tenemos cookie, configurarla y redirigir una sola vez
   if (!cacheIdCookie) {
-    response.cookies.set("_medusa_cache_id", cacheId, {
+    const redirectResponse = NextResponse.redirect(request.nextUrl.href, 307)
+    redirectResponse.cookies.set("_medusa_cache_id", cacheId, {
       maxAge: 60 * 60 * 24,
     })
-
-    return response
+    return redirectResponse
   }
 
+  // Rutas especiales
   if (request.nextUrl.pathname.includes("/auth")) {
-     return
-     // NextResponse.next()
+    return NextResponse.next()
   }
 
-  // check if the url is a static asset
+  // Archivos estáticos
   if (request.nextUrl.pathname.includes(".")) {
-     return 
-    // NextResponse.next()
+    return NextResponse.next()
   }
 
   // const redirectPath =
@@ -158,7 +153,8 @@ export async function middleware(request: NextRequest) {
   //   response = NextResponse.redirect(`${redirectUrl}`, 307)
   // }
 
-  return response
+  // Respuesta por defecto si no se activó ninguna condición anterior
+  return NextResponse.next()
 }
 
 export const config = {
