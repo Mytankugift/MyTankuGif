@@ -23,6 +23,10 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "tankubucket.s3.us-east-2.amazonaws.com",
+      },
+      {
+        protocol: "https",
         hostname: "tanku-production.up.railway.app",
       },
       {
