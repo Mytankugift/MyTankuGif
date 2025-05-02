@@ -16,7 +16,7 @@ export default async function Nav() {
     <div className="sticky top-0 inset-x-0 z-50 group">
       <header className="relative h-28 px-16 py-20  duration-200 bg-blackTanku ">
         <nav className=" txt-xsmall-plus text-ui-fg-subtle flex items-center justify-between w-full h-full text-small-regular">
-          <div className="flex-1 basis-0 h-full flex items-center">
+          <div className="flex-1 basis-0 h-full flex items-center mx-5">
             <Image src="/logoTanku.png" alt="Logo" width={90} height={90} />
           </div>
 
