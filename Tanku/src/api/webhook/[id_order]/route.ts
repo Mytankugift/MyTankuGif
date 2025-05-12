@@ -1,7 +1,7 @@
 // src/api/ruta/[id]/route.ts
 
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
-import { updateOrderEpaycoWebhookWorkflow } from "../../../../workflows/epayco_webhook";
+import { updateOrderEpaycoWebhookWorkflow } from "../../../workflows/epayco_webhook";
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     try {

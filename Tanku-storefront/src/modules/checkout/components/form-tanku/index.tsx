@@ -277,6 +277,7 @@ const FormTanku = ({
           cart_id: cart?.id || "",
           producVariants: producVariants,
         }).then((response) => {
+          console.log("response",response.order)
           setPaymentEpayco(response.order)
         })
       } catch (error) {
