@@ -16,6 +16,19 @@ import {
 import { retrieveCustomer } from "@lib/data/customer"
 import Script from "next/script"
 
+// Declaración para TypeScript para el objeto ePayco en window
+declare global {
+  interface Window {
+    ePayco?: {
+      checkout: {
+        configure: (config: any) => {
+          open: (options: any) => void
+        }
+      }
+    }
+  }
+}
+
 type AddressField =
   | "first_name"
   | "last_name"
@@ -552,75 +565,80 @@ const FormTanku = ({
           </div>
           {paymentEpayco && (
             <>
-              {/* Script ePayco cargado fuera del flujo visual */}
-              <div className="hidden" id="epayco-button-container">
-                <Script 
-                  src={"https://checkout.epayco.co/checkout.js"}
-                  // @ts-ignore
-                  class='epayco-button' 
-                  data-epayco-key={"a5bd3d6eaf8d072b2ad4265bd2dfaed9"}
-                  data-epayco-amount={paymentEpayco.total_amount} 
-                  data-epayco-name='Orden Tanku Test' 
-                  data-epayco-description={"Pasarela de pago Tanku"} 
-                  data-epayco-currency='cop'    
-                  data-epayco-country='co' 
-                  data-epayco-test="true"
-                  data-epayco-external="false" 
-                  data-epayco-response={"https://mytanku.vercel.app/co/checkout?step=pagado"}  
-                  data-epayco-confirmation={"https://mytanku.vercel.app/webhook/epayco"}
-                  data-epayco-button='https://multimedia.epayco.co/dashboard/btns/btn3.png'
-                  data-epayco-name-billing={paymentEpayco.first_name}
-                  data-epayco-mobilephone-billing={paymentEpayco.phone}
-                  onLoad={() => {
-                    // Marcar que el botón de ePayco ha sido cargado
-                    setEPaycoButtonLoaded(true);
-                  }}
-                />
-              </div>
+              {/* Cargamos el script de ePayco oculto cuando el componente se monta */}
+              <Script 
+                id="epayco-script"
+                src="https://checkout.epayco.co/checkout.js"
+                strategy="afterInteractive"
+              />
               
-              {/* Botón personalizado visible para el usuario */}
-              <div className="flex justify-end mt-6">
-                <Button 
-                  className="bg-green-600 hover:bg-green-700 text-white p-4 flex items-center justify-center gap-2"
-                  onClick={() => {
-                    // Encontrar el botón generado por ePayco y simular un clic
-                    const ePaycoButton = document.querySelector('.epayco-button');
-                    if (ePaycoButton) {
-                      (ePaycoButton as HTMLElement).click();
-                    } else {
-                      console.error('No se pudo encontrar el botón de ePayco');
-                    }
-                  }}
-                >
-                  <span>Pagar con ePayco <div className="hidden" id="epayco-button-container">
-                <Script 
-                  src={"https://checkout.epayco.co/checkout.js"}
-                  // @ts-ignore
-                  class='epayco-button' 
-                  data-epayco-key={"a5bd3d6eaf8d072b2ad4265bd2dfaed9"}
-                  data-epayco-amount={paymentEpayco.total_amount} 
-                  data-epayco-name='Orden Tanku Test' 
-                  data-epayco-description={"Pasarela de pago Tanku"} 
-                  data-epayco-currency='cop'    
-                  data-epayco-country='co' 
-                  data-epayco-test="true"
-                  data-epayco-external="false" 
-                  data-epayco-response={"https://mytanku.vercel.app/co/checkout?step=pagado"}  
-                  data-epayco-confirmation={"https://mytanku.vercel.app/webhook/epayco"}
-                  data-epayco-button='https://multimedia.epayco.co/dashboard/btns/btn3.png'
-                  data-epayco-name-billing={paymentEpayco.first_name}
-                  data-epayco-mobilephone-billing={paymentEpayco.phone}
-                  onLoad={() => {
-                    // Marcar que el botón de ePayco ha sido cargado
-                    setEPaycoButtonLoaded(true);
-                  }}
-                />
-              </div></span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect width="20" height="14" x="2" y="5" rx="2" />
-                    <line x1="2" x2="22" y1="10" y2="10" />
-                  </svg>
-                </Button>
+              <div className="mt-6">
+                <form id="epayco-payment-form">
+                  <div className="mb-4">
+                    <label htmlFor="epayco-payment" className="block text-sm font-medium text-gray-700 mb-2">
+                      Pago con ePayco
+                    </label>
+                    <p className="text-sm text-gray-500 mb-4">Haga clic en el botón a continuación para proceder con el pago seguro a través de ePayco.</p>
+                    
+                    {/* Botón visible para el usuario */}
+                    <div className="flex justify-end">
+                      <Button 
+                        type="button"
+                        id="epayco-custom-button"
+                        className="bg-green-600 hover:bg-green-700 text-white p-4 flex items-center justify-center gap-2"
+                        onClick={() => {
+                          // Verificar si ePayco está cargado
+                          if (typeof window.ePayco === 'undefined') {
+                            console.error('ePayco no está cargado correctamente');
+                            alert('Error al cargar el sistema de pago. Por favor, intente nuevamente.');
+                            return;
+                          }
+                          
+                          try {
+                            // Crear y configurar el botón de ePayco de forma oculta
+                            const container = document.createElement('div');
+                            container.style.display = 'none';
+                            container.id = 'epayco-container';
+                            document.body.appendChild(container);
+                            
+                            // Crear el botón de ePayco
+                            const handler = window.ePayco?.checkout.configure({
+                              key: 'a5bd3d6eaf8d072b2ad4265bd2dfaed9',
+                              test: true
+                            });
+                            
+                            if (!handler) {
+                              throw new Error('No se pudo configurar el checkout de ePayco');
+                            }
+                            
+                            // Abrir el checkout de ePayco
+                            handler.open({
+                              amount: paymentEpayco.total_amount,
+                              name: 'Orden Tanku Test',
+                              description: 'Pasarela de pago Tanku',
+                              currency: 'cop',
+                              country: 'co',
+                              external: false,
+                              response: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout?step=pagado`,
+                              confirmation: `${process.env.NEXT_PUBLIC_MEDUSA_WEBHOOK_URL}/${paymentEpayco.id}`,
+                              name_billing: paymentEpayco.first_name,
+                              mobilephone_billing: paymentEpayco.phone
+                            });
+                          } catch (error) {
+                            console.error('Error al iniciar el pago con ePayco:', error);
+                            alert('Error al iniciar el pago. Por favor, intente nuevamente.');
+                          }
+                        }}
+                      >
+                        <span>Pagar con ePayco</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect width="20" height="14" x="2" y="5" rx="2" />
+                          <line x1="2" x2="22" y1="10" y2="10" />
+                        </svg>
+                      </Button>
+                    </div>
+                  </div>
+                </form>
               </div>
             </>
           )}

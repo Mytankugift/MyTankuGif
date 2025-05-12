@@ -1,11 +1,7 @@
 "use client"
 import { HttpTypes } from "@medusajs/types"
 import dynamic from "next/dynamic"
-
-const FormTanku = dynamic(
-  () => import("@modules/checkout/components/form-tanku"),
-  { ssr: false }
-)
+import FormTanku from "@modules/checkout/components/form-tanku"
 
 export default function CheckoutForm({
   cart,

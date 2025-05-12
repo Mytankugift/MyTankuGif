@@ -54,7 +54,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       country_code: dataForm.shipping_address.country_code || "",
       province: dataForm.shipping_address.province || "",
       phone: dataForm.shipping_address.phone || "",
-      status_id: "status_pending_id"
+      status_id: "pending_status_id"
     };
     
     const { result: order } = await createOrderTankuWorkflow(req.scope).run({
