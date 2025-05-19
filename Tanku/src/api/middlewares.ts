@@ -1,4 +1,5 @@
 import {
+  authenticate,
   defineMiddlewares,
   MedusaNextFunction,
   MedusaRequest,
@@ -25,6 +26,24 @@ const multerMiddleware = (multerHandler) => {
 
 export default defineMiddlewares({
   routes: [
+    {
+      matcher: "/account*",
+      middlewares: [
+        (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) => {
+          const configModule: ConfigModule = req.scope.resolve("configModule");
+          return cors({
+            origin: parseCorsOrigins(configModule.projectConfig.http.storeCors),
+            credentials: true,
+            methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+          })(req, res, next);
+        },
+        (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) => {
+          console.log("Middleware de account ejecutado");
+          next();
+        },
+      ],
+    },
     {
       matcher: "/seller*",
       middlewares: [

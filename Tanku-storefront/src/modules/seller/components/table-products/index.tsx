@@ -12,7 +12,8 @@ import {
 import { 
   ArrowDownTray, 
   ArrowUpTray,
-  Plus
+  Plus,
+  PencilSquare
 } from "@medusajs/icons"
 import { CreateProductModal } from "../create-product-modal"
 import { fetchSellerProduct } from "../../actions/get-seller-products"
@@ -20,6 +21,7 @@ import { useStoreTanku } from "@lib/context/store-context"
 import Spinner from "@modules/common/icons/spinner"
 import Image from "next/image"
 import ViewProductModal from "../view-product-modal"
+import EditProductModal from "../edit-product-modal"
 
 export interface Inventory {
   id: string
@@ -39,6 +41,7 @@ export interface ProductVariant {
   created_at: string
   updated_at: string
   inventory: Inventory
+  mla_id?: string
 }
 
 export interface Product {
@@ -53,10 +56,10 @@ export interface Product {
   updated_at: string
 }
 
-
 const TableProducts = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [viewModalOpen, setViewModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [products, setProducts] = useState<Product[]>([])
 
@@ -66,7 +69,6 @@ const TableProducts = () => {
     const response = await fetchSellerProduct(storeId)
     setProducts(response)
   }
-
 
   useEffect(() => {
     fetchProducts()
@@ -140,16 +142,29 @@ const TableProducts = () => {
                   </Badge>
                 </Table.Cell>
                 <Table.Cell>
-                  <Button 
-                    variant="transparent" 
-                    size="small"
-                    onClick={() => {
-                      setSelectedProduct(product)
-                      setViewModalOpen(true)
-                    }}
-                  >
-                    Ver
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="transparent" 
+                      size="small"
+                      onClick={() => {
+                        setSelectedProduct(product)
+                        setViewModalOpen(true)
+                      }}
+                    >
+                      Ver
+                    </Button>
+                    <Button 
+                      variant="transparent" 
+                      size="small"
+                      onClick={() => {
+                        setSelectedProduct(product)
+                        setEditModalOpen(true)
+                      }}
+                    >
+                      <PencilSquare className="mr-1" />
+                      Editar
+                    </Button>
+                  </div>
                 </Table.Cell>
               </Table.Row>
             ))
@@ -166,6 +181,7 @@ const TableProducts = () => {
       </Table>
       <CreateProductModal open={createModalOpen} setOpen={setCreateModalOpen} fetchProducts={fetchProducts} />
       <ViewProductModal product={selectedProduct} open={viewModalOpen} setOpen={setViewModalOpen} />
+      <EditProductModal product={selectedProduct} open={editModalOpen} setOpen={setEditModalOpen} fetchProducts={fetchProducts} />
     </Container>
   )
 }

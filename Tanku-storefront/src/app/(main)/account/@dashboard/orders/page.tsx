@@ -1,37 +1,18 @@
 import { Metadata } from "next"
-
-import OrderOverview from "@modules/account/components/order-overview"
-import { notFound } from "next/navigation"
-import { listOrders } from "@lib/data/orders"
-import Divider from "@modules/common/components/divider"
-import TransferRequestForm from "@modules/account/components/transfer-request-form"
+import TableOrders from "@modules/account/components/orders-table-tanku"
 
 export const metadata: Metadata = {
-  title: "Orders",
-  description: "Overview of your previous orders.",
+  title: "Órdenes",
+  description: "Historial de tus órdenes",
 }
 
 export default async function Orders() {
-  const orders = await listOrders()
-
-  if (!orders) {
-    notFound()
-  }
-
   return (
-    <div className="w-full" data-testid="orders-page-wrapper">
-      <div className="mb-8 flex flex-col gap-y-4">
-        <h1 className="text-2xl-semi">Orders</h1>
-        <p className="text-base-regular">
-          View your previous orders and their status. You can also create
-          returns or exchanges for your orders if needed.
-        </p>
-      </div>
-      <div>
-        <OrderOverview orders={orders} />
-        <Divider className="my-16" />
-        <TransferRequestForm />
-      </div>
+    <div className="w-full space-y-6">
+      <h2 className="text-2xl font-bold">Mis Órdenes</h2>
+      <p className="text-gray-600">Consulta el estado de tus pedidos y su historial</p>
+      
+      <TableOrders/>
     </div>
   )
 }
