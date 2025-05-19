@@ -25,7 +25,7 @@ export default function WordPressAuthPage() {
     
     try {
       // Realizar la petición al endpoint de WordPress
-      const response = await fetch('/api/wordpress/auth', {
+      const response = await fetch('https://mytanku.com/wp-json/custom-auth/v1/get-token', {
         method: 'GET',
         credentials: 'include', // Importante para que envíe cookies de sesión
         headers: {
