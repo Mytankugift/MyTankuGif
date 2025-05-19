@@ -17,6 +17,34 @@ export default function WordPressAuthPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   /**
+   * Función para obtener un token JWT
+   */
+  const getJwtToken = async () => {
+    try {
+      const response = await fetch('https://mytanku.com/wp-json/custom-auth/v1/jwt-token', {
+        method: 'POST',
+        credentials: 'include', // Asegura que envía las cookies de sesión
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({}) // Cuerpo vacío para la solicitud POST
+      });
+
+      const data = await response.json();
+
+      if (data.token) {
+        console.log('Token JWT recibido:', data.token);
+        return data.token;
+      } else {
+        throw new Error('No se recibió un token JWT válido');
+      }
+    } catch (error) {
+      console.error('Error obteniendo el token JWT:', error);
+      throw error;
+    }
+  };
+
+  /**
    * Función para obtener el token de autenticación
    */
   const getAuthToken = async () => {
@@ -24,12 +52,34 @@ export default function WordPressAuthPage() {
     setResponse(null);
     
     try {
-      // Realizar la petición al endpoint de WordPress
+      // Primero obtenemos el token JWT
+      let jwtToken;
+      try {
+        jwtToken = await getJwtToken();
+      } catch (jwtError) {
+        // Capturar y mostrar errores específicos de JWT
+        console.error('Error al obtener el token JWT:', jwtError);
+        setResponse({
+          success: false,
+          message: jwtError instanceof Error ? 
+            `Error de JWT: ${jwtError.message}` : 
+            'Error desconocido al obtener el token JWT',
+          data: {
+            jwtError: true,
+            details: jwtError
+          }
+        });
+        setIsLoading(false);
+        return; // Detener la ejecución si hay un error de JWT
+      }
+      
+      // Realizar la petición al endpoint de WordPress con el token JWT
       const response = await fetch('https://mytanku.com/wp-json/custom-auth/v1/get-token', {
         method: 'GET',
         credentials: 'include', // Importante para que envíe cookies de sesión
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwtToken}` // Incluir el token JWT en el encabezado
         }
       });
 
@@ -52,11 +102,11 @@ export default function WordPressAuthPage() {
         });
       }
     } catch (error) {
-      // Manejar errores
-      console.error('Error obteniendo el token:', error);
+      // Manejar errores generales
+      console.error('Error en el proceso de autenticación:', error);
       setResponse({
         success: false,
-        message: error instanceof Error ? error.message : 'Error desconocido al obtener el token',
+        message: error instanceof Error ? error.message : 'Error desconocido en el proceso de autenticación',
         data: error
       });
     } finally {
