@@ -15,6 +15,9 @@ module.exports = defineConfig({
   },
   modules: [
     {
+      resolve: "./src/modules/auth-wordpress",
+    },
+    {
       resolve: "./src/modules/seller_request",
     },
     {
