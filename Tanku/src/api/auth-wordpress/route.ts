@@ -8,6 +8,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         if (!token) {
             return res.status(400).json({ message: "Token es requerido" });
         }
+        console.log("Token recibido:", token);
+
+        res.status(222).json({ message: "Token recibido correctamente", token });
         
     } catch (error) {
         console.error("Error al obtener los datos:", error)
