@@ -18,7 +18,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             message: "An error occurred while processing your request",
             error: error.message,
         });
-        throw error
     }
 
 }
