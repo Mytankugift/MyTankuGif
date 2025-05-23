@@ -28,9 +28,11 @@ const checkRegistrationStep = createStep<checkRegistrationInput, RegistrationRes
     const authModuleService = container.resolve(Modules.AUTH);
 
     // Buscar el customer por email
-    const retrieverCustomer = await moduleCustomer.retrieveCustomer(email);
+    const retrieverCustomer = await moduleCustomer.listCustomers();
 
-    if (retrieverCustomer) {
+    const customer = retrieverCustomer.find((customer) => customer.email === email);
+
+    if (customer) {
       // Si existe, autenticar usando email y token como contraseña
       const { success, authIdentity, error } =
         await authModuleService.authenticate("emailpass", {
@@ -43,7 +45,7 @@ const checkRegistrationStep = createStep<checkRegistrationInput, RegistrationRes
         throw new Error(error || "No se pudo autenticar el usuario existente");
       }
       console.log("Customer autenticado:", authIdentity)
-      return new StepResponse({ customer: retrieverCustomer, authIdentity });
+      return new StepResponse({ customer: customer, authIdentity });
     } else {
         // Registrar la identidad
         const { success, authIdentity, error } = await authModuleService.register(
