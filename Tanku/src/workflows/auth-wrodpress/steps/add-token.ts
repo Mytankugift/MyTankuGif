@@ -20,7 +20,7 @@ function decodeWordpressToken(token: string): { id_customer_wordpress: string, e
         const secretKey = "T@nKu$3cr3tK3y-32CH4RS-L0nG!2024";
         
         const decoded = jwt.verify(token, secretKey) as DecodedToken;
-        
+        console.log("datos del token:", decoded);
         return {
             id_customer_wordpress: decoded.uid.toString(),
             email: decoded.eml
