@@ -1,10 +1,10 @@
 "use client"
-
 import { Text, Button, clx } from "@medusajs/ui"
 import { useState } from "react"
 import Image from "next/image"
 import { Product } from "@modules/seller/components/table-products"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import WishListDropdown from "@modules/home/components/wish-list"
 
 interface PreviewProductsTankuProps {
   products: Product[]
@@ -12,6 +12,7 @@ interface PreviewProductsTankuProps {
 }
 
 export default function PreviewProductsTanku({ products, isFeatured = false }: PreviewProductsTankuProps) {
+  
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
 
@@ -110,15 +111,17 @@ export default function PreviewProductsTanku({ products, isFeatured = false }: P
               }
             </Text>
           )}
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-3">
             <LocalizedClientLink 
               href={`/products/tanku/${products[currentIndex]?.handle}`} 
               className="inline-block"
             >
-              <button  className="bg-blueTanku hover:bg-blueTanku/90 text-white text-xl px-4 py-2 rounded-lg">
+              <button className="bg-blueTanku hover:bg-blueTanku/90 text-white text-xl px-4 py-2 rounded-lg">
                 Comprar Ahora
               </button>
             </LocalizedClientLink>
+            {}
+            <WishListDropdown productId={products[currentIndex]?.id} />
           </div>
         </div>
       </div>

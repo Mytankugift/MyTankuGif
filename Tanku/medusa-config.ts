@@ -27,6 +27,9 @@ module.exports = defineConfig({
       resolve: "./src/modules/order_tanku",
     },
     {
+      resolve: "./src/modules/wish_list",
+    },
+    {
       resolve: "@medusajs/medusa/file",
       options: {
         providers: [

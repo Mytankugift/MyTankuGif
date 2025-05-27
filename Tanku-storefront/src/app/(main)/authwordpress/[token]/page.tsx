@@ -19,17 +19,20 @@ export const metadata: Metadata = {
 
 export default async function AuthWordpressPage(props: Props) {
   const {token} = await props.params
-const customer = await retrieveCustomer().catch(() => null)
+  const customer = await retrieveCustomer().catch(() => null)
 
-if (customer) {
-  return (<>
-    <h1>Ya estas logueado</h1>
-    </>)
-    
-}else 
-  return (
-    <>
-    <LoginWPTemplate token={token} />
-    </>
-  )
+  if (customer) {
+    return (
+      <>
+        <h1>Ya estás logueado</h1>
+      </>
+    )
+  } else {
+    return (
+      <>
+        <LoginWPTemplate token={token} />
+        
+      </>
+    )
+  }
 }
