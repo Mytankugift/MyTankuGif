@@ -1,10 +1,11 @@
 "use client"
 import { Text, Button, clx } from "@medusajs/ui"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Product } from "@modules/seller/components/table-products"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import WishListDropdown from "@modules/home/components/wish-list"
+import { retrieveCustomer } from "@lib/data/customer"
 
 interface PreviewProductsTankuProps {
   products: Product[]
@@ -15,6 +16,16 @@ export default function PreviewProductsTanku({ products, isFeatured = false }: P
   
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  
+  useEffect(() => {
+    const checkAuth = async () => {
+      const customer = await retrieveCustomer().catch(() => null)
+      setIsAuthenticated(!!customer)
+    }
+    
+    checkAuth()
+  }, [])
 
   if (!products || products.length === 0) {
     return null
@@ -120,8 +131,9 @@ export default function PreviewProductsTanku({ products, isFeatured = false }: P
                 Comprar Ahora
               </button>
             </LocalizedClientLink>
-            {}
-            <WishListDropdown productId={products[currentIndex]?.id} />
+            {isAuthenticated && (
+              <WishListDropdown productId={products[currentIndex]?.id} />
+            )}
           </div>
         </div>
       </div>

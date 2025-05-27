@@ -4,6 +4,7 @@ import { Modules } from "@medusajs/framework/utils";
 import { WISH_LIST_MODULE } from "../../modules/wish_list";
 import { createRemoteLinkStep, dismissRemoteLinkStep } from "@medusajs/medusa/core-flows";
 import getListWishListStep from "./steps/get-list-wish-list";
+import deleteWishListStep from "./steps/delete-wish-list";
 
 type CreateWishListInput = {
   customerId: string;
@@ -58,6 +59,13 @@ export const deleteProductToWishListWorkflow = createWorkflow(
         },
       ])
     return new WorkflowResponse(remoteLink)
+  }
+);  
+
+export const deleteWishListWorkflow = createWorkflow(
+  "delete-wish-list", ( input: {list_id: string}) => {
+    const wishList = deleteWishListStep({list_id: input.list_id})
+    return new WorkflowResponse(wishList)
   }
 );
 

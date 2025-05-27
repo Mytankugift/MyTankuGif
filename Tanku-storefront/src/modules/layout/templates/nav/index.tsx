@@ -100,11 +100,16 @@ export default async function Nav() {
             >
               <CartButton />
             </Suspense>
-              <Avatar 
-                src="https://lh3.googleusercontent.com/a/ACg8ocLgNl6ZNCTRJBvqwPqxI9VmI8HAYh4shSAch-ipM3OcPyGs59rc=s96-c"
-                fallback="M"
-                className="w-8 h-8 mx-3"
-              />
+              <LocalizedClientLink
+                href="/account"
+                className="flex items-center justify-center"
+                data-testid="nav-user-avatar-link"
+                aria-label="Mi cuenta"
+              >
+                <div className="w-8 h-8 mx-3 bg-white rounded-full flex items-center justify-center hover:bg-greenBlueTanku hover:text-white transition-colors">
+                  <User width={15} height={15} />
+                </div>
+              </LocalizedClientLink>
             </div>
           </div>
         </nav>

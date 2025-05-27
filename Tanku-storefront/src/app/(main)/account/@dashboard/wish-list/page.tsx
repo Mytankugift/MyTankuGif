@@ -5,6 +5,7 @@ import { Text, Heading, Button } from "@medusajs/ui"
 import { retrieveCustomer } from "@lib/data/customer"
 import { getListWishList } from "@modules/home/components/actions/get-list-wish-list"
 import { deleteProductToWishList } from "@modules/home/components/actions/delete-product-to-wish_list"
+import {deleteWishList} from "@modules/account/actionts/delete-wish-list"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -124,15 +125,23 @@ export default function WishListPage() {
   }
 
   // Function to delete a wish list
-  const deleteWishList = async (wishListId: string) => {
+  const handleDeleteWishList = async (wishListId: string) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar esta lista de deseos?')) {
+      return
+    }
+    
     try {
-      // API call to delete wish list would go here
-      console.log(`Deleting wish list ${wishListId}`)
+      // Llamar a la API para eliminar la lista de deseos
+      await deleteWishList({ wishListId })
       
-      // Update local state
+      // Actualizar el estado local eliminando la lista
       setWishLists(prevLists => prevLists.filter(list => list.id !== wishListId))
+      
+      // Mostrar mensaje de éxito (opcional)
+      console.log(`Lista de deseos ${wishListId} eliminada correctamente`)
     } catch (err) {
-      console.error("Error deleting wish list:", err)
+      console.error("Error al eliminar la lista de deseos:", err)
+      // Aquí podrías mostrar un mensaje de error al usuario
     }
   }
 
@@ -207,7 +216,7 @@ export default function WishListPage() {
                   </Text>
                   <Button 
                     variant="secondary" 
-                    onClick={() => deleteWishList(list.id)}
+                    onClick={() => handleDeleteWishList(list.id)}
                     className="text-red-500 hover:bg-red-50"
                   >
                     Eliminar lista

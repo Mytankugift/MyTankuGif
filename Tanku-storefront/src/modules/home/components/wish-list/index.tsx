@@ -49,7 +49,7 @@ const WishListDropdown = ({ productId }: WishListDropdownProps) => {
   const [newListTitle, setNewListTitle] = useState("")
   const [isPublic, setIsPublic] = useState(false)
   const [productInLists, setProductInLists] = useState<Record<string, boolean>>({})
-  
+  console.log("productIddddd", productId)
   // Example wish lists
   const [wishLists, setWishLists] = useState<WishList[]>([
     { id: "1", title: "Favoritos", selected: false, state_id: "PUBLIC_ID" },
@@ -59,7 +59,7 @@ const WishListDropdown = ({ productId }: WishListDropdownProps) => {
 
 
   // Function to check if product is in each wish list
-  const checkProductInWishLists = () => {
+  const checkProductInWishLists = (currentWishLists: WishList[] = wishLists) => {
     if (!productId) return
     
     try {
@@ -67,27 +67,25 @@ const WishListDropdown = ({ productId }: WishListDropdownProps) => {
       const productLists: Record<string, boolean> = {}
       
       // Check each wishlist to see if it contains the current product
-      wishLists.forEach((list: WishList) => {
+      currentWishLists.forEach((list: WishList) => {
         // Check if this list has products and if the current product is in the list
         const hasProduct = list.products?.some((product) => product.id === productId) || false
         productLists[list.id] = hasProduct
-        
-        // Also update the selected state in the wishlist object
-        list.selected = hasProduct
       })
       
       // Update the productInLists state with the new mapping
       setProductInLists(productLists)
       
       // Update the wishLists state to reflect the selected status
-      setWishLists(prevLists =>
-        prevLists.map(list => ({
-          ...list,
-          selected: productLists[list.id] || false
-        }))
-      )
+      setWishLists(currentWishLists.map(list => ({
+        ...list,
+        selected: productLists[list.id] || false
+      })))
+
+      return productLists
     } catch (error) {
       console.error("Error checking product in wish lists:", error)
+      return {}
     }
   }
 
@@ -113,11 +111,9 @@ const WishListDropdown = ({ productId }: WishListDropdownProps) => {
         selected: false // Initialize all as unselected
       }))
       
-      setWishLists(processedWishLists)
-      
-      // After retrieving wish lists, check which ones contain the current product
-      // We need to do this in a callback to ensure we're using the latest wishLists state
-      setTimeout(() => checkProductInWishLists(), 0)
+      // Check which lists contain the current product and update selected status
+      // directly with the retrieved data, without waiting for state updates
+      checkProductInWishLists(processedWishLists)
     } catch (error) {
       console.error("Error retrieving wish lists:", error)
     }
@@ -125,7 +121,14 @@ const WishListDropdown = ({ productId }: WishListDropdownProps) => {
 
   useEffect(() => {
     handlerRetriverWishList()
-  }, [])
+  }, [])  // Initial load
+  
+  // Re-check when productId changes
+  useEffect(() => {
+    if (productId && wishLists.length > 0) {
+      checkProductInWishLists()
+    }
+  }, [productId])
   
   // When productId changes, check if it's in any wish lists
   useEffect(() => {
@@ -203,32 +206,36 @@ const WishListDropdown = ({ productId }: WishListDropdownProps) => {
   }
 
   const handleAddNewList = async () => {
-    const customer = await retrieveCustomer().catch(() => null)
-    if (newListTitle.trim()) {
-      try {
-        // Call the API to create the wish list
-        await postAddWishList({
-          title: newListTitle,
-          isPublic: isPublic,
-          customerId: customer?.id || ""
-        })
-        
-        // Add to local state
-        const newList: WishList = {
-          id: "",
-          title: newListTitle,
-          selected: false,
-          state_id: isPublic ? "PUBLIC_ID" : "PRIVATE_ID"
-        }
-        setWishLists(prev => [...prev, newList])
-        
-        // Reset form
-        setNewListTitle("")
-        setIsPublic(false)
-        setShowAddNewForm(false)
-      } catch (error) {
-        console.error("Error creating wish list:", error)
+    if (!newListTitle.trim()) {
+      // Mostrar error o mensaje si el título está vacío
+      return
+    }
+
+    try {
+      const customer = await retrieveCustomer().catch(() => null)
+      if (!customer) {
+        console.error("No se pudo obtener el cliente")
+        return
       }
+
+      // Crear nueva lista
+      await postAddWishList({
+        title: newListTitle,
+        isPublic: !isPublic, // Invertimos el valor ya que ahora el switch es para privado
+        customerId: customer.id
+      })
+
+      // Limpiar el formulario y cerrar
+      setNewListTitle("")
+      setIsPublic(false)
+      setShowAddNewForm(false)
+
+      // Volver a cargar todas las listas desde el servidor para mostrar la actualización
+      await handlerRetriverWishList()
+      
+      // Mostrar alguna indicación visual de éxito si es necesario
+    } catch (error) {
+      console.error("Error al crear nueva lista:", error)
     }
   }
 
@@ -252,12 +259,12 @@ const WishListDropdown = ({ productId }: WishListDropdownProps) => {
         <DropdownMenu.Trigger asChild>
           <Button 
             variant="secondary" 
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 "
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M12 15c1.93 0 3.5-1.57 3.5-3.5S13.93 8 12 8s-3.5 1.57-3.5 3.5S10.07 15 12 15z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Lista de deseos
           </Button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content>
@@ -325,11 +332,11 @@ const WishListDropdown = ({ productId }: WishListDropdownProps) => {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="is-public">Lista pública</Label>
+                  <Label htmlFor="is-public">Lista Privada</Label>
                   <Switch 
                     id="is-public" 
                     checked={isPublic}
-                    onCheckedChange={setIsPublic}
+                    onCheckedChange={() => setIsPublic(!isPublic)}
                   />
                 </div>
                 <div className="flex space-x-2 pt-2">
@@ -354,18 +361,7 @@ const WishListDropdown = ({ productId }: WishListDropdownProps) => {
             <Drawer.Close asChild>
               <Button variant="secondary">Cerrar</Button>
             </Drawer.Close>
-            {!showAddNewForm && (
-              <Button onClick={() => {
-                const selectedLists = wishLists.filter(list => list.selected).map(list => list.id)
-                if (selectedLists.length > 0 && productId) {
-                  console.log(`Adding product ${productId} to lists:`, selectedLists)
-                  // Here you would implement the actual logic to add the product to the selected lists
-                  setIsDrawerOpen(false)
-                }
-              }}>
-                Guardar
-              </Button>
-            )}
+            
           </Drawer.Footer>
         </Drawer.Content>
       </Drawer>

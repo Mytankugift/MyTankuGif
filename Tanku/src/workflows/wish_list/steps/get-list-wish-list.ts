@@ -34,11 +34,12 @@ const getListWishListStep = createStep(
           },
         });
 
-    console.log("wishLists",wishLists[0].wish_lists)
+        const wishlist = wishLists[0].wish_lists
+    console.log("wishLists",wishlist)
 
-
-
-    return new StepResponse(wishLists[0].wish_lists);
+        const wishlistFiltered = wishlist?.filter((list: any) => list)
+        console.log("wishlistFiltered",wishlistFiltered)
+    return new StepResponse(wishlistFiltered);
   },
 
 );
