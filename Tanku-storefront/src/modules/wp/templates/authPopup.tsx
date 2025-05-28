@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { LoginWPTemplate } from "@modules/account/templates/loginwp-template";
 
 type WordpressAuthPopupProps = {
@@ -11,9 +11,40 @@ export function WordpressAuthPopup({ token }: WordpressAuthPopupProps) {
   const [popupWindow, setPopupWindow] = useState<Window | null>(null);
   const [popupClosed, setPopupClosed] = useState(false);
   const [showHiddenTemplate, setShowHiddenTemplate] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
+  const [directAuth, setDirectAuth] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Detectar si estamos dentro de un iframe
+  useEffect(() => {
+    try {
+      setIsInIframe(window.self !== window.top);
+    } catch (e) {
+      // Si hay un error al acceder a window.top, probablemente estamos en un iframe con restricciones
+      setIsInIframe(true);
+    }
+  }, []);
 
   // Función para abrir la ventana emergente
   const openPopupWindow = () => {
+    // Si estamos en un iframe, intentamos usar postMessage para comunicarnos con el padre
+    if (isInIframe) {
+      try {
+        // Intentar comunicarse con la ventana padre
+        window.parent.postMessage({
+          type: 'WP_AUTH_REQUEST',
+          token: token
+        }, '*');
+        
+        // No abrimos una ventana emergente, sino que mostramos el componente directamente
+        setDirectAuth(true);
+        return null;
+      } catch (error) {
+        console.error('Error al comunicarse con la ventana padre:', error);
+      }
+    }
+
+    // Comportamiento normal si no estamos en un iframe o si falló la comunicación
     if (popupWindow && !popupWindow.closed) {
       popupWindow.focus();
       return popupWindow;
@@ -229,7 +260,12 @@ export function WordpressAuthPopup({ token }: WordpressAuthPopupProps) {
         </div>
       )}
       
-      {popupWindow ? (
+      {/* Si estamos en un iframe y hemos activado la autenticación directa */}
+      {directAuth ? (
+        <div className="w-full">
+          <LoginWPTemplate token={token} />
+        </div>
+      ) : popupWindow ? (
         // Si la ventana está abierta, mostramos este mensaje
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-4">Procesando autenticación con WordPress</h2>
@@ -306,6 +342,9 @@ export function WordpressAuthPopup({ token }: WordpressAuthPopupProps) {
                     }
                   }
                 }, 500);
+              } else if (isInIframe) {
+                // Si estamos en un iframe y no se pudo abrir la ventana, mostramos el componente directamente
+                setDirectAuth(true);
               }
             }} 
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
@@ -317,7 +356,10 @@ export function WordpressAuthPopup({ token }: WordpressAuthPopupProps) {
         // Estado inicial - Botón para abrir la ventana
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-4">Autenticación con WordPress</h2>
-          <p className="text-gray-600 mb-4">Para continuar con la autenticación, haz clic en el botón de abajo para abrir la ventana de inicio de sesión.</p>
+          <p className="text-gray-600 mb-4">Para continuar con la autenticación, haz clic en el botón de abajo.</p>
+          {isInIframe && (
+            <p className="text-yellow-600 text-sm mb-4">Detectamos que estás en un iframe. Es posible que debas autenticarte directamente en esta página.</p>
+          )}
           <button 
             onClick={() => {
               const popup = openPopupWindow();
@@ -373,8 +415,17 @@ export function WordpressAuthPopup({ token }: WordpressAuthPopupProps) {
             }} 
             className="bg-blue-600 text-white px-6 py-3 text-lg rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Abrir ventana de autenticación
+            {isInIframe ? 'Iniciar autenticación' : 'Abrir ventana de autenticación'}
           </button>
+          
+          {isInIframe && (
+            <button 
+              onClick={() => setDirectAuth(true)} 
+              className="mt-4 bg-gray-200 text-gray-800 px-6 py-3 text-lg rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Autenticar directamente en esta página
+            </button>
+          )}
         </div>
       )}
     </div>
