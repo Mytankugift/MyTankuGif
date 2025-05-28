@@ -1,7 +1,7 @@
 import { Metadata } from "next"
 import jwt from "jsonwebtoken"
 import { loginWordpress, retrieveCustomer } from "@lib/data/customer";
-import { LoginWPTemplate } from "@modules/account/templates/loginwp-template";
+import { WordpressAuthPopup } from "@modules/wp/templates/authPopup";
 
 
 type Props = {
@@ -16,7 +16,6 @@ export const metadata: Metadata = {
   description: "Sign in to your Medusa Store account. wp",
 }
 
-
 export default async function AuthWordpressPage(props: Props) {
   const {token} = await props.params
   const customer = await retrieveCustomer().catch(() => null)
@@ -30,8 +29,7 @@ export default async function AuthWordpressPage(props: Props) {
   } else {
     return (
       <>
-        <LoginWPTemplate token={token} />
-        
+        <WordpressAuthPopup token={token} />
       </>
     )
   }
