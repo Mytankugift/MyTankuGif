@@ -1,8 +1,11 @@
 import Trash from "@modules/common/icons/trash"
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { Button, FocusModal, Heading, Input, Label, Text, Container, Select } from "@medusajs/ui"
 import { postAddProduct } from "@modules/seller/actions/post-add-product"
 import { useStoreTanku } from "@lib/context/store-context"
+import { sdk } from "@lib/config"
+import loading from "app/(main)/account/loading"
+import { StoreProductCategory } from "@medusajs/types"
 
 interface ProductOption {
   title: string
@@ -135,6 +138,18 @@ export function CreateProductModal({ open, setOpen, fetchProducts }: CreateProdu
       setOpen(false)
     })
   }
+  const [loading, setLoading] = useState(true)
+  const [categories, setCategories] = useState<StoreProductCategory[]>([])
+  const [selectedCategories, setSelectedCategories] = useState<StoreProductCategory[]>([])
+
+  useEffect(() => {
+    if (!loading) return
+    sdk.store.category.list()
+      .then(({ product_categories }) => {
+        setCategories(product_categories)
+        setLoading(false)
+      })
+  }, [loading])
 
   return (
     <FocusModal open={open} onOpenChange={setOpen}>
@@ -362,6 +377,63 @@ export function CreateProductModal({ open, setOpen, fetchProducts }: CreateProdu
                   ))}
                 </div>
               </div>
+              <div className="mt-4">
+                <Label>Categorías</Label>
+                {loading && <span className="block mt-2 text-gray-500">Cargando categorías...</span>}
+                {!loading && categories.length === 0 && (
+                  <span className="block mt-2 text-gray-500">No se encontraron categorías.</span>
+                )}
+                {!loading && categories.length > 0 && (
+                  <div className="mt-2">
+                    <div className="grid grid-cols-4 gap-1 mb-2">
+                      {categories.map((category) => {
+                        const isSelected = selectedCategories.some(c => c.id === category.id);
+                        return (
+                          <div 
+                            key={category.id} 
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedCategories(selectedCategories.filter(c => c.id !== category.id));
+                              } else {
+                                setSelectedCategories([...selectedCategories, category]);
+                              }
+                            }}
+                            className={`py-1 px-1.5 text-xs border rounded cursor-pointer transition-colors ${isSelected ? 'bg-blue-500 text-white' : 'hover:bg-gray-50'}`}
+                          >
+                            {category.name}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {selectedCategories.length > 0 && (
+                      <div className="mt-4">
+                        <Label>Categorías seleccionadas</Label>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {selectedCategories.map((category) => (
+                            <div 
+                              key={category.id} 
+                              className="flex items-center bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs"
+                            >
+                              <span>{category.name}</span>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCategories(selectedCategories.filter(c => c.id !== category.id));
+                                }}
+                                className="ml-1 text-blue-800 hover:text-blue-900"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
             </div>
           </Container>
         </FocusModal.Body>

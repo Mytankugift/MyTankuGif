@@ -36,6 +36,7 @@
     "cors": "^2.8.5",
     "medusa-ui": "github:medusajs/ui",
     "pg": "^8.13.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {

@@ -15,6 +15,7 @@ import {
 } from "@modules/checkout/actions/post-checkout-order"
 import { retrieveCustomer } from "@lib/data/customer"
 import Script from "next/script"
+import { captureUserBehavior } from "@lib/data/events_action_type"
 
 // Declaración para TypeScript para el objeto ePayco en window
 declare global {
@@ -262,6 +263,7 @@ const FormTanku = ({
         const producVariants = cart?.items
           ?.filter(item => item.variant_id !== undefined)
           .map((item) => ({
+            title: item.title,
             variant_id: item.variant_id as string, 
             quantity: item.quantity,
             original_total: item.original_total || 0,
@@ -277,6 +279,10 @@ const FormTanku = ({
           cart_id: cart?.id || "",
           producVariants: producVariants,
         }).then((response) => {
+          producVariants.forEach((item) => {
+            console.log("este es el ejecutable de captureUserBehavior", item.title)
+            captureUserBehavior(item.title, "purchase")
+          })
           console.log("response",response.order)
           setPaymentEpayco(response.order)
         })

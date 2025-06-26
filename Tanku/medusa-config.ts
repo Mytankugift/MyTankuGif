@@ -15,6 +15,9 @@ module.exports = defineConfig({
   },
   modules: [
     {
+      resolve: "./src/modules/user-profiles",
+    },
+    {
       resolve: "./src/modules/auth-wordpress",
     },
     {

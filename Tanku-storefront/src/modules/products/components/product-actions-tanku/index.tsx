@@ -5,6 +5,7 @@ import { addToCart } from "@lib/data/cart"
 import { useRegion } from "@lib/context/region-context" 
 
 import { useState } from "react"
+import { captureUserBehavior } from "@lib/data/events_action_type"
 
 type ProductActionsTankuProps = {
   product: TankuProduct
@@ -67,7 +68,7 @@ const ProductActionsTanku: React.FC<ProductActionsTankuProps> = ({
     if (!selectedVariant?.id) return null
 
     setIsAdding(true)
-
+    captureUserBehavior(product.title + selectedVariant.title, "add_to_cart")
     try {
       await addToCart({
         variantId: selectedVariant.id,
@@ -93,7 +94,9 @@ const ProductActionsTanku: React.FC<ProductActionsTankuProps> = ({
                 <Button
                   key={value.id}
                   variant={selectedOptions[option.id] === value.value ? "primary" : "secondary"}
-                  onClick={() => handleOptionChange(option.id, value.value)}
+                  onClick={() => {handleOptionChange(option.id, value.value)
+                    captureUserBehavior(value.value, "navigation")
+                  }}
                   disabled={disabled}
                 >
                   {value.value}

@@ -15,6 +15,7 @@ import { retrieveCustomer } from "@lib/data/customer"
 import { getListWishList } from "../actions/get-list-wish-list"
 import { postAddProductToWishList } from "../actions/post-add-product-to-wishList"
 import { deleteProductToWishList } from "../actions/delete-product-to-wish_list"
+import { captureUserBehavior } from "@lib/data/events_action_type"
 
 type WishList = {
   id: string
@@ -41,9 +42,10 @@ type WishList = {
 
 interface WishListDropdownProps {
   productId?: string
+  productTitle?: string
 }
 
-const WishListDropdown = ({ productId }: WishListDropdownProps) => {
+const WishListDropdown = ({ productId, productTitle }: WishListDropdownProps) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [showAddNewForm, setShowAddNewForm] = useState(false)
   const [newListTitle, setNewListTitle] = useState("")
@@ -157,7 +159,7 @@ const WishListDropdown = ({ productId }: WishListDropdownProps) => {
     
     // Update the productInLists state
     setProductInLists(prev => ({
-      ...prev,
+      ...prev, 
       [id]: newSelectedState
     }))
     
@@ -167,6 +169,7 @@ const WishListDropdown = ({ productId }: WishListDropdownProps) => {
         // Si se está seleccionando, añadir el producto a la lista de deseos
         postAddProductToWishList({productId: productId, wishListId: id})
         .then(() => {
+          captureUserBehavior(productTitle || "", "wishlist")
           console.log(`Producto ${productId} añadido a la lista de deseos ${id}`)
         })
         .catch(error => {

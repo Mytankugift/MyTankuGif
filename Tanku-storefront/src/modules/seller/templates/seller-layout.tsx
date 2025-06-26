@@ -80,7 +80,7 @@ const SellerLayout: React.FC<SellerLayoutProps> = ({ customer, children }) => {
 
   return (
     <div>
-      {isSeller && Object.entries(isSeller).length === 0  ? (
+      {isSeller && Object.entries(isSeller).length === 0  || !isSeller?.store ? (
         <Request
           customer={customer}
           onSubmit={handleSubmit}
