@@ -1,9 +1,10 @@
-import { createWorkflow, WorkflowResponse } from "@medusajs/framework/workflows-sdk";
+import { createWorkflow, WorkflowResponse, when } from "@medusajs/framework/workflows-sdk";
 import addUserBehaviorStep from "./steps/add-user-behaivor-step";
 import { Modules } from "@medusajs/framework/utils";
 import { createRemoteLinkStep } from "@medusajs/medusa/core-flows";
 import { USER_PROFILE_MODULE } from "../../modules/user-profiles";
-
+import updateUserProfileStep from "./steps/update-user-profile";
+//import updateUserProfileStep from "./steps/update-user-profile";
 
 
  export type AddUserBehaviorInput = {
@@ -32,4 +33,18 @@ export const addUserBehaviorWorkflow = createWorkflow(
     return new WorkflowResponse(userBehavior)
   }
 );
+
+export const updateUserProfile = createWorkflow("update-user-profile",()=>{
+  
+  const update = updateUserProfileStep()
+
+  when(update, (links) => Array.isArray(links) && links.length > 0)
+    .then(() => {
+      createRemoteLinkStep(update)
+    })
+
+  
+
+  return new WorkflowResponse(update)
+})
 

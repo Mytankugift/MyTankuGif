@@ -3,6 +3,7 @@
 # IDEs
 .idea
 .vscode
+# /wordpress
 
 # dependencies
 /node_modules
