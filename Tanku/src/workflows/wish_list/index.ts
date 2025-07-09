@@ -5,6 +5,7 @@ import { WISH_LIST_MODULE } from "../../modules/wish_list";
 import { createRemoteLinkStep, dismissRemoteLinkStep } from "@medusajs/medusa/core-flows";
 import getListWishListStep from "./steps/get-list-wish-list";
 import deleteWishListStep from "./steps/delete-wish-list";
+import getListWishListWordpressStep from "./steps/get-list-wish-wordpress";
 
 type CreateWishListInput = {
   customerId: string;
@@ -68,4 +69,12 @@ export const deleteWishListWorkflow = createWorkflow(
     return new WorkflowResponse(wishList)
   }
 );
+
+export const getListWishListWordpressWorkflow = createWorkflow(
+  "get-list-wish-list-wordpress", ( input: {email: string}) => {
+    const wishList = getListWishListWordpressStep({email: input.email})
+    return new WorkflowResponse(wishList)
+  }
+);
+
 

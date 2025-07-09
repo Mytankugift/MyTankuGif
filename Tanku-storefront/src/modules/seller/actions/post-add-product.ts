@@ -6,6 +6,8 @@ export const postAddProduct = async (
   storeId: string
 ): Promise<void> => {
   try {
+
+    console.log("esta es la informacion de producto",data)
     const formData = new FormData()
 
     formData.append("productData", JSON.stringify({ ...data, images : [], storeId }))

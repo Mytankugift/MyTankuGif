@@ -34,7 +34,7 @@ export default async function Home(props: {
 
   return (
     <>
-      {/* <Hero /> */}
+      {/* <Hero /> */} 
       {/* Ajustar paradas del degradado */}
       <div className="py-6 bg-gradient-to-b from-blueTanku/80 via-blueTanku/5 to-white/90">
         <PreviewProductsTanku products={products} />

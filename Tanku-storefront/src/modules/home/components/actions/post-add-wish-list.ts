@@ -8,11 +8,6 @@ type AddWishListParams = {
   customerId: string
 }
 
-/**
- * Creates a new wish list with the given title and privacy setting
- * @param params - Object containing title and isPublic flag
- * @returns Promise with the created wish list data
- */
 export const postAddWishList = async (params: AddWishListParams) => {
   try {
     const response = await fetch(

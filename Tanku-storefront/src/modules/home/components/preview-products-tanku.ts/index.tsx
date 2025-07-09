@@ -9,6 +9,10 @@ import { retrieveCustomer } from "@lib/data/customer"
 import dynamic from "next/dynamic"
 
 // Import FbxModel with dynamic import to avoid SSR issues with Three.js
+const Cottage3DModel = dynamic(() => import("@modules/home/components/cottage-3d-model"), {
+  ssr: false,
+  loading: () => <div className="w-full h-full flex items-center justify-center">Cargando modelo 3D...</div>
+})
 
 interface PreviewProductsTankuProps {
   products: Product[]
@@ -43,19 +47,32 @@ export default function PreviewProductsTanku({ products, isFeatured = false }: P
   
   // Create a combined array with the 3D model as the first item followed by regular products
   const allItems = useMemo<ExtendedProduct[]>(() => {
-   
+    // Create a 3D model item to be displayed first
+    const model3DItem: ExtendedProduct = {
+      id: "3d-cottage-model",
+      title: "Casa de Campo 3D",
+      handle: "cottage-3d-model",
+      thumbnail: "/cottage_textures/cottage_diffuse.png",
+      is3DModel: true,
+      variants: [{
+        inventory: {
+          currency_code: "$",
+          price: 250000
+        }
+      }]
+    };
     
     // Map the products to match our ExtendedProduct structure
     const mappedProducts: ExtendedProduct[] = products.map(product => ({
       id: product.id,
       title: product.title,
       handle: product.handle,
-      
       thumbnail: product.thumbnail || null,
       variants: product.variants
     }));
     
-    return mappedProducts;
+    // Return the 3D model first, followed by the regular products
+    return [model3DItem, ...mappedProducts];
   }, [products])
   
   useEffect(() => {
@@ -130,8 +147,11 @@ export default function PreviewProductsTanku({ products, isFeatured = false }: P
               >
                 {is3DModel ? (
                   // Render 3D model
-                  <div className="w-full h-[300px] relative mb-4 overflow-hidden">
-                   
+                  <div className="w-full h-[300px] relative mb-4 overflow-hidden rounded-lg shadow-lg bg-white">
+                    <div className="absolute top-2 right-2 z-10 bg-white/80 px-2 py-1 rounded-md text-xs font-semibold text-blueTanku">
+                      Modelo 3D Interactivo
+                    </div>
+                    <Cottage3DModel />
                   </div>
                 ) : (
                   // Render regular product
