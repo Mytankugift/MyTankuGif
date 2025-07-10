@@ -21,7 +21,7 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     });
     
     res.status(200).json({
-      data: getListWishList,
+      data: getListWishList.result,
     });
   } catch (error) {
     console.error("Error al obtener los datos para crear la lista de deseos:", error)
