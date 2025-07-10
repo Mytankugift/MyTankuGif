@@ -6,6 +6,7 @@ import { createRemoteLinkStep, dismissRemoteLinkStep } from "@medusajs/medusa/co
 import getListWishListStep from "./steps/get-list-wish-list";
 import deleteWishListStep from "./steps/delete-wish-list";
 import getListWishListWordpressStep from "./steps/get-list-wish-wordpress";
+import addWishListWordpressStep from "./steps/create-wish-list-wordpress";
 
 type CreateWishListInput = {
   customerId: string;
@@ -73,6 +74,23 @@ export const deleteWishListWorkflow = createWorkflow(
 export const getListWishListWordpressWorkflow = createWorkflow(
   "get-list-wish-list-wordpress", ( input: {email: string}) => {
     const wishList = getListWishListWordpressStep({email: input.email})
+    return new WorkflowResponse(wishList)
+  }
+)
+
+export const addWishListWordpressWorkflow = createWorkflow(
+  "add-wish-list-wordpress", ( input: {email: string, title: string, publico: boolean}) => {
+    const wishList = addWishListWordpressStep({email: input.email, title: input.title, state_id: input.publico})
+    createRemoteLinkStep([
+      {
+        [Modules.CUSTOMER]: {  
+          customer_id: wishList.customerId,
+        },
+        [WISH_LIST_MODULE]: {
+          wish_list_id: wishList.wishList.id,   
+        },
+      },
+    ]);
     return new WorkflowResponse(wishList)
   }
 );
