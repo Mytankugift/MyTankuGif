@@ -1,4 +1,4 @@
-import { getListWishListWordpressWorkflow } from "../../../workflows/wish_list";
+import { getListWishListWordpressWorkflow } from "../../../../workflows/wish_list";
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 
 interface getWishListInput {
