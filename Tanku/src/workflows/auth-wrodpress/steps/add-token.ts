@@ -14,6 +14,16 @@ type DecodedToken = {
     exp: number;  
 }
 
+interface CustomerToken {
+    id: string;
+    token: string;
+    id_customer_wordpress: string;
+    email: string;
+    created_at: Date;
+    updated_at: Date;
+    deleted_at: Date | null;
+}
+
 
 function decodeWordpressToken(token: string): { id_customer_wordpress: string, email: string } | null {
     try {
@@ -31,26 +41,32 @@ function decodeWordpressToken(token: string): { id_customer_wordpress: string, e
     }
 }
 
-const addTokenStep = createStep(
+const addTokenStep = createStep<AddTokenInput, CustomerToken, string>(
   "add-token-step",
   async (
-    {token} : AddTokenInput  ,
-     {container}
-    ) => {
+    {token} : AddTokenInput,
+    {container}
+  ) => {
+
     const authWordpressService: AuthWordpressService = container.resolve(
         AUTH_WORDPRESS_MODULE
     );
 
     
     const tokenData = decodeWordpressToken(token);
+    const existeToken = await authWordpressService.listCustomerTokens(tokenData?.email || "");
+
+    if (existeToken[0]) {
+        return new StepResponse(existeToken[0]);
+    }
     
     const addToken = await authWordpressService.createCustomerTokens({
         token: token,
         id_customer_wordpress: tokenData?.id_customer_wordpress || "",
         email: tokenData?.email || ""
-    });
+    }) as CustomerToken;
     
-    return new StepResponse(addToken,addToken.id);
+    return new StepResponse<CustomerToken, string>(addToken, addToken.id);
   },
   async (id: string, { container }) => {
     const authWordpressService: AuthWordpressService = container.resolve(

@@ -23,7 +23,7 @@ const checkRegistrationStep = createStep<checkRegistrationInput, RegistrationRes
     { email, token, }: checkRegistrationInput,
     { container }
   ) => {
-
+console.log("accede a crear el usuario")
     const moduleCustomer = container.resolve(Modules.CUSTOMER);
     const authModuleService = container.resolve(Modules.AUTH);
 

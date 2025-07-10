@@ -9,10 +9,10 @@ import { retrieveCustomer } from "@lib/data/customer"
 import dynamic from "next/dynamic"
 
 // Import FbxModel with dynamic import to avoid SSR issues with Three.js
-const Cottage3DModel = dynamic(() => import("@modules/home/components/cottage-3d-model"), {
-  ssr: false,
-  loading: () => <div className="w-full h-full flex items-center justify-center">Cargando modelo 3D...</div>
-})
+// const Cottage3DModel = dynamic(() => import("@modules/home/components/cottage-3d-model"), {
+//   ssr: false,
+//   loading: () => <div className="w-full h-full flex items-center justify-center">Cargando modelo 3D...</div>
+// })
 
 interface PreviewProductsTankuProps {
   products: Product[]
@@ -151,7 +151,7 @@ export default function PreviewProductsTanku({ products, isFeatured = false }: P
                     <div className="absolute top-2 right-2 z-10 bg-white/80 px-2 py-1 rounded-md text-xs font-semibold text-blueTanku">
                       Modelo 3D Interactivo
                     </div>
-                    <Cottage3DModel />
+                    {/* <Cottage3DModel /> */}
                   </div>
                 ) : (
                   // Render regular product
