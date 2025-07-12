@@ -8,7 +8,7 @@ interface CreateWishListInput {
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
   try {
-
+    console.log("entro a la peticion de agregar un producto a la lista de deseos",req.body)
     const { productId, wishListId } = req.body as CreateWishListInput;
 
     if (!productId || !wishListId) {
