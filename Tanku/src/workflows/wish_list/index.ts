@@ -95,4 +95,27 @@ export const addWishListWordpressWorkflow = createWorkflow(
   }
 );
 
+export const addProductToWishListWordpressWorkflow = createWorkflow(
+  "add-product-to-wish-list-wordpress", ( input: {productId: string, wishListId: string}) => {
+   const remoteLink = createRemoteLinkStep([
+        {
+          [WISH_LIST_MODULE]: { wish_list_id: input.wishListId },
+          [Modules.PRODUCT]: { product_id: input.productId },
+        },
+      ])
+    return new WorkflowResponse(remoteLink)
+  }
+);
 
+
+export const deleteProductToWishListWordpressWorkflow = createWorkflow(
+  "delete-product-to-wish-list-wordpress", ( input: {productId: string, wishListId: string}) => {
+   const remoteLink = dismissRemoteLinkStep([
+        {
+          [WISH_LIST_MODULE]: { wish_list_id: input.wishListId },
+          [Modules.PRODUCT]: { product_id: input.productId },
+        },
+      ])
+    return new WorkflowResponse(remoteLink)
+  }
+);  
