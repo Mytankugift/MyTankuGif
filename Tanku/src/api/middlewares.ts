@@ -73,5 +73,41 @@ export default defineMiddlewares({
         multerMiddleware(upload.array("images")),
       ],
     },
+    {
+      method: ["POST"],
+      matcher: "/social/stories/create-story",
+      middlewares: [
+        multerMiddleware(upload.array("files")),
+      ],
+    },
+    {
+      method: ["POST"],
+      matcher: "/social/posters/create-poster",
+      middlewares: [
+        multerMiddleware(upload.array("files")),
+      ],
+    },
+    {
+      method: ["POST"],
+      matcher: "/personal-info/update-avatar",
+      middlewares: [
+        multerMiddleware(upload.single("avatar")),
+      ],
+    },
+    {
+      matcher: "/social*",
+      middlewares: [
+        (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) => {
+          const configModule: ConfigModule = req.scope.resolve("configModule");
+          return cors({
+            origin: parseCorsOrigins(configModule.projectConfig.http.storeCors),
+            credentials: true,
+          })(req, res, next);
+        },
+        (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) => {
+          next();
+        },
+      ],
+    },
   ],
 });

@@ -42,11 +42,29 @@ export const RegionProvider = ({ children }: RegionProviderProps) => {
       .then(({ regions }) => {
         setRegion(regions[0])
       })
+      .catch((error) => {
+        console.error("Failed to load regions:", error)
+      })
     } else {
       // retrieve selected region
       sdk.store.region.retrieve(regionId)
       .then(({ region: dataRegion }) => {
         setRegion(dataRegion)
+      })
+      .catch((error) => {
+        console.error("Failed to retrieve stored region:", error)
+        // Clear invalid region ID from localStorage
+        localStorage.removeItem("region_id")
+        // Fall back to loading the first available region
+        sdk.store.region.list()
+        .then(({ regions }) => {
+          if (regions && regions.length > 0) {
+            setRegion(regions[0])
+          }
+        })
+        .catch((fallbackError) => {
+          console.error("Failed to load fallback regions:", fallbackError)
+        })
       })
     }
   }, [region])

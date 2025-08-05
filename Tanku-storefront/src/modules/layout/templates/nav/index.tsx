@@ -1,119 +1,478 @@
-import { Suspense } from "react"
+"use client"
 
+import { Suspense, useState, useRef, useEffect } from "react"
 import { listRegions } from "@lib/data/regions"
 import { StoreRegion } from "@medusajs/types"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import CartButton from "@modules/layout/components/cart-button"
 import SideMenu from "@modules/layout/components/side-menu"
+import CircularMenu from "@modules/layout/components/circular-menu"
 import Image from "next/image"
-import { House, MagnifyingGlass, User, Heart, BellAlert } from "@medusajs/icons"
+import { House, MagnifyingGlass, User, Heart, BellAlert, X, Plus, ArrowLeft, PencilSquare } from "@medusajs/icons"
 import { Avatar } from "@medusajs/ui"
+import ProfilePanel from "@modules/layout/components/profile-panel"
+import NewPostPanel from "@modules/layout/components/new-post-panel"
+import { updateAvatar } from "@modules/personal-info/actions/update-avatar"
+import { getPersonalInfo } from "@modules/personal-info/actions/get-personal-info"
+import { updateStatusMessage } from "@modules/personal-info/actions/update-status-message"
+import { retrieveCustomer } from "@lib/data/customer"
 
-export default async function Nav() {
-  const regions = await listRegions().then((regions: StoreRegion[]) => regions)
+function NavContent() {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [activePanel, setActivePanel] = useState<'none' | 'newPost' | 'profile'>('none')
+  const [avatarUrl, setAvatarUrl] = useState('')
+  const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false)
+  const [customerId, setCustomerId] = useState<string | null>(null)
+  const [isLoadingAvatar, setIsLoadingAvatar] = useState(true)
+  const [statusMessage, setStatusMessage] = useState('')
+  const [isEditingStatus, setIsEditingStatus] = useState(false)
+  const [tempStatusMessage, setTempStatusMessage] = useState('')
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Cargar customer y avatar al montar el componente
+  useEffect(() => {
+    const loadCustomerAndAvatar = async () => {
+      try {
+        console.log("Loading customer and avatar...");
+        
+        // Obtener customer
+        const customer = await retrieveCustomer().catch(() => null);
+        
+        if (customer?.id) {
+          console.log("Customer found:", customer.id);
+          setCustomerId(customer.id);
+          
+          // Obtener información personal incluyendo avatar
+          const personalInfoResult = await getPersonalInfo(customer.id);
+          
+          if (personalInfoResult.success && personalInfoResult.data) {
+            console.log("=== Personal Info Data Retrieved ===");
+            console.log("Full data:", personalInfoResult.data);
+            
+            if (personalInfoResult.data.avatar_url) {
+              console.log("Avatar found:", personalInfoResult.data.avatar_url);
+              setAvatarUrl(personalInfoResult.data.avatar_url);
+            } else {
+              console.log("No avatar_url in data");
+            }
+            
+            if (personalInfoResult.data.status_message) {
+              console.log("Status message found:", personalInfoResult.data.status_message);
+              setStatusMessage(personalInfoResult.data.status_message);
+            } else {
+              console.log("No status_message in data, value is:", personalInfoResult.data.status_message);
+            }
+          } else {
+            console.log("No personal info found, using defaults");
+            console.log("Result:", personalInfoResult);
+          }
+        } else {
+          console.log("No customer found");
+        }
+      } catch (error) {
+        console.error("Error loading customer and avatar:", error);
+      } finally {
+        setIsLoadingAvatar(false);
+      }
+    };
+
+    loadCustomerAndAvatar();
+  }, []);
+
+  const handleNewPostClick = () => {
+    if (activePanel === 'newPost' && isExpanded) {
+      // Si ya está abierto el panel de nuevo post, cerrarlo
+      setIsExpanded(false)
+      setActivePanel('none')
+    } else {
+      // Abrir panel de nuevo post
+      setIsExpanded(true)
+      setActivePanel('newPost')
+    }
+  }
+
+  const handleAvatarClick = () => {
+    if (activePanel === 'profile' && isExpanded) {
+      // Si ya está abierto el panel de perfil, cerrarlo
+      setIsExpanded(false)
+      setActivePanel('none')
+    } else {
+      // Abrir panel de perfil
+      setIsExpanded(true)
+      setActivePanel('profile')
+    }
+  }
+
+  const handleClosePanel = () => {
+    setIsExpanded(false)
+    setActivePanel('none')
+  }
+
+  const handleEditAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation() // Evitar que se active el onClick del avatar
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validar que sea una imagen
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen válida')
+      return
+    }
+
+    // Validar tamaño (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen debe ser menor a 5MB')
+      return
+    }
+
+    setIsUpdatingAvatar(true)
+
+    try {
+      // Verificar que tenemos un customer_id
+      if (!customerId) {
+        alert('Error: No se pudo identificar al usuario');
+        return;
+      }
+      
+      const result = await updateAvatar({
+        customer_id: customerId,
+        avatar: file
+      })
+
+      if (result.success && result.data?.avatar_url) {
+        setAvatarUrl(result.data.avatar_url)
+        console.log('Avatar actualizado exitosamente:', result.data.avatar_url)
+      } else {
+        console.error('Error al actualizar avatar:', result.error)
+        alert('Error al actualizar el avatar: ' + result.error)
+      }
+    } catch (error) {
+      console.error('Error updating avatar:', error)
+      alert('Error al actualizar el avatar')
+    } finally {
+      setIsUpdatingAvatar(false)
+      // Limpiar el input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  const handleEditStatusClick = () => {
+    setTempStatusMessage(statusMessage || '')
+    setIsEditingStatus(true)
+  }
+
+  const handleSaveStatus = async () => {
+    if (!customerId) {
+      alert('Error: No se pudo identificar al usuario')
+      return
+    }
+
+    if (tempStatusMessage.trim() === '') {
+      alert('El mensaje de estado no puede estar vacío')
+      return
+    }
+
+    setIsUpdatingStatus(true)
+
+    try {
+      const result = await updateStatusMessage({
+        customer_id: customerId,
+        status_message: tempStatusMessage.trim()
+      })
+
+      if (result.success) {
+        const newStatusMessage = tempStatusMessage.trim();
+        setStatusMessage(newStatusMessage);
+        setIsEditingStatus(false);
+        console.log('=== Status Message Update Successful ===');
+        console.log('New status message set to:', newStatusMessage);
+        console.log('Backend response:', result);
+      } else {
+        console.error('Error al actualizar status message:', result.error);
+        alert('Error al actualizar el mensaje: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error updating status message:', error)
+      alert('Error al actualizar el mensaje')
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
+
+  const handleCancelStatusEdit = () => {
+    setTempStatusMessage('')
+    setIsEditingStatus(false)
+  }
+
+  const handleStatusKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveStatus()
+    } else if (e.key === 'Escape') {
+      handleCancelStatusEdit()
+    }
+  }
 
   return (
-    <div className="sticky top-0 inset-x-0 z-50 group">
-      <header className="relative h-28 px-16 py-20  duration-200 bg-blackTanku ">
-        <nav className=" txt-xsmall-plus text-ui-fg-subtle flex items-center justify-between w-full h-full text-small-regular">
-          <div className="flex-1 basis-0 h-full flex items-center">
-            <Image src="/logoTanku.png" alt="Logo" width={90} height={90} />
-          </div>
+    <div 
+      className={`fixed left-0 top-0 h-full z-50 transition-all duration-300 ease-in-out ${
+        isExpanded ? 'w-[90vw]' : 'w-52'
+      }`}
+    >
+      <nav 
+        className="h-full flex"
+        style={{ backgroundColor: '#2D3A3A' }}
+      >
+        {/* Sidebar original */}
+        <div className="w-52 flex flex-col items-center py-8 px-4 flex-shrink-0">
+        {/* Logo centrado */}
+        <div className="flex justify-center mb-8">
+          <Image 
+            src="/logoTanku.png" 
+            alt="Logo" 
+            width={80} 
+            height={80} 
+            className="object-contain"
+          />
+        </div>
 
-          <div className="flex items-center gap-x-6 h-full w-[50%] justify-start pl-10">
-            <LocalizedClientLink href="https://mytanku.com/home/home/" className="flex items-center gap-x-2 txt-compact-xlarge-plus hover:text-greenBlueTanku uppercase text-white">
-              <House className=" text-2xl" color="white"  />
-              HOME
-            </LocalizedClientLink>
-            <LocalizedClientLink
-              href="https://mytanku.com/home/activity/"
-              className="flex items-center txt-compact-xlarge-plus hover:text-greenBlueTanku uppercase text-white gap-x-2"
-              data-testid="nav-store-link"
+        {/* Avatar en hexágono - Clickeable */}
+        <div className="mb-8 relative flex flex-col items-center">
+          <div className="relative group mb-3">
+            <button 
+              onClick={handleAvatarClick}
+              className="relative hover:scale-105 transition-transform duration-200"
+              disabled={isUpdatingAvatar}
             >
-              <Image src="/miniLogo.png" alt="miniLogoTanku" width={30} height={30} className="object-contain" />
-              MY TANKU
-            </LocalizedClientLink>
+              {/* Hexágono exterior */}
+              <div 
+                className={`w-24 h-24 flex items-center justify-center relative ${
+                  isUpdatingAvatar ? 'opacity-50' : ''
+                }`}
+                style={{
+                  backgroundColor: '#66DEDBA',
+                  clipPath: 'polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%)'
+                }}
+              >
+                {/* Avatar circular interior */}
+                {isLoadingAvatar ? (
+                  // Skeleton para el avatar
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 animate-pulse border-2 border-gray-600">
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="w-8 h-8 text-gray-500" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-white flex items-center justify-center border-2 border-white">
+                    <Image 
+                      src={avatarUrl || '/feed/avatar.png'} 
+                      alt="Avatar" 
+                      width={60} 
+                      height={60} 
+                      className="object-cover rounded-full w-full h-full"
+                    />
+                  </div>
+                )}
+              </div>
+            </button>
+            
+            {/* Icono de edición - aparece al hacer hover */}
+            <button
+              onClick={handleEditAvatarClick}
+              className="absolute -bottom-1 -right-1 w-8 h-8 bg-[#73FFA2] rounded-full flex items-center justify-center shadow-lg hover:bg-[#66e891] transition-colors duration-200 opacity-0 group-hover:opacity-100"
+              disabled={isUpdatingAvatar}
+              title="Cambiar avatar"
+            >
+              <PencilSquare className="w-4 h-4 text-gray-800" />
+            </button>
+          </div>
           
-          <LocalizedClientLink
-              href="/"
-              className="flex items-center txt-compact-xlarge-plus hover:text-greenBlueTanku uppercase text-white gap-x-2"
-              data-testid="nav-store-link"
-            >
-              <Image src="/CarritoTanku.png" alt="cartLogo" width={30} height={30} className="object-contain" />
-              SORPRENDE
-            </LocalizedClientLink>
-            </div>
-
-          {/* Buscador */}
-          <div className="flex items-center justify-center mr-6 w-[300px]">
-            <div className="relative w-full max-w-xl ">
-              <input
-                type="text"
-                placeholder="Buscar"
-                className="w-full bg-transparent border border-white/30 rounded-full px-4 py-2  text-white placeholder-white/50 focus:outline-none focus:border-greenBlueTanku"
-              />
-              <button className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <MagnifyingGlass className="text-white"  />
-              </button>
-            </div>
-          </div>
-
-          {/* Iconos de la derecha */}
-          <div className="flex items-center gap-x-6 h-full flex-1 basis-0 justify-end">
-            <div className="flex items-center gap-x-6 h-full">
-              <LocalizedClientLink
-                className="hover:text-greenBlueTanku text-white flex items-end justify-center"
-                href="/account"
-                data-testid="nav-account-link"
-                aria-label="Cuenta"
-              >
-                <User width={24} height={24} className="items-end pt-2" />
-              </LocalizedClientLink>
-              
-              <LocalizedClientLink
-                className="hover:text-greenBlueTanku text-white flex items-center justify-center"
-                href="/wishlist"
-                data-testid="nav-wishlist-link"
-                aria-label="Lista de deseos"
-              >
-                <Heart width={24} height={24} className="items-end pt-2" />
-              </LocalizedClientLink>
-                
-              <LocalizedClientLink
-                className="hover:text-greenBlueTanku text-white flex items-center justify-center"
-                href="/notifications"
-                data-testid="nav-notifications-link"
-                aria-label="Notificaciones"
-              >
-                <BellAlert width={24} height={24} className="items-end pt-2" />
-              </LocalizedClientLink>
-              <Suspense
-              fallback={
-                <LocalizedClientLink
-                  className="hover:text-greenBlueTanku text-white flex items-center"
-                  href="/cart"
-                  data-testid="nav-cart-link"
-                >
-                  
-                </LocalizedClientLink>
-              }
-            >
-              <CartButton />
-            </Suspense>
-              <LocalizedClientLink
-                href="/account"
-                className="flex items-center justify-center"
-                data-testid="nav-user-avatar-link"
-                aria-label="Mi cuenta"
-              >
-                <div className="w-8 h-8 mx-3 bg-white rounded-full flex items-center justify-center hover:bg-greenBlueTanku hover:text-white transition-colors">
-                  <User width={15} height={15} />
+          {/* Status Message - Justo después del avatar */}
+          <div className="w-full px-1">
+            <div className="relative group">
+              {isLoadingAvatar ? (
+                // Skeleton para el status message
+                <div className="flex flex-col items-center gap-2 min-h-[48px] justify-center">
+                  <div className="w-3/4 h-3 bg-gray-700 animate-pulse rounded-md"></div>
+                  <div className="w-1/2 h-3 bg-gray-700 animate-pulse rounded-md"></div>
                 </div>
-              </LocalizedClientLink>
+              ) : !isEditingStatus ? (
+                // Modo visualización
+                <div className="flex items-center gap-1 rounded-lg min-h-[48px]">
+                  <p className="text-sm text-white/90 flex-1 text-center">
+                    {statusMessage || '¡Hola! Este es mi estado'}
+                  </p>
+                  <PencilSquare className="cursor-pointer text-[#73FFA2] hover:text-[#66e891]" onClick={handleEditStatusClick}/>
+                </div>
+              ) : (
+                // Modo edición
+                <div className="bg-gray-800/50 rounded-lg p-3">
+                  <input
+                    type="text"
+                    value={tempStatusMessage}
+                    onChange={(e) => setTempStatusMessage(e.target.value)}
+                    onKeyDown={handleStatusKeyPress}
+                    className="w-full bg-transparent text-sm text-white border-b border-[#73FFA2] focus:outline-none focus:border-[#66e891] pb-1"
+                    placeholder="Escribe tu mensaje de estado..."
+                    maxLength={200}
+                    autoFocus
+                    disabled={isUpdatingStatus}
+                  />
+                  <div className="flex justify-end gap-2 mt-2">
+                    <button
+                      onClick={handleCancelStatusEdit}
+                      className="px-3 py-1 text-xs text-gray-400 hover:text-white transition-colors"
+                      disabled={isUpdatingStatus}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleSaveStatus}
+                      className="px-3 py-1 text-xs bg-[#73FFA2] text-gray-800 rounded hover:bg-[#66e891] transition-colors disabled:opacity-50"
+                      disabled={isUpdatingStatus || tempStatusMessage.trim() === ''}
+                    >
+                      {isUpdatingStatus ? 'Guardando...' : 'Guardar'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </nav>
-      </header>
+          
+          {/* Input de archivo oculto */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </div>
+
+        {/* Menú vertical */}
+        <div className="flex flex-col gap-2  flex-1 w-full px-2">
+          {/* Inicio */}
+          <LocalizedClientLink 
+            href="./" 
+            className="flex items-center gap-4 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
+          >
+            <Image 
+              src="/feed/Icons/Home_Green.png" 
+              alt="Inicio" 
+              width={28} 
+              height={28} 
+              className="object-contain flex-shrink-0"
+            />
+            <span 
+              className="text-sm font-medium"
+              style={{ color: '#73FFA2' }}
+            >
+              Inicio
+            </span>
+          </LocalizedClientLink>
+
+          {/* Nuevo Post - Clickeable para expandir */}
+          <button 
+            onClick={handleNewPostClick}
+            className={`flex items-center gap-4 group hover:opacity-80 transition-all px-4 py-2 rounded-lg hover:bg-white/10 w-full ${
+              activePanel === 'newPost' ? 'bg-white/20' : ''
+            }`}
+          >
+            <Image 
+              src="/feed/Icons/Add_Green.png" 
+              alt="Nuevo Post" 
+              width={28} 
+              height={28} 
+              className="object-contain flex-shrink-0"
+            />
+            <span 
+              className="text-sm font-medium"
+              style={{ color: '#73FFA2' }}
+            >
+              Nuevo Post
+            </span>
+          </button>
+
+          {/* Perfil */}
+          <LocalizedClientLink 
+            href="/account" 
+            className="flex items-center gap-4 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
+          >
+            <Image 
+              src="/feed/Icons/Profile_Green.png" 
+              alt="Perfil" 
+              width={28} 
+              height={28} 
+              className="object-contain flex-shrink-0"
+            />
+            <span 
+              className="text-sm font-medium"
+              style={{ color: '#73FFA2' }}
+            >
+              Perfil
+            </span>
+          </LocalizedClientLink>
+
+          {/* Sorprende */}
+          <LocalizedClientLink 
+            href="/cart" 
+            className="flex items-center gap-4 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
+          >
+            <Image 
+              src="/feed/Icons/Shopping_Cart_Green.png" 
+              alt="Sorprende" 
+              width={28} 
+              height={28} 
+              className="object-contain flex-shrink-0"
+            />
+            <span 
+              className="text-sm font-medium"
+              style={{ color: '#73FFA2' }}
+            >
+              Sorprende
+            </span>
+          </LocalizedClientLink>
+        </div>
+        
+        {/* Circular Menu */}
+        <div className="flex items-start justify-start">
+          <CircularMenu />
+        </div>
+        
+        </div>
+
+        {/* Panel expandido */}
+        <div 
+          className={`flex-1 transition-all duration-300 ease-in-out overflow-hidden ${
+            isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'
+          }`}
+          style={{ backgroundColor: '#2D3A3A' }}
+        >
+          {activePanel === 'newPost' && (
+            <NewPostPanel onClose={handleClosePanel} />
+          )}
+
+          {activePanel === 'profile' && (
+            <ProfilePanel onClose={handleClosePanel} />
+          )}
+        </div>
+
+
+      </nav>
     </div>
+  )
+}
+
+export default function Nav() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <NavContent />
+    </Suspense>
   )
 }

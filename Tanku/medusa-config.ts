@@ -39,6 +39,12 @@ module.exports = defineConfig({
       resolve: "./src/modules/wish_list",
     },
     {
+      resolve: "./src/modules/social",
+    },
+    {
+      resolve: "./src/modules/personal_information",
+    },
+    {
       resolve: "@medusajs/medusa/file",
       options: {
         providers: [

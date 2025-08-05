@@ -2,14 +2,13 @@
 import { useEffect, useState } from "react"
 import {
   Button,
-  Checkbox,
   Drawer,
   Input,
   Label,
   Switch,
-  DropdownMenu,
-  Text
+  Text,
 } from "@medusajs/ui"
+import Image from "next/image"
 import { postAddWishList } from "../actions/post-add-wish-list"
 import { retrieveCustomer } from "@lib/data/customer"
 import { getListWishList } from "../actions/get-list-wish-list"
@@ -45,45 +44,36 @@ interface WishListDropdownProps {
   productTitle?: string
 }
 
+const backgroundImages = [
+  "/wishlist/wishlistImage1.png",
+  "/wishlist/wishlistImage1.svg",
+  "/wishlist/wishlistImage2.svg",
+]
+
 const WishListDropdown = ({ productId, productTitle }: WishListDropdownProps) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [showAddNewForm, setShowAddNewForm] = useState(false)
   const [newListTitle, setNewListTitle] = useState("")
   const [isPublic, setIsPublic] = useState(false)
   const [productInLists, setProductInLists] = useState<Record<string, boolean>>({})
-  console.log("productIddddd", productId)
-  // Example wish lists
-  const [wishLists, setWishLists] = useState<WishList[]>([
-    { id: "1", title: "Favoritos", selected: false, state_id: "PUBLIC_ID" },
-    { id: "2", title: "Para comprar después", selected: false, state_id: "PRIVATE_ID" },
-    { id: "3", title: "Regalos", selected: false, state_id: "PRIVATE_ID" },
-  ])
+  const [wishLists, setWishLists] = useState<WishList[]>([])
 
-
-  // Function to check if product is in each wish list
-  const checkProductInWishLists = (currentWishLists: WishList[] = wishLists) => {
+  const checkProductInWishLists = (currentWishLists: WishList[]) => {
     if (!productId) return
-    
     try {
-      // Create a map to track which wishlists contain the current product
       const productLists: Record<string, boolean> = {}
-      
-      // Check each wishlist to see if it contains the current product
       currentWishLists.forEach((list: WishList) => {
-        // Check if this list has products and if the current product is in the list
-        const hasProduct = list.products?.some((product) => product.id === productId) || false
+        const hasProduct =
+          list.products?.some((product) => product.id === productId) || false
         productLists[list.id] = hasProduct
       })
-      
-      // Update the productInLists state with the new mapping
       setProductInLists(productLists)
-      
-      // Update the wishLists state to reflect the selected status
-      setWishLists(currentWishLists.map(list => ({
-        ...list,
-        selected: productLists[list.id] || false
-      })))
-
+      setWishLists(
+        currentWishLists.map((list) => ({
+          ...list,
+          selected: productLists[list.id] || false,
+        }))
+      )
       return productLists
     } catch (error) {
       console.error("Error checking product in wish lists:", error)
@@ -91,30 +81,16 @@ const WishListDropdown = ({ productId, productTitle }: WishListDropdownProps) =>
     }
   }
 
-  const handlerRemoveProductFromWishList = async (productId: string, wishListId: string) => {
-    try {
-      await deleteProductToWishList({ productId, wishListId })
-    } catch (error) {
-      console.error("Error removing product from wish list:", error)
-    }
-  }
-  
   const handlerRetriverWishList = async () => {
     const customer = await retrieveCustomer().catch(() => null)
     if (!customer) return
-    
+
     try {
       const wishListsData = await getListWishList(customer.id)
-      console.log("wishLists", wishListsData)
-      
-      // Process the wishlist data to include the selected property
       const processedWishLists = wishListsData.map((list: WishList) => ({
         ...list,
-        selected: false // Initialize all as unselected
+        selected: false,
       }))
-      
-      // Check which lists contain the current product and update selected status
-      // directly with the retrieved data, without waiting for state updates
       checkProductInWishLists(processedWishLists)
     } catch (error) {
       console.error("Error retrieving wish lists:", error)
@@ -123,128 +99,64 @@ const WishListDropdown = ({ productId, productTitle }: WishListDropdownProps) =>
 
   useEffect(() => {
     handlerRetriverWishList()
-  }, [])  // Initial load
-  
-  // Re-check when productId changes
+  }, [])
+
   useEffect(() => {
-    if (productId && wishLists.length > 0) {
-      checkProductInWishLists()
+    if (wishLists.length > 0) {
+      checkProductInWishLists(wishLists)
     }
   }, [productId])
-  
-  // When productId changes, check if it's in any wish lists
-  useEffect(() => {
-    if (productId && wishLists.length > 0) {
-      // Reset all selections and check which lists contain this product
-      checkProductInWishLists()
-    }
-  }, [productId, wishLists.length])
 
-  const handleCheckboxChange = (id: string) => {
-    // Find the list being changed
-    const list = wishLists.find(list => list.id === id)
-    const newSelectedState = list ? !list.selected : false
-    
-    // Log information about the selection change
-    console.log(`Lista: ${list?.title} - ${newSelectedState ? 'seleccionada' : 'deseleccionada'}`)
-    console.log(`ID del producto: ${productId || 'No disponible'}`)
-    console.log(`ID de la lista: ${id}`)
-    
-    // Update the state
-    setWishLists(prevLists =>
-      prevLists.map(list =>
-        list.id === id ? { ...list, selected: newSelectedState } : list
-      )
-    )
-    
-    // Update the productInLists state
-    setProductInLists(prev => ({
-      ...prev, 
-      [id]: newSelectedState
-    }))
-    
-    // Call API to add or remove product from wish list based on the new state
-    if (productId) {
-      if (newSelectedState) {
-        // Si se está seleccionando, añadir el producto a la lista de deseos
-        postAddProductToWishList({productId: productId, wishListId: id})
-        .then(() => {
-          captureUserBehavior(productTitle || "", "wishlist")
-          console.log(`Producto ${productId} añadido a la lista de deseos ${id}`)
-        })
-        .catch(error => {
-          console.error(`Error al añadir producto a la lista de deseos:`, error)
-          // Revertir el estado de la UI si la llamada a la API falla
-          setProductInLists(prev => ({
-            ...prev,
-            [id]: false
-          }))
-          setWishLists(prevLists =>
-            prevLists.map(list =>
-              list.id === id ? { ...list, selected: false } : list
-            )
-          )
-        })
+  const handleSelectionChange = async (id: string) => {
+    const customer = await retrieveCustomer().catch(() => null)
+    if (!customer || !productId) return
+
+    const isSelected = productInLists[id]
+
+    setProductInLists((prev) => ({ ...prev, [id]: !isSelected }))
+
+    try {
+      if (isSelected) {
+        await deleteProductToWishList({ productId, wishListId: id })
+        captureUserBehavior(productId, "wishlist")
       } else {
-        // Si se está deseleccionando, eliminar el producto de la lista de deseos
-        handlerRemoveProductFromWishList(productId, id)
-        .then(() => {
-          console.log(`Producto ${productId} eliminado de la lista de deseos ${id}`)
-        })
-        .catch(error => {
-          console.error(`Error al eliminar producto de la lista de deseos:`, error)
-          // Revertir el estado de la UI si la llamada a la API falla
-          setProductInLists(prev => ({
-            ...prev,
-            [id]: true
-          }))
-          setWishLists(prevLists =>
-            prevLists.map(list =>
-              list.id === id ? { ...list, selected: true } : list
-            )
-          )
-        })
+        await postAddProductToWishList({ productId, wishListId: id })
+        captureUserBehavior(productId, "wishlist")
       }
+      await handlerRetriverWishList()
+    } catch (error) {
+      console.error("Error updating wish list:", error)
+      setProductInLists((prev) => ({ ...prev, [id]: isSelected }))
     }
   }
 
   const handleAddNewList = async () => {
-    if (!newListTitle.trim()) {
-      // Mostrar error o mensaje si el título está vacío
+    const customer = await retrieveCustomer().catch(() => null)
+    if (!customer) {
+      console.error("Customer not found")
       return
     }
 
     try {
-      const customer = await retrieveCustomer().catch(() => null)
-      if (!customer) {
-        console.error("No se pudo obtener el cliente")
-        return
-      }
-
-      // Crear nueva lista
-      await postAddWishList({
+      const newList = await postAddWishList({
+        customerId: customer.id,
         title: newListTitle,
-        isPublic: !isPublic, // Invertimos el valor ya que ahora el switch es para privado
-        customerId: customer.id
+        isPublic: isPublic,
       })
 
-      // Limpiar el formulario y cerrar
+      captureUserBehavior(newList.title, "wishlist")
+
+      setShowAddNewForm(false)
       setNewListTitle("")
       setIsPublic(false)
-      setShowAddNewForm(false)
-
-      // Volver a cargar todas las listas desde el servidor para mostrar la actualización
       await handlerRetriverWishList()
-      
-      // Mostrar alguna indicación visual de éxito si es necesario
+
+      if (productId) {
+        await handleSelectionChange(newList.id)
+      }
     } catch (error) {
       console.error("Error al crear nueva lista:", error)
     }
-  }
-
-  const handleAddToList = (listId: string) => {
-    console.log(`Adding product ${productId} to list ${listId}`)
-    
   }
 
   const openDrawer = () => {
@@ -258,101 +170,110 @@ const WishListDropdown = ({ productId, productTitle }: WishListDropdownProps) =>
 
   return (
     <div className="flex items-center gap-2">
-      <DropdownMenu>
-        <DropdownMenu.Trigger asChild>
-          <Button 
-            variant="secondary" 
-            className="flex items-center gap-2 "
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 15c1.93 0 3.5-1.57 3.5-3.5S13.93 8 12 8s-3.5 1.57-3.5 3.5S10.07 15 12 15z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </Button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content>
-          <DropdownMenu.Item onClick={() => setIsDrawerOpen(true)} className="flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Guardar
-          </DropdownMenu.Item>
-          <DropdownMenu.Item className="flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2a9 9 0 0 1 9 9 9 9 0 0 1-9 9 9 9 0 0 1-9-9 9 9 0 0 1 9-9zm0 16a7 7 0 0 0 7-7 7 7 0 0 0-7-7 7 7 0 0 0-7 7 7 7 0 0 0 7 7zm0-1.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-3.5-3.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm7 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z" fill="currentColor"/>
-            </svg>
-            SalkerGift
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu>
+      <Button
+        variant="secondary"
+        className="flex items-center gap-2 bg-transparent border border-gray-700 rounded-full p-2 hover:bg-gray-800"
+        onClick={openDrawer}
+      >
+        <Image src="/feed/+.svg" alt="Add to wishlist" width={16} height={16} />
+      </Button>
 
-      <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} >
-        
-        <Drawer.Content className="z-50 h-[50%] m-auto">
-          <Drawer.Header>
-            <Drawer.Title>Listas de deseos</Drawer.Title>
+      <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+        <Drawer.Content className="z-50 h-auto max-h-[90vh] w-[90%] max-w-lg bg-gray-900 text-white border border-gray-700 rounded-t-lg m-auto">
+          <Drawer.Header className="border-b border-gray-700">
+            <Drawer.Title className="text-xl font-bold text-white">
+              {showAddNewForm ? "Crear Nueva Lista" : `Agregar "${productTitle}" a...`}
+            </Drawer.Title>
           </Drawer.Header>
-          <Drawer.Body className="p-4">
+          <Drawer.Body className="p-6 overflow-y-auto">
             {!showAddNewForm ? (
-              <>
-                <div className="space-y-2 mb-4">
-                  {wishLists.map((list,index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`list-${list.id}`} 
-                        checked={productInLists[list.id] || false}
-                        onCheckedChange={() => handleCheckboxChange(list.id)}
-                      />
-                      <Label htmlFor={`list-${list.id}`} className="flex items-center gap-1">
-                        {list.title}
-                        {list.state_id === "PRIVATE_ID" && (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2zm-2-4V5a5 5 0 0 0-10 0v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <circle cx="12" cy="16" r="1" fill="currentColor"/>
-                          </svg>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 justify-items-center">
+                {wishLists.map((list, index) => {
+                  const isSelected = productInLists[list.id] || false
+                  const bgImage = backgroundImages[index % backgroundImages.length]
+                  return (
+                    <div
+                      key={list.id}
+                      className="flex flex-col items-center gap-2 cursor-pointer group"
+                      onClick={() => handleSelectionChange(list.id)}
+                    >
+                      <div
+                        className={`relative w-24 h-24 rounded-full border-2 transition-all duration-300 ${isSelected ? "border-green-400 scale-105" : "border-gray-600 group-hover:border-white"}`}>
+                        <Image
+                          src={bgImage}
+                          layout="fill"
+                          objectFit="cover"
+                          className="rounded-full opacity-50 group-hover:opacity-75 transition-opacity"
+                          alt={list.title}
+                        />
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-green-500 bg-opacity-50 rounded-full flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                          </div>
                         )}
-                      </Label>
+                        {list.state_id === "PRIVATE_ID" && (
+                          <div className="absolute bottom-1 right-1 bg-gray-800 rounded-full p-1">
+                            <Image src="/wishlist/padlock 1.svg" width={12} height={12} alt="Private" />
+                          </div>
+                        )}
+                      </div>
+                      <Text className="text-sm text-center font-medium text-gray-300 group-hover:text-white transition-colors">
+                        {list.title}
+                      </Text>
                     </div>
-                  ))}
-                </div>
-                <Button 
+                  )
+                })}
+                <div
+                  className="flex flex-col items-center gap-2 cursor-pointer group"
                   onClick={() => setShowAddNewForm(true)}
-                  className="w-full"
                 >
-                  Agregar nueva lista
-                </Button>
-              </>
+                  <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-600 flex items-center justify-center transition-all group-hover:border-green-400 group-hover:bg-gray-800">
+                    <Image
+                      src="/wishlist/more.png"
+                      width={40}
+                      height={40}
+                      alt="Add new list"
+                      className="opacity-70 group-hover:opacity-100 transition-opacity"
+                    />
+                  </div>
+                  <Text className="text-sm text-center font-medium text-gray-300 group-hover:text-white transition-colors">
+                    Crear lista
+                  </Text>
+                </div>
+              </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6 max-w-md mx-auto">
                 <div>
-                  <Label htmlFor="list-title">Título de la lista</Label>
-                  <Input 
-                    id="list-title" 
+                  <Label htmlFor="list-title" className="text-gray-300">Título de la lista</Label>
+                  <Input
+                    id="list-title"
                     value={newListTitle}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewListTitle(e.target.value)}
-                    placeholder="Mi nueva lista"
-                    className="w-full mt-1"
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setNewListTitle(e.target.value)
+                    }
+                    placeholder="Mi nueva lista de deseos"
+                    className="w-full mt-2 bg-gray-800 border-gray-600 text-white placeholder-gray-500 focus:ring-green-400 focus:border-green-400"
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="is-public">Lista Privada</Label>
-                  <Switch 
-                    id="is-public" 
-                    checked={isPublic}
-                    onCheckedChange={() => setIsPublic(!isPublic)}
+                <div className="flex items-center justify-between bg-gray-800 p-3 rounded-lg">
+                  <Label htmlFor="is-public" className="text-gray-300">Lista Privada</Label>
+                  <Switch
+                    id="is-public"
+                    checked={!isPublic}
+                    onCheckedChange={(checked) => setIsPublic(!checked)}
                   />
                 </div>
-                <div className="flex space-x-2 pt-2">
-                  <Button 
-                    variant="secondary" 
+                <div className="flex space-x-4 pt-4">
+                  <Button
+                    variant="secondary"
                     onClick={() => setShowAddNewForm(false)}
-                    className="flex-1"
+                    className="flex-1 bg-gray-700 text-white hover:bg-gray-600"
                   >
                     Cancelar
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleAddNewList}
-                    className="flex-1"
+                    className="flex-1 bg-green-600 text-white hover:bg-green-500"
                   >
                     Guardar
                   </Button>
@@ -360,11 +281,10 @@ const WishListDropdown = ({ productId, productTitle }: WishListDropdownProps) =>
               </div>
             )}
           </Drawer.Body>
-          <Drawer.Footer>
+          <Drawer.Footer className="border-t border-gray-700">
             <Drawer.Close asChild>
-              <Button variant="secondary">Cerrar</Button>
+              <Button variant="secondary" className="w-full bg-gray-700 text-white hover:bg-gray-600">Cerrar</Button>
             </Drawer.Close>
-            
           </Drawer.Footer>
         </Drawer.Content>
       </Drawer>

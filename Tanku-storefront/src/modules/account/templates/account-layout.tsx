@@ -15,12 +15,12 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   children,
 }) => {
   return (
-    <div className="flex-1  h-[83vh]" data-testid="account-page">
+    <div className="flex-1  h-[100vh]" data-testid="account-page">
       <div className="flex-1  h-full  w-full  bg-white flex ">
         <div className="h-full">
           {customer && <AccountNav customer={customer} />}
         </div>
-        <div className=" w-full  py-[5%] px-[3%] h-full overflow-auto ">
+        <div className=" w-full   overflow-auto ">
           <div className="flex-1 ">{children}</div>
         </div>
         {/* <div className="flex flex-col small:flex-row items-end justify-between small:border-t border-gray-200 py-12 gap-8">

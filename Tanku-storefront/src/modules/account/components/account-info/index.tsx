@@ -45,10 +45,10 @@ const AccountInfo = ({
     <div className="text-small-regular" data-testid={dataTestid}>
       <div className="flex items-end justify-between">
         <div className="flex flex-col">
-          <span className="uppercase text-ui-fg-base">{label}</span>
+          <span className="uppercase text-[#73FFA2] font-medium">{label}</span>
           <div className="flex items-center flex-1 basis-0 justify-end gap-x-4">
             {typeof currentInfo === "string" ? (
-              <span className="font-semibold" data-testid="current-info">{currentInfo}</span>
+              <span className="font-semibold text-white" data-testid="current-info">{currentInfo}</span>
             ) : (
               currentInfo
             )}
@@ -57,7 +57,7 @@ const AccountInfo = ({
         <div>
           <Button
             variant="secondary"
-            className="w-[100px] min-h-[25px] py-1"
+            className="w-[100px] min-h-[25px] py-1 bg-[#73FFA2] text-black hover:bg-[#66DEDB] border-none"
             onClick={handleToggle}
             type={state ? "reset" : "button"}
             data-testid="edit-button"
@@ -81,7 +81,7 @@ const AccountInfo = ({
           )}
           data-testid="success-message"
         >
-          <Badge className="p-2 my-4" color="green">
+          <Badge className="p-2 my-4 bg-[#73FFA2] text-black border-[#73FFA2]">
             <span>{label} updated succesfully</span>
           </Badge>
         </Disclosure.Panel>
@@ -100,7 +100,7 @@ const AccountInfo = ({
           )}
           data-testid="error-message"
         >
-          <Badge className="p-2 my-4" color="red">
+          <Badge className="p-2 my-4 bg-red-500 text-white border-red-500">
             <span>{errorMessage}</span>
           </Badge>
         </Disclosure.Panel>
@@ -122,7 +122,7 @@ const AccountInfo = ({
             <div className="flex items-center justify-end mt-2">
               <Button
                 isLoading={pending}
-                className="w-full small:max-w-[140px]"
+                className="w-full small:max-w-[140px] bg-[#73FFA2] text-black hover:bg-[#66DEDB] border-none"
                 type="submit"
                 data-testid="save-button"
               >

@@ -1,79 +1,58 @@
 "use client"
-import { Text, Button, clx } from "@medusajs/ui"
-import { useState, useEffect, useMemo } from "react"
+import { Text, Button } from "@medusajs/ui"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Product } from "@modules/seller/components/table-products"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import WishListDropdown from "@modules/home/components/wish-list"
 import { retrieveCustomer } from "@lib/data/customer"
-import dynamic from "next/dynamic"
-
-// Import FbxModel with dynamic import to avoid SSR issues with Three.js
-// const Cottage3DModel = dynamic(() => import("@modules/home/components/cottage-3d-model"), {
-//   ssr: false,
-//   loading: () => <div className="w-full h-full flex items-center justify-center">Cargando modelo 3D...</div>
-// })
 
 interface PreviewProductsTankuProps {
   products: Product[]
   isFeatured?: boolean
 }
 
-// Custom interfaces for our product structure
-interface ProductInventory {
-  currency_code: string;
-  price: number;
-}
-
-interface ProductVariantCustom {
-  inventory?: ProductInventory;
-}
-
-// Extended product type to include 3D model flag
-interface ExtendedProduct {
-  id: string;
-  title: string;
-  handle: string;
-  thumbnail: string | null;
-  is3DModel?: boolean;
-  variants?: ProductVariantCustom[];
+// Star rating component
+const StarRating = ({ rating = 4.8 }: { rating?: number }) => {
+  const fullStars = Math.floor(rating)
+  const hasHalfStar = rating % 1 !== 0
+  
+  return (
+    <div className="flex items-center gap-1 mb-2">
+      {[...Array(5)].map((_, i) => {
+        if (i < fullStars) {
+          return (
+            <svg key={i} className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
+              <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
+            </svg>
+          )
+        } else if (i === fullStars && hasHalfStar) {
+          return (
+            <svg key={i} className="w-4 h-4 text-yellow-400" viewBox="0 0 20 20">
+              <defs>
+                <linearGradient id="half">
+                  <stop offset="50%" stopColor="currentColor"/>
+                  <stop offset="50%" stopColor="transparent"/>
+                </linearGradient>
+              </defs>
+              <path fill="url(#half)" d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
+            </svg>
+          )
+        } else {
+          return (
+            <svg key={i} className="w-4 h-4 text-gray-300" viewBox="0 0 20 20">
+              <path fill="currentColor" d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
+            </svg>
+          )
+        }
+      })}
+      <span className="text-sm text-gray-600 ml-1">{rating}</span>
+    </div>
+  )
 }
 
 export default function PreviewProductsTanku({ products, isFeatured = false }: PreviewProductsTankuProps) {
-  
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isAnimating, setIsAnimating] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  
-  // Create a combined array with the 3D model as the first item followed by regular products
-  const allItems = useMemo<ExtendedProduct[]>(() => {
-    // Create a 3D model item to be displayed first
-    const model3DItem: ExtendedProduct = {
-      id: "3d-cottage-model",
-      title: "Casa de Campo 3D",
-      handle: "cottage-3d-model",
-      thumbnail: "/cottage_textures/cottage_diffuse.png",
-      is3DModel: true,
-      variants: [{
-        inventory: {
-          currency_code: "$",
-          price: 250000
-        }
-      }]
-    };
-    
-    // Map the products to match our ExtendedProduct structure
-    const mappedProducts: ExtendedProduct[] = products.map(product => ({
-      id: product.id,
-      title: product.title,
-      handle: product.handle,
-      thumbnail: product.thumbnail || null,
-      variants: product.variants
-    }));
-    
-    // Return the 3D model first, followed by the regular products
-    return [model3DItem, ...mappedProducts];
-  }, [products])
   
   useEffect(() => {
     const checkAuth = async () => {
@@ -88,132 +67,65 @@ export default function PreviewProductsTanku({ products, isFeatured = false }: P
     return null
   }
 
-  const total = allItems.length
-
-  const prev = () => {
-    if (isAnimating) return
-    setIsAnimating(true)
-    setCurrentIndex((prev) => (prev - 1 + total) % total)
-    setTimeout(() => setIsAnimating(false), 500) // Duración de la animación
-  }
-
-  const next = () => {
-    if (isAnimating) return
-    setIsAnimating(true)
-    setCurrentIndex((prev) => (prev + 1) % total)
-    setTimeout(() => setIsAnimating(false), 500) // Duración de la animación
-  }
-
-  const visibleIndexes = [
-    (currentIndex - 2 + total) % total,
-    (currentIndex - 1 + total) % total,
-    currentIndex,
-    (currentIndex + 1) % total,
-    (currentIndex + 2) % total,
-  ]
-
   return (
-    <div className="w-full flex flex-col items-center justify-center ">
-      {/* Título con degradado */}
-      <div className="w-full   py-3 mb-8 rounded-lg">
-        <h2 className="text-5xl font-bold text-center text-blackTanku">Productos Destacados</h2>
-      </div>
-      
-      <div className="w-full flex items-center justify-center h-[300px] relative">
-        {/* Botón Anterior */}
-        <button
-          onClick={prev}
-          aria-label="Anterior"
-          className="absolute left-4 z-10 p-4 text-4xl font-bold select-none bg-white/80 hover:bg-white rounded-full shadow-lg text-blueTanku transition-all duration-300 flex items-center justify-center h-14 w-14"
-        >
-          &#8249;
-        </button>
-
-        {/* Carrusel */}
-        <div className="relative w-full h-[300px] overflow-hidden">
-          {visibleIndexes.map((idx, position) => {
-            const translateX = (position - 2) * 100 // -200%, -100%, 0%, 100%, 200%
-            const item = allItems[idx]
-            const is3DModel = item && !!item.is3DModel
-
-            if (!item) return null
-            return (
-              <div
-                key={item.id}
-                className="absolute top-0 left-1/2 w-1/3 h-full transition-all duration-500 ease-in-out"
-                style={{
-                  transform: `translateX(${translateX}%) translateX(-50%)`,
-                }}
-              >
-                {is3DModel ? (
-                  // Render 3D model
-                  <div className="w-full h-[300px] relative mb-4 overflow-hidden rounded-lg shadow-lg bg-white">
-                    <div className="absolute top-2 right-2 z-10 bg-white/80 px-2 py-1 rounded-md text-xs font-semibold text-blueTanku">
-                      Modelo 3D Interactivo
-                    </div>
-                    {/* <Cottage3DModel /> */}
-                  </div>
-                ) : (
-                  // Render regular product
-                  <LocalizedClientLink key={item.id} href={`/products/tanku/${item.handle}`} className="group">
-                    <div className="w-full h-[300px] relative mb-4 overflow-hidden">
-                      <Image
-                        src={item.thumbnail || '/placeholder.png'}
-                        alt={item.title}
-                        fill
-                        className="object-contain"
-                      />
-                    </div>
-                  </LocalizedClientLink>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Botón Siguiente */}
-        <button
-          onClick={next}
-          aria-label="Siguiente"
-          className="absolute right-4 z-10 p-4 text-4xl font-bold select-none bg-white/80 hover:bg-white rounded-full shadow-lg text-blueTanku transition-all duration-300 flex items-center justify-center h-14 w-14"
-        >
-          &#8250;
-        </button>
-      </div>
-      <div className="w-full mt-4 transition-opacity duration-300">
-        <div className="max-w-3xl mx-auto bg-white p-4 rounded-lg ">
-          <Text className="text-blueTanku font-bold text-3xl text-center mb-4">
-            {allItems[currentIndex]?.title}
-          </Text>
-          {allItems[currentIndex]?.variants?.[0]?.inventory && (
-            <Text className="text-2xl text-gray-800 text-center mb-6">
-              {allItems[currentIndex].variants[0].inventory.currency_code} {
-                allItems[currentIndex].variants[0].inventory.price.toLocaleString()
-              }
-            </Text>
-          )}
-          <div className="flex justify-center gap-3">
-            {!allItems[currentIndex]?.is3DModel ? (
-              <>
-                <LocalizedClientLink 
-                  href={`/products/tanku/${allItems[currentIndex]?.handle}`} 
-                  className="inline-block"
-                >
-                  <button className="bg-blueTanku hover:bg-blueTanku/90 text-white text-xl px-4 py-2 rounded-lg">
-                    Comprar Ahora
-                  </button>
-                </LocalizedClientLink>
+    <div className="w-full px-4 py-8">
+      {/* Products Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+        {products.map((product) => {
+          const price = product.variants?.[0]?.inventory?.price || 0
+          const currencyCode = product.variants?.[0]?.inventory?.currency_code || '$'
+          
+          return (
+            <div 
+              key={product.id} 
+              className="bg-transparent border-2 border-[#66DEDB] rounded-2xl p-4 hover:shadow-lg transition-all duration-300 hover:scale-105"
+            >
+              {/* Star Rating */}
+              <StarRating />
+              
+              {/* Product Image */}
+              <LocalizedClientLink href={`/products/tanku/${product.handle}`} className="block">
+                <div className="w-full h-48 relative mb-4 overflow-hidden rounded-lg">
+                  <Image
+                    src={product.thumbnail || '/placeholder.png'}
+                    alt={product.title}
+                    fill
+                    className="object-cover hover:scale-110 transition-transform duration-300"
+                  />
+                </div>
+              </LocalizedClientLink>
+              
+              {/* Product Title */}
+              <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">
+                {product.title}
+              </h3>
+              
+              {/* Price */}
+              <div className="text-xl flex justify-between font-bold text-[#66DEDB] mb-4">
+                {currencyCode} {price.toLocaleString()}
+                <div className="flex items-right">
+                {/* Cart Icon */}
+                <button className="p-2 hover:bg-gray-700 rounded-full transition-colors duration-200">
+                  <img src="/feed/Carrito 4.svg" alt="Add to cart" width="24" height="24" />
+                </button>
+                
+                {/* Plus Icon (Wishlist) */}
                 {isAuthenticated && (
-                  <WishListDropdown productId={allItems[currentIndex]?.id} productTitle={allItems[currentIndex]?.title} />
+                  <WishListDropdown productId={product.id} productTitle={product.title} />
                 )}
-              </>
-            ) : (
-              <button className="bg-blueTanku hover:bg-blueTanku/90 text-white text-xl px-4 py-2 rounded-lg">
-                Ver Modelo 3D
-              </button>
-            )}
-          </div>
-        </div>
+                
+                {/* Share Icon */}
+                <button className="p-2 hover:bg-gray-700 rounded-full transition-colors duration-200">
+                  <img src="/feed/arrow-right 4.svg" alt="Share" width="24" height="24" />
+                </button>
+              </div>
+              </div>
+              
+              {/* Action Icons */}
+              
+            </div>
+          )
+        })}
       </div>
     </div>
   )

@@ -35,10 +35,10 @@ const getListWishListStep = createStep(
         });
 
         const wishlist = wishLists[0].wish_lists
-    console.log("wishLists",wishlist)
+
 
         const wishlistFiltered = wishlist?.filter((list: any) => list)
-        console.log("wishlistFiltered",wishlistFiltered)
+        
     return new StepResponse(wishlistFiltered);
   },
 
