@@ -20,6 +20,7 @@ import StoryUpload, { Story } from "@modules/home/components/story-upload"
 import StoryViewer from "@modules/home/components/story-viewer"
 import { retrieveCustomer } from "@lib/data/customer"
 import { getStories } from "@modules/home/components/actions/get-stories"
+import { usePersonalInfo } from "@lib/context"
 
 // Generate mock data for friends' stories (without user's own story)
 // COMENTADO: Ahora se obtienen las historias desde la base de datos
@@ -79,33 +80,29 @@ const mockCategories = [
 ]
 
 function HomeContent() {
+  // Context for personal info
+  const { personalInfo, isLoading, getUser } = usePersonalInfo()
+  const user = getUser()
+  
   const [userStories, setUserStories] = useState<Story[]>([])
   const [friendsStories, setFriendsStories] = useState<Story[]>([])
   const [allStories, setAllStories] = useState<Story[]>([])
   const [isViewerOpen, setIsViewerOpen] = useState(false)
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0)
   const [products, setProducts] = useState<any[]>([])
-  const [customer, setCustomer] = useState<any>(null)
   const [storiesLoading, setStoriesLoading] = useState(false)
   const [categorySliderIndex, setCategorySliderIndex] = useState(0)
-
-  // Load customer data
-  useEffect(() => {
-    retrieveCustomer()
-      .then(setCustomer)
-      .catch(() => setCustomer(null))
-  }, [])
   
   // Load products on component mount
   useEffect(() => {
     fetchListStoreProduct().then(setProducts)
   }, [])
 
-  // Load stories when customer is available
+  // Load stories when user is available
   useEffect(() => {
-    if (customer?.id) {
+    if (user?.id) {
       setStoriesLoading(true)
-      getStories(customer.id)
+      getStories(user.id)
         .then((response) => {
           if (response.success) {
             // Convertir las historias de la base de datos al formato esperado por el frontend
@@ -146,7 +143,7 @@ function HomeContent() {
           setStoriesLoading(false)
         })
     }
-  }, [customer])
+  }, [user?.id])
 
   // Group stories by user and update all stories when user or friends stories change
   useEffect(() => {
@@ -255,7 +252,7 @@ function HomeContent() {
               onStoryCreate={handleStoryCreate}
               userAvatar="/feed/avatar.png"
               userName="Tu Historia"
-              customer_id={customer?.id}
+              customer_id={user?.id}
             />
             
             {/* Grouped Stories (User + Friends) */}

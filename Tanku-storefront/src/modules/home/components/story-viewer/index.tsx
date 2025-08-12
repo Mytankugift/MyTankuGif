@@ -18,53 +18,12 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
   onClose,
   onStoryChange
 }) => {
-  const [progress, setProgress] = useState(0)
-  const [isPaused, setIsPaused] = useState(false)
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
-  const [shouldAdvance, setShouldAdvance] = useState(false)
   const currentStory = stories[currentStoryIndex]
-  const STORY_DURATION = 5000 // 5 seconds per story
 
-  // Handle story progression
+  // Reset media index when story changes
   useEffect(() => {
-    if (isPaused) return
-
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          setShouldAdvance(true)
-          return 100
-        }
-        return prev + (100 / (STORY_DURATION / 100))
-      })
-    }, 100)
-
-    return () => clearInterval(interval)
-  }, [currentStoryIndex, isPaused, STORY_DURATION])
-
-  // Handle story transitions separately to avoid setState during render
-  useEffect(() => {
-    if (shouldAdvance) {
-      setShouldAdvance(false)
-      
-      // Use setTimeout to defer the state update to the next tick
-      const timeoutId = setTimeout(() => {
-        if (currentStoryIndex < stories.length - 1) {
-          onStoryChange(currentStoryIndex + 1)
-        } else {
-          onClose()
-        }
-      }, 0)
-
-      return () => clearTimeout(timeoutId)
-    }
-  }, [shouldAdvance, currentStoryIndex, stories.length, onStoryChange, onClose])
-
-  // Reset progress and media index when story changes
-  useEffect(() => {
-    setProgress(0)
     setCurrentMediaIndex(0)
-    setShouldAdvance(false)
   }, [currentStoryIndex])
 
   const handlePrevious = () => {
@@ -81,30 +40,16 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
     }
   }
 
-  const handleMouseDown = () => setIsPaused(true)
-  const handleMouseUp = () => setIsPaused(false)
+
 
   if (!currentStory) return null
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
-      {/* Progress bars */}
-      <div className="absolute top-4 left-4 right-4 flex gap-1 z-10">
-        {stories.map((_, index) => (
-          <div key={index} className="flex-1 h-1 bg-gray-600 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-white transition-all duration-100 ease-linear"
-              style={{
-                width: index < currentStoryIndex ? '100%' : 
-                       index === currentStoryIndex ? `${progress}%` : '0%'
-              }}
-            />
-          </div>
-        ))}
-      </div>
+
 
       {/* Header */}
-      <div className="absolute top-8 left-4 right-4 flex items-center justify-between z-10">
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full overflow-hidden">
             <Image
@@ -117,12 +62,6 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
           </div>
           <div>
             <p className="text-white font-medium text-sm">{currentStory.name}</p>
-            <p className="text-gray-300 text-xs">
-              {new Date(currentStory.timestamp).toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
-            </p>
           </div>
         </div>
         <button
@@ -139,9 +78,6 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
         <div
           className="flex-1 cursor-pointer flex items-center justify-start pl-4"
           onClick={handlePrevious}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
         >
           {currentStoryIndex > 0 && (
             <div className="opacity-0 hover:opacity-100 transition-opacity">
@@ -154,9 +90,6 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
         <div
           className="flex-1 cursor-pointer flex items-center justify-end pr-4"
           onClick={handleNext}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
         >
           <div className="opacity-0 hover:opacity-100 transition-opacity">
             <ChevronRight className="w-8 h-8 text-white" />
@@ -183,7 +116,6 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
                 autoPlay
                 muted
                 className="w-full h-full object-contain"
-                onLoadedData={() => setIsPaused(false)}
               />
             )}
             
