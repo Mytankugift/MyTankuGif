@@ -17,10 +17,16 @@ import {
 
 export const retrieveCustomer =
   async (): Promise<HttpTypes.StoreCustomer | null> => {
+    console.log("Attempting to retrieve customer...")
     const authHeaders = await getAuthHeaders()
 
-    if (!authHeaders) return null
+    // Check if authHeaders contains authorization token
+    if (!authHeaders || !('authorization' in authHeaders)) {
+      console.log("No valid authorization headers found")
+      return null
+    }
 
+    console.log("Valid authorization headers found, making API call...")
     const headers = {
       ...authHeaders,
     }
@@ -39,8 +45,14 @@ export const retrieveCustomer =
         next,
         cache: "force-cache",
       })
-      .then(({ customer }) => customer)
-      .catch(() => null)
+      .then(({ customer }) => {
+        console.log("Customer retrieved successfully:", customer?.id)
+        return customer
+      })
+      .catch((error) => {
+        console.error("Error fetching customer from API:", error)
+        return null
+      })
   }
 
 export const updateCustomer = async (body: HttpTypes.StoreUpdateCustomer) => {

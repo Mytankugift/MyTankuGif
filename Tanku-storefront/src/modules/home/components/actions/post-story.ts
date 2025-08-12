@@ -1,5 +1,5 @@
 import { StoryMedia } from '../story-upload/index'
-
+import { retrieveCustomer } from "@lib/data/customer"
 
 export interface CreateStoryData {
   title?: string
@@ -31,8 +31,8 @@ export async function createStory(data: CreateStoryData): Promise<CreateStoryRes
   console.log("entro a la creacion de la historia", data.customer_id)
   if(!data.customer_id){
     console.log("entro al if de la creacion de la historia", data.customer_id)
-
-    data.customer_id = ""
+    const customer = await retrieveCustomer().catch(() => null)
+    data.customer_id = customer?.id || ""
     console.log("Customer ID: ", data.customer_id)
   }
   

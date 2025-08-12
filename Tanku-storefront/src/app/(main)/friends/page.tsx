@@ -21,9 +21,13 @@ type Params = {
 }
 
 export default async function StorePage(props: Params) {
-  const customer = await retrieveCustomer().catch(() => null)
+  const customer = await retrieveCustomer().catch((error) => {
+    console.error("Error retrieving customer:", error)
+    return null
+  })
 
   if (!customer) {
+    console.log("No customer found, redirecting to /account")
     redirect("/account")
   }
 

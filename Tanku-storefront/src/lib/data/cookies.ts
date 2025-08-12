@@ -8,9 +8,11 @@ export const getAuthHeaders = async (): Promise<
   const token = cookies.get("_medusa_jwt")?.value
 
   if (!token) {
+    console.log("No JWT token found in cookies")
     return {}
   }
 
+  console.log("JWT token found, creating authorization header")
   return { authorization: `Bearer ${token}` }
 }
 
