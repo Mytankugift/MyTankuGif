@@ -3,8 +3,9 @@ import { notFound } from "next/navigation"
 
 import { getCategoryByHandle, listCategories } from "@lib/data/categories"
 import { listRegions } from "@lib/data/regions"
-import { StoreRegion } from "@medusajs/types"
 import CategoryTemplate from "@modules/categories/templates"
+import CategoryTemplateTanku from "@modules/categories/templates/category-template-tanku"
+import { StoreRegion } from "@medusajs/types"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 
 type Props = {
@@ -17,7 +18,7 @@ type Props = {
 
 export async function generateStaticParams() {
   const product_categories = await listCategories()
-
+console.log("product_categories",product_categories)
   if (!product_categories) {
     return []
   }
@@ -64,22 +65,15 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 }
 
 export default async function CategoryPage(props: Props) {
-  const searchParams = await props.searchParams
   const params = await props.params
-  const { sortBy, page } = searchParams
-
+  
   const productCategory = await getCategoryByHandle(params.category)
-
   if (!productCategory) {
+    console.log("entra a la pagina notFound",productCategory)
     notFound()
   }
 
   return (
-    <CategoryTemplate
-      category={productCategory}
-      sortBy={sortBy}
-      page={page}
-      countryCode={params.countryCode}
-    />
+    <CategoryTemplateTanku category={productCategory} />
   )
 }

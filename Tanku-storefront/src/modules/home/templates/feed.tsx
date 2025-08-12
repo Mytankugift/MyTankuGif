@@ -82,7 +82,7 @@ const mockCategories = [
 function HomeContent() {
   // Context for personal info
   const { personalInfo, isLoading, getUser } = usePersonalInfo()
-  const user = getUser()
+  
   
   const [userStories, setUserStories] = useState<Story[]>([])
   const [friendsStories, setFriendsStories] = useState<Story[]>([])
@@ -100,9 +100,9 @@ function HomeContent() {
 
   // Load stories when user is available
   useEffect(() => {
-    if (user?.id) {
+    if (personalInfo?.id) {
       setStoriesLoading(true)
-      getStories(user.id)
+      getStories(personalInfo.id)
         .then((response) => {
           if (response.success) {
             // Convertir las historias de la base de datos al formato esperado por el frontend
@@ -143,7 +143,7 @@ function HomeContent() {
           setStoriesLoading(false)
         })
     }
-  }, [user?.id])
+  }, [personalInfo?.id])
 
   // Group stories by user and update all stories when user or friends stories change
   useEffect(() => {
@@ -252,7 +252,7 @@ function HomeContent() {
               onStoryCreate={handleStoryCreate}
               userAvatar="/feed/avatar.png"
               userName="Tu Historia"
-              customer_id={user?.id}
+              customer_id={personalInfo?.id}
             />
             
             {/* Grouped Stories (User + Friends) */}

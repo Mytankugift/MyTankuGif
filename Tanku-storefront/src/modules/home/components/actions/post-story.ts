@@ -1,5 +1,6 @@
 import { StoryMedia } from '../story-upload/index'
 
+
 export interface CreateStoryData {
   title?: string
   description?: string
@@ -27,6 +28,14 @@ export interface CreateStoryResponse {
  * Función para crear una nueva historia enviando archivos y datos al backend
  */
 export async function createStory(data: CreateStoryData): Promise<CreateStoryResponse> {
+  console.log("entro a la creacion de la historia", data.customer_id)
+  if(!data.customer_id){
+    console.log("entro al if de la creacion de la historia", data.customer_id)
+
+    data.customer_id = ""
+    console.log("Customer ID: ", data.customer_id)
+  }
+  
   try {
     // Crear FormData para enviar archivos
     const formData = new FormData()

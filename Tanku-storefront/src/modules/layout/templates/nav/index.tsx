@@ -13,72 +13,29 @@ import { Avatar } from "@medusajs/ui"
 import ProfilePanel from "@modules/layout/components/profile-panel"
 import NewPostPanel from "@modules/layout/components/new-post-panel"
 import { updateAvatar } from "@modules/personal-info/actions/update-avatar"
-import { getPersonalInfo } from "@modules/personal-info/actions/get-personal-info"
 import { updateStatusMessage } from "@modules/personal-info/actions/update-status-message"
-import { retrieveCustomer } from "@lib/data/customer"
+import { usePersonalInfo } from "@lib/context/personal-info-context"
 
 function NavContent() {
   const [isExpanded, setIsExpanded] = useState(false)
   const [activePanel, setActivePanel] = useState<'none' | 'newPost' | 'profile'>('none')
-  const [avatarUrl, setAvatarUrl] = useState('')
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false)
-  const [customerId, setCustomerId] = useState<string | null>(null)
-  const [isLoadingAvatar, setIsLoadingAvatar] = useState(true)
-  const [statusMessage, setStatusMessage] = useState('')
   const [isEditingStatus, setIsEditingStatus] = useState(false)
   const [tempStatusMessage, setTempStatusMessage] = useState('')
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Use personal info context
+  const { getUser, refreshPersonalInfo, isLoading } = usePersonalInfo()
+  const user = getUser()
 
-  // Cargar customer y avatar al montar el componente
+  // Fallback logic if user data is not available
   useEffect(() => {
-    const loadCustomerAndAvatar = async () => {
-      try {
-        console.log("Loading customer and avatar...");
-        
-        // Obtener customer
-        const customer = await retrieveCustomer().catch(() => null);
-        
-        if (customer?.id) {
-          console.log("Customer found:", customer.id);
-          setCustomerId(customer.id);
-          
-          // Obtener información personal incluyendo avatar
-          const personalInfoResult = await getPersonalInfo(customer.id);
-          
-          if (personalInfoResult.success && personalInfoResult.data) {
-            console.log("=== Personal Info Data Retrieved ===");
-            console.log("Full data:", personalInfoResult.data);
-            
-            if (personalInfoResult.data.avatar_url) {
-              console.log("Avatar found:", personalInfoResult.data.avatar_url);
-              setAvatarUrl(personalInfoResult.data.avatar_url);
-            } else {
-              console.log("No avatar_url in data");
-            }
-            
-            if (personalInfoResult.data.status_message) {
-              console.log("Status message found:", personalInfoResult.data.status_message);
-              setStatusMessage(personalInfoResult.data.status_message);
-            } else {
-              console.log("No status_message in data, value is:", personalInfoResult.data.status_message);
-            }
-          } else {
-            console.log("No personal info found, using defaults");
-            console.log("Result:", personalInfoResult);
-          }
-        } else {
-          console.log("No customer found");
-        }
-      } catch (error) {
-        console.error("Error loading customer and avatar:", error);
-      } finally {
-        setIsLoadingAvatar(false);
-      }
-    };
-
-    loadCustomerAndAvatar();
-  }, []);
+    if (!user && !isLoading) {
+      console.log('⚠️ No user data found in nav, attempting refresh...')
+      refreshPersonalInfo()
+    }
+  }, [user, isLoading, refreshPersonalInfo]);
 
   const handleNewPostClick = () => {
     if (activePanel === 'newPost' && isExpanded) {
@@ -134,18 +91,19 @@ function NavContent() {
 
     try {
       // Verificar que tenemos un customer_id
-      if (!customerId) {
+      if (!user?.id) {
         alert('Error: No se pudo identificar al usuario');
         return;
       }
       
       const result = await updateAvatar({
-        customer_id: customerId,
+        customer_id: user.id,
         avatar: file
       })
 
       if (result.success && result.data?.avatar_url) {
-        setAvatarUrl(result.data.avatar_url)
+        // Refresh context to get updated avatar
+        await refreshPersonalInfo()
         console.log('Avatar actualizado exitosamente:', result.data.avatar_url)
       } else {
         console.error('Error al actualizar avatar:', result.error)
@@ -164,12 +122,12 @@ function NavContent() {
   }
 
   const handleEditStatusClick = () => {
-    setTempStatusMessage(statusMessage || '')
+    setTempStatusMessage(user?.statusMessage || '')
     setIsEditingStatus(true)
   }
 
   const handleSaveStatus = async () => {
-    if (!customerId) {
+    if (!user?.id) {
       alert('Error: No se pudo identificar al usuario')
       return
     }
@@ -183,16 +141,16 @@ function NavContent() {
 
     try {
       const result = await updateStatusMessage({
-        customer_id: customerId,
+        customer_id: user.id,
         status_message: tempStatusMessage.trim()
       })
 
       if (result.success) {
-        const newStatusMessage = tempStatusMessage.trim();
-        setStatusMessage(newStatusMessage);
+        // Refresh context to get updated status message
+        await refreshPersonalInfo()
         setIsEditingStatus(false);
         console.log('=== Status Message Update Successful ===');
-        console.log('New status message set to:', newStatusMessage);
+        console.log('New status message set to:', tempStatusMessage.trim());
         console.log('Backend response:', result);
       } else {
         console.error('Error al actualizar status message:', result.error);
@@ -273,12 +231,12 @@ function NavContent() {
                   <div className={`flex items-center justify-center relative ${
                       isUpdatingAvatar ? "opacity-50" : ""
                     }`}>
-                    {isLoadingAvatar ? (
+                    {isLoading ? (
                       <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-700 animate-pulse" />
                     ) : (
                       <div className="w-20 h-20 rounded-full overflow-hidden bg-white flex items-center justify-center ">
                         <Image
-                          src={avatarUrl || "/default-avatar.png"}
+                          src={user?.avatarUrl || "/default-avatar.png"}
                           alt="User Avatar"
                           width={76}
                           height={76}
@@ -294,7 +252,7 @@ function NavContent() {
                   disabled={isUpdatingAvatar}
                   title="Cambiar avatar"
                 >
-                  <PencilSquare className="w-4 h-4 text-gray-800" />
+                  <PencilSquare className="w-4 h-4 text-gray-800"  />
                 </button>
               </div>
 
@@ -302,7 +260,7 @@ function NavContent() {
                 <div className="relative group">
                   <div className="flex items-center gap-1 rounded-lg min-h-[16px] justify-center">
                     <p className="text-xs text-white/90 flex-1 text-center truncate leading-tight">
-                      {statusMessage || "¡Hola! Este es mi estado"}
+                      {user?.statusMessage || "¡Hola! Este es mi estado"}
                     </p>
                     <PencilSquare
                       className="cursor-pointer text-[#73FFA2] hover:text-[#66e891] flex-shrink-0 w-3 h-3"
@@ -464,6 +422,14 @@ function NavContent() {
           )}
         </div>
 
+        {/* Hidden file input for avatar upload */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
 
       </nav>
     </div>

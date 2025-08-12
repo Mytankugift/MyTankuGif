@@ -17,12 +17,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     console.log("Body received:", req.body)
 
     // Validar que hay archivos
-    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "Al menos una imagen es requerida"
-      })
-    }
+    // Los archivos son opcionales ahora
+    const files = req.files && Array.isArray(req.files) ? req.files : []
 
     // Validar datos del formulario
     const validationResult = createPosterSchema.safeParse(req.body)
@@ -40,112 +36,65 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     let imageFile: any = null
     let videoFile: any = null
 
-    for (const file of req.files as any[]) {
-      if (file.mimetype.startsWith('image/')) {
-        if (!imageFile) {
-          imageFile = file
-        }
-      } else if (file.mimetype.startsWith('video/')) {
-        if (!videoFile) {
-          videoFile = file
+    // Procesar archivos si existen
+    if (files.length > 0) {
+      for (const file of files) {
+        if (file.mimetype.startsWith('image/')) {
+          if (!imageFile) {
+            imageFile = file
+          }
+        } else if (file.mimetype.startsWith('video/')) {
+          if (!videoFile) {
+            videoFile = file
+          }
         }
       }
-    }
-
-    // Validar que hay al menos una imagen
-    if (!imageFile) {
-      return res.status(400).json({
-        success: false,
-        error: "Se requiere al menos una imagen"
-      })
     }
 
     console.log("Image file:", imageFile?.originalname)
     console.log("Video file:", videoFile?.originalname || "None")
 
-    // Subir archivos usando el workflow de Medusa
-    const filesToUpload: any[] = [imageFile]
-    if (videoFile) {
-      filesToUpload.push(videoFile)
-    }
-
-    const { result: uploadResult } = await uploadFilesWorkflow(req.scope).run({
-      input: {
-        files: filesToUpload.map((file: any) => ({
-          filename: file.originalname,
-          mimeType: file.mimetype,
-          content: file.buffer.toString("binary"),
-          access: "public" 
-        }))
-      }
-    })
-
-    console.log("Upload result:", uploadResult)
-    console.log("Upload result type:", typeof uploadResult)
-    console.log("Upload result keys:", uploadResult ? Object.keys(uploadResult) : 'null')
-
-    // Validar que el resultado de subida existe
-    if (!uploadResult) {
-      return res.status(500).json({
-        success: false,
-        error: "Error al subir archivos: resultado vacío"
-      })
-    }
-
-    // Obtener URLs de los archivos subidos
+    // Subir archivos a Medusa si existen
     let imageUrl = ""
     let videoUrl = ""
 
-    // El uploadFilesWorkflow retorna un array de FileDTO
-    // Manejar la respuesta como array directo
-    let uploadedFiles: any[] = []
-    
-    if (Array.isArray(uploadResult)) {
-      uploadedFiles = uploadResult
-    } else if (uploadResult && typeof uploadResult === 'object') {
-      // Si es un objeto, intentar acceder a diferentes propiedades
-      if ((uploadResult as any).files && Array.isArray((uploadResult as any).files)) {
-        uploadedFiles = (uploadResult as any).files
-      } else if ((uploadResult as any).result && Array.isArray((uploadResult as any).result)) {
-        uploadedFiles = (uploadResult as any).result
-      } else {
-        console.error("Estructura de uploadResult no reconocida:", uploadResult)
-        return res.status(500).json({
-          success: false,
-          error: "Error al procesar archivos subidos"
-        })
-      }
-    } else {
-      console.error("uploadResult no es un array ni objeto:", uploadResult)
-      return res.status(500).json({
-        success: false,
-        error: "Error al procesar archivos subidos"
-      })
-    }
+    // Subir imagen si existe
+    if (imageFile) {
+      try {
+        const fileService = req.scope.resolve("fileService") as any
+        const uploadResult = await fileService.upload(imageFile)
+        console.log("Image upload result:", uploadResult)
 
-    console.log("Uploaded files found:", uploadedFiles.length)
-
-    for (let i = 0; i < uploadedFiles.length && i < filesToUpload.length; i++) {
-      const uploadedFile = uploadedFiles[i] as any
-      const originalFile = filesToUpload[i] as any
-      
-      console.log(`Processing file ${i}:`, {
-        uploaded: uploadedFile,
-        original: originalFile.mimetype
-      })
-      
-      if (originalFile.mimetype.startsWith('image/')) {
-        imageUrl = uploadedFile.url || uploadedFile.file_url || uploadedFile.path || ""
-      } else if (originalFile.mimetype.startsWith('video/')) {
-        videoUrl = uploadedFile.url || uploadedFile.file_url || uploadedFile.path || ""
+        if (uploadResult && uploadResult.url) {
+          imageUrl = uploadResult.url
+        } else {
+          console.error("Error al subir la imagen")
+        }
+      } catch (error) {
+        console.error("Error uploading image:", error)
       }
     }
 
-    // Validar que al menos tenemos la imagen
-    if (!imageUrl) {
-      return res.status(500).json({
+    // Subir video si existe
+    if (videoFile) {
+      try {
+        const fileService = req.scope.resolve("fileService") as any
+        const videoUploadResult = await fileService.upload(videoFile)
+        console.log("Video upload result:", videoUploadResult)
+        
+        if (videoUploadResult && videoUploadResult.url) {
+          videoUrl = videoUploadResult.url
+        }
+      } catch (error) {
+        console.error("Error uploading video:", error)
+      }
+    }
+
+    // Validar que al menos tenemos título o descripción
+    if (!title?.trim() && !description?.trim()) {
+      return res.status(400).json({
         success: false,
-        error: "Error al obtener URL de la imagen subida"
+        error: "Se requiere al menos un título o descripción"
       })
     }
 
@@ -158,8 +107,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         customer_id,
         title,
         description,
-        image_url: imageUrl,
-        video_url: videoUrl || undefined
+        image_url: imageUrl || "",
+        video_url: videoUrl || ""
       }
     })
 

@@ -20,6 +20,7 @@ const NewPostPanel: React.FC<NewPostPanelProps> = ({ onClose, onPostCreated }) =
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [customer, setCustomer] = useState<any>(null)
+  const [showMediaMenu, setShowMediaMenu] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
 
@@ -95,8 +96,9 @@ const NewPostPanel: React.FC<NewPostPanelProps> = ({ onClose, onPostCreated }) =
   }
 
   const handleSubmitPost = async () => {
-    if (!imageFile) {
-      alert('Se requiere al menos una imagen')
+    // Verificar que al menos haya título o descripción
+    if (!title.trim() && !description.trim()) {
+      alert('Se requiere al menos un título o descripción')
       return
     }
 
@@ -111,7 +113,7 @@ const NewPostPanel: React.FC<NewPostPanelProps> = ({ onClose, onPostCreated }) =
       const result = await createPoster({
         title: title.trim() || undefined,
         description: description.trim() || undefined,
-        imageFile,
+        imageFile: imageFile || undefined,
         videoFile: videoFile || undefined,
         customer_id: customer.id
       })
@@ -147,6 +149,7 @@ const NewPostPanel: React.FC<NewPostPanelProps> = ({ onClose, onPostCreated }) =
     setVideoFile(null)
     setImagePreviewUrl('')
     setVideoPreviewUrl('')
+    setShowMediaMenu(false)
     onClose()
   }
 
@@ -166,117 +169,140 @@ const NewPostPanel: React.FC<NewPostPanelProps> = ({ onClose, onPostCreated }) =
         />
       </button>
 
-      {/* Contenido del formulario */}
-      <div className="flex-1 p-6 overflow-y-auto flex justify-center">
-        <div className="w-full max-w-2xl space-y-6">
-          {/* Preview de imagen */}
-          {imagePreviewUrl && (
-            <div className="space-y-4">
-              <h3 className="text-white font-medium">Imagen seleccionada:</h3>
-              <div className="relative inline-block">
-                <Image
-                  src={imagePreviewUrl}
-                  alt="Preview imagen"
-                  width={200}
-                  height={200}
-                  className="w-full max-w-sm h-48 object-cover rounded-lg"
-                />
-                <button
-                  onClick={handleRemoveImage}
-                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors text-sm"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Preview de video */}
-          {videoPreviewUrl && (
-            <div className="space-y-4">
-              <h3 className="text-white font-medium">Video seleccionado:</h3>
-              <div className="relative inline-block">
-                <video
-                  src={videoPreviewUrl}
-                  controls
-                  className="w-full max-w-sm h-48 object-cover rounded-lg"
-                />
-                <button
-                  onClick={handleRemoveVideo}
-                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors text-sm"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Botones para agregar archivos */}
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={() => imageInputRef.current?.click()}
-              className="bg-[#66DEDB] text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-[#73FFA2] transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              {imageFile ? 'Cambiar imagen' : 'Seleccionar imagen *'}
-            </button>
+      {/* Contenido del formulario con scroll */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 min-h-full flex justify-center">
+          <div className="w-full max-w-2xl space-y-6">
             
-            <button
-              onClick={() => videoInputRef.current?.click()}
-              className="bg-gray-700 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-600 transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              {videoFile ? 'Cambiar video' : 'Agregar video (opcional)'}
-            </button>
-          </div>
+
+            {/* Campos del formulario */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  Título
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Escribe el título de tu post..."
+                  className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-[#66DEDB] transition-colors"
+                  maxLength={100}
+                />
+              </div>
+
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  Descripción
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Cuéntanos más sobre tu post..."
+                  className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-4 py-3 h-32 resize-none focus:outline-none focus:border-[#66DEDB] transition-colors"
+                  maxLength={500}
+                />
+              </div>
+            </div>
+
+            {/* Botón unificado para agregar archivos */}
+            <div className="flex justify-center relative">
+              <button
+                onClick={() => setShowMediaMenu(!showMediaMenu)}
+                className="bg-[#66DEDB] text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-[#73FFA2] transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                {imageFile || videoFile ? 'Seleccionar otro archivo' : 'Agregar archivo'}
+              </button>
+              
+              {/* Menú desplegable */}
+              {showMediaMenu && (
+                <div className="absolute bottom-full mb-2 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10">
+                  <button
+                    onClick={() => {
+                      imageInputRef.current?.click()
+                      setShowMediaMenu(false)
+                    }}
+                    className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 rounded-t-lg flex items-center gap-2"
+                  >
+                    <span className="text-blue-400">📷</span>
+                    Seleccionar imagen
+                  </button>
+                  <button
+                    onClick={() => {
+                      videoInputRef.current?.click()
+                      setShowMediaMenu(false)
+                    }}
+                    className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 rounded-b-lg flex items-center gap-2"
+                  >
+                    <span className="text-purple-400">🎥</span>
+                    Seleccionar video
+                  </button>
+                </div>
+              )}
+
+            </div>
+            <div className="flex justify-center gap-2">
+            {/* Preview de imagen */}
+            {imagePreviewUrl && (
+              <div className="space-y-4">
+                <h3 className="text-white font-medium">Imagen seleccionada:</h3>
+                <div className="relative inline-block">
+                  <Image
+                    src={imagePreviewUrl}
+                    alt="Preview imagen"
+                    width={200}
+                    height={200}
+                    className="w-full max-w-sm h-48 object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={handleRemoveImage}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors text-sm"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Preview de video */}
+            {videoPreviewUrl && (
+              <div className="space-y-4">
+                <h3 className="text-white font-medium">Video seleccionado:</h3>
+                <div className="relative inline-block">
+                  <video
+                    src={videoPreviewUrl}
+                    controls
+                    className="w-full max-w-sm h-48 object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={handleRemoveVideo}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors text-sm"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+             </div>
           
-          <p className="text-gray-400 text-sm text-center">* La imagen es obligatoria</p>
 
-          {/* Campos del formulario */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-white text-sm font-medium mb-2">
-                Título
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Escribe el título de tu post..."
-                className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-[#66DEDB] transition-colors"
-                maxLength={100}
-              />
+            {/* Botones de acción */}
+            <div className="flex gap-4">
+              <button
+                onClick={handleClosePanel}
+                className="flex-1 bg-gray-700 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-600 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSubmitPost}
+                disabled={isSubmitting || (!title.trim() && !description.trim())}
+                className="flex-1 bg-[#66DEDB] text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-[#73FFA2] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Publicando...' : 'Publicar Post'}
+              </button>
             </div>
-
-            <div>
-              <label className="block text-white text-sm font-medium mb-2">
-                Descripción
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Cuéntanos más sobre tu post..."
-                className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-4 py-3 h-32 resize-none focus:outline-none focus:border-[#66DEDB] transition-colors"
-                maxLength={500}
-              />
-            </div>
-          </div>
-
-          {/* Botones de acción */}
-          <div className="flex gap-4 pt-6">
-            <button
-              onClick={handleClosePanel}
-              className="flex-1 bg-gray-700 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-600 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleSubmitPost}
-              disabled={isSubmitting || !imageFile}
-              className="flex-1 bg-[#66DEDB] text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-[#73FFA2] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? 'Publicando...' : 'Publicar Post'}
-            </button>
           </div>
         </div>
       </div>

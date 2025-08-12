@@ -1,7 +1,7 @@
 export interface CreatePosterData {
   title?: string
   description?: string
-  imageFile: File
+  imageFile?: File
   videoFile?: File
   customer_id: string
 }
@@ -43,7 +43,9 @@ export async function createPoster(data: CreatePosterData): Promise<CreatePoster
     }
 
     // Agregar archivos
-    formData.append('files', data.imageFile)
+    if (data.imageFile) {
+      formData.append('files', data.imageFile)
+    }
     if (data.videoFile) {
       formData.append('files', data.videoFile)
     }
