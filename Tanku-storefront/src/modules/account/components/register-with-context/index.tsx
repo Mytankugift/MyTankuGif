@@ -12,7 +12,7 @@ type Props = {
   setCurrentView: (view: LOGIN_VIEW) => void
 }
 
-const Register = ({ setCurrentView }: Props) => {
+const RegisterWithContext = ({ setCurrentView }: Props) => {
   const [message, formAction] = useActionState(signup, null)
   const { onRegistrationSuccess } = usePersonalInfoActions()
 
@@ -139,8 +139,9 @@ const Register = ({ setCurrentView }: Props) => {
                     {/* Email Input */}
                     <div className="relative">
                       <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-10">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="#73FFA2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <polyline points="22,6 12,13 2,6" stroke="#73FFA2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       </div>
                       <input
@@ -157,8 +158,8 @@ const Register = ({ setCurrentView }: Props) => {
                     {/* Phone Input */}
                     <div className="relative">
                       <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-10">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M22 16.92V19.92C22 20.52 21.52 21 20.92 21C10.93 21 3 13.07 3 3.08C3 2.48 3.48 2 4.08 2H7.09C7.69 2 8.09 2.48 8.09 3.08C8.09 4.58 8.34 6.03 8.81 7.39C8.94 7.75 8.83 8.15 8.55 8.43L6.84 10.14C8.87 14.06 11.94 17.13 15.86 19.16L17.57 17.45C17.85 17.17 18.25 17.06 18.61 17.19C19.97 17.66 21.42 17.91 22.92 17.91C23.52 17.91 24 18.39 24 18.99V21.99Z" stroke="#73FFA2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       </div>
                       <input
@@ -258,4 +259,4 @@ const Register = ({ setCurrentView }: Props) => {
   )
 }
 
-export default Register
+export default RegisterWithContext

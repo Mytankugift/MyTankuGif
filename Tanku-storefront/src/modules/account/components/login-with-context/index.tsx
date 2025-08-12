@@ -1,3 +1,5 @@
+"use client"
+
 import { login } from "@lib/data/customer"
 import { LOGIN_VIEW } from "@modules/account/templates/login-template"
 import ErrorMessage from "@modules/checkout/components/error-message"
@@ -10,7 +12,7 @@ type Props = {
   setCurrentView: (view: LOGIN_VIEW) => void
 }
 
-const Login = ({ setCurrentView }: Props) => {
+const LoginWithContext = ({ setCurrentView }: Props) => {
   const [message, formAction] = useActionState(login, null)
   const { onLoginSuccess } = usePersonalInfoActions()
 
@@ -79,7 +81,7 @@ const Login = ({ setCurrentView }: Props) => {
               {/* Login Form */}
               <div className="w-full max-w-xs" data-testid="login-page">
                 <form className="w-full" action={formAction}>
-                  <div className="flex flex-col w-full gap-y-4  rounded-lg p-4 bg-black/20 backdrop-blur-sm">
+                  <div className="flex flex-col w-full gap-y-4 rounded-lg p-4 bg-black/20 backdrop-blur-sm">
                     {/* Email Input */}
                     <div className="relative">
                       <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-10">
@@ -178,4 +180,4 @@ const Login = ({ setCurrentView }: Props) => {
   )
 }
 
-export default Login
+export default LoginWithContext

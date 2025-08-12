@@ -5,6 +5,9 @@ export interface PersonalInfoData {
   customer_id: string;
   avatar_url?: string;
   status_message?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
   banner_profile_url?: string;
   social_url?: any;
   birthday?: string;

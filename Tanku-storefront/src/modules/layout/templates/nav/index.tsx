@@ -230,9 +230,9 @@ function NavContent() {
         style={{ backgroundColor: '#2D3A3A' }}
       >
         {/* Sidebar original */}
-        <div className="w-52 flex flex-col items-center py-8 px-4 flex-shrink-0">
+        <div className="w-52 flex flex-col items-center py-3 px-4 flex-shrink-0">
         {/* Logo centrado */}
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-3">
           <Image 
             src="/logoTanku.png" 
             alt="Logo" 
@@ -241,122 +241,123 @@ function NavContent() {
             className="object-contain"
           />
         </div>
-
-        {/* Avatar en hexágono - Clickeable */}
-        <div className="mb-8 relative flex flex-col items-center">
-          <div className="relative group mb-3">
-            <button 
-              onClick={handleAvatarClick}
-              className="relative hover:scale-105 transition-transform duration-200"
-              disabled={isUpdatingAvatar}
-            >
-              {/* Hexágono exterior */}
-              <div 
-                className={`w-24 h-24 flex items-center justify-center relative ${
-                  isUpdatingAvatar ? 'opacity-50' : ''
-                }`}
-                style={{
-                  backgroundColor: '#66DEDBA',
-                  clipPath: 'polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%)'
-                }}
+        {/* Hexagon border container */}
+          <div className="mb-1 relative flex flex-col items-center">
+            <div className="relative" style={{ width: "160px", height: "180px" }}>
+              {/* SVG Hexagon Border */}
+              <svg 
+                className="absolute inset-0 w-full h-full" 
+                viewBox="0 0 180 200" 
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+                style={{ transform: "rotate(90deg)" }}
               >
-                {/* Avatar circular interior */}
-                {isLoadingAvatar ? (
-                  // Skeleton para el avatar
-                  <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 animate-pulse border-2 border-gray-600">
-                    <div className="w-full h-full flex items-center justify-center">
-                      <User className="w-8 h-8 text-gray-500" />
-                    </div>
+                <path 
+                  d="M45 13.4L135 13.4L180 100L135 186.6L45 186.6L0 100Z" 
+                  stroke="#66DEDB" 
+                  strokeWidth="3" 
+                  fill="transparent"
+                />
+              </svg>
+              
+              {/* Content container */}
+              <div 
+                className="absolute inset-0 flex flex-col items-center justify-center p-6 "
+              >
+              <div className="relative group">
+                <button
+                  onClick={handleAvatarClick}
+                  className="relative hover:scale-105 transition-transform duration-200"
+                  disabled={isUpdatingAvatar}
+                >
+                  <div className={`flex items-center justify-center relative ${
+                      isUpdatingAvatar ? "opacity-50" : ""
+                    }`}>
+                    {isLoadingAvatar ? (
+                      <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-700 animate-pulse" />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full overflow-hidden bg-white flex items-center justify-center ">
+                        <Image
+                          src={avatarUrl || "/default-avatar.png"}
+                          alt="User Avatar"
+                          width={76}
+                          height={76}
+                          className="object-cover rounded-full w-full h-full"
+                        />
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="w-16 h-16 rounded-full overflow-hidden bg-white flex items-center justify-center border-2 border-white">
-                    <Image 
-                      src={avatarUrl || '/feed/avatar.png'} 
-                      alt="Avatar" 
-                      width={60} 
-                      height={60} 
-                      className="object-cover rounded-full w-full h-full"
+                </button>
+                <button
+                  onClick={handleEditAvatarClick}
+                  className="absolute top-1 -right-1 w-6 h-6 bg-[#73FFA2] rounded-full flex items-center justify-center shadow-lg hover:bg-[#66e891] transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                  disabled={isUpdatingAvatar}
+                  title="Cambiar avatar"
+                >
+                  <PencilSquare className="w-4 h-4 text-gray-800" />
+                </button>
+              </div>
+
+              <div className="w-full px-2">
+                <div className="relative group">
+                  <div className="flex items-center gap-1 rounded-lg min-h-[16px] justify-center">
+                    <p className="text-xs text-white/90 flex-1 text-center truncate leading-tight">
+                      {statusMessage || "¡Hola! Este es mi estado"}
+                    </p>
+                    <PencilSquare
+                      className="cursor-pointer text-[#73FFA2] hover:text-[#66e891] flex-shrink-0 w-3 h-3"
+                      onClick={handleEditStatusClick}
                     />
                   </div>
-                )}
+                  
+                  {/* Edit Status Tooltip */}
+                  {isEditingStatus && (
+                    <div className="absolute top-full left-40 transform -translate-x-1/2 mt-2 z-50">
+                      <div className="bg-gray-800 border border-[#66DEDB] rounded-lg p-3 shadow-lg min-w-[250px]">
+                        <input
+                          type="text"
+                          value={tempStatusMessage}
+                          onChange={(e) => setTempStatusMessage(e.target.value)}
+                          onKeyDown={handleStatusKeyPress}
+                          className="w-full bg-transparent text-xs text-white border-b border-[#73FFA2] focus:outline-none focus:border-[#66e891] pb-1 mb-2"
+                          placeholder="Escribe tu mensaje..."
+                          maxLength={200}
+                          autoFocus
+                          disabled={isUpdatingStatus}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={handleCancelStatusEdit}
+                            className="px-3 py-1 text-xs text-gray-400 hover:text-white transition-colors"
+                            disabled={isUpdatingStatus}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            onClick={handleSaveStatus}
+                            className="px-3 py-1 text-xs bg-[#73FFA2] text-gray-800 rounded hover:bg-[#66e891] transition-colors disabled:opacity-50"
+                            disabled={
+                              isUpdatingStatus || tempStatusMessage.trim() === ""
+                            }
+                          >
+                            {isUpdatingStatus ? "Guardando..." : "Guardar"}
+                          </button>
+                        </div>
+                        {/* Arrow pointing up */}
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2">
+                          <div className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-800"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </button>
-            
-            {/* Icono de edición - aparece al hacer hover */}
-            <button
-              onClick={handleEditAvatarClick}
-              className="absolute -bottom-1 -right-1 w-8 h-8 bg-[#73FFA2] rounded-full flex items-center justify-center shadow-lg hover:bg-[#66e891] transition-colors duration-200 opacity-0 group-hover:opacity-100"
-              disabled={isUpdatingAvatar}
-              title="Cambiar avatar"
-            >
-              <PencilSquare className="w-4 h-4 text-gray-800" />
-            </button>
-          </div>
-          
-          {/* Status Message - Justo después del avatar */}
-          <div className="w-full px-1">
-            <div className="relative group">
-              {isLoadingAvatar ? (
-                // Skeleton para el status message
-                <div className="flex flex-col items-center gap-2 min-h-[48px] justify-center">
-                  <div className="w-3/4 h-3 bg-gray-700 animate-pulse rounded-md"></div>
-                  <div className="w-1/2 h-3 bg-gray-700 animate-pulse rounded-md"></div>
-                </div>
-              ) : !isEditingStatus ? (
-                // Modo visualización
-                <div className="flex items-center gap-1 rounded-lg min-h-[48px]">
-                  <p className="text-sm text-white/90 flex-1 text-center">
-                    {statusMessage || '¡Hola! Este es mi estado'}
-                  </p>
-                  <PencilSquare className="cursor-pointer text-[#73FFA2] hover:text-[#66e891]" onClick={handleEditStatusClick}/>
-                </div>
-              ) : (
-                // Modo edición
-                <div className="bg-gray-800/50 rounded-lg p-3">
-                  <input
-                    type="text"
-                    value={tempStatusMessage}
-                    onChange={(e) => setTempStatusMessage(e.target.value)}
-                    onKeyDown={handleStatusKeyPress}
-                    className="w-full bg-transparent text-sm text-white border-b border-[#73FFA2] focus:outline-none focus:border-[#66e891] pb-1"
-                    placeholder="Escribe tu mensaje de estado..."
-                    maxLength={200}
-                    autoFocus
-                    disabled={isUpdatingStatus}
-                  />
-                  <div className="flex justify-end gap-2 mt-2">
-                    <button
-                      onClick={handleCancelStatusEdit}
-                      className="px-3 py-1 text-xs text-gray-400 hover:text-white transition-colors"
-                      disabled={isUpdatingStatus}
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleSaveStatus}
-                      className="px-3 py-1 text-xs bg-[#73FFA2] text-gray-800 rounded hover:bg-[#66e891] transition-colors disabled:opacity-50"
-                      disabled={isUpdatingStatus || tempStatusMessage.trim() === ''}
-                    >
-                      {isUpdatingStatus ? 'Guardando...' : 'Guardar'}
-                    </button>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           </div>
-          
-          {/* Input de archivo oculto */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-        </div>
 
         {/* Menú vertical */}
-        <div className="flex flex-col gap-2  flex-1 w-full px-2">
+        <div className="flex flex-col gap-1  flex-1 w-full px-2">
           {/* Inicio */}
           <LocalizedClientLink 
             href="./" 

@@ -133,40 +133,6 @@ type DecodedToken = {
   exp: number
 }
 
-export async function verifyWordpressToken(token: string): Promise<DecodedToken | null> {
-  try {
-    const secretKey = "T@nKu$3cr3tK3y-32CH4RS-L0nG!2024"
-    const decoded = jwt.verify(token, secretKey) as DecodedToken
-    return decoded
-  } catch (error) {
-    console.error("Error verifying WordPress token:", error)
-    return null
-  }
-}
-
-export async function loginWordpress( email: string, password: string ) {
-
-  try {
-    console.log("Iniciando sesión con WordPress para el usuario:", email , password)
-    await sdk.auth
-      .login("customer", "emailpass", { email, password })
-      .then(async (token) => {
-        console.log("Token recibido:", token)
-        await setAuthToken(token as string)
-        const customerCacheTag = await getCacheTag("customers")
-        revalidateTag(customerCacheTag)
-      })
-  } catch (error: any) {
-    console.error("Error al iniciar sesión con WordPress:", error)
-    return error.toString()
-  }
-
-  try {
-    await transferCart()
-  } catch (error: any) {
-    return error.toString()
-  }
-}
 
 export async function signout(countryCode: string) {
   await sdk.auth.logout()

@@ -95,6 +95,13 @@ export default defineMiddlewares({
       ],
     },
     {
+      method: ["POST"],
+      matcher: "/personal-info/update-banner",
+      middlewares: [
+        multerMiddleware(upload.single("banner")),
+      ],
+    },
+    {
       matcher: "/social*",
       middlewares: [
         (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) => {

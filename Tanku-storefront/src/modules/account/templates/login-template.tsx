@@ -3,7 +3,8 @@
 import { useState } from "react"
 
 import Register from "@modules/account/components/register"
-import Login from "@modules/account/components/login"
+//import Login from "@modules/account/components/login"
+import LoginWithContext from "@modules/account/components/login-with-context"
 
 export enum LOGIN_VIEW {
   SIGN_IN = "sign-in",
@@ -16,7 +17,7 @@ const LoginTemplate = () => {
   return (
     <div className="w-full h-full min-h-screen flex justify-start">
       {currentView === "sign-in" ? (
-        <Login setCurrentView={setCurrentView} />
+        <LoginWithContext setCurrentView={setCurrentView} />
       ) : (
         <Register setCurrentView={setCurrentView} />
       )}
