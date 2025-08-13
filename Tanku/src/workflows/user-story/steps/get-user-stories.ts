@@ -125,8 +125,17 @@ export const getUserStoriesStep = createStep(
       friendsStoriesCount: result.friendsStories.length
     })
     
-    console.log("User stories:", result.userStories[0].files)
-    console.log("Friends stories:", result.friendsStories[0].files)
+    if (result.userStories.length > 0) {
+      console.log("User stories:", result.userStories[0].files)
+    } else {
+      console.log("No user stories found")
+    }
+    
+    if (result.friendsStories.length > 0) {
+      console.log("Friends stories:", result.friendsStories[0].files)
+    } else {
+      console.log("No friends stories found")
+    }
     
     return new StepResponse(result)
   }

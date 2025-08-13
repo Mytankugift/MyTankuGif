@@ -394,7 +394,7 @@ function HomeContent() {
       <div className="px-4 mb-6">
         <div className="rounded-lg p-4 overflow-hidden w-full">
           <div className="animate-marquee whitespace-nowrap">
-            <span className="text-[#66DEDB] text-xl ">
+            <span className="text-[#66DEDB] text-4xl ">
               Bienvenido a TANKU el primer Give-commerce donde puedes encontrar productos únicos y especiales para ti y tus seres queridos ✨ 
               ¡Descubre las mejores ofertas y sorpresas que tenemos para ti! 🎁 
               Únete a nuestra comunidad y comparte tus experiencias con otros usuarios 🌟

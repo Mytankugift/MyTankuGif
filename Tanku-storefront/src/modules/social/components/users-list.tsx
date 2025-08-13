@@ -7,7 +7,7 @@ import { getFriendRequests, FriendRequest } from "../actions/get-friend-requests
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { StoreCustomer } from "@medusajs/types"
-
+import { usePersonalInfo } from "@lib/context"
 
 
 type User = {
@@ -16,7 +16,7 @@ type User = {
     last_name: string
 }
 
- const UsersList = ({customer}: {customer: StoreCustomer}) => {
+ const UsersList = () => {
     const [users, setUsers] = useState<User[]>([])
     const [searchResults, setSearchResults] = useState<User[]>([])
     const [searchTerm, setSearchTerm] = useState<string>('')
@@ -27,14 +27,18 @@ type User = {
     const [receivedRequestIds, setReceivedRequestIds] = useState<Set<string>>(new Set())
     const [friendIds, setFriendIds] = useState<Set<string>>(new Set())
 
+    const { personalInfo } = usePersonalInfo()
+
     useEffect(() => {
+        if (!personalInfo) return
+       
         // Cargar usuarios y solicitudes de amistad
         Promise.all([
             getListUsers(),
-            getFriendRequests(customer.id)
+            getFriendRequests(personalInfo.id)
         ]).then(([usersData, friendRequestsData]) => {
             // Filtrar al usuario actual de la lista
-            const filteredUsers = usersData.filter((user: User) => user.id !== customer.id)
+            const filteredUsers = usersData.filter((user: User) => user.id !== personalInfo.id)
             setUsers(filteredUsers)
             
             // Guardar solicitudes de amistad enviadas y recibidas
@@ -71,9 +75,11 @@ type User = {
             const allFriendIds = new Set<string>([...Array.from(acceptedSentIds), ...Array.from(acceptedReceivedIds)])
             setFriendIds(allFriendIds)
         })
-    }, [customer.id])
+    }, [personalInfo])
 
     useEffect(() => {
+        if (!personalInfo) return
+        
         if (searchTerm.trim() === '') {
             setSearchResults([])
             setShowDropdown(false)
@@ -81,53 +87,61 @@ type User = {
             const filtered = users.filter(user => 
                 (user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 user.last_name.toLowerCase().includes(searchTerm.toLowerCase())) &&
-                user.id !== customer.id // Excluir al usuario actual también de la búsqueda
+                user.id !== personalInfo.id // Excluir al usuario actual también de la búsqueda
             )
             setSearchResults(filtered)
             setShowDropdown(true)
         }
-    }, [searchTerm, users, customer.id])
+    }, [searchTerm, users, personalInfo])
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(e.target.value)
     }
 
     const handleFollowUser = async (userId: string) => {
+        if (!personalInfo) return
+        
         try {
             await sendFriendRequest({
-                sender_id: customer.id,
+                sender_id: personalInfo.id,
                 receiver_id: userId
             })
             alert('¡Solicitud de amistad enviada exitosamente!')
-        } catch (error: any) {
-            alert(`Error: ${error.message}`)
+            // Actualizar el estado local para reflejar que se envió la solicitud
+            
+            setSentRequestIds(prev => new Set([...Array.from(prev), userId]))
+        } catch (error) {
+            console.error('Error al enviar solicitud de amistad:', error)
+            alert('Error al enviar la solicitud de amistad')
         }
     }
 
     const handleSendFriendRequest = async (userId: string, message?: string) => {
+        if (!personalInfo) return
+        
         try {
             await sendFriendRequest({
-                sender_id: customer.id,
+                sender_id: personalInfo.id,
                 receiver_id: userId,
                 message
             })
-            
-            // Actualizar el estado local para reflejar la solicitud enviada
-            setSentRequestIds(prev => new Set<string>([...Array.from(prev), userId]))
-            
             alert('¡Solicitud de amistad enviada exitosamente!')
-        } catch (error: any) {
-            alert(`Error: ${error.message}`)
+            // Actualizar el estado local para reflejar que se envió la solicitud
+            setSentRequestIds(prev => new Set([...Array.from(prev), userId]))
+        } catch (error) {
+            console.error('Error al enviar solicitud de amistad:', error)
+            alert('Error al enviar la solicitud de amistad')
         }
     }
 
     const handleAcceptFriendRequest = async (userId: string) => {
+        if (!personalInfo) return
+        
         try {
             await acceptFriendRequest({
                 sender_id: userId,
-                receiver_id: customer.id
+                receiver_id: personalInfo.id
             })
-            
             // Actualizar el estado local para reflejar que ahora son amigos
             setReceivedRequestIds(prev => {
                 const newSet = new Set<string>(Array.from(prev))
