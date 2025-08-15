@@ -11,16 +11,20 @@ import {
   Phone, 
   Camera,
   Book,
-  BuildingStorefront
+  BuildingStorefront,
 } from "@medusajs/icons"
 import PreviewProductsTanku from "../components/preview-products-tanku.ts"
 import BlackFridayAd from '../components/black-friday-ad'
 import { fetchListStoreProduct } from "@modules/home/components/actions/get-list-store-products"
 import StoryUpload, { Story } from "@modules/home/components/story-upload"
 import StoryViewer from "@modules/home/components/story-viewer"
+import FeedPosters from "@modules/home/components/feed-posters"
 import { retrieveCustomer } from "@lib/data/customer"
 import { getStories } from "@modules/home/components/actions/get-stories"
 import { usePersonalInfo } from "@lib/context"
+import Link from 'next/link.js'
+import UnifiedFeed from "@modules/home/components/unified-feed"
+import TabNavigation from "@modules/home/components/tabs/TabNavigation"
 
 // Generate mock data for friends' stories (without user's own story)
 // COMENTADO: Ahora se obtienen las historias desde la base de datos
@@ -67,16 +71,23 @@ const mockFriendsStories: Story[] = [
 
 // Generate categories with images from /public/categories
 const mockCategories = [
-  { id: 1, name: "CELEBRACIONES", image: "/categories/Celebraciones2.png", color: "border-yellow-400" },
-  { id: 2, name: "DEPORTES Y HOBBIES", image: "/categories/Deportes_y_Hobbies.png", color: "border-blue-400" },
-  { id: 3, name: "JUGUETERÍA", image: "/categories/Jugueteria2.png", color: "border-red-400" },
-  { id: 4, name: "LIBROS Y MÚSICA", image: "/categories/Libros_y_Musica.png", color: "border-green-400" },
-  { id: 5, name: "MASCOTAS", image: "/categories/Mascotas2.png", color: "border-purple-400" },
-  { id: 6, name: "MODA HOMBRES", image: "/categories/Moda_Hombres.png", color: "border-pink-400" },
-  { id: 7, name: "MODA MUJER", image: "/categories/Moda_Mujer.png", color: "border-indigo-400" },
-  { id: 8, name: "MODA NIÑOS", image: "/categories/Moda_Niños.png", color: "border-teal-400" },
-  { id: 9, name: "SALUD Y BELLEZA", image: "/categories/Salud_y_Belleza.png", color: "border-orange-400" },
-  { id: 10, name: "TECNOLOGÍA", image: "/categories/Tecnologia.png", color: "border-cyan-400" },
+  { id: 1, name: "CELEBRACIONES", image: "/categories/Celebraciones2.png", color: "border-yellow-400" , url: "/celebraciones" },
+  { id: 16, name: "VEHICULOS", image: "/categories/Vehiculos.gif", color: "border-blue-400" , url: "/vehiculos" },
+  { id: 2, name: "DEPORTES Y HOBBIES", image: "/categories/Deportes_y_Hobbies.png", color: "border-blue-400" , url: "/deportes-y-hobbies" },
+  { id: 15, name: "OFICINA Y ESCOLAR", image: "/categories/Oficina-Y-Escolar.gif", color: "border-blue-400" , url: "/oficina-y-escolar" },
+  { id: 3, name: "JUGUETERÍA", image: "/categories/Jugueteria2.png", color: "border-red-400" , url: "/jugueteria" },
+  { id: 14, name: "JOYAS Y RELOJES", image: "/categories/Joyas-Y-Relojes.gif", color: "border-blue-400" , url: "/joyeria" },
+  { id: 4, name: "LIBROS Y MÚSICA", image: "/categories/Libros_y_Musica.png", color: "border-green-400" , url: "/libros-y-musica" },
+  { id: 13, name: "EXPERIENCIAS", image: "/categories/Experiencias.gif", color: "border-blue-400" , url: "/experiencias" },
+  { id: 5, name: "MASCOTAS", image: "/categories/Mascotas2.png", color: "border-purple-400" , url: "/mascotas" },
+  { id: 6, name: "MODA HOMBRES", image: "/categories/Moda_Hombres.png", color: "border-pink-400" , url: "/hombres" },
+  { id: 12, name: "CALZADO", image: "/categories/Calzado.gif", color: "border-blue-400" , url: "/calzado" },
+  { id: 7, name: "MODA MUJER", image: "/categories/Moda_Mujer.png", color: "border-indigo-400" , url: "/moda-mujer" },
+  { id: 8, name: "MODA NIÑOS", image: "/categories/Moda_Niños.png", color: "border-teal-400" , url: "/moda-ninos" },
+  { id: 11, name: "BOLSOS MALETAS VIAJE", image: "/categories/Bolsos-Maletas-Y-Viaje.gif", color: "border-blue-400" , url: "/bolsos-maletas-viaje" },
+  { id: 9, name: "SALUD Y BELLEZA", image: "/categories/Salud_y_Belleza.png", color: "border-orange-400" , url: "/salud-y-belleza" },
+  { id: 10, name: "TECNOLOGÍA", image: "/categories/Tecnologia.png", color: "border-cyan-400" , url: "/tecnologia" },
+  
 ]
 
 function HomeContent() {
@@ -250,7 +261,7 @@ function HomeContent() {
             {/* Story Upload Component */}
             <StoryUpload 
               onStoryCreate={handleStoryCreate}
-              userAvatar="/feed/avatar.png"
+              userAvatar={personalInfo?.avatar_url || "/feed/avatar.png"}
               userName="Tu Historia"
               customer_id={personalInfo?.id}
             />
@@ -444,6 +455,7 @@ function HomeContent() {
             <div className="flex justify-between mb-6">
               {getVisibleCategories().slice(0, 5).map((category, index) => (
                 <div key={category.id} className="flex flex-col items-center flex-1 max-w-[280px]">
+                  <Link href={"/categories" + category.url}>
                   <div className={`w-52 h-32 rounded-2xl border-2 ${category.color}  hover:scale-105 transition-transform cursor-pointer overflow-hidden relative group`}>
                     <Image
                       src={category.image}
@@ -459,6 +471,7 @@ function HomeContent() {
                       </span>
                     </div>
                   </div>
+                  </Link>
                 </div>
               ))}
             </div>
@@ -467,6 +480,7 @@ function HomeContent() {
             <div className="flex justify-between" style={{ marginLeft: '104px', marginRight: '104px' }}>
               {getVisibleCategories().slice(5, 9).map((category, index) => (
                 <div key={category.id} className="flex flex-col items-center flex-1 max-w-[280px]">
+                  <Link href={"/categories" + category.url}>
                   <div className={`w-52 h-32 rounded-2xl border-2 ${category.color} hover:scale-105 transition-transform cursor-pointer overflow-hidden relative group`}>
                     <Image
                       src={category.image}
@@ -482,6 +496,7 @@ function HomeContent() {
                       </span>
                     </div>
                   </div>
+                  </Link>
                 </div>
               ))}
             </div>
@@ -489,109 +504,12 @@ function HomeContent() {
         </div>
       </div>
 
-      {/* Large Icons Section */}
+      {/* Tab Navigation Section */}
       <div className="px-4 py-6">
-        <div className="flex justify-center items-center">
-          <div className="grid grid-cols-4 gap-8 max-w-2xl w-full">
-            {/* MyTanku */}
-            <div className="flex flex-col items-center group cursor-pointer">
-              <div className="w-20 h-20 flex flex-col items-center justify-center mb-3 hover:scale-105 transition-transform relative">
-                <Image
-                  src="/feed/Icons/MyTANKU_Green.png"
-                  alt="MyTanku"
-                  width={50}
-                  height={50}
-                  className="object-contain group-hover:hidden"
-                />
-                <Image
-                  src="/feed/Icons/MyTANKU_Blue.png"
-                  alt="MyTanku"
-                  width={50}
-                  height={50}
-                  className="object-contain hidden group-hover:block absolute top-0"
-                />
-              </div>
-              <span className="text-[#73FFA2] text-sm font-medium group-hover:text-[#66DEDB] transition-colors">
-                #MyTANKU
-              </span>
-            </div>
-
-            {/* StalkerGift */}
-            <div className="flex flex-col items-center group cursor-pointer">
-              <div className="w-20 h-20 flex flex-col items-center justify-center mb-3 hover:scale-105 transition-transform relative">
-                <Image
-                  src="/feed/Icons/StalkerGift_Green.png"
-                  alt="StalkerGift"
-                  width={50}
-                  height={50}
-                  className="object-contain group-hover:hidden"
-                />
-                <Image
-                  src="/feed/Icons/StalkerGift_Blue.png"
-                  alt="StalkerGift"
-                  width={50}
-                  height={50}
-                  className="object-contain hidden group-hover:block absolute top-0"
-                />
-              </div>
-              <span className="text-[#73FFA2] text-sm font-medium group-hover:text-[#66DEDB] transition-colors">
-                #StalkerGift
-              </span>
-            </div>
-
-            {/* MultiPay */}
-            <div className="flex flex-col items-center group cursor-pointer">
-              <div className="w-20 h-20 flex flex-col items-center justify-center mb-3 hover:scale-105 transition-transform relative">
-                <Image
-                  src="/feed/Icons/MultiPay_Green.png"
-                  alt="MultiPay"
-                  width={50}
-                  height={50}
-                  className="object-contain group-hover:hidden"
-                />
-                <Image
-                  src="/feed/Icons/MultiPay_Blue.png"
-                  alt="MultiPay"
-                  width={50}
-                  height={50}
-                  className="object-contain hidden group-hover:block absolute top-0"
-                />
-              </div>
-              <span className="text-[#73FFA2] text-sm font-medium group-hover:text-[#66DEDB] transition-colors">
-                #MultiPay
-              </span>
-            </div>
-
-            {/* Explore */}
-            <div className="flex flex-col items-center group cursor-pointer">
-              <div className="w-20 h-20 flex flex-col items-center justify-center mb-3 hover:scale-105 transition-transform relative">
-                <Image
-                  src="/feed/Icons/Explore_Green.png"
-                  alt="Explore"
-                  width={50}
-                  height={50}
-                  className="object-contain group-hover:hidden"
-                />
-                <Image
-                  src="/feed/Icons/Explore_Blue.png"
-                  alt="Explore"
-                  width={50}
-                  height={50}
-                  className="object-contain hidden group-hover:block absolute top-0"
-                />
-              </div>
-              <span className="text-[#73FFA2] text-sm font-medium group-hover:text-[#66DEDB] transition-colors">
-                #Explore
-              </span>
-            </div>
-          </div>
-        </div>
-
-                <PreviewProductsTanku products={products} />
-
-        <BlackFridayAd products={products} />
-
-        
+        <TabNavigation 
+          products={products} 
+          customerId={personalInfo?.id || ""} 
+        />
       </div>
 
       {/* Story Viewer Modal */}

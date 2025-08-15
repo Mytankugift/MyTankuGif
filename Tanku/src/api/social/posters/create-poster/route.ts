@@ -54,39 +54,74 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     console.log("Image file:", imageFile?.originalname)
     console.log("Video file:", videoFile?.originalname || "None")
 
-    // Subir archivos a Medusa si existen
+    // Subir archivos usando el workflow de Medusa si existen
     let imageUrl = ""
     let videoUrl = ""
 
-    // Subir imagen si existe
-    if (imageFile) {
+    if (imageFile || videoFile) {
       try {
-        const fileService = req.scope.resolve("fileService") as any
-        const uploadResult = await fileService.upload(imageFile)
-        console.log("Image upload result:", uploadResult)
-
-        if (uploadResult && uploadResult.url) {
-          imageUrl = uploadResult.url
-        } else {
-          console.error("Error al subir la imagen")
-        }
-      } catch (error) {
-        console.error("Error uploading image:", error)
-      }
-    }
-
-    // Subir video si existe
-    if (videoFile) {
-      try {
-        const fileService = req.scope.resolve("fileService") as any
-        const videoUploadResult = await fileService.upload(videoFile)
-        console.log("Video upload result:", videoUploadResult)
+        const filesToUpload: any[] = []
         
-        if (videoUploadResult && videoUploadResult.url) {
-          videoUrl = videoUploadResult.url
+        if (imageFile) {
+          filesToUpload.push(imageFile)
+        }
+        if (videoFile) {
+          filesToUpload.push(videoFile)
+        }
+
+        const { result: uploadResult } = await uploadFilesWorkflow(req.scope).run({
+          input: {
+            files: filesToUpload.map((file: any) => ({
+              filename: file.originalname,
+              mimeType: file.mimetype,
+              content: file.buffer.toString("binary"),
+              access: "public" 
+            }))
+          }
+        })
+
+        console.log("Upload result:", uploadResult)
+
+        // Validar que el resultado de subida existe
+        if (!uploadResult) {
+          console.error("Error al subir archivos: resultado vacío")
+        } else {
+          // Manejar la respuesta del upload
+          let uploadedFiles: any[] = []
+          
+          if (Array.isArray(uploadResult)) {
+            uploadedFiles = uploadResult
+          } else if (uploadResult && typeof uploadResult === 'object') {
+            if ((uploadResult as any).files && Array.isArray((uploadResult as any).files)) {
+              uploadedFiles = (uploadResult as any).files
+            } else if ((uploadResult as any).result && Array.isArray((uploadResult as any).result)) {
+              uploadedFiles = (uploadResult as any).result
+            }
+          }
+
+          console.log("Uploaded files found:", uploadedFiles.length)
+
+          // Asignar URLs basándose en el orden de subida
+          for (let i = 0; i < uploadedFiles.length && i < filesToUpload.length; i++) {
+            const uploadedFile = uploadedFiles[i] as any
+            const originalFile = filesToUpload[i] as any
+            
+            console.log(`Processing file ${i}:`, {
+              uploaded: uploadedFile,
+              original: originalFile.mimetype
+            })
+            
+            const fileUrl = uploadedFile.url || uploadedFile.file_url || uploadedFile.path || ""
+            
+            if (originalFile.mimetype.startsWith('image/')) {
+              imageUrl = fileUrl
+            } else if (originalFile.mimetype.startsWith('video/')) {
+              videoUrl = fileUrl
+            }
+          }
         }
       } catch (error) {
-        console.error("Error uploading video:", error)
+        console.error("Error uploading files:", error)
       }
     }
 

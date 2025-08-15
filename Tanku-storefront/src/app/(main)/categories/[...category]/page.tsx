@@ -5,7 +5,7 @@ import { getCategoryByHandle, listCategories } from "@lib/data/categories"
 import { listRegions } from "@lib/data/regions"
 import CategoryTemplate from "@modules/categories/templates"
 import CategoryTemplateTanku from "@modules/categories/templates/category-template-tanku"
-import { StoreRegion } from "@medusajs/types"
+import { StoreProductCategory, StoreRegion, StoreProduct } from "@medusajs/types"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 
 type Props = {
@@ -16,9 +16,15 @@ type Props = {
   }>
 }
 
+type ExtendedStoreProductCategory = StoreProductCategory & {
+  category_children: (StoreProductCategory & {
+    products?: StoreProduct[]
+  })[]
+}
+
 export async function generateStaticParams() {
   const product_categories = await listCategories()
-console.log("product_categories",product_categories)
+
   if (!product_categories) {
     return []
   }
@@ -66,14 +72,50 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function CategoryPage(props: Props) {
   const params = await props.params
-  
-  const productCategory = await getCategoryByHandle(params.category)
-  if (!productCategory) {
-    console.log("entra a la pagina notFound",productCategory)
+  console.log("params",params)
+  const productCategoryHandler = await getCategoryByHandle(params.category) as ExtendedStoreProductCategory
+  console.log("productCategoryHandler",productCategoryHandler)
+  if (!productCategoryHandler) {
+    console.log("entra a la pagina notFound",productCategoryHandler)
     notFound()
+  }
+console.log("productCategoryHandler",productCategoryHandler)
+  if(productCategoryHandler.category_children.length > 0){
+    const categoryHandler = await allDataCategories(productCategoryHandler)
+    console.log("categoryHandler",categoryHandler)
+    return (
+      <CategoryTemplateTanku category={categoryHandler} />
+    )
   }
 
   return (
-    <CategoryTemplateTanku category={productCategory} />
+    <CategoryTemplateTanku category={productCategoryHandler} />
   )
+}
+
+async function allDataCategories(categoryHandler: ExtendedStoreProductCategory): Promise<ExtendedStoreProductCategory> {
+ 
+ for(let i = 0; i < categoryHandler.category_children.length; i++){
+  const category = categoryHandler.category_children[i]
+  const productCategory = await getCategoryByHandle([category.handle])
+  console.log("informacion de hijo",productCategory)
+  
+  // Asignar productos a la categoría hija
+  category.products = productCategory.products
+  
+  // Si la categoría hija tiene sus propias categorías hijas, procesarlas recursivamente
+  if(productCategory.category_children && productCategory.category_children.length > 0){
+    const extendedProductCategory = productCategory as ExtendedStoreProductCategory
+    const processedCategory = await allDataCategories(extendedProductCategory)
+    
+    // Actualizar la categoría hija con los datos procesados recursivamente
+    categoryHandler.category_children[i] = {
+      ...category,
+      products: processedCategory.products || productCategory.products,
+      category_children: processedCategory.category_children
+    }
+  }
+ }
+ 
+ return categoryHandler
 }

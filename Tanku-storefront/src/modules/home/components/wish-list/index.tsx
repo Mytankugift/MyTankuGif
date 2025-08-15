@@ -97,15 +97,12 @@ const WishListDropdown = ({ productId, productTitle }: WishListDropdownProps) =>
     }
   }
 
+  // Solo cargar datos cuando el productId cambie Y el drawer esté abierto
   useEffect(() => {
-    handlerRetriverWishList()
-  }, [])
-
-  useEffect(() => {
-    if (wishLists.length > 0) {
+    if (isDrawerOpen && wishLists.length > 0) {
       checkProductInWishLists(wishLists)
     }
-  }, [productId])
+  }, [productId, isDrawerOpen])
 
   const handleSelectionChange = async (id: string) => {
     const customer = await retrieveCustomer().catch(() => null)
@@ -159,8 +156,10 @@ const WishListDropdown = ({ productId, productTitle }: WishListDropdownProps) =>
     }
   }
 
-  const openDrawer = () => {
+  const openDrawer = async () => {
     setIsDrawerOpen(true)
+    // Cargar datos de wishlist solo cuando se abre el drawer
+    await handlerRetriverWishList()
   }
 
   const handleCloseDrawer = () => {

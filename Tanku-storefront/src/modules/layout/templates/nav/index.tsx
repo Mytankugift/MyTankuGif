@@ -318,7 +318,7 @@ function NavContent() {
         <div className="flex flex-col gap-1  flex-1 w-full px-2">
           {/* Inicio */}
           <LocalizedClientLink 
-            href="./" 
+            href="/" 
             className="flex items-center gap-4 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
           >
             <Image 
