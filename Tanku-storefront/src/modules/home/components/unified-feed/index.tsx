@@ -23,6 +23,7 @@ interface Poster {
   customer_id: string
   customer_name: string
   customer_email: string
+  avatar_url: string | null
   title: string
   description: string
   image_url: string | null
@@ -145,6 +146,9 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
   const [isCommentLoading, setIsCommentLoading] = useState(false)
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
   const [editingCommentContent, setEditingCommentContent] = useState("")
+  const [replyingToId, setReplyingToId] = useState<string | null>(null)
+  const [replyContent, setReplyContent] = useState("")
+  const [showReplies, setShowReplies] = useState<{[key: string]: boolean}>({})
 
   // Generar preview del video si existe
   useEffect(() => {
@@ -264,6 +268,54 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
     }
   }
 
+  // Función para agregar respuesta
+  const handleAddReply = async (parentId: string) => {
+    if (isCommentLoading || !customerId || !replyContent.trim()) return
+    
+    setIsCommentLoading(true)
+    
+    try {
+      const result = await addPosterComment(poster.id, customerId, replyContent.trim(), parentId)
+      
+      // Recargar comentarios para obtener la estructura actualizada
+      const updatedComments = await getPosterComments(poster.id)
+      setComments(updatedComments.comments)
+      setCommentsCount(updatedComments.total_count)
+      
+      // Limpiar estado de respuesta
+      setReplyingToId(null)
+      setReplyContent("")
+      
+      // Mostrar automáticamente las respuestas del comentario padre
+      setShowReplies(prev => ({ ...prev, [parentId]: true }))
+      
+    } catch (error) {
+      console.error("Error adding reply:", error)
+    } finally {
+      setIsCommentLoading(false)
+    }
+  }
+
+  // Función para iniciar respuesta
+  const handleStartReply = (commentId: string) => {
+    setReplyingToId(commentId)
+    setReplyContent("")
+  }
+
+  // Función para cancelar respuesta
+  const handleCancelReply = () => {
+    setReplyingToId(null)
+    setReplyContent("")
+  }
+
+  // Función para alternar visibilidad de respuestas
+  const toggleReplies = (commentId: string) => {
+    setShowReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }))
+  }
+
   // Función para iniciar edición de comentario
   const handleStartEdit = (comment: PosterComment) => {
     setEditingCommentId(comment.id)
@@ -361,42 +413,55 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
                   >
                     {isMuted ? (
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.617 14H2a1 1 0 01-1-1V7a1 1 0 011-1h2.617l3.766-2.793a1 1 0 011.617.793zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.983 5.983 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.984 3.984 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.617 14H2a1 1 0 01-1-1V7a1 1 0 011-1h2.617l3.766-2.793a1 1 0 011.617.793zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.983 5.983 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.984 3.984 0 00-1.172-2.828a1 1 0 010-1.415z" clipRule="evenodd" />
                         <path d="M15.536 14.536L13 12l2.536-2.536a1 1 0 111.414 1.414L14.414 13.5l2.536 2.536a1 1 0 01-1.414 1.414z" />
                       </svg>
                     ) : (
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.617 14H2a1 1 0 01-1-1V7a1 1 0 011-1h2.617l3.766-2.793a1 1 0 011.617.793zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.983 5.983 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.984 3.984 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.617 14H2a1 1 0 01-1-1V7a1 1 0 011-1h2.617l3.766-2.793a1 1 0 011.617.793zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.983 5.983 0 01-1.757 4.243a1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.984 3.984 0 00-1.172-2.828a1 1 0 010-1.415z" clipRule="evenodd" />
                       </svg>
                     )}
                   </button>
                 </div>
               )}
               
-              {/* Controles del slider si hay ambos medios */}
+              {/* Flechas de navegación si hay ambos medios */}
               {poster.image_url && poster.video_url && (
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-3">
+                <>
+                  {/* Flecha izquierda */}
                   <button 
                     onClick={() => setActiveMedia('image')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      activeMedia === 'image' 
-                        ? 'bg-[#73FFA2] text-black' 
-                        : 'bg-black bg-opacity-60 text-white hover:bg-opacity-80'
-                    }`}
+                    className={`absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 rounded-full p-2 hover:bg-opacity-80 transition-all ${activeMedia === 'video' ? 'visible' : 'invisible'}`}
                   >
-                    Imagen
+                    <Image 
+                      src="/feed/Flecha.svg"
+                      alt="Anterior"
+                      width={24}
+                      height={24}
+                      className="w-6 h-6"
+                    />
                   </button>
+                  
+                  {/* Flecha derecha */}
                   <button 
                     onClick={() => setActiveMedia('video')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      activeMedia === 'video' 
-                        ? 'bg-[#73FFA2] text-black' 
-                        : 'bg-black bg-opacity-60 text-white hover:bg-opacity-80'
-                    }`}
+                    className={`absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 rounded-full p-2 hover:bg-opacity-80 transition-all ${activeMedia === 'image' ? 'visible' : 'invisible'}`}
                   >
-                    Video
+                    <Image 
+                      src="/feed/Flecha.svg"
+                      alt="Siguiente"
+                      width={24}
+                      height={24}
+                      className="w-6 h-6 transform rotate-180"
+                    />
                   </button>
-                </div>
+                  
+                  {/* Indicadores de posición */}
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    <div className={`w-2 h-2 rounded-full ${activeMedia === 'image' ? 'bg-[#73FFA2]' : 'bg-white bg-opacity-50'}`}></div>
+                    <div className={`w-2 h-2 rounded-full ${activeMedia === 'video' ? 'bg-[#73FFA2]' : 'bg-white bg-opacity-50'}`}></div>
+                  </div>
+                </>
               )}
             </>
           )}
@@ -408,7 +473,7 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
           <div className="flex items-center mb-4">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700">
               <Image 
-                src="/feed/avatar.png"
+                src={poster.avatar_url || '/feed/avatar.png'}
                 alt={poster.customer_name}
                 width={48}
                 height={48}
@@ -439,84 +504,214 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
           )}
 
           {/* Sección de comentarios */}
-          <div className="flex-1 flex flex-col min-h-0 mb-4">
+          <div className="flex-1 flex flex-col justify-between min-h-0 mb-4">
             {/* Lista de comentarios */}
-            <div className="flex-1 overflow-y-auto max-h-64 mb-4 pr-2">
+            <div className="flex-1 overflow-y-auto max-h-96 mb-4 pr-2">
               {comments.length > 0 ? (
                 <div className="space-y-3">
                   {comments.map((comment) => (
-                    <div key={comment.id} className="bg-gray-800 rounded-lg p-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-2 flex-1">
-                          <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
-                            <Image 
-                              src="/feed/avatar.png"
-                              alt={comment.customer_name}
-                              width={24}
-                              height={24}
-                              className="object-cover w-full h-full"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <p className="text-white font-medium text-sm">{comment.customer_name}</p>
-                              <p className="text-gray-400 text-xs">
-                                {new Date(comment.created_at).toLocaleDateString('es-ES', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
+                    <div key={comment.id} className="space-y-2">
+                      {/* Comentario principal */}
+                      <div className="bg-gray-800 rounded-lg p-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-2 flex-1">
+                            <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                              <Image 
+                                src={poster.avatar_url || '/feed/avatar.png'}
+                                alt={comment.customer_name}
+                                width={24}
+                                height={24}
+                                className="object-cover w-full h-full"
+                              />
                             </div>
-                            {editingCommentId === comment.id ? (
-                              <div className="space-y-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <p className="text-white font-medium text-sm">{comment.customer_name}</p>
+                                <p className="text-gray-400 text-xs">
+                                  {new Date(comment.created_at).toLocaleDateString('es-ES', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                              </div>
+                              {editingCommentId === comment.id ? (
+                                <div className="space-y-2">
+                                  <textarea
+                                    value={editingCommentContent}
+                                    onChange={(e) => setEditingCommentContent(e.target.value)}
+                                    className="w-full bg-gray-700 text-white text-sm rounded p-2 resize-none"
+                                    rows={2}
+                                    maxLength={1000}
+                                  />
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={handleSaveEdit}
+                                      className="px-3 py-1 bg-[#73FFA2] text-black text-xs rounded hover:bg-[#5ee085] transition-colors"
+                                    >
+                                      Guardar
+                                    </button>
+                                    <button
+                                      onClick={handleCancelEdit}
+                                      className="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-500 transition-colors"
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-gray-300 text-sm break-words mb-2">{comment.content}</p>
+                                  {/* Acciones del comentario */}
+                                  <div className="flex items-center space-x-3">
+                                    <button
+                                      onClick={() => handleStartReply(comment.id)}
+                                      className="text-xs text-gray-400 hover:text-[#73FFA2] transition-colors"
+                                    >
+                                      Responder
+                                    </button>
+                                    {comment.replies_count && comment.replies_count > 0 ? (
+                                      <button
+                                        onClick={() => toggleReplies(comment.id)}
+                                        className="text-xs text-gray-400 hover:text-[#73FFA2] transition-colors"
+                                      >
+                                        {showReplies[comment.id] ? 'Ocultar' : 'Ver'} respuestas ({comment.replies_count})
+                                      </button>
+                                    ):<></>}
+                                  </div>
+                                  
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          {comment.customer_id === customerId && editingCommentId !== comment.id && (
+                            <div className="flex space-x-1 ml-2 flex-shrink-0">
+                              <button
+                                onClick={() => handleStartEdit(comment)}
+                                className="p-1 text-gray-400 hover:text-[#73FFA2] transition-colors"
+                                title="Editar comentario"
+                              >
+                                <PencilSquare className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteComment(comment.id)}
+                                className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                                title="Eliminar comentario"
+                              >
+                                <Trash className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Input para responder */}
+                        {replyingToId === comment.id && (
+                          <div className="mt-3 pl-8 border-l-2 border-gray-600">
+                            <div className="flex space-x-2">
+                              <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                                <Image 
+                                  src={poster.avatar_url || '/feed/avatar.png'}
+                                  alt="Tu avatar"
+                                  width={24}
+                                  height={24}
+                                  className="object-cover w-full h-full"
+                                />
+                              </div>
+                              <div className="flex-1 space-y-2">
                                 <textarea
-                                  value={editingCommentContent}
-                                  onChange={(e) => setEditingCommentContent(e.target.value)}
-                                  className="w-full bg-gray-700 text-white text-sm rounded p-2 resize-none"
+                                  value={replyContent}
+                                  onChange={(e) => setReplyContent(e.target.value)}
+                                  placeholder="Escribe una respuesta..."
+                                  className="w-full bg-gray-700 text-white text-sm rounded p-2 resize-none border border-gray-600 focus:border-[#73FFA2] focus:outline-none"
                                   rows={2}
                                   maxLength={1000}
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault()
+                                      handleAddReply(comment.id)
+                                    }
+                                  }}
                                 />
                                 <div className="flex space-x-2">
                                   <button
-                                    onClick={handleSaveEdit}
-                                    className="px-3 py-1 bg-[#73FFA2] text-black text-xs rounded hover:bg-[#5ee085] transition-colors"
+                                    onClick={() => handleAddReply(comment.id)}
+                                    disabled={isCommentLoading || !replyContent.trim()}
+                                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                      isCommentLoading || !replyContent.trim()
+                                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                        : 'bg-[#73FFA2] text-black hover:bg-[#5ee085]'
+                                    }`}
                                   >
-                                    Guardar
+                                    {isCommentLoading ? '...' : 'Responder'}
                                   </button>
                                   <button
-                                    onClick={handleCancelEdit}
+                                    onClick={handleCancelReply}
                                     className="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-500 transition-colors"
                                   >
                                     Cancelar
                                   </button>
                                 </div>
                               </div>
-                            ) : (
-                              <p className="text-gray-300 text-sm break-words">{comment.content}</p>
-                            )}
-                          </div>
-                        </div>
-                        {comment.customer_id === customerId && editingCommentId !== comment.id && (
-                          <div className="flex space-x-1 ml-2 flex-shrink-0">
-                            <button
-                              onClick={() => handleStartEdit(comment)}
-                              className="p-1 text-gray-400 hover:text-[#73FFA2] transition-colors"
-                              title="Editar comentario"
-                            >
-                              <PencilSquare className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteComment(comment.id)}
-                              className="p-1 text-gray-400 hover:text-red-400 transition-colors"
-                              title="Eliminar comentario"
-                            >
-                              <Trash className="w-3 h-3" />
-                            </button>
+                            </div>
                           </div>
                         )}
                       </div>
+
+                      {/* Respuestas anidadas */}
+                      {comment.replies && comment.replies.length > 0 && showReplies[comment.id] && (
+                        <div className="ml-8 space-y-2">
+                          {comment.replies.map((reply) => (
+                            <div key={reply.id} className="bg-gray-750 rounded-lg p-3 border-l-2 border-[#73FFA2]">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start space-x-2 flex-1">
+                                  <div className="w-5 h-5 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                                    <Image 
+                                      src={poster.avatar_url || '/feed/avatar.png'}
+                                      alt={reply.customer_name}
+                                      width={20}
+                                      height={20}
+                                      className="object-cover w-full h-full"
+                                    />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center space-x-2 mb-1">
+                                      <p className="text-white font-medium text-xs">{reply.customer_name}</p>
+                                      <p className="text-gray-400 text-xs">
+                                        {new Date(reply.created_at).toLocaleDateString('es-ES', {
+                                          month: 'short',
+                                          day: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })}
+                                      </p>
+                                    </div>
+                                    <p className="text-gray-300 text-xs break-words">{reply.content}</p>
+                                  </div>
+                                </div>
+                                {reply.customer_id === customerId && (
+                                  <div className="flex space-x-1 ml-2 flex-shrink-0">
+                                    <button
+                                      onClick={() => handleStartEdit(reply)}
+                                      className="p-1 text-gray-400 hover:text-[#73FFA2] transition-colors"
+                                      title="Editar respuesta"
+                                    >
+                                      <PencilSquare className="w-2.5 h-2.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteComment(reply.id)}
+                                      className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                                      title="Eliminar respuesta"
+                                    >
+                                      <Trash className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -532,7 +727,7 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
               <div className="flex space-x-2">
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
                   <Image 
-                    src="/feed/avatar.png"
+                    src={poster.avatar_url || '/feed/avatar.png'}
                     alt="Tu avatar"
                     width={32}
                     height={32}
@@ -577,12 +772,16 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
               disabled={isLikeLoading}
               className={`flex items-center transition-colors ${
                 isLiked 
-                  ? 'text-red-500 hover:text-red-400' 
-                  : 'text-gray-300 hover:text-[#73FFA2]'
+                  ? 'text-[#73FFA2] hover:text-[#5FD687]' 
+                  : 'text-[#3B82F6] hover:text-[#2563EB]'
               } ${isLikeLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <Heart 
-                className={`w-6 h-6 mr-2 ${isLiked ? 'fill-current' : ''}`} 
+              <Image 
+                src={isLiked ? '/feed/Icons/Like_Green.png' : '/feed/Icons/Like_Blue.png'}
+                alt="Like"
+                width={24}
+                height={24}
+                className="mr-2"
               />
               <span>{likesCount}</span>
             </button>
@@ -602,6 +801,7 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
 
 // Poster Card Component (styled like product cards)
 const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (poster: Poster) => void }) => {
+  const [activeMedia, setActiveMedia] = useState<'image' | 'video'>('image')
   // Función para obtener el primer frame del video como preview
   const getVideoPreview = (videoUrl: string): Promise<string> => {
     return new Promise((resolve) => {
@@ -629,6 +829,15 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
 
   const [videoPreview, setVideoPreview] = useState<string | null>(null)
   
+  // Inicializar activeMedia basado en el contenido disponible
+  useEffect(() => {
+    if (poster.image_url) {
+      setActiveMedia('image')
+    } else if (poster.video_url) {
+      setActiveMedia('video')
+    }
+  }, [poster.image_url, poster.video_url])
+  
   // Generar preview del video si existe
   useEffect(() => {
     if (poster.video_url && !poster.image_url) {
@@ -647,7 +856,7 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
       <div className="flex items-center mb-3">
         <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700">
           <Image 
-            src="/feed/avatar.png"
+            src={poster.avatar_url || '/feed/avatar.png'}
             alt={poster.customer_name}
             width={32}
             height={32}
@@ -669,9 +878,9 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
       <div className="w-full h-48 relative mb-4 overflow-hidden rounded-lg">
         {(poster.image_url || poster.video_url) && (
           <>
-            {/* Caso 1: Tiene imagen (con o sin video) */}
+            {/* Caso 1: Tiene imagen */}
             {poster.image_url && (
-              <div className="relative w-full h-full">
+              <div className={`relative w-full h-full ${activeMedia === 'image' ? 'block' : 'hidden'}`}>
                 <Image
                   src={poster.image_url}
                   alt="Imagen de publicación"
@@ -679,18 +888,12 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
                   className="object-cover"
                   unoptimized={poster.image_url.startsWith('blob:') || poster.image_url.startsWith('data:')}
                 />
-                {/* Indicador de video si también hay video */}
-                {poster.video_url && (
-                  <div className="absolute top-2 right-2 bg-black bg-opacity-60 rounded-full p-2">
-                    <MediaPlay className="w-4 h-4 text-white" />
-                  </div>
-                )}
               </div>
             )}
             
-            {/* Caso 2: Solo tiene video (mostrar preview generado) */}
-            {poster.video_url && !poster.image_url && (
-              <div className="relative w-full h-full bg-gray-800 flex items-center justify-center">
+            {/* Caso 2: Tiene video */}
+            {poster.video_url && (
+              <div className={`relative w-full h-full bg-gray-800 flex items-center justify-center ${activeMedia === 'video' ? 'block' : 'hidden'}`}>
                 {videoPreview ? (
                   <>
                     <img
@@ -704,16 +907,51 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
                   </>
                 ) : (
                   <>
-                    <div className="text-gray-400 text-center">
-                      <MediaPlay className="w-12 h-12 mx-auto mb-2" />
-                      <p className="text-sm">Video</p>
-                    </div>
-                    <div className="absolute top-2 right-2 bg-black bg-opacity-60 rounded-full p-2">
-                      <MediaPlay className="w-4 h-4 text-white" />
+                    <div className="animate-pulse flex space-x-4">
+                      <div className="rounded-full bg-gray-700 h-12 w-12"></div>
                     </div>
                   </>
                 )}
               </div>
+            )}
+            
+            {/* Flechas de navegación si hay ambos medios */}
+            {poster.image_url && poster.video_url && (
+              <>
+                {/* Flecha izquierda */}
+                <button 
+                  onClick={() => setActiveMedia('image')}
+                  className={`absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 rounded-full p-2 hover:bg-opacity-80 transition-all ${activeMedia === 'video' ? 'visible' : 'invisible'}`}
+                >
+                  <Image 
+                    src="/feed/Flecha.svg"
+                    alt="Anterior"
+                    width={20}
+                    height={20}
+                    className="w-5 h-5"
+                  />
+                </button>
+                
+                {/* Flecha derecha */}
+                <button 
+                  onClick={() => setActiveMedia('video')}
+                  className={`absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 rounded-full p-2 hover:bg-opacity-80 transition-all ${activeMedia === 'image' ? 'visible' : 'invisible'}`}
+                >
+                  <Image 
+                    src="/feed/Flecha.svg"
+                    alt="Siguiente"
+                    width={20}
+                    height={20}
+                    className="w-5 h-5 transform rotate-180"
+                  />
+                </button>
+                
+                {/* Indicadores de posición */}
+                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                  <div className={`w-1.5 h-1.5 rounded-full ${activeMedia === 'image' ? 'bg-[#73FFA2]' : 'bg-white bg-opacity-50'}`}></div>
+                  <div className={`w-1.5 h-1.5 rounded-full ${activeMedia === 'video' ? 'bg-[#73FFA2]' : 'bg-white bg-opacity-50'}`}></div>
+                </div>
+              </>
             )}
           </>
         )}

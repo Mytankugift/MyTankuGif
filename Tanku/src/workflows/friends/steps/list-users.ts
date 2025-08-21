@@ -7,6 +7,7 @@ export const listUsersStep = createStep(
     const customerModuleService = container.resolve(Modules.CUSTOMER)
     // Recupera todos los customers
     const customers = await customerModuleService.listCustomers({})
+    
     // Extrae los nombres
     const customerNames = customers.map((customer) => ({
       id: customer.id,

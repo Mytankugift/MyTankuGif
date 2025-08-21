@@ -293,8 +293,8 @@ const FormTanku = ({
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-xl font-bold mb-4">Datos Personales</h2>
+    <div className="max-w-4xl mx-auto p-6 bg-zinc-800 rounded-lg shadow-md text-white">
+      <h2 className="text-xl font-bold mb-4 text-[#3B9BC3]">Datos Personales</h2>
       <div className="grid grid-cols-2 gap-4 mb-8">
         <Input
           label="Nombre"
@@ -344,7 +344,7 @@ const FormTanku = ({
         />
       </div>
 
-      <h2 className="text-xl font-bold mb-4">Dirección de Envío</h2>
+      <h2 className="text-xl font-bold mb-4 text-[#3B9BC3]">Dirección de Envío</h2>
       {customer && (addressesInRegion?.length || 0) > 0 && (
         <Container className="mb-6 flex flex-col gap-y-4 p-5">
           <p className="text-small-regular">
@@ -451,7 +451,7 @@ const FormTanku = ({
 
       {!checked && (
         <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4">Dirección de Facturación</h2>
+          <h2 className="text-xl font-bold mb-4 text-[#3B9BC3]">Dirección de Facturación</h2>
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Nombre"
@@ -539,7 +539,7 @@ const FormTanku = ({
         <div className="flex justify-end">
           <Button
             onClick={handleContinue}
-            className="min-w-[200px]"
+            className="min-w-[200px] bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 transition-colors"
             disabled={!isFormValid()}
           >
             Continuar al Pago
@@ -547,7 +547,7 @@ const FormTanku = ({
         </div>
       ) : (
         <div className="mt-8 border-t pt-8">
-          <h2 className="text-xl font-bold mb-4">Métodos de Pago</h2>
+          <h2 className="text-xl font-bold mb-4 text-[#3B9BC3]">Métodos de Pago</h2>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <input
@@ -563,8 +563,8 @@ const FormTanku = ({
             </div>
             {selectedPaymentMethod && (
               <div className="flex justify-end mt-6">
-                <Button onClick={handlePayment} className="min-w-[200px]">
-                  Seleccionar metodo de pago
+                <Button onClick={handlePayment} className="min-w-[200px] bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 transition-colors">
+                  Seleccionar método de pago
                 </Button>
                 
               </div>
@@ -582,17 +582,17 @@ const FormTanku = ({
               <div className="mt-6">
                 <form id="epayco-payment-form">
                   <div className="mb-4">
-                    <label htmlFor="epayco-payment" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="epayco-payment" className="block text-sm font-medium text-white mb-2">
                       Pago con ePayco
                     </label>
-                    <p className="text-sm text-gray-500 mb-4">Haga clic en el botón a continuación para proceder con el pago seguro a través de ePayco.</p>
+                    <p className="text-sm text-gray-300 mb-4">Haga clic en el botón a continuación para proceder con el pago seguro a través de ePayco.</p>
                     
                     {/* Botón visible para el usuario */}
                     <div className="flex justify-end">
                       <Button 
                         type="button"
                         id="epayco-custom-button"
-                        className="bg-green-600 hover:bg-green-700 text-white p-4 flex items-center justify-center gap-2"
+                        className="bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 text-white p-4 flex items-center justify-center gap-2 transition-colors"
                         onClick={() => {
                           // Verificar si ePayco está cargado
                           if (typeof window.ePayco === 'undefined') {

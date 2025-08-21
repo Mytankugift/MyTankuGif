@@ -12,6 +12,7 @@ const addCommentSchema = z.object({
   poster_id: z.string().min(1, "Poster ID is required"),
   customer_id: z.string().min(1, "Customer ID is required"),
   content: z.string().min(1, "Content is required").max(1000, "Content too long"),
+  parent_id: z.string().nullable().optional(),
 })
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
@@ -64,11 +65,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       })
     }
 
-    const { poster_id, customer_id, content } = validationResult.data
+    const { poster_id, customer_id, content, parent_id } = validationResult.data
 
     // Ejecutar el workflow para agregar comentario
     const { result } = await addPosterCommentWorkflow(req.scope).run({
-      input: { poster_id, customer_id, content }
+      input: { poster_id, customer_id, content, parent_id }
     })
 
     console.log("Comment added successfully:", result.comment.id)

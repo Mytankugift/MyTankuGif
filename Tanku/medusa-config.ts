@@ -45,6 +45,9 @@ module.exports = defineConfig({
       resolve: "./src/modules/personal_information",
     },
     {
+      resolve: "./src/modules/onboarding",
+    },
+    {
       resolve: "@medusajs/medusa/file",
       options: {
         providers: [

@@ -10,8 +10,10 @@ import { getListWishList } from "@modules/home/components/actions/get-list-wish-
 import { deleteProductToWishList } from "@modules/home/components/actions/delete-product-to-wish_list"
 import { deleteWishList } from "@modules/account/actionts/delete-wish-list"
 import { updateBanner } from "@modules/personal-info/actions/update-banner"
+import { updateSocialNetworks } from "../actions/update-social-networks"
 import { usePersonalInfo } from "@lib/context/personal-info-context"
 import Link from "next/link"
+import FriendGroupsTab from "./FriendGroupsTab"
 
 // Profile editing components
 import ProfileName from "@modules/account/components/profile-name"
@@ -80,6 +82,12 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
     tiktok: ''
   })
   const [socialMediaSaving, setSocialMediaSaving] = useState(false)
+  
+  // Public alias editing states
+  const [editingAlias, setEditingAlias] = useState(false)
+  const [aliasValue, setAliasValue] = useState('')
+  const [aliasSaving, setAliasSaving] = useState(false)
+  const [aliasError, setAliasError] = useState('')
 
   // Cargar datos del customer y regiones al montar el componente
   useEffect(() => {
@@ -307,6 +315,8 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
         youtube: personalInfo.social_url.youtube || '',
         tiktok: personalInfo.social_url.tiktok || ''
       })
+      // Initialize alias value
+      setAliasValue(personalInfo.social_url.public_alias || '')
     }
   }, [personalInfo])
 
@@ -335,12 +345,24 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
         [platform]: socialMediaValues[platform as keyof typeof socialMediaValues]
       }
 
-      // Update local context immediately
-      updateLocalPersonalInfo({ social_url: updatedSocialUrl })
-      
-      // Here you would typically call an API to save to the backend
-      // For now, we'll just update the local context
-      console.log(`Saving ${platform}:`, socialMediaValues[platform as keyof typeof socialMediaValues])
+      // Call the backend API to save the changes
+      const result = await updateSocialNetworks({
+        customer_id: customer.id,
+        social_networks: {
+          facebook: platform === 'facebook' ? socialMediaValues.facebook : personalInfo?.social_url?.facebook || '',
+          instagram: platform === 'instagram' ? socialMediaValues.instagram : personalInfo?.social_url?.instagram || '',
+          youtube: platform === 'youtube' ? socialMediaValues.youtube : personalInfo?.social_url?.youtube || '',
+          tiktok: platform === 'tiktok' ? socialMediaValues.tiktok : personalInfo?.social_url?.tiktok || ''
+        }
+      })
+
+      if (result.success) {
+        // Update local context only if backend save was successful
+        updateLocalPersonalInfo({ social_url: updatedSocialUrl })
+        console.log(`✅ ${platform} saved successfully`)
+      } else {
+        throw new Error(result.error || 'Error al guardar en el servidor')
+      }
       
       setEditingSocialMedia(null)
     } catch (error) {
@@ -361,6 +383,89 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
       }))
     }
     setEditingSocialMedia(null)
+  }
+
+  // Handle alias editing
+  const handleAliasEdit = () => {
+    setEditingAlias(true)
+    setAliasError('')
+  }
+
+  // Handle alias value change
+  const handleAliasChange = (value: string) => {
+    // Remove @ symbol and spaces, convert to lowercase
+    const cleanValue = value.replace(/[@\s]/g, '').toLowerCase()
+    setAliasValue(cleanValue)
+    setAliasError('')
+  }
+
+  // Save alias changes
+  const handleAliasSave = async () => {
+    if (!customer?.id) return
+
+    if (!aliasValue.trim()) {
+      setAliasError('El alias no puede estar vacío')
+      return
+    }
+
+    if (aliasValue.length < 3) {
+      setAliasError('El alias debe tener al menos 3 caracteres')
+      return
+    }
+
+    if (!/^[a-z0-9_]+$/.test(aliasValue)) {
+      setAliasError('El alias solo puede contener letras, números y guiones bajos')
+      return
+    }
+
+    setAliasSaving(true)
+    try {
+      // Call the backend API to save the alias
+      const result = await updateSocialNetworks({
+        customer_id: customer.id,
+        social_networks: {
+          facebook: personalInfo?.social_url?.facebook || '',
+          instagram: personalInfo?.social_url?.instagram || '',
+          youtube: personalInfo?.social_url?.youtube || '',
+          tiktok: personalInfo?.social_url?.tiktok || '',
+          public_alias: aliasValue
+        }
+      })
+
+      if (result.success) {
+        // Update local context
+        const updatedSocialUrl = {
+          ...personalInfo?.social_url,
+          public_alias: aliasValue
+        }
+        updateLocalPersonalInfo({ social_url: updatedSocialUrl })
+        console.log(`✅ Alias saved successfully: @${aliasValue}`)
+        setEditingAlias(false)
+      } else {
+        if (result.error?.includes('alias ya existe') || result.error?.includes('already exists')) {
+          setAliasError('Este alias ya está en uso por otro usuario')
+        } else {
+          setAliasError(result.error || 'Error al guardar el alias')
+        }
+      }
+    } catch (error) {
+      console.error('Error saving alias:', error)
+      setAliasError('Error al guardar el alias')
+    } finally {
+      setAliasSaving(false)
+    }
+  }
+
+  // Cancel alias editing
+  const handleAliasCancel = () => {
+    setAliasValue(personalInfo?.social_url?.public_alias || '')
+    setEditingAlias(false)
+    setAliasError('')
+  }
+
+  // Get current alias display value
+  const getCurrentAlias = () => {
+    return personalInfo?.social_url?.public_alias || customer?.email?.split('@')[0] || 'usuario'
   }
 
   // Get social media display value
@@ -467,7 +572,50 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
                   )}
                   {!customerLoading && (
                     <>
-                      <p className="text-white text-lg">@{customer?.email?.split('@')[0] || 'usuario'}</p>
+                      {editingAlias ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-lg">@</span>
+                          <input
+                            type="text"
+                            value={aliasValue}
+                            onChange={(e) => handleAliasChange(e.target.value)}
+                            className="bg-gray-800 text-white text-lg px-2 py-1 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB] min-w-0 flex-1"
+                            placeholder="tu_alias"
+                            autoFocus
+                            disabled={aliasSaving}
+                          />
+                          <button
+                            onClick={handleAliasSave}
+                            disabled={aliasSaving || !aliasValue.trim()}
+                            className="text-[#73FFA2] hover:text-[#66DEDB] text-sm px-1 disabled:opacity-50"
+                          >
+                            {aliasSaving ? '...' : '✓'}
+                          </button>
+                          <button
+                            onClick={handleAliasCancel}
+                            disabled={aliasSaving}
+                            className="text-red-400 hover:text-red-300 text-sm px-1 disabled:opacity-50"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 group">
+                          <p className="text-white text-lg">@{getCurrentAlias()}</p>
+                          <button
+                            onClick={handleAliasEdit}
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-[#73FFA2] transition-all p-1"
+                            title="Editar alias"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                      {aliasError && (
+                        <p className="text-red-400 text-sm mt-1">{aliasError}</p>
+                      )}
                       <p className="text-gray-300 text-sm">
                         {customer?.first_name ? 'Miembro de la comunidad TANKU' : 'Colombiano, bloguero, fotógrafo.'}
                       </p>
@@ -562,7 +710,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
                 <div className="text-center space-y-2">
                   <div className="flex justify-center space-x-6">
                     <div>
-                      <p className="text-2xl font-bold text-[#73FFA2]">3</p>
+                      <p className="text-2xl font-bold text-[#73FFA2]">{personalInfo?.friends_count ?? 0}</p>
                       <p className="text-gray-400 text-sm">Amigos</p>
                     </div>
                     <div>
@@ -884,7 +1032,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
           {/* Navegación de tabs - Solo mostrar si no está editando perfil */}
           {!isEditingProfile && (
             <div className="flex justify-center space-x-8 border-b border-gray-600 pb-2 mb-6">
-              {['PUBLICACIONES', 'MY TANKU', 'MIS COMPRAS'].map((tab) => (
+              {['PUBLICACIONES', 'GRUPOS DE AMIGOS', 'MY TANKU', 'MIS COMPRAS'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -987,6 +1135,10 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
                   <h3 className="text-white text-lg font-medium mb-2">My TANKU</h3>
                   <p className="text-gray-400 text-sm">Próximamente disponible</p>
                 </div>
+              )}
+              
+              {activeTab === 'GRUPOS DE AMIGOS' && customer?.id && (
+                <FriendGroupsTab customerId={customer.id} />
               )}
               
               {activeTab === 'MIS COMPRAS' && (

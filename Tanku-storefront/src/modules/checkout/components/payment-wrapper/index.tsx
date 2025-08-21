@@ -34,7 +34,7 @@ const PaymentWrapper: React.FC<PaymentWrapperProps> = ({ cart, children }) => {
     )
   }
 
-  return <div>{children}</div>
+  return <div className="bg-transparent">{children}</div>
 }
 
 export default PaymentWrapper

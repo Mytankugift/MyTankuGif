@@ -15,7 +15,8 @@ export default function CheckoutForm({
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full ">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6 text-[#66DEDB]">Finalizar compra</h1>
       <FormTanku cart={cart} customer={customer} />
     </div>
   )

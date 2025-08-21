@@ -21,6 +21,7 @@ interface PersonalInfo extends HttpTypes.StoreCustomer {
   interests?: any
   favorite_colors?: any
   favorite_activities?: any
+  friends_count?: number
 }
 
 // Unified user data structure
@@ -41,6 +42,7 @@ export interface UserData {
   website: string | null
   birthDate: string | null
   gender: string | null
+  friends_count: number | null
   
   // Metadata
   preferences: Record<string, any>
@@ -114,6 +116,7 @@ export const PersonalInfoProvider: React.FC<PersonalInfoProviderProps> = ({ chil
           birth_date: (customer.metadata?.birth_date as string) || undefined,
           gender: (customer.metadata?.gender as string) || undefined,
           preferences: customer.metadata?.preferences as Record<string, any> || {},
+          friends_count: (customer.metadata?.friends_count as number) || undefined,
         }
         
         console.log('📋 Base extended info from customer metadata:', {
@@ -144,6 +147,7 @@ export const PersonalInfoProvider: React.FC<PersonalInfoProviderProps> = ({ chil
             interests: personalData.interests,
             favorite_colors: personalData.favorite_colors,
             favorite_activities: personalData.favorite_activities,
+            friends_count: personalData.friends_count,
           }
           
           Object.assign(extendedInfo, mergedData)
@@ -214,7 +218,7 @@ export const PersonalInfoProvider: React.FC<PersonalInfoProviderProps> = ({ chil
       website: personalInfo.website || null,
       birthDate: personalInfo.birth_date || null,
       gender: personalInfo.gender || null,
-      
+      friends_count: personalInfo.friends_count || null,
       // Metadata
       preferences: personalInfo.preferences || {},
       hasCompletedProfile,

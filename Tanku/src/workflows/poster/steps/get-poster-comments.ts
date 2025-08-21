@@ -49,14 +49,31 @@ export const getPosterCommentsStep = createStep(
       })
     }
     
-    // 3. Ordenar comentarios por fecha (más antiguos primero)
-    const sortedComments = commentsWithCustomerInfo.sort((a, b) => {
+    // 3. Separar comentarios padre e hijos
+    const parentComments = commentsWithCustomerInfo.filter(comment => !comment.parent_id)
+    const childComments = commentsWithCustomerInfo.filter(comment => comment.parent_id)
+    
+    // 4. Crear estructura jerárquica
+    const hierarchicalComments = parentComments.map(parent => {
+      const replies = childComments
+        .filter(child => child.parent_id === parent.id)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      
+      return {
+        ...parent,
+        replies: replies,
+        replies_count: replies.length
+      }
+    })
+    
+    // 5. Ordenar comentarios padre por fecha (más antiguos primero)
+    const sortedComments = hierarchicalComments.sort((a, b) => {
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     })
     
     const result: GetPosterCommentsOutput = {
       comments: sortedComments,
-      total_count: sortedComments.length
+      total_count: commentsWithCustomerInfo.length // Total incluyendo respuestas
     }
     
     console.log("Get comments result:", {

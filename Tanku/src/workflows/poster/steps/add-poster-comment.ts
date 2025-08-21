@@ -7,6 +7,7 @@ export interface AddPosterCommentInput {
   poster_id: string
   customer_id: string
   content: string
+  parent_id?: string | null
 }
 
 export interface AddPosterCommentOutput {
@@ -29,7 +30,8 @@ export const addPosterCommentStep = createStep(
     const comment = await socialModuleService.createPosterComments({
       poster_id: input.poster_id,
       customer_id: input.customer_id,
-      content: input.content
+      content: input.content,
+      parent_id: input.parent_id || null
     })
     
     console.log("Comment created successfully:", comment.id)

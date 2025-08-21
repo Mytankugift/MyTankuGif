@@ -5,6 +5,7 @@ export const FriendInGroup = model.define("friend_in_group", {
   group_id: model.text(),
   customer_id: model.text(),
   role: model.text().default("member"), // member, admin, moderator
+  solicitation_status: model.text().default("pending"), // pending, accepted, rejected
   joined_at: model.dateTime(),
 }).indexes([
   { on: ["group_id"] },

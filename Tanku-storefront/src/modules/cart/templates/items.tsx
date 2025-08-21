@@ -1,6 +1,6 @@
 import repeat from "@lib/util/repeat"
 import { HttpTypes } from "@medusajs/types"
-import { Heading, Table } from "@medusajs/ui"
+import { Heading } from "@medusajs/ui"
 
 import Item from "@modules/cart/components/item"
 import SkeletonLineItem from "@modules/skeletons/components/skeleton-line-item"
@@ -13,27 +13,24 @@ const ItemsTemplate = ({ cart }: ItemsTemplateProps) => {
   const items = cart?.items
   return (
     <div>
-      <div className="pb-3 flex items-center">
-        <Heading className="text-[2rem] leading-[2.75rem]">Cart</Heading>
+      <div className="py-3 flex items-center bg-zinc-800 px-6 rounded-t-lg">
+        <Heading className="text-[2rem] leading-[2.75rem] text-[#66DEDB]">Carrito</Heading>
       </div>
-      <Table>
-        <Table.Header className="border-t-0">
-          <Table.Row className="text-ui-fg-subtle txt-medium-plus">
-            <Table.HeaderCell className="!pl-0">Item</Table.HeaderCell>
-            <Table.HeaderCell></Table.HeaderCell>
-            <Table.HeaderCell>Quantity</Table.HeaderCell>
-            <Table.HeaderCell className="hidden small:table-cell">
-              Price
-            </Table.HeaderCell>
-            <Table.HeaderCell className="!pr-0 text-right">
-              Total
-            </Table.HeaderCell>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {items
-            ? items
-                .sort((a, b) => {
+      <div className="w-full overflow-x-auto bg-zinc-800 rounded-b-lg shadow-lg">
+        <table className="w-full border-collapse">
+          <thead className="bg-zinc-800 border-b border-gray-700">
+            <tr className="text-[#3B9BC3] font-medium">
+              <th className="p-4 pl-6 text-left" style={{width: '80px'}}></th>
+              <th className="p-4 text-left">Producto</th>
+              <th className="p-4 text-left">Cantidad</th>
+              <th className="p-4 text-left hidden small:table-cell">Precio</th>
+              <th className="p-4 pr-6 text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody className="bg-zinc-800 divide-y divide-gray-700">
+            {items
+              ? items
+                  .sort((a, b) => {
                   return (a.created_at ?? "") > (b.created_at ?? "") ? -1 : 1
                 })
                 .map((item) => {
@@ -41,15 +38,35 @@ const ItemsTemplate = ({ cart }: ItemsTemplateProps) => {
                     <Item
                       key={item.id}
                       item={item}
-                      currencyCode={cart?.currency_code}
+                      currencyCode={cart?.currency_code || "usd"}
                     />
                   )
                 })
-            : repeat(5).map((i) => {
-                return <SkeletonLineItem key={i} />
+            : repeat(8).map((index) => {
+                return (
+                  <tr key={index} className="hover:bg-gray-900">
+                    <td className="p-4 pl-6 w-24">
+                      <div className="w-16 h-16 bg-gray-700 rounded-md animate-pulse"></div>
+                    </td>
+                    <td className="p-4">
+                      <div className="w-32 h-4 bg-gray-700 rounded animate-pulse mb-2"></div>
+                      <div className="w-24 h-3 bg-gray-700 rounded animate-pulse"></div>
+                    </td>
+                    <td className="p-4">
+                      <div className="w-16 h-8 bg-gray-700 rounded animate-pulse"></div>
+                    </td>
+                    <td className="p-4 hidden small:table-cell">
+                      <div className="w-16 h-4 bg-gray-700 rounded animate-pulse"></div>
+                    </td>
+                    <td className="p-4 pr-6 text-right">
+                      <div className="w-16 h-4 bg-gray-700 rounded animate-pulse ml-auto"></div>
+                    </td>
+                  </tr>
+                )
               })}
-        </Table.Body>
-      </Table>
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

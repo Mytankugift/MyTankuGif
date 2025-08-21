@@ -77,8 +77,16 @@ const CircularMenu = () => {
 
   return (
     <div className="relative w-64 h-64 mx-auto">
+      {/* Background circle to cover text */}
+      <div className="absolute rounded-full bg-[#2D3A3A] z-0" style={{
+        width: '70%',
+        height: '70%',
+        left: '15%',
+        top: '15%'
+      }}></div>
+      
       {/* SVG for curved text */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 256 256">
+      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 256 256">
         <defs>
           {/* Define circular paths for text - 2px further from circle */}
           <path
@@ -211,7 +219,7 @@ const CircularMenu = () => {
       />
 
       {/* Central Circle */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 flex items-center justify-center z-10">
         <div className="w-28 h-28 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 border-4 border-[#73FFA2] flex items-center justify-center relative overflow-hidden" style={{
           boxShadow: `
             0 0 10px rgba(115, 255, 162, 0.4),

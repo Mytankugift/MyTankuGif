@@ -5,6 +5,9 @@ export interface PosterComment {
   customer_name: string
   customer_email: string
   content: string
+  parent_id: string | null
+  replies?: PosterComment[]
+  replies_count?: number
   created_at: string
   updated_at: string
 }
@@ -42,7 +45,7 @@ export const getPosterComments = async (posterId: string) => {
 }
 
 // Add a comment to a poster
-export const addPosterComment = async (posterId: string, customerId: string, content: string) => {
+export const addPosterComment = async (posterId: string, customerId: string, content: string, parentId?: string) => {
   try {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/posters/comments`,
@@ -58,6 +61,7 @@ export const addPosterComment = async (posterId: string, customerId: string, con
           poster_id: posterId,
           customer_id: customerId,
           content: content,
+          parent_id: parentId || null,
         }),
       }
     )

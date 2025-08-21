@@ -351,6 +351,16 @@
           "default": "'member'",
           "mappedType": "text"
         },
+        "solicitation_status": {
+          "name": "solicitation_status",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "'pending'",
+          "mappedType": "text"
+        },
         "joined_at": {
           "name": "joined_at",
           "type": "timestamptz",

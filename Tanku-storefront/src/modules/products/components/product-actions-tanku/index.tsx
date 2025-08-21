@@ -85,15 +85,16 @@ const ProductActionsTanku: React.FC<ProductActionsTankuProps> = ({
   return (
     <div className="flex flex-col gap-y-4">
       <div>
-        <h3 className="text-xl-semi mb-4">Opciones del Producto</h3>
+        <h3 className="text-xl font-semibold mb-4 text-[#3B9BC3]">Opciones del Producto</h3>
         {product.options.map((option) => (
           <div key={option.id} className="mb-4">
-            <h4 className="text-base-semi mb-2">{option.title}</h4>
+            <h4 className="text-base font-medium mb-2 text-[#3B9BC3]">{option.title}</h4>
             <div className="flex flex-wrap gap-2">
               {option.values.map((value) => (
                 <Button
                   key={value.id}
-                  variant={selectedOptions[option.id] === value.value ? "primary" : "secondary"}
+                  variant="secondary"
+                  className={`${selectedOptions[option.id] === value.value ? 'bg-[#3B9BC3] text-white hover:bg-[#2A7A9B]' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
                   onClick={() => {handleOptionChange(option.id, value.value)
                     captureUserBehavior(value.value, "navigation")
                   }}
@@ -111,27 +112,27 @@ const ProductActionsTanku: React.FC<ProductActionsTankuProps> = ({
         {selectedVariant ? (
           <>
             <div className="flex items-center justify-between text-xl">
-              <span>Precio:</span>
-              <span>{selectedVariant.inventory?.price} {selectedVariant.inventory?.currency_code}</span>
+              <span className="text-[#3B9BC3] font-medium">Precio:</span>
+              <span className="text-[#66DEDB] font-bold">{selectedVariant.inventory?.price} {selectedVariant.inventory?.currency_code}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Stock disponible:</span>
-              <span>{selectedVariant.inventory?.quantity_stock} unidades</span>
+              <span className="text-[#3B9BC3] font-medium">Stock disponible:</span>
+              <span className="text-[#66DEDB]">{selectedVariant.inventory?.quantity_stock} unidades</span>
             </div>
             <div className="flex items-center justify-between gap-x-2 mt-2">
-              <span>Cantidad:</span>
+              <span className="text-[#3B9BC3] font-medium">Cantidad:</span>
               <input
                 type="number"
                 min="1"
                 max={selectedVariant.inventory?.quantity_stock || 1}
                 value={quantity}
                 onChange={(e) => {
-                  const value = parseInt(e.target.value)
+                  const value = parseInt(e.target.value || "1")
                   if (value > 0 && value <= (selectedVariant.inventory?.quantity_stock || 1)) {
                     setQuantity(value)
                   }
                 }}
-                className="w-20 px-2 py-1 border rounded-md"
+                className="w-20 px-2 py-1 border rounded-md bg-gray-100 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#3B9BC3]"
               />
             </div>
           </>
@@ -143,10 +144,10 @@ const ProductActionsTanku: React.FC<ProductActionsTankuProps> = ({
         <Button
           onClick={handleAddToCart}
           disabled={disabled || !selectedVariant || !selectedVariant.inventory?.quantity_stock || !hasMatchingVariant || isAdding}
-          className="w-full"
+          className="w-full bg-[#3B9BC3] hover:bg-[#2A7A9B] text-white border-none"
           isLoading={isAdding}
         >
-          {!allOptionsSelected ? "Selecciona todas las opciones" :
+          {!allOptionsSelected ? "Selecciona una opción" :
            !hasMatchingVariant ? "Combinación no disponible" :
            !selectedVariant?.inventory?.quantity_stock ? "Sin stock" :
            isAdding ? "Agregando..." :

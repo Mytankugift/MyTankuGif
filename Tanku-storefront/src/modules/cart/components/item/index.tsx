@@ -1,7 +1,8 @@
 "use client"
 
-import { Table, Text, clx } from "@medusajs/ui"
+import { Text, clx } from "@medusajs/ui"
 import { updateLineItem } from "@lib/data/cart"
+import { convertToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 import CartItemSelect from "@modules/cart/components/cart-item-select"
 import ErrorMessage from "@modules/checkout/components/error-message"
@@ -45,8 +46,8 @@ const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
   const maxQuantity = item.variant?.manage_inventory ? 10 : maxQtyFromInventory
 
   return (
-    <Table.Row className="w-full" data-testid="product-row">
-      <Table.Cell className="!pl-0 p-4 w-24">
+    <tr className="w-full hover:bg-gray-900 transition-colors" data-testid="product-row">
+      <td className="p-4 pl-6 w-24">
         <LocalizedClientLink
           href={`/products/${item.product_handle}`}
           className={clx("flex", {
@@ -58,28 +59,31 @@ const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
             thumbnail={item.thumbnail}
             images={item.variant?.product?.images}
             size="square"
+            className="rounded-md border border-gray-700"
           />
         </LocalizedClientLink>
-      </Table.Cell>
+      </td>
 
-      <Table.Cell className="text-left">
+      <td className="p-4 text-left">
         <Text
-          className="txt-medium-plus text-ui-fg-base"
+          className="font-medium text-[#3B9BC3]"
           data-testid="product-title"
         >
           {item.product_title}
         </Text>
-        <LineItemOptions variant={item.variant} data-testid="product-variant" />
-      </Table.Cell>
+        <div className="text-[#66DEDB] [&_*]:!text-[#66DEDB] [&_*]:!color-[#66DEDB]">
+          <LineItemOptions variant={item.variant} data-testid="product-variant" />
+        </div>
+      </td>
 
-      {type === "full" && (
-        <Table.Cell>
+      {type === "full" ? (
+        <td className="p-4">
           <div className="flex gap-2 items-center w-28">
-            <DeleteButton id={item.id} data-testid="product-delete-button" />
+            <DeleteButton id={item.id} className="text-[#E73230] hover:text-[#ff5652]" data-testid="product-delete-button" />
             <CartItemSelect
               value={item.quantity}
               onChange={(value) => changeQuantity(parseInt(value.target.value))}
-              className="w-14 h-10 p-4"
+              className="w-14 h-10 p-4 bg-gray-100 text-gray-800 border border-gray-300 focus:ring-2 focus:ring-[#3B9BC3] focus:outline-none rounded"
               data-testid="product-select-button"
             >
               {/* TODO: Update this with the v2 way of managing inventory */}
@@ -93,51 +97,37 @@ const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
                   </option>
                 )
               )}
-
-              <option value={1} key={1}>
-                1
-              </option>
             </CartItemSelect>
             {updating && <Spinner />}
           </div>
           <ErrorMessage error={error} data-testid="product-error-message" />
-        </Table.Cell>
+        </td>
+      ) : (
+        <td className="p-4"></td>
       )}
 
-      {type === "full" && (
-        <Table.Cell className="hidden small:table-cell">
-          <LineItemUnitPrice
-            item={item}
-            style="tight"
-            currencyCode={currencyCode}
-          />
-        </Table.Cell>
+      {type === "full" ? (
+        <td className="p-4 hidden small:table-cell">
+          <Text className="text-[#66DEDB] font-medium">
+            {convertToLocale({
+              amount: item.unit_price || 0,
+              currency_code: currencyCode || "usd",
+            })}
+          </Text>
+        </td>
+      ) : (
+        <td className="p-4 hidden small:table-cell"></td>
       )}
 
-      <Table.Cell className="!pr-0">
-        <span
-          className={clx("!pr-0", {
-            "flex flex-col items-end h-full justify-center": type === "preview",
+      <td className="p-4 pr-6 text-right">
+        <Text className="text-[#66DEDB] font-medium">
+          {convertToLocale({
+            amount: item.total || 0,
+            currency_code: currencyCode || "usd",
           })}
-        >
-          {type === "preview" && (
-            <span className="flex gap-x-1 ">
-              <Text className="text-ui-fg-muted">{item.quantity}x </Text>
-              <LineItemUnitPrice
-                item={item}
-                style="tight"
-                currencyCode={currencyCode}
-              />
-            </span>
-          )}
-          <LineItemPrice
-            item={item}
-            style="tight"
-            currencyCode={currencyCode}
-          />
-        </span>
-      </Table.Cell>
-    </Table.Row>
+        </Text>
+      </td>
+    </tr>
   )
 }
 

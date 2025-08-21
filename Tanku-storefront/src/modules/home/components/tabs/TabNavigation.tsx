@@ -67,20 +67,18 @@ export default function TabNavigation({ products, customerId }: TabNavigationPro
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`flex flex-col items-center group cursor-pointer transition-all duration-300 ${
-              activeTab === tab.id ? 'scale-105' : 'hover:scale-105'
-            }`}
+            className="flex flex-col items-center group cursor-pointer"
             onClick={() => setActiveTab(tab.id)}
           >
-            <div className="w-20 h-20 flex flex-col items-center justify-center mb-3 relative">
-              {/* Green Icon - shown by default, hidden on hover or when active */}
+            <div className="w-20 h-20 flex flex-col items-center justify-center mb-3 hover:scale-105 transition-transform relative">
+              {/* Green Icon - shown by default, hidden on hover */}
               <Image
                 src={tab.greenIcon}
                 alt={tab.label}
                 width={50}
                 height={50}
-                className={`object-contain transition-opacity duration-300 ${
-                  activeTab === tab.id ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'
+                className={`object-contain ${
+                  activeTab === tab.id ? 'hidden' : 'group-hover:hidden'
                 }`}
               />
               {/* Blue Icon - shown when active or on hover */}
@@ -89,18 +87,16 @@ export default function TabNavigation({ products, customerId }: TabNavigationPro
                 alt={tab.label}
                 width={50}
                 height={50}
-                className={`object-contain absolute top-0 transition-opacity duration-300 ${
-                  activeTab === tab.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                className={`object-contain absolute top-0 ${
+                  activeTab === tab.id ? 'block' : 'hidden group-hover:block'
                 }`}
               />
             </div>
-            <span
-              className={`text-sm font-medium transition-colors duration-300 ${
-                activeTab === tab.id
-                  ? 'text-[#66DEDB]'
-                  : 'text-[#73FFA2] group-hover:text-[#66DEDB]'
-              }`}
-            >
+            <span className={`text-sm font-medium transition-colors ${
+              activeTab === tab.id 
+                ? 'text-[#66DEDB]' 
+                : 'text-[#73FFA2] group-hover:text-[#66DEDB]'
+            }`}>
               {tab.label}
             </span>
           </div>

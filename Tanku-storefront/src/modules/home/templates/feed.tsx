@@ -280,7 +280,7 @@ function HomeContent() {
                       background: 'linear-gradient(45deg, #1A485C, #73FFA2)'
                     }}
                   >
-                    <div className="w-full h-full rounded-full overflow-hidden bg-gray-800">
+                    <div className="w-full h-full rounded-full overflow-hidden bg-transparent">
                       {story.media && story.media.length > 0 && story.media[0].type === 'image' ? (
                         <Image
                           src={story.media[0].url}
@@ -328,7 +328,7 @@ function HomeContent() {
         {/* Right Icons */}
         <div className="flex gap-3 flex-shrink-0">
           {/* Search Icon */}
-          <div className="flex items-center justify-center w-10 h-10 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
+          <div className="flex items-center justify-center w-10 h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
             <Image
               src="/feed/Icons/Search_Green.png"
               alt="Buscar"
@@ -346,7 +346,7 @@ function HomeContent() {
           </div>
 
           {/* Messages Icon */}
-          <div className="flex items-center justify-center w-10 h-10 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
+          <div className="flex items-center justify-center w-10 h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
             <Image
               src="/feed/Icons/Chat_Green.png"
               alt="Mensajes"
@@ -364,7 +364,7 @@ function HomeContent() {
           </div>
 
           {/* Notifications Icon */}
-          <div className="flex items-center justify-center w-10 h-10 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
+          <div className="flex items-center justify-center w-10 h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
             <Image
               src="/feed/Icons/Notification_Green.png"
               alt="Notificaciones"
@@ -382,8 +382,8 @@ function HomeContent() {
           </div>
 
           {/* Cart Icon */}
-          <div className="flex items-center justify-center w-10 h-10 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
-            <Image
+          <div className="flex items-center justify-center w-10 h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
+            {/* <Image
               src="/feed/Icons/Shopping_Cart_Green.png"
               alt="Carrito"
               width={24}
@@ -396,7 +396,7 @@ function HomeContent() {
               width={24}
               height={24}
               className="object-contain hidden group-hover:block"
-            />
+            /> */}
           </div>
         </div>
       </div>

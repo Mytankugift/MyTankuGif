@@ -39,6 +39,32 @@ export const acceptFriendRequestStep = createStep(
     })
 
     console.log("SOLICITUD DE AMISTAD ACEPTADA:", updatedRequest)
+
+    // Crear relaciones bidireccionales en la tabla friend
+    const friendshipDate = new Date()
+    
+    // Insertar relación para el primer usuario (sender -> receiver)
+    const friendship1 = await socialModuleService.createFriends({
+      customer_id: friendRequest.sender_id,
+      friend_customer_id: friendRequest.receiver_id,
+      role: "friend",
+      friendship_date: friendshipDate,
+      is_favorite: false
+    })
+
+    // Insertar relación para el segundo usuario (receiver -> sender)
+    const friendship2 = await socialModuleService.createFriends({
+      customer_id: friendRequest.receiver_id,
+      friend_customer_id: friendRequest.sender_id,
+      role: "friend",
+      friendship_date: friendshipDate,
+      is_favorite: false
+    })
+
+    console.log("RELACIONES DE AMISTAD CREADAS:", {
+      friendship1: friendship1.id,
+      friendship2: friendship2.id
+    })
     
     return new StepResponse(
       {
@@ -51,10 +77,19 @@ export const acceptFriendRequestStep = createStep(
       },
       // Compensation function to revert the acceptance
       async () => {
+        // Revertir el estado de la solicitud
         await socialModuleService.updateFriendRequests({
           id: friendRequest.id,
           status: "pending"
         })
+        
+        // Eliminar las relaciones de amistad creadas
+        try {
+          await socialModuleService.deleteFriends(friendship1.id)
+          await socialModuleService.deleteFriends(friendship2.id)
+        } catch (error) {
+          console.error("Error al eliminar relaciones de amistad en compensación:", error)
+        }
       }
     )
   }

@@ -15,6 +15,7 @@ import NewPostPanel from "@modules/layout/components/new-post-panel"
 import { updateAvatar } from "@modules/personal-info/actions/update-avatar"
 import { updateStatusMessage } from "@modules/personal-info/actions/update-status-message"
 import { usePersonalInfo } from "@lib/context/personal-info-context"
+import NavResponsive from "./nav-responsive"
 
 function NavContent() {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -178,11 +179,20 @@ function NavContent() {
   }
 
   return (
-    <div 
-      className={`fixed left-0 top-0 h-full z-50 transition-all duration-300 ease-in-out ${
-        isExpanded ? 'w-[90vw]' : 'w-52'
-      }`}
-    >
+    <>
+      {/* Navegación responsive para móviles */}
+      <NavResponsive 
+        onNewPostClick={handleNewPostClick}
+        onProfileClick={handleAvatarClick}
+        activePanel={activePanel}
+      />
+      
+      {/* Navegación original para desktop */}
+      <div 
+        className={`hidden lg:block fixed left-0 top-0 h-full z-50 transition-all duration-300 ease-in-out ${
+          isExpanded ? 'w-[90vw]' : 'w-52'
+        }`}
+      >
       <nav 
         className="h-full flex"
         style={{ backgroundColor: '#2D3A3A' }}
@@ -398,7 +408,7 @@ function NavContent() {
             </span>
           </LocalizedClientLink>
         </div>
-        
+        {/* <CartButton/> */}
         {/* Circular Menu */}
         <div className="flex items-start justify-start">
           <CircularMenu />
@@ -432,7 +442,8 @@ function NavContent() {
         />
 
       </nav>
-    </div>
+      </div>
+    </>
   )
 }
 

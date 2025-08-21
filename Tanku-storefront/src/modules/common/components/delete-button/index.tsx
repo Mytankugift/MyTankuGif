@@ -29,10 +29,10 @@ const DeleteButton = ({
       )}
     >
       <button
-        className="flex gap-x-1 text-ui-fg-subtle hover:text-ui-fg-base cursor-pointer"
+        className="flex gap-x-1 cursor-pointer"
         onClick={() => handleDelete(id)}
       >
-        {isDeleting ? <Spinner className="animate-spin" /> : <Trash />}
+        {isDeleting ? <Spinner className="animate-spin" /> : <Trash className="text-[#E73230]" />}
         <span>{children}</span>
       </button>
     </div>

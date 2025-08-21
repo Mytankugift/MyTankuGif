@@ -2,6 +2,8 @@ import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
 import { SOCIAL_MODULE } from "../../../modules/social"
 import SocialModuleService from "../../../modules/social/service"
 import { Modules } from "@medusajs/framework/utils"
+import PersonalInformationModuleService from "../../../modules/personal_information/service";
+import { PERSONAL_INFORMATION_MODULE } from "../../../modules/personal_information";
 
 export interface GetUserPostersInput {
   customer_id: string
@@ -12,6 +14,9 @@ export const getUserPostersStep = createStep(
   async (input: GetUserPostersInput, { container }) => {
     const socialModuleService: SocialModuleService = container.resolve(
       SOCIAL_MODULE
+    )
+    const personalInfoService: PersonalInformationModuleService = container.resolve(
+      PERSONAL_INFORMATION_MODULE
     )
     const customerService = container.resolve(Modules.CUSTOMER)
 
@@ -31,8 +36,13 @@ export const getUserPostersStep = createStep(
     for (const poster of userPosters) {
       // Obtener información del customer
       let customerInfo: any = null
+      let existingInfo: any = null
       try {
         customerInfo = await customerService.retrieveCustomer(poster.customer_id)
+        existingInfo = await personalInfoService.listPersonalInformations({
+          customer_id: poster.customer_id
+        });
+
       } catch (error) {
         console.error(`Error retrieving customer ${poster.customer_id}:`, error)
       }
@@ -41,6 +51,7 @@ export const getUserPostersStep = createStep(
         ...poster,
         customer_name: customerInfo ? `${customerInfo.first_name || ''} ${customerInfo.last_name || ''}`.trim() || customerInfo.email : 'Usuario',
         customer_email: customerInfo?.email || '',
+        avatar_url: existingInfo[0].avatar_url,
       })
     }
 

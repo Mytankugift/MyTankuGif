@@ -16,6 +16,7 @@ export interface PersonalInfoData {
   interests?: any;
   favorite_colors?: any;
   favorite_activities?: any;
+  friends_count?: number;
 }
 
 export interface GetPersonalInfoResponse {
