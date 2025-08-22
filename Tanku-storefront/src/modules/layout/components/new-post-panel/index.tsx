@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react'
 import Image from 'next/image'
-import { XMark, Plus } from "@medusajs/icons"
+import { XMark, Plus as PlusIcon } from "@medusajs/icons"
 import { createPoster } from '../actions/create-poster'
 import { retrieveCustomer } from "@lib/data/customer"
 
@@ -171,14 +171,14 @@ const NewPostPanel: React.FC<NewPostPanelProps> = ({ onClose, onPostCreated }) =
 
       {/* Contenido del formulario con scroll */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-6 min-h-full flex justify-center">
-          <div className="w-full max-w-2xl space-y-6">
+        <div className="p-3 sm:p-4 md:p-6 min-h-full flex justify-center">
+          <div className="w-full max-w-2xl space-y-4 sm:space-y-5 md:space-y-6">
             
 
             {/* Campos del formulario */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-white text-sm font-medium mb-2">
+                <label className="block text-white text-xs sm:text-sm font-medium mb-1 sm:mb-2">
                   Título
                 </label>
                 <input
@@ -186,20 +186,20 @@ const NewPostPanel: React.FC<NewPostPanelProps> = ({ onClose, onPostCreated }) =
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Escribe el título de tu post..."
-                  className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-[#66DEDB] transition-colors"
+                  className="w-full bg-gray-800 text-white text-sm sm:text-base border border-gray-600 rounded-md sm:rounded-lg px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:border-[#66DEDB] transition-colors"
                   maxLength={100}
                 />
               </div>
 
               <div>
-                <label className="block text-white text-sm font-medium mb-2">
+                <label className="block text-white text-xs sm:text-sm font-medium mb-1 sm:mb-2">
                   Descripción
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Cuéntanos más sobre tu post..."
-                  className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-4 py-3 h-32 resize-none focus:outline-none focus:border-[#66DEDB] transition-colors"
+                  className="w-full bg-gray-800 text-white text-sm sm:text-base border border-gray-600 rounded-md sm:rounded-lg px-3 sm:px-4 py-2 sm:py-3 h-24 sm:h-32 resize-none focus:outline-none focus:border-[#66DEDB] transition-colors"
                   maxLength={500}
                 />
               </div>
@@ -209,21 +209,21 @@ const NewPostPanel: React.FC<NewPostPanelProps> = ({ onClose, onPostCreated }) =
             <div className="flex justify-center relative">
               <button
                 onClick={() => setShowMediaMenu(!showMediaMenu)}
-                className="bg-[#66DEDB] text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-[#73FFA2] transition-colors flex items-center gap-2"
+                className="bg-[#66DEDB] text-gray-900 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base rounded-md sm:rounded-lg font-medium hover:bg-[#73FFA2] transition-colors flex items-center gap-1.5 sm:gap-2"
               >
-                <Plus className="w-5 h-5" />
+                <PlusIcon className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5" />
                 {imageFile || videoFile ? 'Seleccionar otro archivo' : 'Agregar archivo'}
               </button>
               
               {/* Menú desplegable */}
               {showMediaMenu && (
-                <div className="absolute bottom-full mb-2 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10">
+                <div className="absolute bottom-full mb-2 bg-gray-800 rounded-md sm:rounded-lg shadow-lg border border-gray-700 z-10 w-full max-w-[200px] sm:max-w-none">
                   <button
                     onClick={() => {
                       imageInputRef.current?.click()
                       setShowMediaMenu(false)
                     }}
-                    className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 rounded-t-lg flex items-center gap-2"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-white text-sm sm:text-base hover:bg-gray-700 rounded-t-md sm:rounded-t-lg flex items-center gap-1.5 sm:gap-2"
                   >
                     <span className="text-blue-400">📷</span>
                     Seleccionar imagen
@@ -233,7 +233,7 @@ const NewPostPanel: React.FC<NewPostPanelProps> = ({ onClose, onPostCreated }) =
                       videoInputRef.current?.click()
                       setShowMediaMenu(false)
                     }}
-                    className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 rounded-b-lg flex items-center gap-2"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-white text-sm sm:text-base hover:bg-gray-700 rounded-b-md sm:rounded-b-lg flex items-center gap-1.5 sm:gap-2"
                   >
                     <span className="text-purple-400">🎥</span>
                     Seleccionar video
@@ -242,65 +242,65 @@ const NewPostPanel: React.FC<NewPostPanelProps> = ({ onClose, onPostCreated }) =
               )}
 
             </div>
-            <div className="flex justify-center gap-2">
+            <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-3">
             {/* Preview de imagen */}
             {imagePreviewUrl && (
-              <div className="space-y-4">
-                <h3 className="text-white font-medium">Imagen seleccionada:</h3>
-                <div className="relative inline-block">
-                  <Image
-                    src={imagePreviewUrl}
-                    alt="Preview imagen"
-                    width={200}
-                    height={200}
-                    className="w-full max-w-sm h-48 object-cover rounded-lg"
-                  />
-                  <button
-                    onClick={handleRemoveImage}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors text-sm"
-                  >
-                    ×
-                  </button>
-                </div>
+              <div className="relative w-full sm:w-1/2 aspect-video bg-gray-900 rounded-md sm:rounded-lg overflow-hidden">
+                <Image
+                  src={imagePreviewUrl}
+                  alt="Preview"
+                  fill
+                  className="object-contain"
+                />
+                <button
+                  onClick={handleRemoveImage}
+                  className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-red-500 text-white rounded-full p-0.5 sm:p-1 hover:bg-red-600 transition-colors"
+                >
+                  <XMark className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
               </div>
             )}
 
             {/* Preview de video */}
             {videoPreviewUrl && (
-              <div className="space-y-4">
-                <h3 className="text-white font-medium">Video seleccionado:</h3>
-                <div className="relative inline-block">
-                  <video
-                    src={videoPreviewUrl}
-                    controls
-                    className="w-full max-w-sm h-48 object-cover rounded-lg"
-                  />
-                  <button
-                    onClick={handleRemoveVideo}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors text-sm"
-                  >
-                    ×
-                  </button>
-                </div>
+              <div className="relative w-full sm:w-1/2 aspect-video bg-gray-900 rounded-md sm:rounded-lg overflow-hidden mt-2 sm:mt-0">
+                <video
+                  src={videoPreviewUrl}
+                  controls
+                  className="w-full h-full"
+                />
+                <button
+                  onClick={handleRemoveVideo}
+                  className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-red-500 text-white rounded-full p-0.5 sm:p-1 hover:bg-red-600 transition-colors"
+                >
+                  <XMark className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
               </div>
             )}
-             </div>
+          </div>
           
 
             {/* Botones de acción */}
-            <div className="flex gap-4">
+            <div className="flex gap-2 sm:gap-3 md:gap-4">
               <button
                 onClick={handleClosePanel}
-                className="flex-1 bg-gray-700 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-600 transition-colors"
+                className="flex-1 bg-gray-700 text-white px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base rounded-md sm:rounded-lg font-medium hover:bg-gray-600 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSubmitPost}
                 disabled={isSubmitting || (!title.trim() && !description.trim())}
-                className="flex-1 bg-[#66DEDB] text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-[#73FFA2] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`flex-1 px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base rounded-md sm:rounded-lg font-medium transition-colors flex justify-center items-center gap-1.5 sm:gap-2 ${isSubmitting || (!title.trim() && !description.trim()) ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-[#73FFA2] text-gray-900 hover:bg-[#66DEDB]'}`}
               >
-                {isSubmitting ? 'Publicando...' : 'Publicar Post'}
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="whitespace-nowrap">Publicando...</span>
+                  </>
+                ) : (
+                  'Publicar'
+                )}
               </button>
             </div>
           </div>

@@ -47,17 +47,17 @@ const StarRating = ({ rating = 4.8 }: { rating?: number }) => {
   const hasHalfStar = rating % 1 !== 0
   
   return (
-    <div className="flex items-center gap-1 mb-2">
+    <div className="flex items-center gap-0.5 sm:gap-1 mb-1 sm:mb-2">
       {[...Array(5)].map((_, i) => {
         if (i < fullStars) {
           return (
-            <svg key={i} className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
+            <svg key={i} className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
               <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
             </svg>
           )
         } else if (i === fullStars && hasHalfStar) {
           return (
-            <svg key={i} className="w-4 h-4 text-yellow-400" viewBox="0 0 20 20">
+            <svg key={i} className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-yellow-400" viewBox="0 0 20 20">
               <defs>
                 <linearGradient id="half">
                   <stop offset="50%" stopColor="currentColor"/>
@@ -69,13 +69,13 @@ const StarRating = ({ rating = 4.8 }: { rating?: number }) => {
           )
         } else {
           return (
-            <svg key={i} className="w-4 h-4 text-gray-300" viewBox="0 0 20 20">
+            <svg key={i} className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-gray-300" viewBox="0 0 20 20">
               <path fill="currentColor" d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
             </svg>
           )
         }
       })}
-      <span className="text-sm text-gray-600 ml-1">{rating}</span>
+      <span className="text-xs sm:text-sm text-gray-600 ml-0.5 sm:ml-1">{rating}</span>
     </div>
   )
 }
@@ -86,13 +86,15 @@ const ProductCard = ({ product, isAuthenticated }: { product: Product, isAuthent
   const currencyCode = product.variants?.[0]?.inventory?.currency_code || '$'
   
   return (
-    <div className="bg-transparent border-2 border-[#66DEDB] rounded-2xl p-4 hover:shadow-lg transition-all duration-300 hover:scale-105">
+    <div className="bg-transparent border-2 border-[#66DEDB] rounded-lg sm:rounded-2xl p-2 sm:p-3 md:p-4 hover:shadow-lg transition-all duration-300 hover:scale-105">
       {/* Star Rating */}
-      <StarRating />
+      <div className="hidden sm:block">
+        <StarRating />
+      </div>
       
       {/* Product Image */}
       <LocalizedClientLink href={`/products/tanku/${product.handle}`} className="block">
-        <div className="w-full h-48 relative mb-4 overflow-hidden rounded-lg">
+        <div className="w-full h-32 sm:h-40 md:h-48 relative mb-2 sm:mb-3 md:mb-4 overflow-hidden rounded-lg">
           <Image
             src={product.thumbnail || '/placeholder.png'}
             alt={product.title}
@@ -103,18 +105,18 @@ const ProductCard = ({ product, isAuthenticated }: { product: Product, isAuthent
       </LocalizedClientLink>
       
       {/* Product Title */}
-      <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">
+      <h3 className="text-sm sm:text-base md:text-lg font-semibold text-white mb-1 sm:mb-2 line-clamp-2">
         {product.title}
       </h3>
       
       {/* Price */}
-      <div className="text-xl flex justify-between font-bold text-[#66DEDB] mb-4">
-        {currencyCode} {price.toLocaleString()}
-        <div className="flex items-right">
+      <div className="text-sm sm:text-base md:text-xl flex justify-between font-bold text-[#66DEDB] mb-2 sm:mb-3 md:mb-4">
+        <span className="truncate mr-1">{currencyCode} {price.toLocaleString()}</span>
+        <div className="flex items-right space-x-1 sm:space-x-2">
           {/* Cart Icon */}
-          <button className="p-2 hover:bg-gray-700 rounded-full transition-colors duration-200">
-            <img src="/feed/Carrito 4.svg" alt="Add to cart" width="24" height="24" />
-          </button>
+          <Button className="p-1 sm:p-1.5 md:p-2 hover:bg-gray-700 rounded-full transition-colors duration-200">
+            <Image src="/feed/Carrito 4.svg" alt="Add to cart" width={16} height={16} className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
+          </Button>
           
           {/* Plus Icon (Wishlist) */}
           {isAuthenticated && (
@@ -122,9 +124,9 @@ const ProductCard = ({ product, isAuthenticated }: { product: Product, isAuthent
           )}
           
           {/* Share Icon */}
-          <button className="p-2 hover:bg-gray-700 rounded-full transition-colors duration-200">
-            <img src="/feed/arrow-right 4.svg" alt="Share" width="24" height="24" />
-          </button>
+          <Button className="p-1 sm:p-1.5 md:p-2 hover:bg-gray-700 rounded-full transition-colors duration-200">
+            <Image src="/feed/arrow-right 4.svg" alt="Share" width={16} height={16} className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
+          </Button>
         </div>
       </div>
     </div>
@@ -168,7 +170,7 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
           video.onseeked = () => {
             if (ctx) {
               ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-              resolve(canvas.toDataURL())
+              resolve(canvas?.toDataURL())
             }
           }
           
@@ -367,18 +369,18 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-2xl w-[1200px] h-[700px] overflow-hidden flex">
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-gray-900 rounded-lg sm:rounded-2xl w-full max-w-7xl h-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col lg:flex-row relative">
         {/* Botón de cerrar */}
-        <button 
+        <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 rounded-full p-2 text-white hover:bg-opacity-75 transition-all"
+          className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10 bg-black bg-opacity-60 rounded-full p-1.5 sm:p-2 text-white hover:bg-opacity-80 transition-all"
         >
-          <XMark className="w-6 h-6" />
+          <XMark className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
 
-        {/* Lado izquierdo - Media */}
-        <div className="w-1/2 relative bg-black flex items-center justify-center">
+        {/* Lado superior/izquierdo - Media */}
+        <div className="w-full lg:w-1/2 h-64 sm:h-80 lg:h-full relative bg-black flex items-center justify-center flex-shrink-0">
           {(poster.image_url || poster.video_url) && (
             <>
               {/* Caso 1: Tiene imagen (con o sin video) */}
@@ -467,8 +469,8 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
           )}
         </div>
 
-        {/* Lado derecho - Información del post */}
-        <div className="w-1/2 p-6 flex flex-col">
+        {/* Lado inferior/derecho - Información del post */}
+        <div className="w-full lg:w-1/2 p-3 sm:p-4 lg:p-6 flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Header del usuario */}
           <div className="flex items-center mb-4">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700">
@@ -504,18 +506,18 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
           )}
 
           {/* Sección de comentarios */}
-          <div className="flex-1 flex flex-col justify-between min-h-0 mb-4">
+          <div className="flex-1 flex flex-col min-h-0 mb-3 sm:mb-4">
             {/* Lista de comentarios */}
-            <div className="flex-1 overflow-y-auto max-h-96 mb-4 pr-2">
+            <div className="flex-1 overflow-y-auto mb-3 sm:mb-4 pr-1 sm:pr-2" style={{maxHeight: 'calc(100vh - 400px)'}}>
               {comments.length > 0 ? (
                 <div className="space-y-3">
                   {comments.map((comment) => (
                     <div key={comment.id} className="space-y-2">
                       {/* Comentario principal */}
-                      <div className="bg-gray-800 rounded-lg p-3">
+                      <div className="bg-gray-800 rounded-lg p-2 sm:p-3">
                         <div className="flex items-start justify-between">
                           <div className="flex items-start space-x-2 flex-1">
-                            <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
                               <Image 
                                 src={poster.avatar_url || '/feed/avatar.png'}
                                 alt={comment.customer_name}
@@ -526,7 +528,7 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center space-x-2 mb-1">
-                                <p className="text-white font-medium text-sm">{comment.customer_name}</p>
+                                <p className="text-white font-medium text-xs sm:text-sm">{comment.customer_name}</p>
                                 <p className="text-gray-400 text-xs">
                                   {new Date(comment.created_at).toLocaleDateString('es-ES', {
                                     month: 'short',
@@ -562,7 +564,7 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
                                 </div>
                               ) : (
                                 <>
-                                  <p className="text-gray-300 text-sm break-words mb-2">{comment.content}</p>
+                                  <p className="text-gray-300 text-xs sm:text-sm break-words mb-1 sm:mb-2">{comment.content}</p>
                                   {/* Acciones del comentario */}
                                   <div className="flex items-center space-x-3">
                                     <button
@@ -723,9 +725,9 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
             </div>
 
             {/* Input para nuevo comentario */}
-            <div className="border-t border-gray-700 pt-3">
+            <div className="border-t border-gray-700 pt-2 sm:pt-3 flex-shrink-0">
               <div className="flex space-x-2">
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
                   <Image 
                     src={poster.avatar_url || '/feed/avatar.png'}
                     alt="Tu avatar"
@@ -739,7 +741,7 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Escribe un comentario..."
-                    className="flex-1 bg-gray-800 text-white text-sm rounded-lg p-2 resize-none border border-gray-600 focus:border-[#73FFA2] focus:outline-none"
+                    className="flex-1 bg-gray-800 text-white text-xs sm:text-sm rounded-lg p-2 resize-none border border-gray-600 focus:border-[#73FFA2] focus:outline-none"
                     rows={2}
                     maxLength={1000}
                     onKeyPress={(e) => {
@@ -752,7 +754,7 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
                   <button
                     onClick={handleAddComment}
                     disabled={isCommentLoading || !newComment.trim()}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                    className={`px-2 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm transition-colors ${
                       isCommentLoading || !newComment.trim()
                         ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                         : 'bg-[#73FFA2] text-black hover:bg-[#5ee085]'
@@ -766,7 +768,7 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
           </div>
 
           {/* Acciones */}
-          <div className="flex items-center space-x-6 border-t border-gray-700 pt-3">
+          <div className="flex items-center space-x-3 sm:space-x-6 border-t border-gray-700 pt-2 sm:pt-3 flex-shrink-0">
             <button 
               onClick={handleLikeToggle}
               disabled={isLikeLoading}
@@ -779,18 +781,18 @@ const PosterModal = ({ poster, isOpen, onClose, customerId }: { poster: Poster, 
               <Image 
                 src={isLiked ? '/feed/Icons/Like_Green.png' : '/feed/Icons/Like_Blue.png'}
                 alt="Like"
-                width={24}
-                height={24}
-                className="mr-2"
+                width={20}
+                height={20}
+                className="mr-1 sm:mr-2 w-4 h-4 sm:w-6 sm:h-6"
               />
               <span>{likesCount}</span>
             </button>
             <div className="flex items-center text-gray-300">
-              <span className="mr-2 text-lg">💬</span>
-              <span>{commentsCount}</span>
+              <span className="mr-1 sm:mr-2 text-sm sm:text-lg">💬</span>
+              <span className="text-sm sm:text-base">{commentsCount}</span>
             </div>
-            <button className="p-2 hover:bg-gray-700 rounded-full transition-colors duration-200">
-              <img src="/feed/arrow-right 4.svg" alt="Share" width="24" height="24" />
+            <button className="p-1 sm:p-2 hover:bg-gray-700 rounded-full transition-colors duration-200">
+              <img src="/feed/arrow-right 4.svg" alt="Share" width="20" height="20" className="w-4 h-4 sm:w-6 sm:h-6" />
             </button>
           </div>
         </div>
@@ -818,7 +820,7 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
       video.onseeked = () => {
         if (ctx) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-          resolve(canvas.toDataURL())
+          resolve(canvas?.toDataURL())
         }
       }
       
@@ -849,12 +851,12 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
 
   return (
     <div 
-      className="bg-transparent border-2 border-[#73FFA2] rounded-2xl p-4 hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer"
+      className="bg-transparent border-2 border-[#73FFA2] rounded-lg sm:rounded-2xl p-2 sm:p-3 md:p-4 hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer"
       onClick={() => onOpenModal(poster)}
     >
       {/* Poster Header */}
-      <div className="flex items-center mb-3">
-        <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700">
+      <div className="flex items-center mb-2 sm:mb-3">
+        <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden bg-gray-700">
           <Image 
             src={poster.avatar_url || '/feed/avatar.png'}
             alt={poster.customer_name}
@@ -863,8 +865,8 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
             className="object-cover w-full h-full"
           />
         </div>
-        <div className="ml-2">
-          <p className="text-white font-medium text-sm">{poster.customer_name}</p>
+        <div className="ml-1.5 sm:ml-2">
+          <p className="text-white font-medium text-xs sm:text-sm truncate max-w-[80px] sm:max-w-full">{poster.customer_name}</p>
           <p className="text-gray-400 text-xs">
             {new Date(poster.created_at).toLocaleDateString('es-ES', {
               month: 'short',
@@ -875,7 +877,7 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
       </div>
       
       {/* Poster Media */}
-      <div className="w-full h-48 relative mb-4 overflow-hidden rounded-lg">
+      <div className="w-full h-32 sm:h-40 md:h-48 relative mb-2 sm:mb-3 md:mb-4 overflow-hidden rounded-lg">
         {(poster.image_url || poster.video_url) && (
           <>
             {/* Caso 1: Tiene imagen */}
@@ -901,14 +903,14 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
                       alt="Preview del video"
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-2 right-2 bg-black bg-opacity-60 rounded-full p-2">
-                      <MediaPlay className="w-4 h-4 text-white" />
+                    <div className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-black bg-opacity-60 rounded-full p-1 sm:p-2">
+                      <MediaPlay className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="animate-pulse flex space-x-4">
-                      <div className="rounded-full bg-gray-700 h-12 w-12"></div>
+                      <div className="rounded-full bg-gray-700 h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12"></div>
                     </div>
                   </>
                 )}
@@ -920,36 +922,36 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
               <>
                 {/* Flecha izquierda */}
                 <button 
-                  onClick={() => setActiveMedia('image')}
-                  className={`absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 rounded-full p-2 hover:bg-opacity-80 transition-all ${activeMedia === 'video' ? 'visible' : 'invisible'}`}
+                  onClick={(e) => { e.stopPropagation(); setActiveMedia('image'); }}
+                  className={`absolute left-1 sm:left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 rounded-full p-1 sm:p-1.5 md:p-2 hover:bg-opacity-80 transition-all ${activeMedia === 'video' ? 'visible' : 'invisible'}`}
                 >
                   <Image 
                     src="/feed/Flecha.svg"
                     alt="Anterior"
-                    width={20}
-                    height={20}
-                    className="w-5 h-5"
+                    width={16}
+                    height={16}
+                    className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5"
                   />
                 </button>
                 
                 {/* Flecha derecha */}
                 <button 
-                  onClick={() => setActiveMedia('video')}
-                  className={`absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 rounded-full p-2 hover:bg-opacity-80 transition-all ${activeMedia === 'image' ? 'visible' : 'invisible'}`}
+                  onClick={(e) => { e.stopPropagation(); setActiveMedia('video'); }}
+                  className={`absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 rounded-full p-1 sm:p-1.5 md:p-2 hover:bg-opacity-80 transition-all ${activeMedia === 'image' ? 'visible' : 'invisible'}`}
                 >
                   <Image 
                     src="/feed/Flecha.svg"
                     alt="Siguiente"
-                    width={20}
-                    height={20}
-                    className="w-5 h-5 transform rotate-180"
+                    width={16}
+                    height={16}
+                    className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 transform rotate-180"
                   />
                 </button>
                 
                 {/* Indicadores de posición */}
-                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${activeMedia === 'image' ? 'bg-[#73FFA2]' : 'bg-white bg-opacity-50'}`}></div>
-                  <div className={`w-1.5 h-1.5 rounded-full ${activeMedia === 'video' ? 'bg-[#73FFA2]' : 'bg-white bg-opacity-50'}`}></div>
+                <div className="absolute bottom-1 sm:bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1 sm:space-x-2">
+                  <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${activeMedia === 'image' ? 'bg-[#73FFA2]' : 'bg-white bg-opacity-50'}`}></div>
+                  <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${activeMedia === 'video' ? 'bg-[#73FFA2]' : 'bg-white bg-opacity-50'}`}></div>
                 </div>
               </>
             )}
@@ -958,13 +960,19 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
       </div>
       
       {/* Poster Actions */}
-      <div className="flex justify-between items-center">
-        <button className="flex items-center text-gray-300 hover:text-[#73FFA2] transition-colors">
-          <Heart className="w-5 h-5 mr-2" />
-          <span className="text-sm">{poster.likes_count}</span>
+      <div className="flex justify-between items-center mt-1 sm:mt-2">
+        <button 
+          className="flex items-center text-gray-300 hover:text-[#73FFA2] transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Heart className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-1 sm:mr-1.5 md:mr-2" />
+          <span className="text-xs sm:text-sm">{poster.likes_count}</span>
         </button>
-        <button className="p-2 hover:bg-gray-700 rounded-full transition-colors duration-200">
-          <img src="/feed/arrow-right 4.svg" alt="Share" width="20" height="20" />
+        <button 
+          className="p-1 sm:p-1.5 md:p-2 hover:bg-gray-700 rounded-full transition-colors duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <img src="/feed/arrow-right 4.svg" alt="Share" width="16" height="16" className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
         </button>
       </div>
     </div>
@@ -1054,9 +1062,9 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false }
   }
 
   return (
-    <div className="w-full px-4 py-8">
+    <div className="w-full px-1 sm:px-2 md:px-4 py-4 sm:py-6 md:py-8">
       {/* Unified Feed Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6 max-w-7xl mx-auto">
         {feedItems.map((item, index) => {
           if (item.type === 'product') {
             const product = item.data as Product

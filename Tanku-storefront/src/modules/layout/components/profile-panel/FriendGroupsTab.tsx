@@ -9,7 +9,7 @@ interface FriendGroup {
   id: string
   group_name: string
   description?: string
-  image_url?: string
+  image_url?: string | null
   created_by: string
   is_private: boolean
   created_at: string
@@ -202,13 +202,13 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header with navigation */}
       <div className="flex items-center justify-between">
-        <div className="flex space-x-4">
+        <div className="flex space-x-2 sm:space-x-4 w-full sm:w-auto">
           <button
             onClick={() => setActiveView('groups')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
               activeView === 'groups'
                 ? 'bg-[#73FFA2] text-black'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -218,7 +218,7 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
           </button>
           <button
             onClick={() => setActiveView('invitations')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors relative ${
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors relative ${
               activeView === 'invitations'
                 ? 'bg-[#73FFA2] text-black'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -248,22 +248,22 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#73FFA2]"></div>
             </div>
           ) : groups.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {groups.map((group) => (
-                <div key={group.id} className="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-[#73FFA2] transition-colors">
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-r from-[#1A485C] to-[#73FFA2] rounded-lg flex items-center justify-center">
+                <div key={group.id} className="bg-gray-800 rounded-xl p-3 sm:p-4 border border-gray-700 hover:border-[#73FFA2] transition-colors">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-[#1A485C] to-[#73FFA2] rounded-lg flex items-center justify-center">
                       {group.image_url ? (
-                        <Image src={group.image_url} alt={group.group_name} width={48} height={48} className="rounded-lg object-cover" />
+                        <Image src={group.image_url} alt={group.group_name} width={48} height={48} className="rounded-lg object-cover w-10 h-10 sm:w-12 sm:h-12" />
                       ) : (
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                         </svg>
                       )}
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-white font-semibold">{group.group_name}</h3>
+                      <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                        <h3 className="text-white text-sm sm:text-base font-semibold">{group.group_name}</h3>
                         {group.is_private && (
                           <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -276,17 +276,17 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                         </span>
                       </div>
                       {group.description && (
-                        <p className="text-gray-400 text-sm mt-1">{group.description}</p>
+                        <p className="text-gray-400 text-xs sm:text-sm mt-1">{group.description}</p>
                       )}
                       <p className="text-gray-500 text-xs mt-2">
                         {group.member_count || 0} miembros • Creado {new Date(group.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-4">
+                  <div className="flex gap-2 mt-3 sm:mt-4">
                     <button
                       onClick={() => openGroupDetails(group.id)}
-                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm transition-colors"
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm transition-colors"
                     >
                       Ver Miembros
                     </button>
@@ -296,7 +296,7 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                           setSelectedGroup(group.id)
                           setShowInviteModal(true)
                         }}
-                        className="bg-[#73FFA2] hover:bg-[#66DEDB] text-black px-3 py-2 rounded-lg text-sm transition-colors"
+                        className="bg-[#73FFA2] hover:bg-[#66DEDB] text-black px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm transition-colors"
                       >
                         Invitar
                       </button>
@@ -312,8 +312,8 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                 </svg>
               </div>
-              <h3 className="text-white text-lg font-medium mb-2">No tienes grupos aún</h3>
-              <p className="text-gray-400 text-sm mb-4">Crea tu primer grupo para conectar con tus amigos</p>
+              <h3 className="text-white text-base sm:text-lg font-medium mb-1 sm:mb-2">No tienes grupos aún</h3>
+              <p className="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4">Crea tu primer grupo para conectar con tus amigos</p>
               <button
                 onClick={() => setActiveView('create')}
                 className="bg-[#73FFA2] hover:bg-[#66DEDB] text-black px-4 py-2 rounded-lg text-sm font-medium transition-colors"
@@ -331,30 +331,30 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
           {invitations.length > 0 ? (
             <div className="space-y-3">
               {invitations.map((invitation) => (
-                <div key={invitation.id} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                  <div className="flex items-center justify-between">
+                <div key={invitation.id} className="bg-gray-800 rounded-xl p-3 sm:p-4 border border-gray-700">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex-1">
-                      <h3 className="text-white font-semibold">{invitation.group_name}</h3>
-                      <p className="text-gray-400 text-sm">
+                      <h3 className="text-white text-sm sm:text-base font-semibold">{invitation.group_name}</h3>
+                      <p className="text-gray-400 text-xs sm:text-sm">
                         Invitado por {invitation.sender_name}
                       </p>
                       {invitation.message && (
-                        <p className="text-gray-300 text-sm mt-2 italic">"{invitation.message}"</p>
+                        <p className="text-gray-300 text-xs sm:text-sm mt-1 sm:mt-2 italic">"{invitation.message}"</p>
                       )}
                       <p className="text-gray-500 text-xs mt-2">
                         {new Date(invitation.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full sm:w-auto">
                       <button
                         onClick={() => handleRespondToInvitation(invitation.id, 'accepted')}
-                        className="bg-[#73FFA2] hover:bg-[#66DEDB] text-black px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        className="bg-[#73FFA2] hover:bg-[#66DEDB] text-black px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-1 sm:flex-auto"
                       >
                         Aceptar
                       </button>
                       <button
                         onClick={() => handleRespondToInvitation(invitation.id, 'rejected')}
-                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        className="bg-red-600 hover:bg-red-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-1 sm:flex-auto"
                       >
                         Rechazar
                       </button>
@@ -370,8 +370,8 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-white text-lg font-medium mb-2">No tienes invitaciones pendientes</h3>
-              <p className="text-gray-400 text-sm">Las invitaciones a grupos aparecerán aquí</p>
+              <h3 className="text-white text-base sm:text-lg font-medium mb-1 sm:mb-2">No tienes invitaciones pendientes</h3>
+              <p className="text-gray-400 text-xs sm:text-sm">Las invitaciones a grupos aparecerán aquí</p>
             </div>
           )}
         </div>
@@ -379,9 +379,9 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
 
       {/* Create Group View */}
       {activeView === 'create' && (
-        <div className="max-w-md mx-auto">
-          <form onSubmit={handleCreateGroup} className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <h3 className="text-white text-lg font-semibold mb-4">Crear Nuevo Grupo</h3>
+        <div className="max-w-md mx-auto px-2 sm:px-0">
+          <form onSubmit={handleCreateGroup} className="bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-700">
+            <h3 className="text-white text-base sm:text-lg font-semibold mb-3 sm:mb-4">Crear Nuevo Grupo</h3>
             
             <div className="space-y-4">
               <div>
@@ -392,7 +392,7 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                   type="text"
                   value={createForm.group_name}
                   onChange={(e) => setCreateForm(prev => ({ ...prev, group_name: e.target.value }))}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-[#73FFA2]"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 sm:py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-[#73FFA2]"
                   placeholder="Ej: Amigos del colegio"
                   required
                 />
@@ -419,7 +419,7 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                   type="file"
                   accept="image/*"
                   onChange={(e) => setCreateForm(prev => ({ ...prev, image: e.target.files?.[0] || null }))}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:bg-[#73FFA2] file:text-black"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 sm:py-2 text-sm text-white file:mr-3 sm:file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs sm:file:text-sm file:bg-[#73FFA2] file:text-black"
                 />
               </div>
 
@@ -431,13 +431,13 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                   onChange={(e) => setCreateForm(prev => ({ ...prev, is_private: e.target.checked }))}
                   className="mr-2 rounded"
                 />
-                <label htmlFor="is_private" className="text-gray-300 text-sm">
+                <label htmlFor="is_private" className="text-gray-300 text-xs sm:text-sm">
                   Grupo privado (solo por invitación)
                 </label>
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 mt-4 sm:mt-6">
               <button
                 type="button"
                 onClick={() => setActiveView('groups')}
@@ -460,9 +460,9 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
       {/* Group Members Modal */}
       {selectedGroup && !showInviteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 max-h-96 overflow-y-auto">
+          <div className="bg-gray-800 rounded-xl p-4 sm:p-6 max-w-md w-full mx-4 max-h-[80vh] sm:max-h-96 overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white text-lg font-semibold">Miembros del Grupo</h3>
+              <h3 className="text-white text-base sm:text-lg font-semibold">Miembros del Grupo</h3>
               <button
                 onClick={() => setSelectedGroup(null)}
                 className="text-gray-400 hover:text-white"
@@ -475,10 +475,10 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
             
             <div className="space-y-3">
               {groupMembers.map((member) => (
-                <div key={member.id} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg">
-                  <div className="w-10 h-10 bg-[#73FFA2] rounded-full flex items-center justify-center">
+                <div key={member.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-700 rounded-lg">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#73FFA2] rounded-full flex items-center justify-center">
                     {member.avatar_url ? (
-                      <Image src={member.avatar_url} alt={member.first_name} width={40} height={40} className="rounded-full" />
+                      <Image src={member.avatar_url} alt={member.first_name} width={40} height={40} className="rounded-full w-8 h-8 sm:w-10 sm:h-10" />
                     ) : (
                       <span className="text-black font-semibold text-sm">
                         {member.first_name[0]}{member.last_name[0]}
@@ -486,8 +486,8 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                     )}
                   </div>
                   <div className="flex-1">
-                    <p className="text-white font-medium">{member.first_name} {member.last_name}</p>
-                    <p className="text-gray-400 text-sm">{member.email}</p>
+                    <p className="text-white text-xs sm:text-sm font-medium">{member.first_name} {member.last_name}</p>
+                    <p className="text-gray-400 text-xs sm:text-sm">{member.email}</p>
                   </div>
                   <span className={`px-2 py-1 rounded-full text-xs ${
                     member.role === 'admin' ? 'bg-[#73FFA2] text-black' : 'bg-gray-600 text-gray-300'
@@ -504,9 +504,9 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
       {/* Invite Friends Modal */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
+          <div className="bg-gray-800 rounded-xl p-4 sm:p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white text-lg font-semibold">Invitar Amigos</h3>
+              <h3 className="text-white text-base sm:text-lg font-semibold">Invitar Amigos</h3>
               <button
                 onClick={() => setShowInviteModal(false)}
                 className="text-gray-400 hover:text-white"
@@ -535,9 +535,9 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                 <label className="block text-gray-300 text-sm font-medium mb-2">
                   Seleccionar Amigos
                 </label>
-                <div className="max-h-40 overflow-y-auto space-y-2">
+                <div className="max-h-32 sm:max-h-40 overflow-y-auto space-y-1 sm:space-y-2">
                   {friends.map((friend) => (
-                    <label key={friend.id} className="flex items-center gap-3 p-2 hover:bg-gray-700 rounded cursor-pointer">
+                    <label key={friend.id} className="flex items-center gap-2 sm:gap-3 p-1.5 sm:p-2 hover:bg-gray-700 rounded cursor-pointer">
                       <input
                         type="checkbox"
                         checked={selectedFriends.includes(friend.id)}
@@ -550,28 +550,28 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                         }}
                         className="rounded"
                       />
-                      <div className="w-8 h-8 bg-[#73FFA2] rounded-full flex items-center justify-center">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#73FFA2] rounded-full flex items-center justify-center">
                         <span className="text-black font-semibold text-xs">
                           {friend.first_name[0]}{friend.last_name[0]}
                         </span>
                       </div>
-                      <span className="text-white text-sm">{friend.first_name} {friend.last_name}</span>
+                      <span className="text-white text-xs sm:text-sm">{friend.first_name} {friend.last_name}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-2 sm:gap-3">
                 <button
                   onClick={() => setShowInviteModal(false)}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleInviteFriends}
                   disabled={selectedFriends.length === 0}
-                  className="flex-1 bg-[#73FFA2] hover:bg-[#66DEDB] text-black px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 bg-[#73FFA2] hover:bg-[#66DEDB] text-black px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   Enviar Invitaciones
                 </button>

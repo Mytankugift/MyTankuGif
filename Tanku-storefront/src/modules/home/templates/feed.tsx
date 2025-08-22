@@ -254,10 +254,10 @@ function HomeContent() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden" style={{ backgroundColor: '#1E1E1E' }}>
       {/* Stories Section */}
-      <div className="p-4 flex justify-between items-start w-full">
+      <div className="p-2 sm:p-4 flex flex-col md:flex-row justify-between items-start w-full gap-4">
         {/* Stories Container */}
-        <div className="flex-1 min-w-0 mr-4">
-          <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex-1 min-w-0 md:mr-4">
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
             {/* Story Upload Component */}
             <StoryUpload 
               onStoryCreate={handleStoryCreate}
@@ -326,7 +326,7 @@ function HomeContent() {
         </div>
         
         {/* Right Icons */}
-        <div className="flex gap-3 flex-shrink-0">
+        <div className="hidden md:flex gap-3 flex-shrink-0">
           {/* Search Icon */}
           <div className="flex items-center justify-center w-10 h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
             <Image
@@ -405,7 +405,7 @@ function HomeContent() {
       <div className="px-4 mb-6">
         <div className="rounded-lg p-4 overflow-hidden w-full">
           <div className="animate-marquee whitespace-nowrap">
-            <span className="text-[#66DEDB] text-4xl ">
+            <span className="text-[#66DEDB] text-2xl sm:text-3xl lg:text-4xl ">
               Bienvenido a TANKU el primer Give-commerce donde puedes encontrar productos únicos y especiales para ti y tus seres queridos ✨ 
               ¡Descubre las mejores ofertas y sorpresas que tenemos para ti! 🎁 
               Únete a nuestra comunidad y comparte tus experiencias con otros usuarios 🌟
@@ -415,10 +415,35 @@ function HomeContent() {
       </div>
 
       {/* Categories Slider */}
-      <div className="px-4 mb-8">
-        
-        {/* Categories Container with Navigation Arrows */}
-        <div className="relative flex items-center">
+      <div className="px-2 sm:px-4 mb-8">
+        {/* Mobile Categories Carousel */}
+        <div className="md:hidden">
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4">
+            {getVisibleCategories().map((category) => (
+              <div key={category.id} className="flex-shrink-0 w-40">
+                <Link href={"/categories" + category.url}>
+                  <div className={`w-40 h-24 rounded-xl border-2 ${category.color} hover:scale-105 transition-transform cursor-pointer overflow-hidden relative group`}>
+                    <Image
+                      src={category.image}
+                      alt={category.name}
+                      width={160}
+                      height={96}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/20 flex items-end p-2">
+                      <span className="text-white text-xs font-bold text-center w-full leading-tight">
+                        {category.name}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Categories Container with Navigation Arrows (Desktop/Tablet) */}
+        <div className="relative hidden md:flex items-center">
           {/* Left Arrow - Vertically Centered */}
           <button 
             onClick={handleCategoryPrev}

@@ -63,14 +63,14 @@ export default function TabNavigation({ products, customerId }: TabNavigationPro
   return (
     <div className="w-full">
       {/* Tab Navigation */}
-      <div className="flex justify-center space-x-8 mb-8">
+      <div className="flex md:justify-center justify-center space-x-4 sm:space-x-6 md:space-x-8 mb-6 md:mb-8 overflow-x-auto px-2 sm:px-0 snap-x snap-mandatory">
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className="flex flex-col items-center group cursor-pointer"
+            className="flex flex-col items-center group cursor-pointer flex-shrink-0 snap-start"
             onClick={() => setActiveTab(tab.id)}
           >
-            <div className="w-20 h-20 flex flex-col items-center justify-center mb-3 hover:scale-105 transition-transform relative">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 flex flex-col items-center justify-center mb-2 md:mb-3 hover:scale-105 transition-transform relative">
               {/* Green Icon - shown by default, hidden on hover */}
               <Image
                 src={tab.greenIcon}
@@ -92,7 +92,7 @@ export default function TabNavigation({ products, customerId }: TabNavigationPro
                 }`}
               />
             </div>
-            <span className={`text-sm font-medium transition-colors ${
+            <span className={`text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
               activeTab === tab.id 
                 ? 'text-[#66DEDB]' 
                 : 'text-[#73FFA2] group-hover:text-[#66DEDB]'
@@ -104,7 +104,7 @@ export default function TabNavigation({ products, customerId }: TabNavigationPro
       </div>
 
       {/* Tab Content */}
-      <div className="min-h-screen">
+      <div className="min-h-screen px-2 sm:px-0">
         {renderTabContent()}
       </div>
     </div>

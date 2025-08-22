@@ -18,12 +18,12 @@ const ItemsPreviewTemplate = ({ cart }: ItemsTemplateProps) => {
   return (
     <div
       className={clx({
-        "pl-[1px] overflow-y-scroll overflow-x-hidden no-scrollbar max-h-[420px]":
+        "pl-[1px] overflow-y-scroll overflow-x-hidden no-scrollbar max-h-[250px] sm:max-h-[300px] md:max-h-[350px] lg:max-h-[420px]":
           hasOverflow,
       })}
     >
       <div className="w-full">
-        <table className="w-full border-collapse" data-testid="items-table">
+        <table className="w-full border-collapse text-xs sm:text-sm md:text-base" data-testid="items-table">
           <tbody>
             {items
               ? items

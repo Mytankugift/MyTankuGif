@@ -109,11 +109,15 @@ export async function signup(_currentState: unknown, formData: FormData) {
     revalidateTag(customerCacheTag)
 
     await transferCart()
-
-    return createdCustomer
+    
+   
+    return createdCustomer ; 
   } catch (error: any) {
     return error.toString()
+  } finally {
+    redirect(`/`)
   }
+  
 }
 
 export async function login(_currentState: unknown, formData: FormData) {

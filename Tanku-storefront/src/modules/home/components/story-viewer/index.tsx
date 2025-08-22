@@ -49,9 +49,9 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
 
 
       {/* Header */}
-      <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full overflow-hidden">
+      <div className="absolute top-2 sm:top-3 md:top-4 left-2 sm:left-3 md:left-4 right-2 sm:right-3 md:right-4 flex items-center justify-between z-10">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden">
             <Image
               src={currentStory.avatar}
               alt={currentStory.name}
@@ -61,14 +61,15 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
             />
           </div>
           <div>
-            <p className="text-white font-medium text-sm">{currentStory.name}</p>
+            <p className="text-white font-medium text-xs sm:text-sm">{currentStory.name}</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="text-white hover:text-gray-300 transition-colors"
+          className="text-white hover:text-gray-300 transition-colors p-1"
+          aria-label="Cerrar"
         >
-          <XMark className="w-6 h-6" />
+          <XMark className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
       </div>
 
@@ -76,47 +77,54 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
       <div className="absolute inset-0 flex">
         {/* Left tap area */}
         <div
-          className="flex-1 cursor-pointer flex items-center justify-start pl-4"
+          className="flex-1 cursor-pointer flex items-center justify-start pl-2 sm:pl-3 md:pl-4"
           onClick={handlePrevious}
         >
           {currentStoryIndex > 0 && (
             <div className="opacity-0 hover:opacity-100 transition-opacity">
-              <ChevronLeft className="w-8 h-8 text-white" />
+              <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
             </div>
           )}
         </div>
 
         {/* Right tap area */}
         <div
-          className="flex-1 cursor-pointer flex items-center justify-end pr-4"
+          className="flex-1 cursor-pointer flex items-center justify-end pr-2 sm:pr-3 md:pr-4"
           onClick={handleNext}
         >
           <div className="opacity-0 hover:opacity-100 transition-opacity">
-            <ChevronRight className="w-8 h-8 text-white" />
+            <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
           </div>
         </div>
       </div>
 
       {/* Story Content */}
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="w-full h-full flex items-center justify-center px-2 sm:px-4">
         {currentStory.media && currentStory.media.length > 0 ? (
-          <div className="relative w-full h-full max-w-md max-h-full">
+          <div className="relative w-full h-full max-w-xs sm:max-w-sm md:max-w-md max-h-[85vh] sm:max-h-[90vh]">
             {/* Current Media Display */}
             {currentStory.media[currentMediaIndex].type === 'image' ? (
-              <Image
-                src={currentStory.media[currentMediaIndex].url}
-                alt={currentStory.title || 'Story'}
-                fill
-                className="object-contain"
-                priority
-              />
+              <div className="relative w-full h-full">
+                <Image
+                  src={currentStory.media[currentMediaIndex].url}
+                  alt={currentStory.title || 'Story'}
+                  fill
+                  className="object-contain"
+                  priority
+                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, 700px"
+                />
+              </div>
             ) : (
-              <video
-                src={currentStory.media[currentMediaIndex].url}
-                autoPlay
-                muted
-                className="w-full h-full object-contain"
-              />
+              <div className="relative w-full h-full flex items-center justify-center">
+                <video
+                  src={currentStory.media[currentMediaIndex].url}
+                  autoPlay
+                  muted
+                  playsInline
+                  controls={false}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
             )}
             
             {/* Media Navigation for Multiple Files */}
@@ -124,26 +132,29 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
               <>
                 <button
                   onClick={() => setCurrentMediaIndex(prev => prev > 0 ? prev - 1 : currentStory.media!.length - 1)}
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70 transition-opacity z-10"
+                  className="absolute left-2 sm:left-3 md:left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 flex items-center justify-center hover:bg-opacity-70 transition-opacity z-10"
+                  aria-label="Media anterior"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
                 </button>
                 <button
                   onClick={() => setCurrentMediaIndex(prev => prev < currentStory.media!.length - 1 ? prev + 1 : 0)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70 transition-opacity z-10"
+                  className="absolute right-2 sm:right-3 md:right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 flex items-center justify-center hover:bg-opacity-70 transition-opacity z-10"
+                  aria-label="Media siguiente"
                 >
-                  <ChevronRight className="w-6 h-6" />
+                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
                 </button>
                 
                 {/* Media Dots Indicator */}
-                <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 flex gap-2">
+                <div className="absolute bottom-24 sm:bottom-28 md:bottom-32 left-1/2 transform -translate-x-1/2 flex gap-1 sm:gap-2">
                   {currentStory.media.map((_, index) => (
                     <button
                       key={index}
                       onClick={() => setCurrentMediaIndex(index)}
-                      className={`w-2 h-2 rounded-full transition-colors ${
+                      className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-colors ${
                         index === currentMediaIndex ? 'bg-white' : 'bg-white bg-opacity-50'
                       }`}
+                      aria-label={`Ver media ${index + 1}`}
                     />
                   ))}
                 </div>
@@ -152,14 +163,14 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
             
             {/* Story text overlay */}
             {(currentStory.title || currentStory.description) && (
-              <div className="absolute bottom-20 left-4 right-4 bg-black bg-opacity-50 rounded-lg p-4">
+              <div className="absolute bottom-16 sm:bottom-18 md:bottom-20 left-2 sm:left-3 md:left-4 right-2 sm:right-3 md:right-4 bg-black bg-opacity-50 rounded-lg p-2 sm:p-3 md:p-4">
                 {currentStory.title && (
-                  <h3 className="text-white font-semibold text-lg mb-2">
+                  <h3 className="text-white font-semibold text-sm sm:text-base md:text-lg mb-1 sm:mb-2 line-clamp-2">
                     {currentStory.title}
                   </h3>
                 )}
                 {currentStory.description && (
-                  <p className="text-gray-200 text-sm">
+                  <p className="text-gray-200 text-xs sm:text-sm line-clamp-3 sm:line-clamp-4">
                     {currentStory.description}
                   </p>
                 )}

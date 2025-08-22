@@ -76,22 +76,23 @@ const FloatingCart = ({
 
   return (
     <div
-      className="fixed top-4 right-4 z-50"
+      className="fixed top-3 sm:top-4 right-3 sm:right-4 z-50"
       onMouseEnter={openAndCancel}
       onMouseLeave={close}
     >
       <Popover className="relative">
         
-        <PopoverButton className="flex items-center justify-center bg-[#1E1E1E] rounded-full shadow-md p-3 relative">
+        <PopoverButton className="flex items-center justify-center bg-[#1E1E1E] rounded-full shadow-md p-2 sm:p-3 relative transition-transform duration-200 hover:scale-110 active:scale-95">
           <div className="relative">
             <Image 
               src="/feed/Icons/Shopping_Cart_Blue.png" 
               alt="Carrito" 
-              width={24} 
-              height={24} 
+              width={22} 
+              height={22} 
+              className="w-[18px] h-[18px] sm:w-[22px] sm:h-[22px]"
             />
             {totalItems > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+              <span className="absolute -top-1.5 -right-1.5 sm:-top-2 sm:-right-2 bg-red-500 text-white rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs font-bold">
                 {totalItems}
               </span>
             )}
@@ -100,24 +101,24 @@ const FloatingCart = ({
         <Transition
           show={cartDropdownOpen}
           as={Fragment}
-          enter="transition ease-out duration-200"
-          enterFrom="opacity-0 translate-y-1"
-          enterTo="opacity-100 translate-y-0"
-          leave="transition ease-in duration-150"
-          leaveFrom="opacity-100 translate-y-0"
-          leaveTo="opacity-0 translate-y-1"
+          enter="transition ease-out duration-300"
+          enterFrom="opacity-0 translate-y-2 scale-95"
+          enterTo="opacity-100 translate-y-0 scale-100"
+          leave="transition ease-in duration-200"
+          leaveFrom="opacity-100 translate-y-0 scale-100"
+          leaveTo="opacity-0 translate-y-2 scale-95"
         >
           <PopoverPanel
             static
-            className="absolute top-[calc(100%+8px)] right-0 bg-[#1E1E1E] border border-gray-600 w-[380px] text-[#66DEDB] rounded-md shadow-lg"
+            className="absolute top-[calc(100%+8px)] right-0 bg-[#1E1E1E] border border-gray-600 w-[280px] sm:w-[320px] md:w-[380px] text-[#66DEDB] rounded-md shadow-lg"
             data-testid="floating-cart-dropdown"
           >
-            <div className="p-4 flex items-center justify-center border-b border-gray-600">
-              <h3 className="text-large-semi text-[#66DEDB]">Carrito</h3>
+            <div className="p-3 sm:p-4 flex items-center justify-center border-b border-gray-600">
+              <h3 className="text-base sm:text-lg font-semibold text-[#66DEDB]">Carrito</h3>
             </div>
             {cartState && cartState.items?.length ? (
               <>
-                <div className="overflow-y-scroll max-h-[300px] px-4 grid grid-cols-1 gap-y-8 no-scrollbar py-4">
+                <div className="overflow-y-auto max-h-[250px] sm:max-h-[300px] px-3 sm:px-4 grid grid-cols-1 gap-y-6 sm:gap-y-8 scrollbar-hide py-3 sm:py-4">
                   {cartState.items
                     .sort((a, b) => {
                       return (a.created_at ?? "") > (b.created_at ?? "")
@@ -126,13 +127,13 @@ const FloatingCart = ({
                     })
                     .map((item) => (
                       <div
-                        className="grid grid-cols-[80px_1fr] gap-x-4"
+                        className="grid grid-cols-[70px_1fr] sm:grid-cols-[80px_1fr] gap-x-3 sm:gap-x-4"
                         key={item.id}
                         data-testid="floating-cart-item"
                       >
                         <LocalizedClientLink
                           href={`/products/${item.product_handle}`}
-                          className="w-20"
+                          className="w-[70px] sm:w-20"
                         >
                           <Thumbnail
                             thumbnail={item.thumbnail}
@@ -144,7 +145,7 @@ const FloatingCart = ({
                           <div className="flex flex-col flex-1">
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex flex-col flex-1 min-w-0">
-                                <h3 className="text-sm font-medium text-[#3B9BC3] truncate">
+                                <h3 className="text-xs sm:text-sm font-medium text-[#3B9BC3] truncate">
                                   <LocalizedClientLink
                                     href={`/products/${item.product_handle}`}
                                     data-testid="product-link"
@@ -160,7 +161,7 @@ const FloatingCart = ({
                                   />
                                 </div>
                                 <span
-                                  className="text-xs text-[#66DEDB]"
+                                  className="text-[10px] sm:text-xs text-[#66DEDB]"
                                   data-testid="cart-item-quantity"
                                   data-value={item.quantity}
                                 >
@@ -180,7 +181,7 @@ const FloatingCart = ({
                           </div>
                           <DeleteButton
                             id={item.id}
-                            className="mt-1 text-xs text-[#E73230] hover:text-[#ff5652]"
+                            className="mt-1 text-[10px] sm:text-xs text-[#E73230] hover:text-[#ff5652]"
                             data-testid="cart-item-remove-button"
                           >
                             Eliminar
@@ -189,14 +190,14 @@ const FloatingCart = ({
                       </div>
                     ))}
                 </div>
-                <div className="p-4 flex flex-col gap-y-4 text-small-regular border-t border-gray-600">
+                <div className="p-3 sm:p-4 flex flex-col gap-y-3 sm:gap-y-4 text-small-regular border-t border-gray-600">
                   <div className="flex items-center justify-between">
-                    <span className="text-[#66DEDB] font-semibold">
+                    <span className="text-[#66DEDB] font-semibold text-xs sm:text-sm">
                       Subtotal{" "}
-                      <span className="font-normal">(excl. impuestos)</span>
+                      <span className="font-normal text-[10px] sm:text-xs">(excl. impuestos)</span>
                     </span>
                     <span
-                      className="text-large-semi text-[#66DEDB]"
+                      className="text-sm sm:text-base font-semibold text-[#66DEDB]"
                       data-testid="cart-subtotal"
                       data-value={subtotal}
                     >
@@ -208,7 +209,7 @@ const FloatingCart = ({
                   </div>
                   <LocalizedClientLink href="/cart" passHref>
                     <Button
-                      className="w-full bg-[#3B9BC3] hover:bg-[#2A7A9B] text-white border-none"
+                      className="w-full bg-[#3B9BC3] hover:bg-[#2A7A9B] text-white border-none text-xs sm:text-sm py-2 sm:py-3 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                       size="large"
                       data-testid="go-to-cart-button"
                       onClick={close}
@@ -220,11 +221,11 @@ const FloatingCart = ({
               </>
             ) : (
               <div>
-                <div className="flex py-12 flex-col gap-y-4 items-center justify-center">
-                  <div className="bg-[#3B9BC3] text-small-regular flex items-center justify-center w-6 h-6 rounded-full text-white">
+                <div className="flex py-8 sm:py-12 flex-col gap-y-3 sm:gap-y-4 items-center justify-center">
+                  <div className="bg-[#3B9BC3] text-small-regular flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full text-white">
                     <span>0</span>
                   </div>
-                  <span className="text-sm text-[#66DEDB]">Tu carrito está vacío.</span>
+                  <span className="text-xs sm:text-sm text-[#66DEDB]">Tu carrito está vacío.</span>
                   <div>
                     <LocalizedClientLink href="/store">
                       <>
@@ -232,7 +233,7 @@ const FloatingCart = ({
                         <Button 
                           onClick={close} 
                           size="small"
-                          className="bg-[#3B9BC3] hover:bg-[#2A7A9B] text-white border-none"
+                          className="bg-[#3B9BC3] hover:bg-[#2A7A9B] text-white border-none text-xs sm:text-sm py-1.5 sm:py-2 px-3 sm:px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                         >
                           Explorar productos
                         </Button>

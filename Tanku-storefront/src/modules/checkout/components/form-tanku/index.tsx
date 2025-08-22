@@ -293,9 +293,9 @@ const FormTanku = ({
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-zinc-800 rounded-lg shadow-md text-white">
-      <h2 className="text-xl font-bold mb-4 text-[#3B9BC3]">Datos Personales</h2>
-      <div className="grid grid-cols-2 gap-4 mb-8">
+    <div className="max-w-4xl mx-auto p-3 sm:p-4 md:p-5 lg:p-6 bg-zinc-800 rounded-lg shadow-md text-white">
+      <h2 className="text-base sm:text-lg md:text-xl font-bold mb-2 sm:mb-3 md:mb-4 text-[#3B9BC3]">Datos Personales</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 md:mb-8">
         <Input
           label="Nombre"
           name="shipping_address.first_name"
@@ -344,10 +344,10 @@ const FormTanku = ({
         />
       </div>
 
-      <h2 className="text-xl font-bold mb-4 text-[#3B9BC3]">Dirección de Envío</h2>
+      <h2 className="text-base sm:text-lg md:text-xl font-bold mb-2 sm:mb-3 md:mb-4 text-[#3B9BC3]">Dirección de Envío</h2>
       {customer && (addressesInRegion?.length || 0) > 0 && (
-        <Container className="mb-6 flex flex-col gap-y-4 p-5">
-          <p className="text-small-regular">
+        <Container className="mb-3 sm:mb-4 md:mb-6 flex flex-col gap-y-2 sm:gap-y-3 md:gap-y-4 p-2 sm:p-3 md:p-5">
+          <p className="text-sm sm:text-base">
             {`Hola ${customer.first_name}, ¿deseas usar una de tus direcciones guardadas?`}
           </p>
           <AddressSelect
@@ -358,8 +358,8 @@ const FormTanku = ({
           />
         </Container>
       )}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
+        <div className="col-span-1 sm:col-span-2">
           <Input
             label="Dirección"
             name="shipping_address.address_1"
@@ -370,7 +370,7 @@ const FormTanku = ({
             data-testid="shipping-address-input"
           />
         </div>
-        <div className="col-span-2">
+        <div className="col-span-1 sm:col-span-2">
           <Input
             label="Detalles de la dirección (opcional)"
             name="shipping_address.address_2"
@@ -380,7 +380,7 @@ const FormTanku = ({
             data-testid="shipping-address-2-input"
           />
         </div>
-        <div className="col-span-2">
+        <div className="col-span-1 sm:col-span-2">
           <Input
             label="País"
             name="shipping_address.country_code"
@@ -423,7 +423,7 @@ const FormTanku = ({
           data-testid="shipping-postal-code-input"
         />
       </div>
-      <div className="my-8">
+      <div className="my-5 sm:my-8">
         <Checkbox
           label="La dirección de facturación es la misma que la de envío"
           name="same_as_billing"
@@ -450,9 +450,9 @@ const FormTanku = ({
       </div>
 
       {!checked && (
-        <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4 text-[#3B9BC3]">Dirección de Facturación</h2>
-          <div className="grid grid-cols-2 gap-4">
+        <div className="mt-4 sm:mt-6 md:mt-8">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold mb-2 sm:mb-3 md:mb-4 text-[#3B9BC3]">Dirección de Facturación</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
             <Input
               label="Nombre"
               name="billing_address.first_name"
@@ -471,22 +471,32 @@ const FormTanku = ({
               required
               data-testid="billing-last-name-input"
             />
+            <div className="col-span-1 sm:col-span-2">
+              <Input
+                label="Dirección"
+                name="billing_address.address_1"
+                autoComplete="address-line1"
+                value={formData["billing_address.address_1"]}
+                onChange={handleChange}
+                required
+                data-testid="billing-address-input"
+              />
+            </div>
             <Input
-              label="Dirección"
-              name="billing_address.address_1"
-              autoComplete="address-line1"
-              value={formData["billing_address.address_1"]}
-              onChange={handleChange}
-              required
-              data-testid="billing-address-input"
-            />
-            <Input
-              label="Empresa"
+              label="Empresa (opcional)"
               name="billing_address.company"
               value={formData["billing_address.company"]}
               onChange={handleChange}
               autoComplete="organization"
               data-testid="billing-company-input"
+            />
+            <Input
+              label="Teléfono"
+              name="billing_address.phone"
+              autoComplete="tel"
+              value={formData["billing_address.phone"]}
+              onChange={handleChange}
+              data-testid="billing-phone-input"
             />
             <Input
               label="Código Postal"
@@ -506,31 +516,29 @@ const FormTanku = ({
               required
               data-testid="billing-city-input"
             />
-            <CountrySelect
-              name="billing_address.country_code"
-              autoComplete="country"
-              region={cart?.region}
-              value={formData["billing_address.country_code"]}
-              onChange={handleChange}
-              required
-              data-testid="billing-country-select"
-            />
             <Input
-              label="Estado / Provincia"
+              label="Departamento"
               name="billing_address.province"
               autoComplete="address-level1"
               value={formData["billing_address.province"]}
               onChange={handleChange}
               data-testid="billing-province-input"
             />
-            <Input
-              label="Teléfono"
-              name="billing_address.phone"
-              autoComplete="tel"
-              value={formData["billing_address.phone"]}
-              onChange={handleChange}
-              data-testid="billing-phone-input"
-            />
+            <div className="col-span-1 sm:col-span-2">
+              <Input
+                label="País"
+                name="billing_address.country_code"
+                value="Colombia"
+                disabled={true}
+                onChange={() => {}}
+                data-testid="billing-country-input"
+              />
+              <input
+                type="hidden"
+                name="billing_address.country_code"
+                value="co"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -539,17 +547,17 @@ const FormTanku = ({
         <div className="flex justify-end">
           <Button
             onClick={handleContinue}
-            className="min-w-[200px] bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 transition-colors"
+            className="w-full sm:w-auto sm:min-w-[200px] bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 transition-colors"
             disabled={!isFormValid()}
           >
             Continuar al Pago
           </Button>
         </div>
       ) : (
-        <div className="mt-8 border-t pt-8">
-          <h2 className="text-xl font-bold mb-4 text-[#3B9BC3]">Métodos de Pago</h2>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
+        <div className="mt-6 sm:mt-7 md:mt-8 border-t pt-4 sm:pt-6 md:pt-8">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold mb-2 sm:mb-3 md:mb-4 text-[#3B9BC3]">Métodos de Pago</h2>
+          <div className="space-y-3 sm:space-y-4">
+            <div className="flex items-center space-x-2 sm:space-x-3">
               <input
                 type="radio"
                 id="epayco"
@@ -559,14 +567,13 @@ const FormTanku = ({
                 onChange={() => handlePaymentMethodSelect("epayco")}
                 className="h-4 w-4"
               />
-              <div className="text-base">ePayco</div>
+              <div className="text-sm sm:text-base">ePayco</div>
             </div>
             {selectedPaymentMethod && (
-              <div className="flex justify-end mt-6">
-                <Button onClick={handlePayment} className="min-w-[200px] bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 transition-colors">
+              <div className="flex justify-end mt-4 sm:mt-6">
+                <Button onClick={handlePayment} className="w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] py-2 sm:py-3 text-sm sm:text-base bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 transition-colors">
                   Seleccionar método de pago
                 </Button>
-                
               </div>
             )}
           </div>
@@ -579,20 +586,20 @@ const FormTanku = ({
                 strategy="afterInteractive"
               />
               
-              <div className="mt-6">
+              <div className="mt-4 sm:mt-6">
                 <form id="epayco-payment-form">
-                  <div className="mb-4">
+                  <div className="mb-3 sm:mb-4">
                     <label htmlFor="epayco-payment" className="block text-sm font-medium text-white mb-2">
                       Pago con ePayco
                     </label>
-                    <p className="text-sm text-gray-300 mb-4">Haga clic en el botón a continuación para proceder con el pago seguro a través de ePayco.</p>
+                    <p className="text-xs sm:text-sm text-gray-300 mb-3 sm:mb-4">Haga clic en el botón a continuación para proceder con el pago seguro a través de ePayco.</p>
                     
                     {/* Botón visible para el usuario */}
-                    <div className="flex justify-end">
+                    <div className="flex justify-center sm:justify-end">
                       <Button 
                         type="button"
                         id="epayco-custom-button"
-                        className="bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 text-white p-4 flex items-center justify-center gap-2 transition-colors"
+                        className="w-full sm:w-auto bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 text-white p-2 sm:p-3 md:p-4 text-sm sm:text-base flex items-center justify-center gap-2 transition-colors"
                         onClick={() => {
                           // Verificar si ePayco está cargado
                           if (typeof window.ePayco === 'undefined') {
