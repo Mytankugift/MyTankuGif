@@ -22,8 +22,8 @@ export default function TabNavigation({ products, customerId }: TabNavigationPro
     {
       id: 'mytanku' as TabType,
       label: '#MyTANKU',
-      greenIcon: '/feed/Icons/MyTanku_Green.png',
-      blueIcon: '/feed/Icons/MyTanku_Blue.png'
+      greenIcon: '/feed/Icons/MyTANKU_Green.png',
+      blueIcon: '/feed/Icons/MyTANKU_Blue.png'
     },
     {
       id: 'stalkergift' as TabType,
