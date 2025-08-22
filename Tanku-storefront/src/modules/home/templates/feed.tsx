@@ -219,7 +219,49 @@ function HomeContent() {
   }, [userStories, friendsStories])
 
   const handleStoryCreate = (newStory: Story) => {
+    // Agregar la historia temporalmente al estado local para feedback inmediato
     setUserStories(prev => [newStory, ...prev])
+    
+    // Recargar todas las historias desde la base de datos para obtener la información completa
+    if (personalInfo?.id) {
+      getStories(personalInfo.id)
+        .then((response) => {
+          if (response.success) {
+            // Convertir las historias de la base de datos al formato esperado por el frontend
+            const convertedUserStories = response.userStories.map((story: any) => ({
+              id: story.id,
+              customer_id: story.customer_id,
+              name: story.customer_name || "Tú",
+              avatar: "/feed/avatar.png",
+              timestamp: new Date(story.created_at),
+              media: story.files?.map((file: any) => ({
+                id: file.id,
+                type: file.file_type,
+                url: file.file_url
+              })) || []
+            }))
+            
+            const convertedFriendsStories = response.friendsStories.map((story: any) => ({
+              id: story.id,
+              customer_id: story.customer_id,
+              name: story.customer_name || "Amigo",
+              avatar: "/feed/avatar.png",
+              timestamp: new Date(story.created_at),
+              media: story.files?.map((file: any) => ({
+                id: file.id,
+                type: file.file_type,
+                url: file.file_url
+              })) || []
+            }))
+            
+            setUserStories(convertedUserStories)
+            setFriendsStories(convertedFriendsStories)
+          }
+        })
+        .catch((error) => {
+          console.error('Error reloading stories after creation:', error)
+        })
+    }
   }
 
   const handleStoryClick = (storyIndex: number) => {
@@ -281,14 +323,39 @@ function HomeContent() {
                     }}
                   >
                     <div className="w-full h-full rounded-full overflow-hidden bg-transparent">
-                      {story.media && story.media.length > 0 && story.media[0].type === 'image' ? (
-                        <Image
-                          src={story.media[0].url}
-                          alt={story.name}
-                          width={60}
-                          height={60}
-                          className="w-full h-full object-cover"
-                        />
+                      {story.media && story.media.length > 0 ? (
+                        story.media[0].type === 'image' ? (
+                          <Image
+                            src={story.media[0].url}
+                            alt={story.name}
+                            width={60}
+                            height={60}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : story.media[0].type === 'video' ? (
+                          <div className="relative w-full h-full">
+                            <video
+                              src={story.media[0].url}
+                              className="w-full h-full object-cover"
+                              muted
+                              playsInline
+                              preload="metadata"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-4 h-4 bg-white bg-opacity-80 rounded-full flex items-center justify-center">
+                                <div className="w-0 h-0 border-l-[6px] border-l-gray-800 border-t-[3px] border-t-transparent border-b-[3px] border-b-transparent ml-0.5"></div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <Image
+                            src={story.avatar}
+                            alt={story.name}
+                            width={60}
+                            height={60}
+                            className="w-full h-full object-cover"
+                          />
+                        )
                       ) : (
                         <Image
                           src={story.avatar}

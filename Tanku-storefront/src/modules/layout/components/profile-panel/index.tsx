@@ -1,10 +1,12 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { XMark, Heart, Pencil, Spinner } from "@medusajs/icons"
+import { Heart, PencilSquare, Trash, XMark, Plus, EllipsisHorizontal, Camera, Check, MediaPlay, Pencil, Spinner } from "@medusajs/icons"
 import { getPosters, PosterData } from '../actions/get-posters'
 import { retrieveCustomer } from "@lib/data/customer"
+import { togglePosterLike, getPosterReactions } from "@modules/home/components/actions/poster-reactions"
+import { getPosterComments, addPosterComment, editPosterComment, deletePosterComment, PosterComment } from "@modules/home/components/actions/poster-comments"
 import { listRegions } from "@lib/data/regions"
 import { getListWishList } from "@modules/home/components/actions/get-list-wish-list"
 import { deleteProductToWishList } from "@modules/home/components/actions/delete-product-to-wish_list"
@@ -20,6 +22,8 @@ import ProfileName from "@modules/account/components/profile-name"
 import ProfileEmail from "@modules/account/components/profile-email"
 import ProfilePhone from "@modules/account/components/profile-phone"
 import ProfileBillingAddress from "@modules/account/components/profile-billing-address"
+
+// ... rest of the code ...
 
 interface ProfilePanelProps {
   onClose: () => void
@@ -88,6 +92,178 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
   const [aliasValue, setAliasValue] = useState('')
   const [aliasSaving, setAliasSaving] = useState(false)
   const [aliasError, setAliasError] = useState('')
+
+  // Estados para el modal
+  const [selectedPoster, setSelectedPoster] = useState<PosterData | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Estados para comentarios
+  const [comments, setComments] = useState<PosterComment[]>([])
+  const [newComment, setNewComment] = useState('')
+  const [isCommentLoading, setIsCommentLoading] = useState(false)
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const [editingCommentContent, setEditingCommentContent] = useState('')
+  const [replyingToId, setReplyingToId] = useState<string | null>(null)
+  const [replyContent, setReplyContent] = useState('')
+  const [showReplies, setShowReplies] = useState<Record<string, boolean>>({})
+
+  // Estados para likes
+  const [likesCount, setLikesCount] = useState(0)
+  const [commentsCount, setCommentsCount] = useState(0)
+  const [isLiked, setIsLiked] = useState(false)
+  const [isLikeLoading, setIsLikeLoading] = useState(false)
+
+  // Funciones del modal
+  const openModal = (poster: PosterData) => {
+    setSelectedPoster(poster)
+    setIsModalOpen(true)
+    setLikesCount(poster.likes_count || 0)
+    setCommentsCount(poster.comments_count || 0)
+    loadComments(poster.id)
+    loadReactions(poster.id)
+  }
+
+  const closeModal = () => {
+    setSelectedPoster(null)
+    setIsModalOpen(false)
+    setComments([])
+    setNewComment('')
+    setEditingCommentId(null)
+    setEditingCommentContent('')
+    setReplyingToId(null)
+    setReplyContent('')
+    setShowReplies({})
+  }
+
+  // Funciones para comentarios
+  const loadComments = async (posterId: string) => {
+    try {
+      const commentsData = await getPosterComments(posterId)
+      setComments(commentsData.comments)
+    } catch (error) {
+      console.error('Error loading comments:', error)
+    }
+  }
+
+  const loadReactions = async (posterId: string) => {
+    try {
+      const reactions = await getPosterReactions(posterId, customer?.id || '')
+      setIsLiked(!!reactions.user_reaction)
+      setLikesCount(reactions.total_count)
+    } catch (error) {
+      console.error('Error loading reactions:', error)
+    }
+  }
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !selectedPoster || !customer?.id) return
+
+    setIsCommentLoading(true)
+    try {
+      const result = await addPosterComment(selectedPoster.id, customer.id, newComment.trim())
+      
+      setComments(prev => [...prev, result.comment])
+      setCommentsCount(result.comments_count)
+      setNewComment('')
+    } catch (error) {
+      console.error('Error adding comment:', error)
+    } finally {
+      setIsCommentLoading(false)
+    }
+  }
+
+  const handleStartEdit = (comment: PosterComment) => {
+    setEditingCommentId(comment.id)
+    setEditingCommentContent(comment.content)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingCommentContent.trim() || !editingCommentId || !selectedPoster) return
+
+    setIsCommentLoading(true)
+    try {
+      await editPosterComment(editingCommentId, editingCommentContent.trim())
+      
+      setEditingCommentId(null)
+      setEditingCommentContent('')
+      await loadComments(selectedPoster.id)
+    } catch (error) {
+      console.error('Error editing comment:', error)
+    } finally {
+      setIsCommentLoading(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingCommentId(null)
+    setEditingCommentContent('')
+  }
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!selectedPoster || !window.confirm('¿Estás seguro de que quieres eliminar este comentario?')) return
+
+    try {
+      await deletePosterComment(commentId)
+      setCommentsCount(prev => Math.max(0, prev - 1))
+      await loadComments(selectedPoster.id)
+    } catch (error) {
+      console.error('Error deleting comment:', error)
+    }
+  }
+
+  const handleStartReply = (commentId: string) => {
+    setReplyingToId(commentId)
+    setReplyContent('')
+  }
+
+  const handleAddReply = async (parentCommentId: string) => {
+    if (!replyContent.trim() || !selectedPoster || !customer?.id) return
+
+    setIsCommentLoading(true)
+    try {
+      const result = await addPosterComment(selectedPoster.id, customer.id, replyContent.trim(), parentCommentId)
+      
+      const updatedComments = await getPosterComments(selectedPoster.id)
+      setComments(updatedComments.comments)
+      setCommentsCount(updatedComments.total_count)
+      
+      setReplyingToId(null)
+      setReplyContent('')
+      setShowReplies(prev => ({ ...prev, [parentCommentId]: true }))
+    } catch (error) {
+      console.error('Error adding reply:', error)
+    } finally {
+      setIsCommentLoading(false)
+    }
+  }
+
+  const handleCancelReply = () => {
+    setReplyingToId(null)
+    setReplyContent('')
+  }
+
+  const toggleReplies = (commentId: string) => {
+    setShowReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }))
+  }
+
+  const handleLikeToggle = async () => {
+    if (!selectedPoster || !customer?.id || isLikeLoading) return
+
+    setIsLikeLoading(true)
+    try {
+      await togglePosterLike(selectedPoster.id, customer.id)
+      
+      setIsLiked(prev => !prev)
+      setLikesCount(prev => isLiked ? prev - 1 : prev + 1)
+    } catch (error) {
+      console.error('Error toggling like:', error)
+    } finally {
+      setIsLikeLoading(false)
+    }
+  }
 
   // Cargar datos del customer y regiones al montar el componente
   useEffect(() => {
@@ -691,20 +867,8 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
 
             {/* Columna lateral - 25% */}
             <div className="w-full md:w-1/4 mt-3 sm:mt-4 md:mt-0">
-              {/* Iconos de acción */}
-              <div className="flex gap-2 sm:gap-3 mb-3 sm:mb-4 md:mb-6">
-                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-gray-700 rounded-full hover:bg-gray-600 transition-colors cursor-pointer">
-                  <Link href="/friends">
-                  <Image
-                    src="/feed/Icons/Search_Green.png"
-                    alt="Buscar"
-                    width={20}
-                    height={20}
-                    className="object-contain sm:w-6 sm:h-6"
-                  />
-                  </Link>
-                </div>
-              </div>
+          
+             
 
               {/* Estadísticas */}
               {customerLoading ? (
@@ -740,11 +904,11 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
                 {/* Facebook */}
                 <div className="flex items-center gap-1.5 sm:gap-2 group">
                   <Image
-                    src="/feed/Icons/Facebook.png"
+                    src="/icon_social/Facebook_Green.png"
                     alt="Facebook"
-                    width={20}
-                    height={20}
-                    className="object-contain sm:w-6 sm:h-6"
+                    width={15}
+                    height={10}
+                    className="object-contain sm:w-6 sm:h-6 mr-[6px]"
                   />
                   {editingSocialMedia === 'facebook' ? (
                     <div className="flex items-center gap-1 flex-1">
@@ -752,38 +916,28 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
                         type="text"
                         value={socialMediaValues.facebook}
                         onChange={(e) => handleSocialMediaChange('facebook', e.target.value)}
-                        className="bg-gray-800 text-white text-xs sm:text-sm px-1.5 sm:px-2 py-1 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB] min-w-0 flex-1"
+                        className="bg-gray-800 text-white text-xs sm:text-sm px-1.5 sm:px-2 py-1 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB] flex-1"
                         placeholder="URL de Facebook"
                         autoFocus
                         disabled={socialMediaSaving}
                       />
-                      <div className="mt-3 sm:mt-4 flex justify-center gap-1.5 sm:gap-2">
-                        <button
-                          onClick={() => handleSocialMediaSave('facebook')}
-                          disabled={socialMediaSaving}
-                          className="bg-[#73FFA2] hover:bg-[#66DEDB] text-gray-900 font-medium text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1 sm:gap-2"
-                        >
-                          {socialMediaSaving ? (
-                            <>
-                              <Spinner className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
-                              Guardando...
-                            </>
-                          ) : (
-                            'Guardar'
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleSocialMediaCancel('facebook')}
-                          disabled={socialMediaSaving}
-                          className="bg-gray-700 hover:bg-gray-600 text-white font-medium text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors disabled:opacity-50"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleSocialMediaSave('facebook')}
+                        disabled={socialMediaSaving}
+                        className="text-[#73FFA2] hover:text-[#66DEDB] text-xs px-1"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        onClick={() => handleSocialMediaCancel('facebook')}
+                        className="text-red-400 hover:text-red-300 text-xs px-1"
+                      >
+                        ✕
+                      </button>
                     </div>
                   ) : (
                     <div className="flex items-center justify-between flex-1">
-                      <span className="text-gray-300 text-sm">
+                      <span className="text-gray-300 text-xs sm:text-sm break-all">
                         {getSocialMediaValue('facebook')}
                       </span>
                       <button
@@ -1101,55 +1255,106 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
                       <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-[#73FFA2]"></div>
                     </div>
                   ) : posters.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
                       {posters.map((poster) => (
-                        <div key={poster.id} className="space-y-1 md:space-y-2">
-                          {/* Poster Image */}
-                          <div className="aspect-square bg-gray-700 rounded-md md:rounded-lg overflow-hidden relative group cursor-pointer">
-                            {poster.image_url ? (
-                              <Image
-                                src={poster.image_url}
-                                alt={poster.title || 'Poster'}
-                                fill
-                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        <div 
+                          key={poster.id} 
+                          className="bg-transparent border-2 border-[#73FFA2] rounded-lg sm:rounded-2xl p-2 sm:p-3 md:p-4 hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer"
+                          onClick={() => openModal(poster)}
+                        >
+                          {/* Poster Header */}
+                          <div className="flex items-center mb-2 sm:mb-3">
+                            <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden bg-gray-700">
+                              <Image 
+                                src={personalInfo?.avatar_url || '/feed/avatar.png'}
+                                alt={customer?.first_name || 'Usuario'}
+                                width={32}
+                                height={32}
+                                className="object-cover w-full h-full"
                               />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
+                            </div>
+                            <div className="ml-1.5 sm:ml-2">
+                              <p className="text-white font-medium text-xs sm:text-sm truncate max-w-[80px] sm:max-w-full">
+                                {customer?.first_name} {customer?.last_name}
+                              </p>
+                              <p className="text-gray-400 text-xs">
+                                {new Date(poster.created_at).toLocaleDateString('es-ES', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Poster Media */}
+                          <div className="w-full h-32 sm:h-40 md:h-48 relative mb-2 sm:mb-3 md:mb-4 overflow-hidden rounded-lg">
+                            {(poster.image_url || poster.video_url) && (
+                              <>
+                                {/* Caso 1: Tiene imagen */}
+                                {poster.image_url && (
+                                  <div className="relative w-full h-full">
+                                    <Image
+                                      src={poster.image_url}
+                                      alt="Imagen de publicación"
+                                      fill
+                                      className="object-cover"
+                                      unoptimized={poster.image_url.startsWith('blob:') || poster.image_url.startsWith('data:')}
+                                    />
+                                  </div>
+                                )}
+                                
+                                {/* Caso 2: Tiene video (mostrar preview o placeholder) */}
+                                {poster.video_url && !poster.image_url && (
+                                  <div className="relative w-full h-full bg-gray-800 flex items-center justify-center">
+                                    <div className="animate-pulse flex space-x-4">
+                                      <div className="rounded-full bg-gray-700 h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12"></div>
+                                    </div>
+                                    <div className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-black bg-opacity-60 rounded-full p-1 sm:p-2">
+                                      <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                      </svg>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Video indicator cuando hay imagen */}
+                                {poster.video_url && poster.image_url && (
+                                  <div className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-black bg-opacity-60 rounded-full p-1 sm:p-2">
+                                    <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            
+                            {/* Placeholder cuando no hay media */}
+                            {!poster.image_url && !poster.video_url && (
+                              <div className="w-full h-full flex items-center justify-center bg-gray-700">
                                 <svg className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                               </div>
                             )}
-                            {/* Video indicator */}
-                            {poster.video_url && (
-                              <div className="absolute top-1 md:top-2 right-1 md:right-2 bg-black bg-opacity-60 rounded-full p-0.5 md:p-1">
-                                <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                </svg>
-                              </div>
-                            )}
-                            {/* Overlay with title */}
-                            {poster.title && (
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-0.5 sm:p-1 md:p-2">
-                                <p className="text-white text-xs md:text-sm font-medium truncate">{poster.title}</p>
-                              </div>
-                            )}
                           </div>
                           
                           {/* Poster Actions */}
-                          <div className="flex items-center justify-between px-0.5 sm:px-1 md:px-2">
-                            <div className="flex items-center gap-1 sm:gap-2">
-                              <Heart className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-gray-400 hover:text-red-500 cursor-pointer transition-colors" />
-                              <span className="text-gray-400 text-xs md:text-sm">{poster.likes_count} likes</span>
+                          <div className="flex justify-between items-center mt-1 sm:mt-2">
+                            <button 
+                              className="flex items-center text-gray-300 hover:text-[#73FFA2] transition-colors"
+                            >
+                              <Heart className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-1 sm:mr-1.5 md:mr-2" />
+                              <span className="text-xs sm:text-sm">{poster.likes_count}</span>
+                            </button>
+                            <div className="flex items-center text-gray-300">
+                              <span className="mr-1 sm:mr-2 text-sm">💬</span>
+                              <span className="text-xs sm:text-sm">{poster.comments_count}</span>
                             </div>
-                            <div className="flex items-center gap-1 sm:gap-2">
-                              <span className="text-gray-400 text-xs md:text-sm">{poster.comments_count} comentarios</span>
-                              <button className="text-gray-400 hover:text-white transition-colors">
-                                <svg className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                                </svg>
-                              </button>
-                            </div>
+                            <button 
+                              className="p-1 sm:p-1.5 md:p-2 hover:bg-gray-700 rounded-full transition-colors duration-200"
+                            >
+                              <img src="/feed/arrow-right 4.svg" alt="Share" width="16" height="16" className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -1199,6 +1404,379 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
           )}
         </div>
       </div>
+
+      {/* Modal */}
+      {selectedPoster && customer && isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-gray-900 rounded-lg w-full max-w-4xl h-full max-h-[95vh] flex flex-col lg:flex-row overflow-hidden">
+            {/* Botón de cerrar */}
+            <button
+              onClick={closeModal}
+              className="absolute top-2 sm:top-4 right-2 sm:right-4 z-10 p-1 sm:p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
+            >
+              <XMark className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
+            </button>
+
+            {/* Área de media - Izquierda */}
+            <div className="flex-1 lg:flex-shrink-0 lg:w-1/2 bg-black flex items-center justify-center relative h-64 lg:h-full">
+              {selectedPoster.image_url && (
+                <Image
+                  src={selectedPoster.image_url}
+                  alt="Imagen del poster"
+                  fill
+                  className="object-contain"
+                  unoptimized={selectedPoster.image_url.startsWith('blob:') || selectedPoster.image_url.startsWith('data:')}
+                />
+              )}
+              
+              {selectedPoster.video_url && !selectedPoster.image_url && (
+                <video
+                  src={selectedPoster.video_url}
+                  className="w-full h-full object-contain"
+                  controls
+                  autoPlay={false}
+                />
+              )}
+
+              {!selectedPoster.image_url && !selectedPoster.video_url && (
+                <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                  <svg className="w-16 h-16 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+
+            {/* Panel de información - Derecha */}
+            <div className="flex-1 lg:w-1/2 p-2 sm:p-4 flex flex-col min-h-0">
+              {/* Header del poster */}
+              <div className="flex items-center mb-2 sm:mb-3 md:mb-4 flex-shrink-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gray-700">
+                  <Image 
+                    src={customer.avatar_url || '/feed/avatar.png'}
+                    alt={customer.first_name || 'Usuario'}
+                    width={40}
+                    height={40}
+                    className="object-cover w-full h-full"
+                  />
+                </div>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-white font-medium text-sm sm:text-base">
+                    {customer.first_name} {customer.last_name}
+                  </p>
+                  <p className="text-gray-400 text-xs sm:text-sm">
+                    {new Date(selectedPoster.created_at).toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+              </div>
+
+              {selectedPoster.title && (
+                <h2 className="text-xl font-bold text-white mb-3">{selectedPoster.title}</h2>
+              )}
+              
+              {selectedPoster.description && (
+                <p className="text-gray-300 mb-4">{selectedPoster.description}</p>
+              )}
+
+              {/* Sección de comentarios */}
+              <div className="flex-1 flex flex-col min-h-0 mb-3 sm:mb-4">
+                {/* Lista de comentarios */}
+                <div className="flex-1 overflow-y-auto mb-3 sm:mb-4 pr-1 sm:pr-2" style={{maxHeight: 'calc(100vh - 400px)'}}>
+                  {comments.length > 0 ? (
+                    <div className="space-y-3">
+                      {comments.map((comment) => (
+                        <div key={comment.id} className="space-y-2">
+                          {/* Comentario principal */}
+                          <div className="bg-gray-800 rounded-lg p-2 sm:p-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start space-x-2 flex-1">
+                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                                  <Image 
+                                    src={'/feed/avatar.png'}
+                                    alt={comment.customer_name}
+                                    width={24}
+                                    height={24}
+                                    className="object-cover w-full h-full"
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <p className="text-white font-medium text-xs sm:text-sm">{comment.customer_name}</p>
+                                    <p className="text-gray-400 text-xs">
+                                      {new Date(comment.created_at).toLocaleDateString('es-ES', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </p>
+                                  </div>
+                                  {editingCommentId === comment.id ? (
+                                    <div className="space-y-2">
+                                      <textarea
+                                        value={editingCommentContent}
+                                        onChange={(e) => setEditingCommentContent(e.target.value)}
+                                        className="w-full bg-gray-700 text-white text-sm rounded p-2 resize-none"
+                                        rows={2}
+                                        maxLength={1000}
+                                      />
+                                      <div className="flex space-x-2">
+                                        <button
+                                          onClick={handleSaveEdit}
+                                          className="px-3 py-1 bg-[#73FFA2] text-black text-xs rounded hover:bg-[#5ee085] transition-colors"
+                                        >
+                                          Guardar
+                                        </button>
+                                        <button
+                                          onClick={handleCancelEdit}
+                                          className="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-500 transition-colors"
+                                        >
+                                          Cancelar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <p className="text-gray-300 text-xs sm:text-sm break-words mb-1 sm:mb-2">{comment.content}</p>
+                                      {/* Acciones del comentario */}
+                                      <div className="flex items-center space-x-3">
+                                        <button
+                                          onClick={() => handleStartReply(comment.id)}
+                                          className="text-xs text-gray-400 hover:text-[#73FFA2] transition-colors"
+                                        >
+                                          Responder
+                                        </button>
+                                        {comment.replies_count && comment.replies_count > 0 ? (
+                                          <button
+                                            onClick={() => toggleReplies(comment.id)}
+                                            className="text-xs text-gray-400 hover:text-[#73FFA2] transition-colors"
+                                          >
+                                            {showReplies[comment.id] ? 'Ocultar' : 'Ver'} respuestas ({comment.replies_count})
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              {comment.customer_id === customer.id && editingCommentId !== comment.id && (
+                                <div className="flex space-x-1 ml-2 flex-shrink-0">
+                                  <button
+                                    onClick={() => handleStartEdit(comment)}
+                                    className="p-1 text-gray-400 hover:text-[#73FFA2] transition-colors"
+                                    title="Editar comentario"
+                                  >
+                                    <PencilSquare className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteComment(comment.id)}
+                                    className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                                    title="Eliminar comentario"
+                                  >
+                                    <Trash className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Input para responder */}
+                            {replyingToId === comment.id && (
+                              <div className="mt-3 pl-8 border-l-2 border-gray-600">
+                                <div className="flex space-x-2">
+                                  <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                                    <Image 
+                                      src={'/feed/avatar.png'}
+                                      alt="Tu avatar"
+                                      width={24}
+                                      height={24}
+                                      className="object-cover w-full h-full"
+                                    />
+                                  </div>
+                                  <div className="flex-1 space-y-2">
+                                    <textarea
+                                      value={replyContent}
+                                      onChange={(e) => setReplyContent(e.target.value)}
+                                      placeholder="Escribe una respuesta..."
+                                      className="w-full bg-gray-700 text-white text-sm rounded p-2 resize-none border border-gray-600 focus:border-[#73FFA2] focus:outline-none"
+                                      rows={2}
+                                      maxLength={1000}
+                                      onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                          e.preventDefault()
+                                          handleAddReply(comment.id)
+                                        }
+                                      }}
+                                    />
+                                    <div className="flex space-x-2">
+                                      <button
+                                        onClick={() => handleAddReply(comment.id)}
+                                        disabled={isCommentLoading || !replyContent.trim()}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                          isCommentLoading || !replyContent.trim()
+                                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                            : 'bg-[#73FFA2] text-black hover:bg-[#5ee085]'
+                                        }`}
+                                      >
+                                        {isCommentLoading ? '...' : 'Responder'}
+                                      </button>
+                                      <button
+                                        onClick={handleCancelReply}
+                                        className="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-500 transition-colors"
+                                      >
+                                        Cancelar
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Respuestas anidadas */}
+                          {comment.replies && comment.replies.length > 0 && showReplies[comment.id] && (
+                            <div className="ml-8 space-y-2">
+                              {comment.replies.map((reply) => (
+                                <div key={reply.id} className="bg-gray-750 rounded-lg p-3 border-l-2 border-[#73FFA2]">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex items-start space-x-2 flex-1">
+                                      <div className="w-5 h-5 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                                        <Image 
+                                          src={'/feed/avatar.png'}
+                                          alt={reply.customer_name}
+                                          width={20}
+                                          height={20}
+                                          className="object-cover w-full h-full"
+                                        />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center space-x-2 mb-1">
+                                          <p className="text-white font-medium text-xs">{reply.customer_name}</p>
+                                          <p className="text-gray-400 text-xs">
+                                            {new Date(reply.created_at).toLocaleDateString('es-ES', {
+                                              month: 'short',
+                                              day: 'numeric',
+                                              hour: '2-digit',
+                                              minute: '2-digit'
+                                            })}
+                                          </p>
+                                        </div>
+                                        <p className="text-gray-300 text-xs break-words">{reply.content}</p>
+                                      </div>
+                                    </div>
+                                    {reply.customer_id === customer.id && (
+                                      <div className="flex space-x-1 ml-2 flex-shrink-0">
+                                        <button
+                                          onClick={() => handleStartEdit(reply)}
+                                          className="p-1 text-gray-400 hover:text-[#73FFA2] transition-colors"
+                                          title="Editar respuesta"
+                                        >
+                                          <PencilSquare className="w-2.5 h-2.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteComment(reply.id)}
+                                          className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                                          title="Eliminar respuesta"
+                                        >
+                                          <Trash className="w-2.5 h-2.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-400 text-sm py-8">
+                      No hay comentarios aún. ¡Sé el primero en comentar!
+                    </div>
+                  )}
+                </div>
+
+                {/* Input para nuevo comentario */}
+                <div className="border-t border-gray-700 pt-2 sm:pt-3 flex-shrink-0">
+                  <div className="flex space-x-2">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                      <Image 
+                        src={'/feed/avatar.png'}
+                        alt="Tu avatar"
+                        width={32}
+                        height={32}
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
+                    <div className="flex-1 flex space-x-2">
+                      <textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Escribe un comentario..."
+                        className="flex-1 bg-gray-800 text-white text-xs sm:text-sm rounded-lg p-2 resize-none border border-gray-600 focus:border-[#73FFA2] focus:outline-none"
+                        rows={2}
+                        maxLength={1000}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            handleAddComment()
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={handleAddComment}
+                        disabled={isCommentLoading || !newComment.trim()}
+                        className={`px-2 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm transition-colors ${
+                          isCommentLoading || !newComment.trim()
+                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                            : 'bg-[#73FFA2] text-black hover:bg-[#5ee085]'
+                        }`}
+                      >
+                        {isCommentLoading ? '...' : '→'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Acciones */}
+              <div className="flex items-center space-x-3 sm:space-x-6 border-t border-gray-700 pt-2 sm:pt-3 flex-shrink-0">
+                <button 
+                  onClick={handleLikeToggle}
+                  disabled={isLikeLoading}
+                  className={`flex items-center transition-colors ${
+                    isLiked 
+                      ? 'text-[#73FFA2] hover:text-[#5FD687]' 
+                      : 'text-[#3B82F6] hover:text-[#2563EB]'
+                  } ${isLikeLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <Image 
+                    src={isLiked ? '/feed/Icons/Like_Green.png' : '/feed/Icons/Like_Blue.png'}
+                    alt="Like"
+                    width={20}
+                    height={20}
+                    className="mr-1 sm:mr-2 w-4 h-4 sm:w-6 sm:h-6"
+                  />
+                  <span>{likesCount}</span>
+                </button>
+                <div className="flex items-center text-gray-300">
+                  <span className="mr-1 sm:mr-2 text-sm sm:text-lg">💬</span>
+                  <span className="text-sm sm:text-base">{commentsCount}</span>
+                </div>
+                <button className="p-1 sm:p-2 hover:bg-gray-700 rounded-full transition-colors duration-200">
+                  <img src="/feed/arrow-right 4.svg" alt="Share" width="20" height="20" className="w-4 h-4 sm:w-6 sm:h-6" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

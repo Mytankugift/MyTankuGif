@@ -94,12 +94,6 @@ const HomePage = () => {
             Comenzar Ahora
           </LocalizedClientLink>
           
-          <LocalizedClientLink
-            href="/store"
-            className="border-2 border-[#66DEDB] text-[#66DEDB] font-semibold px-8 py-4 rounded-full hover:bg-[#66DEDB] hover:text-black transition-all duration-300 hover:transform hover:scale-105 min-w-[200px]"
-          >
-            Explorar Tienda
-          </LocalizedClientLink>
         </div>
       </div>
 

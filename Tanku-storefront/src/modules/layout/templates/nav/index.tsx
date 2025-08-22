@@ -369,8 +369,8 @@ function NavContent() {
           </button>
 
           {/* Perfil */}
-          <LocalizedClientLink 
-            href="/account" 
+          <button 
+            onClick={handleAvatarClick}
             className="flex items-center gap-4 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
           >
             <Image 
@@ -386,7 +386,7 @@ function NavContent() {
             >
               Perfil
             </span>
-          </LocalizedClientLink>
+          </button>
 
           {/* Sorprende */}
           <LocalizedClientLink 
