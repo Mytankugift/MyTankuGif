@@ -15,10 +15,10 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   children,
 }) => {
   return (
-    <div className="flex-1  h-[100vh]" data-testid="account-page">
+    <div className="flex-1  h-[100vh] bg-[#1E1E1E]" data-testid="account-page">
       <div className="flex-1  h-full  w-full  bg-white flex ">
         <div className="h-full">
-          {customer && <AccountNav customer={customer} />}
+        
         </div>
         <div className=" w-full   overflow-auto ">
           <div className="flex-1 ">{children}</div>

@@ -92,7 +92,7 @@ const mockCategories = [
 
 function HomeContent() {
   // Context for personal info
-  const { personalInfo, isLoading, getUser } = usePersonalInfo()
+  const { personalInfo, isLoading, getUser ,refreshPersonalInfo , clearPersonalInfo} = usePersonalInfo()
   
   
   const [userStories, setUserStories] = useState<Story[]>([])
@@ -106,6 +106,8 @@ function HomeContent() {
   
   // Load products on component mount
   useEffect(() => {
+    clearPersonalInfo()
+    refreshPersonalInfo()
     fetchListStoreProduct().then(setProducts)
   }, [])
 

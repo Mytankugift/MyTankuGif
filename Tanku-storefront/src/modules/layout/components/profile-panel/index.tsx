@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Heart, PencilSquare, Trash, XMark, Plus, EllipsisHorizontal, Camera, Check, MediaPlay, Pencil, Spinner } from "@medusajs/icons"
+import { Heart, PencilSquare, Trash, XMark, Plus, EllipsisHorizontal, Camera, Check, MediaPlay, Pencil, Spinner, ArrowRightOnRectangle } from "@medusajs/icons"
+import { Tooltip, TooltipProvider } from "@medusajs/ui"
 import { getPosters, PosterData } from '../actions/get-posters'
-import { retrieveCustomer } from "@lib/data/customer"
+import { retrieveCustomer, signout } from "@lib/data/customer"
 import { togglePosterLike, getPosterReactions } from "@modules/home/components/actions/poster-reactions"
 import { getPosterComments, addPosterComment, editPosterComment, deletePosterComment, PosterComment } from "@modules/home/components/actions/poster-comments"
 import { listRegions } from "@lib/data/regions"
@@ -74,7 +75,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
   const [bannerUploading, setBannerUploading] = useState(false)
   
   // Use personal info context for banner URL
-  const { personalInfo, updateLocalPersonalInfo, refreshPersonalInfo } = usePersonalInfo()
+  const { personalInfo, updateLocalPersonalInfo, refreshPersonalInfo, clearPersonalInfo } = usePersonalInfo()
   const bannerUrl = personalInfo?.banner_profile_url || null
   
   // Social media editing states
@@ -669,6 +670,24 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
   }
   return (
     <div className="h-full flex flex-col relative">
+      {/* Logout Button */}
+      <div className="absolute top-2 right-5 z-10">
+        <TooltipProvider >
+          <Tooltip content="Cerrar sesión" className="z-90">
+            <button 
+              onClick={async () => {
+                await signout("co").then(() => {
+                  clearPersonalInfo()
+                })
+                
+              }} 
+              className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
+            >
+              <ArrowRightOnRectangle className="w-5 h-5 text-[#73FFA2]" />
+            </button>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
       {/* Fixed Close Arrow Button */}
       <button
         onClick={onClose}
@@ -1743,6 +1762,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
                     </div>
                   </div>
                 </div>
+                
               </div>
 
               {/* Acciones */}

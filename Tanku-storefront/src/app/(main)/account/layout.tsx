@@ -1,6 +1,7 @@
 import { retrieveCustomer } from "@lib/data/customer"
 import { Toaster } from "@medusajs/ui"
 import AccountLayout from "@modules/account/templates/account-layout"
+import { redirect } from "next/navigation"
 
 export default async function AccountPageLayout({
   dashboard,
@@ -13,7 +14,7 @@ export default async function AccountPageLayout({
 
   return (
     <AccountLayout customer={customer}>
-      {customer ? dashboard : login}
+      {customer ? redirect(`/`) : login}
       <Toaster />
     </AccountLayout>
   )

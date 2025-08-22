@@ -4,6 +4,10 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { fetchListStoreProduct } from "@modules/home/components/actions/get-list-store-products"
 import { getListUsers } from "@modules/social/actions/get-list-users"
+import { sendFriendRequest } from "@modules/social/actions/send-friend-request"
+import { acceptFriendRequest } from "@modules/social/actions/accept-friend-request"
+import { getFriendRequests, FriendRequest } from "@modules/social/actions/get-friend-requests"
+import { usePersonalInfo } from "@lib/context"
 
 interface Product {
   id: string
@@ -36,20 +40,71 @@ export default function ExploreSearch() {
   const [loading, setLoading] = useState(false)
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
+  
+  // Friendship state management
+  const [sentRequests, setSentRequests] = useState<FriendRequest[]>([])
+  const [receivedRequests, setReceivedRequests] = useState<FriendRequest[]>([])
+  const [sentRequestIds, setSentRequestIds] = useState<Set<string>>(new Set())
+  const [receivedRequestIds, setReceivedRequestIds] = useState<Set<string>>(new Set())
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set())
+
+  const { personalInfo } = usePersonalInfo()
 
   // Load initial data
   useEffect(() => {
+    if (!personalInfo) return
+    
     const loadData = async () => {
       setLoading(true)
       try {
-        const [productsData, usersData] = await Promise.all([
+        const [productsData, usersData, friendRequestsData] = await Promise.all([
           fetchListStoreProduct(),
-          getListUsers()
+          getListUsers(),
+          getFriendRequests(personalInfo.id)
         ])
+        
+        // Filter out current user from users list
+        const filteredUsersData = (usersData || []).filter((user: User) => user.id !== personalInfo.id)
+        
         setProducts(productsData || [])
-        setUsers(usersData || [])
+        setUsers(filteredUsersData)
         setFilteredProducts(productsData || [])
-        setFilteredUsers(usersData || [])
+        setFilteredUsers(filteredUsersData)
+        
+        // Set friendship data
+        setSentRequests(friendRequestsData.sent)
+        setReceivedRequests(friendRequestsData.received)
+        
+        // Create set of IDs for sent pending requests
+        const sentIds = new Set<string>(
+          friendRequestsData.sent
+            .filter((req: FriendRequest) => req.status === 'pending')
+            .map((req: FriendRequest) => req.receiver_id)
+        )
+        setSentRequestIds(sentIds)
+        
+        // Create set of IDs for received pending requests
+        const receivedIds = new Set<string>(
+          friendRequestsData.received
+            .filter((req: FriendRequest) => req.status === 'pending')
+            .map((req: FriendRequest) => req.sender_id)
+        )
+        setReceivedRequestIds(receivedIds)
+        
+        // Create set of friend IDs (accepted requests)
+        const acceptedSentIds = new Set<string>(
+          friendRequestsData.sent
+            .filter((req: FriendRequest) => req.status === 'accepted')
+            .map((req: FriendRequest) => req.receiver_id)
+        )
+        const acceptedReceivedIds = new Set<string>(
+          friendRequestsData.received
+            .filter((req: FriendRequest) => req.status === 'accepted')
+            .map((req: FriendRequest) => req.sender_id)
+        )
+        const allFriendIds = new Set<string>([...Array.from(acceptedSentIds), ...Array.from(acceptedReceivedIds)])
+        setFriendIds(allFriendIds)
+        
       } catch (error) {
         console.error('Error loading data:', error)
       } finally {
@@ -58,10 +113,12 @@ export default function ExploreSearch() {
     }
 
     loadData()
-  }, [])
+  }, [personalInfo])
 
   // Filter data based on search query
   useEffect(() => {
+    if (!personalInfo) return
+    
     if (!searchQuery.trim()) {
       setFilteredProducts(products)
       setFilteredUsers(users)
@@ -76,17 +133,19 @@ export default function ExploreSearch() {
       product.description?.toLowerCase().includes(query)
     )
     
-    // Filter users
+    // Filter users (excluding current user)
     const filteredUsrs = users.filter(user =>
-      user.first_name?.toLowerCase().includes(query) ||
-      user.last_name?.toLowerCase().includes(query) ||
-      user.email?.toLowerCase().includes(query) ||
-      `${user.first_name} ${user.last_name}`.toLowerCase().includes(query)
+      user.id !== personalInfo.id && (
+        user.first_name?.toLowerCase().includes(query) ||
+        user.last_name?.toLowerCase().includes(query) ||
+        user.email?.toLowerCase().includes(query) ||
+        `${user.first_name} ${user.last_name}`.toLowerCase().includes(query)
+      )
     )
 
     setFilteredProducts(filteredProds)
     setFilteredUsers(filteredUsrs)
-  }, [searchQuery, products, users])
+  }, [searchQuery, products, users, personalInfo])
 
   const getDisplayData = () => {
     switch (searchType) {
@@ -100,6 +159,47 @@ export default function ExploreSearch() {
   }
 
   const { products: displayProducts, users: displayUsers } = getDisplayData()
+
+  // Friendship functions
+  const handleSendFriendRequest = async (userId: string, message?: string) => {
+    if (!personalInfo) return
+    
+    try {
+      await sendFriendRequest({
+        sender_id: personalInfo.id,
+        receiver_id: userId,
+        message
+      })
+      alert('¡Solicitud de amistad enviada exitosamente!')
+      // Update local state to reflect sent request
+      setSentRequestIds(prev => new Set([...Array.from(prev), userId]))
+    } catch (error) {
+      console.error('Error al enviar solicitud de amistad:', error)
+      alert('Error al enviar la solicitud de amistad')
+    }
+  }
+
+  const handleAcceptFriendRequest = async (userId: string) => {
+    if (!personalInfo) return
+    
+    try {
+      await acceptFriendRequest({
+        sender_id: userId,
+        receiver_id: personalInfo.id
+      })
+      // Update local state to reflect accepted friendship
+      setReceivedRequestIds(prev => {
+        const newSet = new Set<string>(Array.from(prev))
+        newSet.delete(userId)
+        return newSet
+      })
+      setFriendIds(prev => new Set<string>([...Array.from(prev), userId]))
+      
+      alert('¡Solicitud de amistad aceptada exitosamente!')
+    } catch (error: any) {
+      alert(`Error: ${error.message}`)
+    }
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -235,9 +335,61 @@ export default function ExploreSearch() {
                         {user.first_name} {user.last_name}
                       </h4>
                       <p className="text-xs text-gray-400 mb-3">@{user.email?.split('@')[0] || 'usuario'}</p>
-                      <button className="w-full bg-[#73FFA2] hover:bg-[#66DEDB] text-black text-xs font-medium py-2 px-3 rounded-lg transition-colors">
-                        Conectar
-                      </button>
+                    </div>
+                    <div className="mt-auto">
+                      {friendIds.has(user.id) ? (
+                        <div className="w-full text-center">
+                          <button 
+                            disabled
+                            className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-medium cursor-not-allowed mb-2"
+                          >
+                            Ya son Amigos
+                          </button>
+                          <div className="flex items-center justify-center text-xs text-blue-400">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" clipRule="evenodd" />
+                            </svg>
+                            Amigos confirmados
+                          </div>
+                        </div>
+                      ) : receivedRequestIds.has(user.id) ? (
+                        <div className="w-full text-center">
+                          <button 
+                            onClick={() => handleAcceptFriendRequest(user.id)}
+                            className="w-full bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors duration-200 mb-2"
+                          >
+                            Aceptar Solicitud
+                          </button>
+                          <div className="flex items-center justify-center text-xs text-green-400">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 2L3 7v11a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V7l-7-5z" clipRule="evenodd" />
+                            </svg>
+                            Te envió solicitud
+                          </div>
+                        </div>
+                      ) : sentRequestIds.has(user.id) ? (
+                        <div className="w-full text-center">
+                          <button 
+                            disabled
+                            className="w-full bg-gray-600 text-gray-300 px-3 py-2 rounded-lg text-xs font-medium cursor-not-allowed mb-2"
+                          >
+                            Solicitud Enviada
+                          </button>
+                          <div className="flex items-center justify-center text-xs text-gray-400">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            Pendiente
+                          </div>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => handleSendFriendRequest(user.id)}
+                          className="w-full bg-[#73FFA2] hover:bg-[#66DEDB] text-black text-xs font-medium py-2 px-3 rounded-lg transition-colors"
+                        >
+                          Agregar Amigo
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -131,7 +131,7 @@ export async function login(_currentState: unknown, formData: FormData) {
         await setAuthToken(token as string)
         const customerCacheTag = await getCacheTag("customers")
         revalidateTag(customerCacheTag)
-        
+        redirect(`/`)
       })
       
   } catch (error: any) {
@@ -143,7 +143,7 @@ export async function login(_currentState: unknown, formData: FormData) {
   } catch (error: any) {
     return error.toString()
   }
-  redirect(`/`)
+ 
 }
 
 type DecodedToken = {

@@ -806,10 +806,14 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
   const [activeMedia, setActiveMedia] = useState<'image' | 'video'>('image')
   // Función para obtener el primer frame del video como preview
   const getVideoPreview = (videoUrl: string): Promise<string> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const video = document.createElement('video')
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
+      
+      // Configurar CORS para evitar canvas tainted
+      video.crossOrigin = 'anonymous'
+      video.muted = true // Necesario para algunos navegadores
       
       video.onloadeddata = () => {
         canvas.width = video.videoWidth
@@ -818,10 +822,21 @@ const PosterCard = ({ poster, onOpenModal }: { poster: Poster, onOpenModal: (pos
       }
       
       video.onseeked = () => {
-        if (ctx) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-          resolve(canvas?.toDataURL())
+        try {
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+            resolve(canvas.toDataURL())
+          }
+        } catch (error) {
+          console.warn('Error generating video preview:', error)
+          // Fallback: usar la URL del video directamente o una imagen por defecto
+          resolve('/feed/video-placeholder.png')
         }
+      }
+      
+      video.onerror = () => {
+        console.warn('Error loading video for preview')
+        resolve('/feed/video-placeholder.png')
       }
       
       video.src = videoUrl
