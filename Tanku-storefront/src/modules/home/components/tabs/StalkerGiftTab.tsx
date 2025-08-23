@@ -3,6 +3,20 @@
 import { useState, useRef, useEffect } from "react"
 
 export default function StalkerGiftTab() {
+  // Create a ref for the video element
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  // Use effect to play the video when component mounts
+  useEffect(() => {
+    if (videoRef.current) {
+      // Play the video
+      videoRef.current.play().catch(error => {
+        console.error("Error autoplaying video:", error)
+        // Many browsers require user interaction before autoplay with sound
+        // You could add a muted attribute if autoplay is critical
+      })
+    }
+  }, []) // Empty dependency array means this runs once on mount
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -17,9 +31,13 @@ export default function StalkerGiftTab() {
       {/* Video Player */}
       <div className="bg-black rounded-2xl overflow-hidden mb-6">
         <video
-          className="w-full h-auto"
+          ref={videoRef}
+          className="w-full h-[80vh]"
           controls
-          preload="metadata"
+          preload="auto"
+          autoPlay
+          playsInline
+          muted
         >
           <source src="/funcionalidadtdes/TANKU - StalkerGift.mp4" type="video/mp4" />
           Tu navegador no soporta el elemento de video.
