@@ -217,7 +217,7 @@ const CircularMenu = () => {
       />
 
       {/* Central Circle */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 flex items-center justify-center z-10">
         <div className="w-28 h-28 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 border-4 border-[#73FFA2] flex items-center justify-center relative overflow-hidden" style={{
           boxShadow: `
             0 0 10px rgba(115, 255, 162, 0.4),

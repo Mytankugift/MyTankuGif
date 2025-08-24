@@ -13,6 +13,7 @@ import { getListWishList } from "@modules/home/components/actions/get-list-wish-
 import { deleteProductToWishList } from "@modules/home/components/actions/delete-product-to-wish_list"
 import { deleteWishList } from "@modules/account/actionts/delete-wish-list"
 import { updateBanner } from "@modules/personal-info/actions/update-banner"
+import { updateAvatar } from "@modules/personal-info/actions/update-avatar"
 import { updateSocialNetworks } from "../actions/update-social-networks"
 import { usePersonalInfo } from "@lib/context/personal-info-context"
 import Link from "next/link"
@@ -93,6 +94,10 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
   const [aliasValue, setAliasValue] = useState('')
   const [aliasSaving, setAliasSaving] = useState(false)
   const [aliasError, setAliasError] = useState('')
+
+  // Avatar editing states
+  const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Estados para el modal
   const [selectedPoster, setSelectedPoster] = useState<PosterData | null>(null)
@@ -650,6 +655,62 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
     const value = socialMediaValues[platform as keyof typeof socialMediaValues]
     return value || '@usuario'
   }
+
+  // Avatar editing functions
+  const handleEditAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validar que sea una imagen
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen válida')
+      return
+    }
+
+    // Validar tamaño (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen debe ser menor a 5MB')
+      return
+    }
+
+    setIsUpdatingAvatar(true)
+
+    try {
+      // Verificar que tenemos un customer_id
+      if (!customer?.id) {
+        alert('Error: No se pudo identificar al usuario')
+        return
+      }
+      
+      const result = await updateAvatar({
+        customer_id: customer.id,
+        avatar: file
+      })
+
+      if (result.success && result.data?.avatar_url) {
+        // Refresh context to get updated avatar
+        await refreshPersonalInfo()
+        console.log('Avatar actualizado exitosamente:', result.data.avatar_url)
+      } else {
+        console.error('Error al actualizar avatar:', result.error)
+        alert('Error al actualizar el avatar: ' + result.error)
+      }
+    } catch (error) {
+      console.error('Error updating avatar:', error)
+      alert('Error al actualizar el avatar')
+    } finally {
+      setIsUpdatingAvatar(false)
+      // Limpiar el input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
   
   // Handle banner click to trigger file input
   const handleBannerClick = () => {
@@ -765,9 +826,35 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
-                      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#73FFA2] break-words">
-                        {customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || customer.email : 'Usuario'}
-                      </h1>
+                      <div className="flex items-center gap-2">
+                        {/* Avatar edit button - only visible on mobile */}
+                        <div className="relative group flex-shrink-0 sm:hidden">
+                  <div className={`w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center ${
+                    isUpdatingAvatar ? "opacity-50" : ""
+                  }`}>
+                    <Image
+                      src={personalInfo?.avatar_url || "/default-avatar.png"}
+                      alt="Avatar del usuario"
+                      width={96}
+                      height={96}
+                      className="object-cover rounded-full w-full h-full"
+                    />
+                  </div>
+                  {/* Avatar edit button - visible on hover for desktop, always visible on mobile */}
+                  <button
+                    onClick={handleEditAvatarClick}
+                    className="absolute -bottom-1 -right-1 w-6 h-6 sm:w-7 sm:h-7 bg-[#73FFA2] rounded-full flex items-center justify-center shadow-lg hover:bg-[#66e891] transition-all duration-200 sm:opacity-0 sm:group-hover:opacity-100"
+                    disabled={isUpdatingAvatar}
+                    title="Cambiar avatar"
+                  >
+                    <PencilSquare className="w-3 h-3 sm:w-4 sm:h-4 text-gray-800" />
+                  </button>
+                </div>
+                        
+                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#73FFA2] break-words">
+                          {customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || customer.email : 'Usuario'}
+                        </h1>
+                      </div>
                       <button
                         onClick={() => setIsEditingProfile(true)}
                         className="p-1.5 sm:p-2 rounded-full hover:bg-gray-700 transition-colors"
@@ -1797,6 +1884,15 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
           </div>
         </div>
       )}
+
+      {/* Hidden file input for avatar upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
     </div>
   )
 }

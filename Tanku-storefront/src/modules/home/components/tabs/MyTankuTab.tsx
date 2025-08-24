@@ -22,6 +22,12 @@ export default function MyTankuTab({ products, customerId }: MyTankuTabProps) {
       />
       {/* Black Friday Ad */}
       <BlackFridayAd products={products} />
+
+      <UnifiedFeed 
+        products={products} 
+        customerId={customerId} 
+        isFeatured={false} 
+      />
     </div>
   )
 }    

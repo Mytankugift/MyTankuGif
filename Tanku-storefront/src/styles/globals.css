@@ -2,6 +2,14 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
+html, body {
+  background-color: #1E1E1E;
+  min-height: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 @layer utilities {
   /* Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar {

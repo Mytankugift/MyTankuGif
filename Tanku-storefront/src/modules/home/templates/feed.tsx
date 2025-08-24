@@ -1,20 +1,20 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from "react"
 import Image from "next/image"
-import { 
-  House, 
-  ShoppingBag, 
-  Heart, 
-  Star, 
-  Gift, 
-  Phone, 
+import {
+  House,
+  ShoppingBag,
+  Heart,
+  Star,
+  Gift,
+  Phone,
   Camera,
   Book,
   BuildingStorefront,
 } from "@medusajs/icons"
 import PreviewProductsTanku from "../components/preview-products-tanku.ts"
-import BlackFridayAd from '../components/black-friday-ad'
+import BlackFridayAd from "../components/black-friday-ad"
 import { fetchListStoreProduct } from "@modules/home/components/actions/get-list-store-products"
 import StoryUpload, { Story } from "@modules/home/components/story-upload"
 import StoryViewer from "@modules/home/components/story-viewer"
@@ -22,7 +22,7 @@ import FeedPosters from "@modules/home/components/feed-posters"
 import { retrieveCustomer } from "@lib/data/customer"
 import { getStories } from "@modules/home/components/actions/get-stories"
 import { usePersonalInfo } from "@lib/context"
-import Link from 'next/link.js'
+import Link from "next/link.js"
 import UnifiedFeed from "@modules/home/components/unified-feed"
 import TabNavigation from "@modules/home/components/tabs/TabNavigation"
 
@@ -71,30 +71,130 @@ const mockFriendsStories: Story[] = [
 
 // Generate categories with images from /public/categories
 const mockCategories = [
-  { id: 1, name: "CELEBRACIONES", image: "/categories/Celebraciones2.png", color: "border-yellow-400" , url: "/celebraciones" },
-  { id: 16, name: "VEHICULOS", image: "/categories/Vehiculos.gif", color: "border-blue-400" , url: "/vehiculos" },
-  { id: 2, name: "DEPORTES Y HOBBIES", image: "/categories/Deportes_y_Hobbies.png", color: "border-blue-400" , url: "/deportes-y-hobbies" },
-  { id: 15, name: "OFICINA Y ESCOLAR", image: "/categories/Oficina-Y-Escolar.gif", color: "border-blue-400" , url: "/oficina-y-escolar" },
-  { id: 3, name: "JUGUETERÍA", image: "/categories/Jugueteria2.png", color: "border-red-400" , url: "/jugueteria" },
-  { id: 14, name: "JOYAS Y RELOJES", image: "/categories/Joyas-Y-Relojes.gif", color: "border-blue-400" , url: "/joyeria" },
-  { id: 4, name: "LIBROS Y MÚSICA", image: "/categories/Libros_y_Musica.png", color: "border-green-400" , url: "/libros-y-musica" },
-  { id: 13, name: "EXPERIENCIAS", image: "/categories/Experiencias.gif", color: "border-blue-400" , url: "/experiencias" },
-  { id: 5, name: "MASCOTAS", image: "/categories/Mascotas2.png", color: "border-purple-400" , url: "/mascotas" },
-  { id: 6, name: "MODA HOMBRES", image: "/categories/Moda_Hombres.png", color: "border-pink-400" , url: "/hombres" },
-  { id: 12, name: "CALZADO", image: "/categories/Calzado.gif", color: "border-blue-400" , url: "/calzado" },
-  { id: 7, name: "MODA MUJER", image: "/categories/Moda_Mujer.png", color: "border-indigo-400" , url: "/moda-mujer" },
-  { id: 8, name: "MODA NIÑOS", image: "/categories/Moda_Niños.png", color: "border-teal-400" , url: "/moda-ninos" },
-  { id: 11, name: "BOLSOS MALETAS VIAJE", image: "/categories/Bolsos-Maletas-Y-Viaje.gif", color: "border-blue-400" , url: "/bolsos-maletas-viaje" },
-  { id: 9, name: "SALUD Y BELLEZA", image: "/categories/Salud_y_Belleza.png", color: "border-orange-400" , url: "/salud-y-belleza" },
-  { id: 10, name: "TECNOLOGÍA", image: "/categories/Tecnologia.png", color: "border-cyan-400" , url: "/tecnologia" },
-  
+  {
+    id: 1,
+    name: "CELEBRACIONES",
+    image: "/categories/Celebraciones2.png",
+    color: "border-yellow-400",
+    url: "/celebraciones",
+  },
+  {
+    id: 16,
+    name: "VEHICULOS",
+    image: "/categories/Vehiculos.gif",
+    color: "border-blue-400",
+    url: "/vehiculos",
+  },
+  {
+    id: 2,
+    name: "DEPORTES Y HOBBIES",
+    image: "/categories/Deportes_y_Hobbies.png",
+    color: "border-blue-400",
+    url: "/deportes-y-hobbies",
+  },
+  {
+    id: 15,
+    name: "OFICINA Y ESCOLAR",
+    image: "/categories/Oficina-Y-Escolar.gif",
+    color: "border-blue-400",
+    url: "/oficina-y-escolar",
+  },
+  {
+    id: 3,
+    name: "JUGUETERÍA",
+    image: "/categories/Jugueteria2.png",
+    color: "border-red-400",
+    url: "/jugueteria",
+  },
+  {
+    id: 14,
+    name: "JOYAS Y RELOJES",
+    image: "/categories/Joyas-Y-Relojes.gif",
+    color: "border-blue-400",
+    url: "/joyeria",
+  },
+  {
+    id: 4,
+    name: "LIBROS Y MÚSICA",
+    image: "/categories/Libros_y_Musica.png",
+    color: "border-green-400",
+    url: "/libros-y-musica",
+  },
+  {
+    id: 13,
+    name: "EXPERIENCIAS",
+    image: "/categories/Experiencias.gif",
+    color: "border-blue-400",
+    url: "/experiencias",
+  },
+  {
+    id: 5,
+    name: "MASCOTAS",
+    image: "/categories/Mascotas2.png",
+    color: "border-purple-400",
+    url: "/mascotas",
+  },
+  {
+    id: 6,
+    name: "MODA HOMBRES",
+    image: "/categories/Moda_Hombres.png",
+    color: "border-pink-400",
+    url: "/hombres",
+  },
+  {
+    id: 12,
+    name: "CALZADO",
+    image: "/categories/Calzado.gif",
+    color: "border-blue-400",
+    url: "/calzado",
+  },
+  {
+    id: 7,
+    name: "MODA MUJER",
+    image: "/categories/Moda_Mujer.png",
+    color: "border-indigo-400",
+    url: "/moda-mujer",
+  },
+  {
+    id: 8,
+    name: "MODA NIÑOS",
+    image: "/categories/Moda_Niños.png",
+    color: "border-teal-400",
+    url: "/moda-ninos",
+  },
+  {
+    id: 11,
+    name: "BOLSOS MALETAS VIAJE",
+    image: "/categories/Bolsos-Maletas-Y-Viaje.gif",
+    color: "border-blue-400",
+    url: "/bolsos-maletas-viaje",
+  },
+  {
+    id: 9,
+    name: "SALUD Y BELLEZA",
+    image: "/categories/Salud_y_Belleza.png",
+    color: "border-orange-400",
+    url: "/salud-y-belleza",
+  },
+  {
+    id: 10,
+    name: "TECNOLOGÍA",
+    image: "/categories/Tecnologia.png",
+    color: "border-cyan-400",
+    url: "/tecnologia",
+  },
 ]
 
 function HomeContent() {
   // Context for personal info
-  const { personalInfo, isLoading, getUser ,refreshPersonalInfo , clearPersonalInfo} = usePersonalInfo()
-  
-  
+  const {
+    personalInfo,
+    isLoading,
+    getUser,
+    refreshPersonalInfo,
+    clearPersonalInfo,
+  } = usePersonalInfo()
+
   const [userStories, setUserStories] = useState<Story[]>([])
   const [friendsStories, setFriendsStories] = useState<Story[]>([])
   const [allStories, setAllStories] = useState<Story[]>([])
@@ -103,7 +203,7 @@ function HomeContent() {
   const [products, setProducts] = useState<any[]>([])
   const [storiesLoading, setStoriesLoading] = useState(false)
   const [categorySliderIndex, setCategorySliderIndex] = useState(0)
-  
+
   // Load products on component mount
   useEffect(() => {
     clearPersonalInfo()
@@ -119,38 +219,44 @@ function HomeContent() {
         .then((response) => {
           if (response.success) {
             // Convertir las historias de la base de datos al formato esperado por el frontend
-            const convertedUserStories = response.userStories.map((story: any) => ({
-              id: story.id,
-              customer_id: story.customer_id,
-              name: story.customer_name || "Tú", // Nombre real del usuario
-              avatar: "/feed/avatar.png", // Avatar por defecto
-              timestamp: new Date(story.created_at),
-              media: story.files?.map((file: any) => ({
-                id: file.id,
-                type: file.file_type,
-                url: file.file_url
-              })) || []
-            }))
-            
-            const convertedFriendsStories = response.friendsStories.map((story: any) => ({
-              id: story.id,
-              customer_id: story.customer_id,
-              name: story.customer_name || "Amigo", // Nombre real del amigo
-              avatar: "/feed/avatar.png", // Avatar por defecto
-              timestamp: new Date(story.created_at),
-              media: story.files?.map((file: any) => ({
-                id: file.id,
-                type: file.file_type,
-                url: file.file_url
-              })) || []
-            }))
-            
+            const convertedUserStories = response.userStories.map(
+              (story: any) => ({
+                id: story.id,
+                customer_id: story.customer_id,
+                name: story.customer_name || "Tú", // Nombre real del usuario
+                avatar: "/feed/avatar.png", // Avatar por defecto
+                timestamp: new Date(story.created_at),
+                media:
+                  story.files?.map((file: any) => ({
+                    id: file.id,
+                    type: file.file_type,
+                    url: file.file_url,
+                  })) || [],
+              })
+            )
+
+            const convertedFriendsStories = response.friendsStories.map(
+              (story: any) => ({
+                id: story.id,
+                customer_id: story.customer_id,
+                name: story.customer_name || "Amigo", // Nombre real del amigo
+                avatar: "/feed/avatar.png", // Avatar por defecto
+                timestamp: new Date(story.created_at),
+                media:
+                  story.files?.map((file: any) => ({
+                    id: file.id,
+                    type: file.file_type,
+                    url: file.file_url,
+                  })) || [],
+              })
+            )
+
             setUserStories(convertedUserStories)
             setFriendsStories(convertedFriendsStories)
           }
         })
         .catch((error) => {
-          console.error('Error loading stories:', error)
+          console.error("Error loading stories:", error)
         })
         .finally(() => {
           setStoriesLoading(false)
@@ -161,25 +267,34 @@ function HomeContent() {
   // Group stories by user and update all stories when user or friends stories change
   useEffect(() => {
     const allStoriesArray = [...userStories, ...friendsStories]
-    
-    console.log('=== AGRUPAMIENTO DE HISTORIAS ===');
-    console.log('Total historias antes de agrupar:', allStoriesArray.length);
-    console.log('Historias individuales:', allStoriesArray.map(s => ({ id: s.id, customer_id: s.customer_id, name: s.name })));
-    
+
+    console.log("=== AGRUPAMIENTO DE HISTORIAS ===")
+    console.log("Total historias antes de agrupar:", allStoriesArray.length)
+    console.log(
+      "Historias individuales:",
+      allStoriesArray.map((s) => ({
+        id: s.id,
+        customer_id: s.customer_id,
+        name: s.name,
+      }))
+    )
+
     // Group stories by customer_id to show only one bubble per user
     const groupedStories = allStoriesArray.reduce((acc: any, story: any) => {
-      const customerId = story.customer_id;
-      
-      console.log(`Procesando historia: ${story.id}, customer_id: ${customerId}, nombre: ${story.name}`);
-      
+      const customerId = story.customer_id
+
+      console.log(
+        `Procesando historia: ${story.id}, customer_id: ${customerId}, nombre: ${story.name}`
+      )
+
       if (!customerId) {
-        console.warn('Historia sin customer_id:', story);
-        return acc;
+        console.warn("Historia sin customer_id:", story)
+        return acc
       }
-      
+
       if (!acc[customerId]) {
         // First story for this user - create the group
-        console.log(`Creando nuevo grupo para customer_id: ${customerId}`);
+        console.log(`Creando nuevo grupo para customer_id: ${customerId}`)
         acc[customerId] = {
           id: story.id,
           customer_id: customerId,
@@ -187,81 +302,92 @@ function HomeContent() {
           avatar: story.avatar,
           timestamp: story.timestamp,
           media: [...story.media],
-          stories: [story]
+          stories: [story],
         }
       } else {
         // Additional story for existing user - merge media and update timestamp if newer
-        console.log(`Agregando historia al grupo existente para customer_id: ${customerId}`);
+        console.log(
+          `Agregando historia al grupo existente para customer_id: ${customerId}`
+        )
         acc[customerId].media.push(...story.media)
         acc[customerId].stories.push(story)
-        
+
         // Keep the most recent timestamp
         if (story.timestamp > acc[customerId].timestamp) {
           acc[customerId].timestamp = story.timestamp
         }
       }
-      
+
       return acc
     }, {})
-    
+
     // Convert back to array and sort by most recent timestamp
-    const groupedStoriesArray = Object.values(groupedStories).sort((a: any, b: any) => 
-      b.timestamp.getTime() - a.timestamp.getTime()
+    const groupedStoriesArray = Object.values(groupedStories).sort(
+      (a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime()
     ) as Story[]
-    
-    console.log('Total grupos después de agrupar:', groupedStoriesArray.length);
-    console.log('Grupos finales:', groupedStoriesArray.map(s => ({ 
-      customer_id: s.customer_id, 
-      name: s.name, 
-      totalMedia: s.media?.length,
-      totalStories: s.stories?.length 
-    })));
-    
+
+    console.log("Total grupos después de agrupar:", groupedStoriesArray.length)
+    console.log(
+      "Grupos finales:",
+      groupedStoriesArray.map((s) => ({
+        customer_id: s.customer_id,
+        name: s.name,
+        totalMedia: s.media?.length,
+        totalStories: s.stories?.length,
+      }))
+    )
+
     setAllStories(groupedStoriesArray)
   }, [userStories, friendsStories])
 
   const handleStoryCreate = (newStory: Story) => {
     // Agregar la historia temporalmente al estado local para feedback inmediato
-    setUserStories(prev => [newStory, ...prev])
-    
+    setUserStories((prev) => [newStory, ...prev])
+
     // Recargar todas las historias desde la base de datos para obtener la información completa
     if (personalInfo?.id) {
       getStories(personalInfo.id)
         .then((response) => {
           if (response.success) {
             // Convertir las historias de la base de datos al formato esperado por el frontend
-            const convertedUserStories = response.userStories.map((story: any) => ({
-              id: story.id,
-              customer_id: story.customer_id,
-              name: story.customer_name || "Tú",
-              avatar: "/feed/avatar.png",
-              timestamp: new Date(story.created_at),
-              media: story.files?.map((file: any) => ({
-                id: file.id,
-                type: file.file_type,
-                url: file.file_url
-              })) || []
-            }))
-            
-            const convertedFriendsStories = response.friendsStories.map((story: any) => ({
-              id: story.id,
-              customer_id: story.customer_id,
-              name: story.customer_name || "Amigo",
-              avatar: "/feed/avatar.png",
-              timestamp: new Date(story.created_at),
-              media: story.files?.map((file: any) => ({
-                id: file.id,
-                type: file.file_type,
-                url: file.file_url
-              })) || []
-            }))
-            
+            const convertedUserStories = response.userStories.map(
+              (story: any) => ({
+                id: story.id,
+                customer_id: story.customer_id,
+                name: story.customer_name || "Tú",
+                avatar: "/feed/avatar.png",
+                timestamp: new Date(story.created_at),
+                media:
+                  story.files?.map((file: any) => ({
+                    id: file.id,
+                    type: file.file_type,
+                    url: file.file_url,
+                  })) || [],
+              })
+            )
+
+            const convertedFriendsStories = response.friendsStories.map(
+              (story: any) => ({
+                id: story.id,
+                customer_id: story.customer_id,
+                name: story.customer_name || "Amigo",
+                avatar: "/feed/avatar.png",
+                timestamp: new Date(story.created_at),
+                media:
+                  story.files?.map((file: any) => ({
+                    id: file.id,
+                    type: file.file_type,
+                    url: file.file_url,
+                  })) || [],
+              })
+            )
+
             setUserStories(convertedUserStories)
             setFriendsStories(convertedFriendsStories)
           }
         })
         .catch((error) => {
-          console.error('Error reloading stories after creation:', error)
+          console.error("Error reloading stories after creation:", error)
         })
     }
   }
@@ -284,49 +410,55 @@ function HomeContent() {
   const maxSliderIndex = Math.max(0, mockCategories.length - categoriesPerView)
 
   const handleCategoryNext = () => {
-    setCategorySliderIndex(prev => Math.min(prev + 1, maxSliderIndex))
+    setCategorySliderIndex((prev) => Math.min(prev + 1, maxSliderIndex))
   }
 
   const handleCategoryPrev = () => {
-    setCategorySliderIndex(prev => Math.max(prev - 1, 0))
+    setCategorySliderIndex((prev) => Math.max(prev - 1, 0))
   }
 
   const getVisibleCategories = () => {
-    return mockCategories.slice(categorySliderIndex, categorySliderIndex + categoriesPerView)
+    return mockCategories.slice(
+      categorySliderIndex,
+      categorySliderIndex + categoriesPerView
+    )
   }
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden" style={{ backgroundColor: '#1E1E1E' }}>
+    <div
+      className="min-h-screen w-full overflow-x-hidden"
+      style={{ backgroundColor: "#1E1E1E" }}
+    >
       {/* Stories Section */}
-      <div className="p-2 sm:p-4 flex flex-col md:flex-row justify-between items-start w-full gap-4">
+      <div className="p-2 sm:p-3 md:p-4 flex flex-col md:flex-row justify-between items-start w-full gap-2 sm:gap-3 md:gap-4">
         {/* Stories Container */}
-        <div className="flex-1 min-w-0 md:mr-4">
-          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
+        <div className="flex-1 min-w-0 md:mr-2 lg:mr-4">
+          <div className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto pb-2 sm:pb-3 md:pb-4 snap-x snap-mandatory">
             {/* Story Upload Component */}
-            <StoryUpload 
+            <StoryUpload
               onStoryCreate={handleStoryCreate}
               userAvatar={personalInfo?.avatar_url || "/feed/avatar.png"}
               userName="Tu Historia"
               customer_id={personalInfo?.id}
             />
-            
+
             {/* Grouped Stories (User + Friends) */}
             {allStories.map((story, index) => (
-              <div 
-                key={`${story.customer_id}-${story.id}`} 
-                className="flex flex-col items-center min-w-[80px] flex-shrink-0 cursor-pointer"
+              <div
+                key={`${story.customer_id}-${story.id}`}
+                className="flex flex-col items-center min-w-[60px] sm:min-w-[70px] md:min-w-[80px] flex-shrink-0 cursor-pointer"
                 onClick={() => handleStoryClick(index)}
               >
                 <div className="relative">
-                  <div 
-                    className="w-16 h-16 rounded-full p-0.5 mb-2"
+                  <div
+                    className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full p-0.5 mb-1 sm:mb-1.5 md:mb-2"
                     style={{
-                      background: 'linear-gradient(45deg, #1A485C, #73FFA2)'
+                      background: "linear-gradient(45deg, #1A485C, #73FFA2)",
                     }}
                   >
                     <div className="w-full h-full rounded-full overflow-hidden bg-transparent">
                       {story.media && story.media.length > 0 ? (
-                        story.media[0].type === 'image' ? (
+                        story.media[0].type === "image" ? (
                           <Image
                             src={story.media[0].url}
                             alt={story.name}
@@ -334,7 +466,7 @@ function HomeContent() {
                             height={60}
                             className="w-full h-full object-cover"
                           />
-                        ) : story.media[0].type === 'video' ? (
+                        ) : story.media[0].type === "video" ? (
                           <div className="relative w-full h-full">
                             <video
                               src={story.media[0].url}
@@ -370,88 +502,92 @@ function HomeContent() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Story dots indicator */}
                 {story.stories && story.stories.length > 1 && (
                   <div className="flex justify-center gap-1 mb-1">
-                    {Array.from({ length: Math.min(story.stories.length, 5) }).map((_, dotIndex) => (
-                      <div 
+                    {Array.from({
+                      length: Math.min(story.stories.length, 5),
+                    }).map((_, dotIndex) => (
+                      <div
                         key={dotIndex}
                         className="w-1.5 h-1.5 rounded-full bg-[#66DEDB]"
                       />
                     ))}
                     {story.stories.length > 5 && (
-                      <span className="text-[#66DEDB] text-xs ml-1">+{story.stories.length - 5}</span>
+                      <span className="text-[#66DEDB] text-xs ml-1">
+                        +{story.stories.length - 5}
+                      </span>
                     )}
                   </div>
                 )}
-                
-                <span className="text-xs text-white text-center max-w-[80px] truncate">
+
+                <span className="text-xs sm:text-xs md:text-xs text-white text-center max-w-[60px] sm:max-w-[70px] md:max-w-[80px] truncate">
                   {story.name}
                 </span>
               </div>
             ))}
           </div>
         </div>
-        
+
         {/* Right Icons */}
-        <div className="hidden md:flex gap-3 flex-shrink-0">
+        <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0">
           {/* Search Icon */}
-          <div className="flex items-center justify-center w-10 h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
+          <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
             <Image
               src="/feed/Icons/Search_Green.png"
               alt="Buscar"
               width={24}
               height={24}
-              className="object-contain group-hover:hidden"
+              className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
             />
             <Image
               src="/feed/Icons/Search_Blue.png"
               alt="Buscar"
               width={24}
               height={24}
-              className="object-contain hidden group-hover:block"
+              className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
             />
           </div>
 
           {/* Messages Icon */}
-          <div className="flex items-center justify-center w-10 h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
+          <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
             <Image
               src="/feed/Icons/Chat_Green.png"
               alt="Mensajes"
               width={24}
               height={24}
-              className="object-contain group-hover:hidden"
+              className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
             />
             <Image
               src="/feed/Icons/Chat_Blue.png"
               alt="Mensajes"
               width={24}
               height={24}
-              className="object-contain hidden group-hover:block"
+              className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
             />
           </div>
 
           {/* Notifications Icon */}
-          <div className="flex items-center justify-center w-10 h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
+          <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
             <Image
               src="/feed/Icons/Notification_Green.png"
               alt="Notificaciones"
               width={24}
               height={24}
-              className="object-contain group-hover:hidden"
+              className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
             />
             <Image
               src="/feed/Icons/Notification_Blue.png"
               alt="Notificaciones"
               width={24}
               height={24}
-              className="object-contain hidden group-hover:block"
+              className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
             />
           </div>
 
           {/* Cart Icon */}
-          <div className="flex items-center justify-center w-10 h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
+          <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group">
             {/* <Image
               src="/feed/Icons/Shopping_Cart_Green.png"
               alt="Carrito"
@@ -471,27 +607,30 @@ function HomeContent() {
       </div>
 
       {/* Animated Marquee Message */}
-      <div className="px-4 mb-6">
-        <div className="rounded-lg p-4 overflow-hidden w-full">
+      <div className="px-2 sm:px-3 md:px-4 mb-4 sm:mb-5 md:mb-6">
+        <div className="rounded-lg p-2 sm:p-3 md:p-4 overflow-hidden w-full">
           <div className="animate-marquee whitespace-nowrap">
-            <span className="text-[#66DEDB] text-2xl sm:text-3xl lg:text-4xl ">
-              Bienvenido a TANKU el primer Give-commerce donde puedes encontrar productos únicos y especiales para ti y tus seres queridos ✨ 
-              ¡Descubre las mejores ofertas y sorpresas que tenemos para ti! 🎁 
-              Únete a nuestra comunidad y comparte tus experiencias con otros usuarios 🌟
+            <span className="text-[#66DEDB] text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl">
+              Bienvenido a TANKU el primer GivE-Commerce del mundo: donde la
+              gratitud y admiración transforman la forma de comprar. Descubre el
+              verdadero significado del agradecimiento y conecta con lo y los
+              que realmente amas.
             </span>
           </div>
         </div>
       </div>
 
       {/* Categories Slider */}
-      <div className="px-2 sm:px-4 mb-8">
+      <div className="px-2 sm:px-3 md:px-4 mb-6 sm:mb-7 md:mb-8">
         {/* Mobile Categories Carousel */}
         <div className="md:hidden">
-          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4">
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-2 sm:-mx-4 px-2 sm:px-4">
             {getVisibleCategories().map((category) => (
-              <div key={category.id} className="flex-shrink-0 w-40">
+              <div key={category.id} className="flex-shrink-0 w-32 sm:w-36 md:w-40">
                 <Link href={"/categories" + category.url}>
-                  <div className={`w-40 h-24 rounded-xl border-2 ${category.color} hover:scale-105 transition-transform cursor-pointer overflow-hidden relative group`}>
+                  <div
+                    className={`w-32 h-20 sm:w-36 sm:h-22 md:w-40 md:h-24 rounded-xl border-2 ${category.color} hover:scale-105 transition-transform cursor-pointer overflow-hidden relative group`}
+                  >
                     <Image
                       src={category.image}
                       alt={category.name}
@@ -499,7 +638,7 @@ function HomeContent() {
                       height={96}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-black/20 flex items-end p-2">
+                    <div className="absolute inset-0 bg-black/20 flex items-end p-1.5 sm:p-2">
                       <span className="text-white text-xs font-bold text-center w-full leading-tight">
                         {category.name}
                       </span>
@@ -514,95 +653,112 @@ function HomeContent() {
         {/* Categories Container with Navigation Arrows (Desktop/Tablet) */}
         <div className="relative hidden md:flex items-center">
           {/* Left Arrow - Vertically Centered */}
-          <button 
+          <button
             onClick={handleCategoryPrev}
             disabled={categorySliderIndex === 0}
-            className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-lg"
+            className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center transition-colors shadow-lg"
           >
             <Image
               src="/feed/Flecha.svg"
               alt="Previous"
               width={20}
               height={20}
-              className="w-5 h-5"
+              className="w-4 h-4 md:w-5 md:h-5"
             />
           </button>
 
           {/* Right Arrow - Vertically Centered */}
-          <button 
+          <button
             onClick={handleCategoryNext}
             disabled={categorySliderIndex >= maxSliderIndex}
-            className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-lg"
+            className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center transition-colors shadow-lg"
           >
             <Image
               src="/feed/Flecha.svg"
               alt="Next"
               width={20}
               height={20}
-              className="w-5 h-5 transform rotate-180"
+              className="w-4 h-4 md:w-5 md:h-5 transform rotate-180"
             />
           </button>
 
           {/* Categories Grid with Full Width */}
-          <div className="w-full px-8">
+          <div className="w-full px-6 md:px-7 lg:px-8">
             {/* First Row - 5 categories */}
-            <div className="flex justify-between mb-6">
-              {getVisibleCategories().slice(0, 5).map((category, index) => (
-                <div key={category.id} className="flex flex-col items-center flex-1 max-w-[280px]">
-                  <Link href={"/categories" + category.url}>
-                  <div className={`w-52 h-32 rounded-2xl border-2 ${category.color}  hover:scale-105 transition-transform cursor-pointer overflow-hidden relative group`}>
-                    <Image
-                      src={category.image}
-                      alt={category.name}
-                      width={208}
-                      height={128}
-                      className="w-full h-full object-cover"
-                    />
-                    {/* Overlay with title */}
-                    <div className="absolute inset-0  bg-opacity-40 flex items-end p-3">
-                      <span className="text-white text-base font-bold text-center w-full leading-tight">
-                        {category.name}
-                      </span>
-                    </div>
+            <div className="flex justify-between mb-4 md:mb-5 lg:mb-6">
+              {getVisibleCategories()
+                .slice(0, 5)
+                .map((category, index) => (
+                  <div
+                    key={category.id}
+                    className="flex flex-col items-center flex-1 max-w-[200px] md:max-w-[240px] lg:max-w-[280px]"
+                  >
+                    <Link href={"/categories" + category.url}>
+                      <div
+                        className={`w-40 h-24 md:w-44 md:h-28 lg:w-52 lg:h-32 rounded-xl md:rounded-2xl border-2 ${category.color} hover:scale-105 transition-transform cursor-pointer overflow-hidden relative group`}
+                      >
+                        <Image
+                          src={category.image}
+                          alt={category.name}
+                          width={208}
+                          height={128}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Overlay with title */}
+                        <div className="absolute inset-0 bg-opacity-40 flex items-end p-2 md:p-2.5 lg:p-3">
+                          <span className="text-white text-xs md:text-sm lg:text-base font-bold text-center w-full leading-tight">
+                            {category.name}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
                   </div>
-                  </Link>
-                </div>
-              ))}
+                ))}
             </div>
-            
+
             {/* Second Row - 4 categories, offset to the right by half card width */}
-            <div className="flex justify-between" style={{ marginLeft: '104px', marginRight: '104px' }}>
-              {getVisibleCategories().slice(5, 9).map((category, index) => (
-                <div key={category.id} className="flex flex-col items-center flex-1 max-w-[280px]">
-                  <Link href={"/categories" + category.url}>
-                  <div className={`w-52 h-32 rounded-2xl border-2 ${category.color} hover:scale-105 transition-transform cursor-pointer overflow-hidden relative group`}>
-                    <Image
-                      src={category.image}
-                      alt={category.name}
-                      width={208}
-                      height={128}
-                      className="w-full h-full object-cover"
-                    />
-                    {/* Overlay with title */}
-                    <div className="absolute inset-0 flex items-end p-3">
-                      <span className="text-white text-base font-bold text-center w-full leading-tight">
-                        {category.name}
-                      </span>
-                    </div>
+            <div
+              className="flex justify-between"
+              style={{ marginLeft: "80px", marginRight: "80px" }}
+            >
+              {getVisibleCategories()
+                .slice(5, 9)
+                .map((category, index) => (
+                  <div
+                    key={category.id}
+                    className="flex flex-col items-center flex-1 max-w-[200px] md:max-w-[240px] lg:max-w-[280px]"
+                  >
+                    <Link href={"/categories" + category.url}>
+                      <div
+                        className={`w-40 h-24 md:w-44 md:h-28 lg:w-52 lg:h-32 rounded-xl md:rounded-2xl border-2 ${category.color} hover:scale-105 transition-transform cursor-pointer overflow-hidden relative group`}
+                      >
+                        <Image
+                          src={category.image}
+                          alt={category.name}
+                          width={208}
+                          height={128}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Overlay with title */}
+                        <div className="absolute inset-0 flex items-end p-2 md:p-2.5 lg:p-3">
+                          <span className="text-white text-xs md:text-sm lg:text-base font-bold text-center w-full leading-tight">
+                            {category.name}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
                   </div>
-                  </Link>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         </div>
       </div>
 
       {/* Tab Navigation Section */}
-      <div className="px-4 py-6">
-        <TabNavigation 
-          products={products} 
-          customerId={personalInfo?.id || ""} 
+      <div className="px-2 sm:px-3 md:px-4 py-4 sm:py-5 md:py-6">
+        <TabNavigation
+          products={products}
+          customerId={personalInfo?.id || ""}
         />
       </div>
 
