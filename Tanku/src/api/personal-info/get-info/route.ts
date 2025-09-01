@@ -8,12 +8,12 @@ const GetPersonalInfoSchema = z.object({
 });
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  try {
-    console.log("=== Get Personal Info Endpoint ===");
-    console.log("Query params:", req.query);
 
-    // Validar parámetros de query
+  try {
+   
+
     const validationResult = GetPersonalInfoSchema.safeParse(req.query);
+    
     if (!validationResult.success) {
       return res.status(400).json({
         success: false,
@@ -25,7 +25,6 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     const { customer_id } = validationResult.data;
     console.log("Customer ID:", customer_id);
 
-    // Ejecutar workflow para obtener información personal
     const { result } = await getPersonalInfoWorkflow(req.scope).run({
       input: {
         customer_id

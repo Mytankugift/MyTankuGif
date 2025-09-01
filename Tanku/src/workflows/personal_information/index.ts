@@ -7,12 +7,13 @@ export interface GetPersonalInfoWorkflowInput extends GetPersonalInfoInput {}
 
 export const updatePersonalInfoWorkflow = createWorkflow(
   "update-personal-info-workflow",
-  (input: UpdatePersonalInfoWorkflowInput) => {
-    const result = updatePersonalInfoStep(input);
+   (input: UpdatePersonalInfoWorkflowInput) => {
+    const result =  updatePersonalInfoStep(input);
     
     return new WorkflowResponse(result);
   }
 );
+
 
 export const getPersonalInfoWorkflow = createWorkflow(
   "get-personal-info-workflow",

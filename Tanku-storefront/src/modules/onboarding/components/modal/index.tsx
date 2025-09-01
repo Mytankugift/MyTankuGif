@@ -252,47 +252,47 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
     notifications_preference: ""
   })
 
-  // // Check onboarding status on component mount
-  // useEffect(() => {
-  //   const checkOnboardingStatus = async () => {
-  //     if (!customer_id) {
-  //       setIsLoading(false)
-  //       return
-  //     }
+  // Check onboarding status on component mount
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (!customer_id) {
+        setIsLoading(false)
+        return
+      }
 
-  //     try {
-  //       const status = await getOnboardingStatus(customer_id)
-  //       setOnboardingStatus(status)
+      try {
+        const status = await getOnboardingStatus(customer_id)
+        setOnboardingStatus(status)
         
-  //       // Show banner only if onboarding is incomplete
-  //       if (!status.phase_two_completed) {
-  //         // If phase 1 is completed, start from phase 2
-  //         if (status.phase_one_completed) {
-  //           setCurrentPhase(2)
-  //           setCurrentStep(status.phase_two_current_step || 1)
-  //         } else {
-  //           setCurrentPhase(1)
-  //           setCurrentStep(status.phase_one_current_step || 1)
-  //         }
+        // Show banner only if onboarding is incomplete
+        if (!status.phase_two_completed) {
+          // If phase 1 is completed, start from phase 2
+          if (status.phase_one_completed) {
+            setCurrentPhase(2)
+            setCurrentStep(status.phase_two_current_step || 1)
+          } else {
+            setCurrentPhase(1)
+            setCurrentStep(status.phase_one_current_step || 1)
+          }
           
-  //         // Show banner after a delay
-  //         setTimeout(() => {
-  //           setShowFloatingBanner(true)
-  //         }, 2000)
-  //       }
-  //     } catch (error) {
-  //       console.error("Error checking onboarding status:", error)
-  //       // If no status exists, show onboarding from the beginning
-  //       setTimeout(() => {
-  //         setShowFloatingBanner(true)
-  //       }, 2000)
-  //     } finally {
-  //       setIsLoading(false)
-  //     }
-  //   }
+          // Show banner after a delay
+          setTimeout(() => {
+            setShowFloatingBanner(true)
+          }, 2000)
+        }
+      } catch (error) {
+        console.error("Error checking onboarding status:", error)
+        // If no status exists, show onboarding from the beginning
+        setTimeout(() => {
+          setShowFloatingBanner(true)
+        }, 2000)
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-  //   checkOnboardingStatus()
-  // }, [customer_id])
+    checkOnboardingStatus()
+  }, [customer_id])
 
   const handlePhaseOneComplete = async () => {
     if (!customer_id) return
@@ -387,13 +387,13 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 1:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Datos Personales</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Datos Personales</Heading>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Fecha de Nacimiento *</label>
+              <label className="block text-sm font-medium text-white mb-2">Fecha de Nacimiento *</label>
               <input
                 type="date"
-                className="w-full p-3 border border-gray-300 rounded-lg"
+                className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                 value={phaseOneData.birth_date || ""}
                 onChange={(e) => setPhaseOneData(prev => ({ ...prev, birth_date: e.target.value }))}
                 required
@@ -401,9 +401,9 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Género *</label>
+              <label className="block text-sm font-medium text-white mb-2">Género *</label>
               <select
-                className="w-full p-3 border border-gray-300 rounded-lg"
+                className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                 value={phaseOneData.gender || ""}
                 onChange={(e) => setPhaseOneData(prev => ({ ...prev, gender: e.target.value }))}
                 required
@@ -416,9 +416,9 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Estado Civil *</label>
+              <label className="block text-sm font-medium text-white mb-2">Estado Civil *</label>
               <select
-                className="w-full p-3 border border-gray-300 rounded-lg"
+                className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                 value={phaseOneData.marital_status || ""}
                 onChange={(e) => setPhaseOneData(prev => ({ ...prev, marital_status: e.target.value }))}
                 required
@@ -432,10 +432,10 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">País *</label>
+                <label className="block text-sm font-medium text-white mb-2">País *</label>
                 <input
                   type="text"
-                  className="w-full p-3 border border-gray-300 rounded-lg"
+                  className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                   value={phaseOneData.country || ""}
                   onChange={(e) => setPhaseOneData(prev => ({ ...prev, country: e.target.value }))}
                   placeholder="Escribe tu país"
@@ -443,10 +443,10 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Ciudad *</label>
+                <label className="block text-sm font-medium text-white mb-2">Ciudad *</label>
                 <input
                   type="text"
-                  className="w-full p-3 border border-gray-300 rounded-lg"
+                  className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                   value={phaseOneData.city || ""}
                   onChange={(e) => setPhaseOneData(prev => ({ ...prev, city: e.target.value }))}
                   placeholder="Escribe tu ciudad"
@@ -460,7 +460,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 2:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Idiomas que Hablas</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Idiomas que Hablas</Heading>
             <Text className="text-sm text-gray-600">Selecciona al menos un idioma</Text>
             
             <div className="grid grid-cols-3 gap-3">
@@ -472,7 +472,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                     "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                     phaseOneData.languages?.includes(language)
                       ? "border-green-500 bg-green-50 text-green-700"
-                      : "border-gray-300 hover:border-gray-400"
+                      : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                   )}
                   onClick={() => handleArraySelection("languages", language, 1)}
                 >
@@ -486,7 +486,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 3:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Intereses Principales</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Intereses Principales</Heading>
             <Text className="text-sm text-gray-600">Selecciona entre 3 y 8 intereses</Text>
             
             <div className="grid grid-cols-3 gap-3">
@@ -498,7 +498,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                     "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                     phaseOneData.main_interests?.includes(interest)
                       ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-gray-300 hover:border-gray-400"
+                      : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                   )}
                   onClick={() => handleArraySelection("main_interests", interest, 1)}
                 >
@@ -516,7 +516,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 4:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Colores que te Representan</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Colores que te Representan</Heading>
             <Text className="text-sm text-gray-600">Selecciona al menos 1 color</Text>
             
             <div className="grid grid-cols-4 gap-3">
@@ -528,7 +528,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                     "p-4 rounded-lg border-4 text-sm font-medium transition-all flex flex-col items-center space-y-2",
                     phaseOneData.representative_colors?.includes(color.value)
                       ? "border-gray-800 shadow-lg"
-                      : "border-gray-300 hover:border-gray-400"
+                      : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                   )}
                   onClick={() => handleArraySelection("representative_colors", color.value, 1)}
                 >
@@ -546,7 +546,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 5:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Actividades que Disfrutas</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Actividades que Disfrutas</Heading>
             <Text className="text-sm text-gray-600">Selecciona entre 3 y 5 actividades</Text>
             
             <div className="grid grid-cols-3 gap-3">
@@ -558,7 +558,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                     "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                     phaseOneData.favorite_activities?.includes(activity)
                       ? "border-purple-500 bg-purple-50 text-purple-700"
-                      : "border-gray-300 hover:border-gray-400"
+                      : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                   )}
                   onClick={() => handleArraySelection("favorite_activities", activity, 1)}
                 >
@@ -576,7 +576,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 6:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Celebraciones Importantes</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Celebraciones Importantes</Heading>
             <Text className="text-sm text-gray-600">Opcional - Ayuda a personalizar tu experiencia</Text>
             
             <div className="grid grid-cols-3 gap-3">
@@ -588,7 +588,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                     "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                     phaseOneData.important_celebrations?.includes(celebration)
                       ? "border-red-500 bg-red-50 text-red-700"
-                      : "border-gray-300 hover:border-gray-400"
+                      : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                   )}
                   onClick={() => handleArraySelection("important_celebrations", celebration, 1)}
                 >
@@ -609,7 +609,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 1:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Tipos de Productos que te Interesan</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Tipos de Productos que te Interesan</Heading>
             
             <div className="grid grid-cols-3 gap-3">
               {PRODUCT_INTERESTS.map(product => (
@@ -620,7 +620,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                     "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                     phaseTwoData.product_interests?.includes(product)
                       ? "border-teal-500 bg-teal-50 text-teal-700"
-                      : "border-gray-300 hover:border-gray-400"
+                      : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                   )}
                   onClick={() => handleArraySelection("product_interests", product, 2)}
                 >
@@ -634,10 +634,10 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 2:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Redes Sociales e Interacción</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Redes Sociales e Interacción</Heading>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Redes Sociales Favoritas</label>
+              <label className="block text-sm font-medium text-white mb-2">Redes Sociales Favoritas</label>
               <div className="grid grid-cols-3 gap-3">
                 {SOCIAL_NETWORKS.map(network => (
                   <button
@@ -647,7 +647,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                       "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                       phaseTwoData.favorite_social_networks?.includes(network)
                         ? "border-blue-500 bg-blue-50 text-blue-700"
-                        : "border-gray-300 hover:border-gray-400"
+                        : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                     )}
                     onClick={() => handleArraySelection("favorite_social_networks", network, 2)}
                   >
@@ -658,7 +658,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Interacción Preferida</label>
+              <label className="block text-sm font-medium text-white mb-2">Interacción Preferida</label>
               <div className="grid grid-cols-2 gap-3">
                 {INTERACTION_TYPES.map(interaction => (
                   <button
@@ -668,7 +668,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                       "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                       phaseTwoData.preferred_interaction?.includes(interaction)
                         ? "border-purple-500 bg-purple-50 text-purple-700"
-                        : "border-gray-300 hover:border-gray-400"
+                        : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                     )}
                     onClick={() => handleArraySelection("preferred_interaction", interaction, 2)}
                   >
@@ -683,12 +683,12 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 3:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Compras y Presupuesto</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Compras y Presupuesto</Heading>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Frecuencia de Compra *</label>
+              <label className="block text-sm font-medium text-white mb-2">Frecuencia de Compra *</label>
               <select
-                className="w-full p-3 border border-gray-300 rounded-lg"
+                className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                 value={phaseTwoData.purchase_frequency || ""}
                 onChange={(e) => setPhaseTwoData(prev => ({ ...prev, purchase_frequency: e.target.value }))}
                 required
@@ -701,9 +701,9 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Presupuesto Mensual *</label>
+              <label className="block text-sm font-medium text-white mb-2">Presupuesto Mensual *</label>
               <select
-                className="w-full p-3 border border-gray-300 rounded-lg"
+                className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                 value={phaseTwoData.monthly_budget || ""}
                 onChange={(e) => setPhaseTwoData(prev => ({ ...prev, monthly_budget: e.target.value }))}
                 required
@@ -716,9 +716,9 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Preferencia de Marcas *</label>
+              <label className="block text-sm font-medium text-white mb-2">Preferencia de Marcas *</label>
               <select
-                className="w-full p-3 border border-gray-300 rounded-lg"
+                className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                 value={phaseTwoData.brand_preference || ""}
                 onChange={(e) => setPhaseTwoData(prev => ({ ...prev, brand_preference: e.target.value }))}
                 required
@@ -731,9 +731,9 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Motivo de Compra *</label>
+              <label className="block text-sm font-medium text-white mb-2">Motivo de Compra *</label>
               <select
-                className="w-full p-3 border border-gray-300 rounded-lg"
+                className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                 value={phaseTwoData.purchase_motivation || ""}
                 onChange={(e) => setPhaseTwoData(prev => ({ ...prev, purchase_motivation: e.target.value }))}
                 required
@@ -750,7 +750,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 4:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Círculo Social</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Círculo Social</Heading>
             
             <div className="grid grid-cols-3 gap-3">
               {SOCIAL_CIRCLES.map(circle => (
@@ -761,7 +761,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                     "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                     phaseTwoData.social_circles?.includes(circle)
                       ? "border-green-500 bg-green-50 text-green-700"
-                      : "border-gray-300 hover:border-gray-400"
+                      : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                   )}
                   onClick={() => handleArraySelection("social_circles", circle, 2)}
                 >
@@ -775,12 +775,12 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 5:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Conexiones</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Conexiones</Heading>
             
             <div>
-              <label className="block text-sm font-medium mb-2">¿Te gustaría conectar con personas afines? *</label>
+              <label className="block text-sm font-medium text-white mb-2">¿Te gustaría conectar con personas afines? *</label>
               <select
-                className="w-full p-3 border border-gray-300 rounded-lg"
+                className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                 value={phaseTwoData.wants_connections || ""}
                 onChange={(e) => setPhaseTwoData(prev => ({ ...prev, wants_connections: e.target.value }))}
                 required
@@ -794,7 +794,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
 
             {phaseTwoData.wants_connections === "si" && (
               <div>
-                <label className="block text-sm font-medium mb-2">¿Qué vínculos buscas?</label>
+                <label className="block text-sm font-medium text-white mb-2">¿Qué vínculos buscas?</label>
                 <div className="grid grid-cols-3 gap-3">
                   {CONNECTION_TYPES.map(type => (
                     <button
@@ -804,7 +804,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                         "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                         phaseTwoData.connection_types?.includes(type)
                           ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                          : "border-gray-300 hover:border-gray-400"
+                          : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                       )}
                       onClick={() => handleArraySelection("connection_types", type, 2)}
                     >
@@ -820,10 +820,10 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 6:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Estilo de Vida y Valores</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Estilo de Vida y Valores</Heading>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Estilo de Vida</label>
+              <label className="block text-sm font-medium text-white mb-2">Estilo de Vida</label>
               <div className="grid grid-cols-3 gap-3">
                 {LIFESTYLE_STYLES.map(style => (
                   <button
@@ -833,7 +833,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                       "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                       phaseTwoData.lifestyle_style?.includes(style)
                         ? "border-orange-500 bg-orange-50 text-orange-700"
-                        : "border-gray-300 hover:border-gray-400"
+                        : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                     )}
                     onClick={() => handleArraySelection("lifestyle_style", style, 2)}
                   >
@@ -844,7 +844,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Valores Personales</label>
+              <label className="block text-sm font-medium text-white mb-2">Valores Personales</label>
               <div className="grid grid-cols-3 gap-3">
                 {PERSONAL_VALUES.map(value => (
                   <button
@@ -854,7 +854,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                       "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                       phaseTwoData.personal_values?.includes(value)
                         ? "border-pink-500 bg-pink-50 text-pink-700"
-                        : "border-gray-300 hover:border-gray-400"
+                        : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                     )}
                     onClick={() => handleArraySelection("personal_values", value, 2)}
                   >
@@ -869,10 +869,10 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 7:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Expectativas de la Plataforma</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Expectativas de la Plataforma</Heading>
             
             <div>
-              <label className="block text-sm font-medium mb-2">¿Qué esperas de la plataforma?</label>
+              <label className="block text-sm font-medium text-white mb-2">¿Qué esperas de la plataforma?</label>
               <div className="grid grid-cols-3 gap-3">
                 {PLATFORM_EXPECTATIONS.map(expectation => (
                   <button
@@ -882,7 +882,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                       "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                       phaseTwoData.platform_expectations?.includes(expectation)
                         ? "border-cyan-500 bg-cyan-50 text-cyan-700"
-                        : "border-gray-300 hover:border-gray-400"
+                        : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                     )}
                     onClick={() => handleArraySelection("platform_expectations", expectation, 2)}
                   >
@@ -893,7 +893,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Tipo de Contenido Preferido</label>
+              <label className="block text-sm font-medium text-white mb-2">Tipo de Contenido Preferido</label>
               <div className="grid grid-cols-3 gap-3">
                 {CONTENT_TYPES.map(content => (
                   <button
@@ -903,7 +903,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                       "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                       phaseTwoData.preferred_content_type?.includes(content)
                         ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : "border-gray-300 hover:border-gray-400"
+                        : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                     )}
                     onClick={() => handleArraySelection("preferred_content_type", content, 2)}
                   >
@@ -918,10 +918,10 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       case 8:
         return (
           <div className="space-y-4">
-            <Heading level="h3">Hábitos y Notificaciones</Heading>
+            <Heading level="h3" className="text-[#66DEDB]">Hábitos y Notificaciones</Heading>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Momentos de Conexión</label>
+              <label className="block text-sm font-medium text-white mb-2">Momentos de Conexión</label>
               <div className="grid grid-cols-3 gap-3">
                 {CONNECTION_MOMENTS.map(moment => (
                   <button
@@ -931,7 +931,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                       "p-3 rounded-lg border-2 text-sm font-medium transition-colors",
                       phaseTwoData.connection_moments?.includes(moment)
                         ? "border-violet-500 bg-violet-50 text-violet-700"
-                        : "border-gray-300 hover:border-gray-400"
+                        : "border-[#73FFA2] hover:border-[#66DEDB] bg-[#1e1e1e] text-white"
                     )}
                     onClick={() => handleArraySelection("connection_moments", moment, 2)}
                   >
@@ -943,9 +943,9 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Días de Compra *</label>
+                <label className="block text-sm font-medium text-white mb-2">Días de Compra *</label>
                 <select
-                  className="w-full p-3 border border-gray-300 rounded-lg"
+                  className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                   value={phaseTwoData.shopping_days || ""}
                   onChange={(e) => setPhaseTwoData(prev => ({ ...prev, shopping_days: e.target.value }))}
                   required
@@ -958,9 +958,9 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Experiencia E-commerce *</label>
+                <label className="block text-sm font-medium text-white mb-2">Experiencia E-commerce *</label>
                 <select
-                  className="w-full p-3 border border-gray-300 rounded-lg"
+                  className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                   value={phaseTwoData.ecommerce_experience || ""}
                   onChange={(e) => setPhaseTwoData(prev => ({ ...prev, ecommerce_experience: e.target.value }))}
                   required
@@ -975,9 +975,9 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Nivel de Actividad Social *</label>
+                <label className="block text-sm font-medium text-white mb-2">Nivel de Actividad Social *</label>
                 <select
-                  className="w-full p-3 border border-gray-300 rounded-lg"
+                  className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                   value={phaseTwoData.social_activity_level || ""}
                   onChange={(e) => setPhaseTwoData(prev => ({ ...prev, social_activity_level: e.target.value }))}
                   required
@@ -990,9 +990,9 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Preferencia de Notificaciones *</label>
+                <label className="block text-sm font-medium text-white mb-2">Preferencia de Notificaciones *</label>
                 <select
-                  className="w-full p-3 border border-gray-300 rounded-lg"
+                  className="w-full p-3 border border-[#73FFA2] rounded-lg bg-[#1e1e1e] text-white"
                   value={phaseTwoData.notifications_preference || ""}
                   onChange={(e) => setPhaseTwoData(prev => ({ ...prev, notifications_preference: e.target.value }))}
                   required
@@ -1065,7 +1065,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       {/* Floating dismissible notification */}
       {showFloatingBanner && (
         <div className="fixed bottom-4 right-4 z-50 max-w-xs animate-in slide-in-from-right-5 duration-300">
-          <div className="bg-white/70 backdrop-blur-sm border border-[#73FFA2]/30 rounded-lg shadow-lg p-3">
+          <div className="bg-white/80 backdrop-blur-sm border border-[#73FFA2]/30 rounded-lg shadow-lg p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <div className="flex-shrink-0">
@@ -1086,7 +1086,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
                         setShowFloatingBanner(false)
                         open()
                       }}
-                      className="bg-gradient-to-r from-[#73FFA2] to-[#66DEDB] hover:from-[#66DEDB] hover:to-[#73FFA2] text-white px-2 py-1 rounded text-xs font-medium transition-all"
+                      className="bg-gradient-to-r from-[#73FFA2] to-[#66DEDB] hover:from-[#66DEDB] hover:to-[#73FFA2] text-gray-600 px-2 py-1 rounded text-xs font-medium transition-all"
                     >
                       Empezar
                     </button>
@@ -1111,25 +1111,26 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       )}
 
       {/* Main Onboarding Modal */}
-      <Modal isOpen={state && !showIncentivePopup} close={close} size="large">
-        <Modal.Title>
+      <Modal isOpen={state && !showIncentivePopup} close={close} size="large" className="p-0">
+        <Modal.Title className="bg-[#1e1e1e] text-white p-4 border-b border-[#73FFA2]">
           <div className="flex items-center justify-between w-full">
-            <Heading>
+            <Heading className="text-[#66DEDB]">
               {currentPhase === 1 ? "🟩 Fase 1: Datos Personales" : "🟦 Fase 2: Perfil Completo"}
             </Heading>
-            <Text className="text-sm text-gray-500">
+            <Text className="text-sm text-white">
               Paso {currentStep} de {currentPhase === 1 ? 6 : 8}
             </Text>
           </div>
         </Modal.Title>
+        
 
-        <Modal.Body>
+        <Modal.Body className="bg-[#1e1e1e] text-white">
           <div className="w-full max-w-2xl mx-auto">
             {/* Progress bar */}
             <div className="mb-6">
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-700 rounded-full h-2">
                 <div 
-                  className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                  className="bg-[#73FFA2] h-2 rounded-full transition-all duration-300"
                   style={{ 
                     width: `${(currentStep / (currentPhase === 1 ? 6 : 8)) * 100}%` 
                   }}
@@ -1144,13 +1145,13 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
           </div>
         </Modal.Body>
 
-        <Modal.Footer>
+        <Modal.Footer className="bg-[#1e1e1e] border-t border-[#73FFA2] p-4">
           <div className="flex justify-between w-full">
             <Button
               variant="secondary"
               onClick={prevStep}
               disabled={currentStep === 1}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 border-[#73FFA2] text-[#73FFA2] hover:bg-[#73FFA2]/20"
             >
               <ChevronLeft />
               Anterior
@@ -1159,7 +1160,7 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
             <Button
               onClick={nextStep}
               disabled={!canProceed()}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-[#73FFA2] text-[#1e1e1e] hover:bg-[#66DEDB]"
             >
               {currentStep === (currentPhase === 1 ? 6 : 8) ? "Finalizar" : "Siguiente"}
               <ChevronRight />
@@ -1169,39 +1170,32 @@ const OnboardingModal = ({ customer_id }: { customer_id?: string }) => {
       </Modal>
 
       {/* Incentive Popup */}
-      <Modal isOpen={showIncentivePopup} close={() => setShowIncentivePopup(false)} size="medium">
-        <Modal.Title>
-          <Heading>🎁 ¡Felicidades!</Heading>
+      <Modal isOpen={showIncentivePopup} close={() => setShowIncentivePopup(false)} size="large" className="bg-[#1e1e1e] p-0">
+        <Modal.Title className="bg-[#1e1e1e] text-white p-4 border-b border-[#73FFA2]">
+          <Heading className="text-[#66DEDB]">¡Completa tu perfil!</Heading>
         </Modal.Title>
-
-        <Modal.Body>
-          <div className="text-center space-y-4">
-            <Text className="text-lg">
-              Has completado la primera fase del onboarding
-            </Text>
-            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-lg border border-yellow-200">
-              <Text className="text-xl font-bold text-orange-700 mb-2">
-                Completa tu perfil y gana hasta $100.000 COP
-              </Text>
-              <Text className="text-sm text-orange-600">
-                en tu primer regalo al completar la segunda fase
-              </Text>
+        
+        <Modal.Body className="bg-[#1e1e1e] text-white p-6">
+          <div className="space-y-4">
+            <Text>Completa tu perfil para personalizar tu experiencia en Tanku</Text>
+            <div className="p-4 border border-[#73FFA2] rounded-lg">
+              <Text className="font-medium">¡Obtén beneficios exclusivos!</Text>
             </div>
           </div>
         </Modal.Body>
-
-        <Modal.Footer>
-          <div className="flex gap-3 w-full">
+        
+        <Modal.Footer className="bg-[#1e1e1e] border-t border-[#73FFA2] p-4">
+          <div className="flex gap-4">
             <Button
+              onClick={() => setShowIncentivePopup(false)}
               variant="secondary"
-              onClick={handleSkipPhaseTwo}
-              className="flex-1"
+              className="flex-1 border-[#73FFA2] text-[#73FFA2] hover:bg-[#73FFA2]/20"
             >
               Hacerlo después
             </Button>
             <Button
               onClick={handleContinueToPhaseTwo}
-              className="flex-1 bg-gradient-to-r from-green-500 to-blue-500"
+              className="flex-1 bg-[#73FFA2] text-[#1e1e1e] hover:bg-[#66DEDB]"
             >
               Continuar
             </Button>

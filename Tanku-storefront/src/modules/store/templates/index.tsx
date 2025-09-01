@@ -1,20 +1,22 @@
 import { Suspense } from "react"
+import { HttpTypes } from "@medusajs/types"
 
 import SkeletonProductGrid from "@modules/skeletons/templates/skeleton-product-grid"
 import RefinementList from "@modules/store/components/refinement-list"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
-
 import PaginatedProducts from "./paginated-products"
+
+type StoreTemplateProps = {
+  sortBy?: SortOptions
+  page?: string
+  countryCode: string
+}
 
 const StoreTemplate = ({
   sortBy,
   page,
   countryCode,
-}: {
-  sortBy?: SortOptions
-  page?: string
-  countryCode: string
-}) => {
+}: StoreTemplateProps) => {
   const pageNumber = page ? parseInt(page) : 1
   const sort = sortBy || "created_at"
 

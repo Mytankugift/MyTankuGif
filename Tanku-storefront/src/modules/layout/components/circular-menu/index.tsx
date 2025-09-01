@@ -84,7 +84,7 @@ const CircularMenu = () => {
         top: '15%'
       }}></div>
       {/* SVG for curved text */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 256 256">
+      <svg className="absolute inset-0 w-full h-full pointer-events-none z-50" viewBox="0 0 256 256">
         <defs>
           {/* Define circular paths for text - 2px further from circle */}
           <path
@@ -182,7 +182,7 @@ const CircularMenu = () => {
       {/* Invisible clickable button overlays */}
       {/* NEW EVENT - Top */}
       <button
-        className="absolute top-4 left-1/2 transform -translate-x-1/2 w-24 h-12 cursor-pointer z-10 "
+        className="absolute top-4 left-1/2 transform -translate-x-1/2 w-24 h-12 cursor-pointer z-50 "
         onClick={() => handleItemClick("/events/new")}
         onMouseEnter={() => setHoveredText("new-event")}
         onMouseLeave={() => setHoveredText(null)}
@@ -191,7 +191,7 @@ const CircularMenu = () => {
 
       {/* CALENDAR - Left */}
       <button
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-24 cursor-pointer z-10"
+        className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-24 cursor-pointer z-50"
         onClick={() => handleItemClick("/calendar")}
         onMouseEnter={() => setHoveredText("calendar")}
         onMouseLeave={() => setHoveredText(null)}
@@ -200,16 +200,16 @@ const CircularMenu = () => {
 
       {/* WISHLIST - Bottom */}
       <button
-        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-24 h-12 cursor-pointer z-10"
+        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-24 h-12 cursor-pointer z-50"
         onClick={() => handleItemClick("/wishlist")}
-        onMouseEnter={() => setHoveredText("wishlist")}
+        onMouseEnter={() => setHoveredText("wishlist")} 
         onMouseLeave={() => setHoveredText(null)}
         aria-label="Wishlist"
       />
 
       {/* NEW POST - Right */}
       <button
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-24 cursor-pointer z-10"
+        className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-24 cursor-pointer z-50"
         onClick={() => handleItemClick("/posts/new")}
         onMouseEnter={() => setHoveredText("new-post")}
         onMouseLeave={() => setHoveredText(null)}

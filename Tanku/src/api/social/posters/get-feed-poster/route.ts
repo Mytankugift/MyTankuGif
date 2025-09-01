@@ -28,8 +28,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       input: { customer_id }
     })
 
-    console.log("Posters retrieved successfully:", result.posterFeed.length)
-    console.log("Posters:", result.posterFeed)
+   
 
     // Respuesta exitosa
     return res.status(200).json({

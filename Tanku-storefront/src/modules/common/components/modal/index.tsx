@@ -12,6 +12,7 @@ type ModalProps = {
   search?: boolean
   children: React.ReactNode
   'data-testid'?: string
+  className?: string
 }
 
 const Modal = ({
@@ -20,7 +21,8 @@ const Modal = ({
   size = "medium",
   search = false,
   children,
-  'data-testid': dataTestId
+  'data-testid': dataTestId,
+  className
 }: ModalProps) => {
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -59,14 +61,16 @@ const Modal = ({
               <Dialog.Panel
                 data-testid={dataTestId}
                 className={clx(
-                  "flex flex-col justify-start w-full transform p-5 text-left align-middle transition-all max-h-[75vh] h-fit",
+                  "flex flex-col justify-start w-full transform text-left align-middle transition-all max-h-[75vh] h-fit",
                   {
                     "max-w-md": size === "small",
                     "max-w-xl": size === "medium",
                     "max-w-3xl": size === "large",
                     "bg-transparent shadow-none": search,
-                    "bg-white shadow-xl border rounded-rounded": !search,
-                  }
+                    "bg-white shadow-xl border rounded-rounded p-5": !search && !className?.includes('p-0'),
+                    "bg-white shadow-xl border rounded-rounded": !search && className?.includes('p-0'),
+                  },
+                  className
                 )}
               >
                 <ModalProvider close={close}>{children}</ModalProvider>
@@ -79,11 +83,11 @@ const Modal = ({
   )
 }
 
-const Title: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const Title: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => {
   const { close } = useModal()
 
   return (
-    <Dialog.Title className="flex items-center justify-between">
+    <Dialog.Title className={`flex items-center justify-between ${className || ''}`}>
       <div className="text-large-semi">{children}</div>
       <div>
         <button onClick={close} data-testid="close-modal-button">
@@ -102,12 +106,12 @@ const Description: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   )
 }
 
-const Body: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return <div className="flex justify-center">{children}</div>
+const Body: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => {
+  return <div className={`flex justify-center ${className || ''}`}>{children}</div>
 }
 
-const Footer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return <div className="flex items-center justify-end gap-x-4">{children}</div>
+const Footer: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => {
+  return <div className={`flex items-center justify-end gap-x-4 ${className || ''}`}>{children}</div>
 }
 
 Modal.Title = Title

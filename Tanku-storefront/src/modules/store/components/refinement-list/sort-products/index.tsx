@@ -1,47 +1,36 @@
-"use client"
+import { ChangeEvent } from "react"
 
-import FilterRadioGroup from "@modules/common/components/filter-radio-group"
-
-export type SortOptions = "price_asc" | "price_desc" | "created_at"
+export type SortOptions = "price_asc" | "price_desc" | "created_at" | "title"
 
 type SortProductsProps = {
   sortBy: SortOptions
   setQueryParams: (name: string, value: SortOptions) => void
-  "data-testid"?: string
+  'data-testid'?: string
 }
 
-const sortOptions = [
-  {
-    value: "created_at",
-    label: "Latest Arrivals",
-  },
-  {
-    value: "price_asc",
-    label: "Price: Low -> High",
-  },
-  {
-    value: "price_desc",
-    label: "Price: High -> Low",
-  },
-]
-
-const SortProducts = ({
-  "data-testid": dataTestId,
-  sortBy,
-  setQueryParams,
-}: SortProductsProps) => {
-  const handleChange = (value: SortOptions) => {
-    setQueryParams("sortBy", value)
+const SortProducts = ({ 'data-testid': dataTestId, sortBy, setQueryParams }: SortProductsProps) => {
+  const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const newSortBy = e.target.value as SortOptions
+    setQueryParams("sortBy", newSortBy)
   }
 
   return (
-    <FilterRadioGroup
-      title="Sort by"
-      items={sortOptions}
-      value={sortBy}
-      handleChange={handleChange}
-      data-testid={dataTestId}
-    />
+    <div className="flex items-center">
+      <span className="text-ui-fg-muted text-small-regular mr-2">
+        Ordenar por:
+      </span>
+      <select
+        data-testid={dataTestId}
+        onChange={handleChange}
+        value={sortBy}
+        className="text-small-regular"
+      >
+        <option value="created_at">Más recientes</option>
+        <option value="price_asc">Precio: Menor a mayor</option>
+        <option value="price_desc">Precio: Mayor a menor</option>
+        <option value="title">Alfabético</option>
+      </select>
+    </div>
   )
 }
 
