@@ -17,7 +17,7 @@ export const createPosterStep = createStep(
       SOCIAL_MODULE
     )
 
-    console.log("Creating poster with input:", input)
+  
 
     // Crear el poster
     const poster = await socialModuleService.createPosters({
@@ -31,11 +31,11 @@ export const createPosterStep = createStep(
       is_active: true,
     })
 
-    console.log("Poster created successfully:", poster.id)
+
 
     return new StepResponse(poster, async () => {
       // Compensación: eliminar el poster si algo falla
-      console.log("Rolling back poster creation:", poster.id)
+     
       await socialModuleService.deletePosters(poster.id)
     })
   }

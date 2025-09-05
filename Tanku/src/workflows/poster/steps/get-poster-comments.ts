@@ -10,13 +10,12 @@ export interface GetPosterCommentsInput {
 export interface GetPosterCommentsOutput {
   comments: any[]
   total_count: number
-}
+} 
 
 export const getPosterCommentsStep = createStep(
   "get-poster-comments-step",
   async (input: GetPosterCommentsInput, { container }) => {
-    console.log("=== GETTING POSTER COMMENTS STEP ===")
-    console.log("Input:", input)
+ 
     
     const socialModuleService: SocialModuleService = container.resolve(
       SOCIAL_MODULE
@@ -28,7 +27,7 @@ export const getPosterCommentsStep = createStep(
       poster_id: input.poster_id
     })
     
-    console.log("Comments found:", comments.length)
+    
     
     // 2. Enriquecer comentarios con información del customer
     const commentsWithCustomerInfo: any[] = []
@@ -76,9 +75,7 @@ export const getPosterCommentsStep = createStep(
       total_count: commentsWithCustomerInfo.length // Total incluyendo respuestas
     }
     
-    console.log("Get comments result:", {
-      total_comments: result.total_count
-    })
+    
     
     return new StepResponse(result)
   }

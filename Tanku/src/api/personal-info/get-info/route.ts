@@ -23,7 +23,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }
 
     const { customer_id } = validationResult.data;
-    console.log("Customer ID:", customer_id);
+   
 
     const { result } = await getPersonalInfoWorkflow(req.scope).run({
       input: {
@@ -31,7 +31,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       }
     });
 
-    console.log("Personal info result:", result);
+   
 
     return res.status(200).json({
       success: true,

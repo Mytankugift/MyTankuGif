@@ -9,8 +9,7 @@ const getPostersSchema = z.object({
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   try {
-    console.log("=== GET POSTERS ENDPOINT ===")
-    console.log("Query params:", req.query)
+   
 
     // Validar parámetros de consulta
     const validationResult = getPostersSchema.safeParse(req.query)
@@ -24,15 +23,13 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
     const { customer_id } = validationResult.data
 
-    console.log("Getting posters for customer:", customer_id)
+  
 
     // Ejecutar el workflow para obtener posters
     const { result } = await getUserPostersWorkflow(req.scope).run({
       input: { customer_id }
     })
 
-    console.log("Posters retrieved successfully:", result.posters.length)
-    console.log("Posters:", result.posters)
 
     // Respuesta exitosa
     return res.status(200).json({

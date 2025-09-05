@@ -15,8 +15,7 @@ export interface EditPosterCommentOutput {
 export const editPosterCommentStep = createStep(
   "edit-poster-comment-step",
   async (input: EditPosterCommentInput, { container }) => {
-    console.log("=== EDITING POSTER COMMENT STEP ===")
-    console.log("Input:", input)
+   
     
     const socialModuleService: SocialModuleService = container.resolve(
       SOCIAL_MODULE
@@ -32,7 +31,7 @@ export const editPosterCommentStep = createStep(
       content: input.content
     })
     
-    console.log("Comment updated successfully:", input.comment_id)
+    
     
     // 3. Obtener información del customer para enriquecer el comentario
     let customerInfo: any = null
@@ -52,11 +51,11 @@ export const editPosterCommentStep = createStep(
       comment: enrichedComment
     }
     
-    console.log("Edit comment result:", result)
+    
     
     return new StepResponse(result, async () => {
       // Compensación: revertir el comentario al contenido original
-      console.log("Rolling back comment edit:", input.comment_id)
+      
       await socialModuleService.updatePosterComments({
         id: input.comment_id,
         content: originalComment.content

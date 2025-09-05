@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework"
-import { savePhaseTwoWorkflow } from "../../../../workflows/onboarding/save-phase-two"
+import { savePhaseTwoWorkflow } from "../../../../workflows/onboarding"
 
 interface PhaseTwoRequest {
   customer_id: string

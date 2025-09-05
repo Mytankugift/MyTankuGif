@@ -34,7 +34,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       input: { poster_id }
     })
 
-    console.log("Poster comments retrieved successfully:", result.comments.length)
+   
 
     // Respuesta exitosa
     return res.status(200).json({
@@ -72,7 +72,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       input: { poster_id, customer_id, content, parent_id }
     })
 
-    console.log("Comment added successfully:", result.comment.id)
+    
 
     // Respuesta exitosa
     return res.status(201).json({

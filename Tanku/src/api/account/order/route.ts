@@ -5,7 +5,7 @@ import { listCustomerOrderWorkflow } from "../../../workflows/order_customer";
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
   try {
     const { customerId } = req.query;
-    console.log("clientId", customerId);
+  
     
     if (!customerId) {
       return res.status(400).json({
@@ -15,12 +15,12 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     }
     
     // Recupera las órdenes del cliente
-    console.log("customer", customerId);
+   
     const result = await listCustomerOrderWorkflow(req.scope).run({
       input: {customerId: customerId as string},
     });
     
-    console.log("result", result);
+    
     
     return res.status(200).json({
       orders: result,

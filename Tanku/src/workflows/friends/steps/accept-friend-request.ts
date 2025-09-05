@@ -11,7 +11,7 @@ export interface AcceptFriendRequestInput {
 export const acceptFriendRequestStep = createStep(
   "accept-friend-request-step",
   async (input: AcceptFriendRequestInput, { container }) => {
-    console.log("ACEPTANDO SOLICITUD DE AMISTAD:", input)
+  
 
     const socialModuleService: SocialModuleService = container.resolve(
         SOCIAL_MODULE
@@ -38,7 +38,6 @@ export const acceptFriendRequestStep = createStep(
       status: "accepted"
     })
 
-    console.log("SOLICITUD DE AMISTAD ACEPTADA:", updatedRequest)
 
     // Crear relaciones bidireccionales en la tabla friend
     const friendshipDate = new Date()
@@ -61,10 +60,6 @@ export const acceptFriendRequestStep = createStep(
       is_favorite: false
     })
 
-    console.log("RELACIONES DE AMISTAD CREADAS:", {
-      friendship1: friendship1.id,
-      friendship2: friendship2.id
-    })
     
     return new StepResponse(
       {

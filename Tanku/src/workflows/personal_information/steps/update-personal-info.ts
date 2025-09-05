@@ -19,7 +19,7 @@ export interface UpdatePersonalInfoInput {
 export const updatePersonalInfoStep = createStep(
   "update-personal-info-step",
   async (data: UpdatePersonalInfoInput, { container }) => {
-    console.log("Updating personal info for customer:", data.customer_id);
+   
     
     const personalInfoService: PersonalInformationModuleService = container.resolve(
       PERSONAL_INFORMATION_MODULE
@@ -35,8 +35,7 @@ export const updatePersonalInfoStep = createStep(
 
       if (existingInfo && existingInfo.length > 0) {
         // Actualizar información existente
-        console.log("Updating existing personal info");
-        console.log("Existing info:", existingInfo);
+      
         
         // Solo incluir campos que realmente se están actualizando (no undefined)
         const updateData: any = {};
@@ -72,8 +71,7 @@ export const updatePersonalInfoStep = createStep(
           updateData.favorite_activities = data.favorite_activities;
         }
         
-        console.log("Update data being sent:", updateData);
-        console.log("Updating record with ID:", existingInfo[0].id);
+      
         
         // Usar updatePersonalInformations con sintaxis correcta - incluir ID en updateData
         const updateDataWithId = {
@@ -85,16 +83,16 @@ export const updatePersonalInfoStep = createStep(
           updateDataWithId
         );
         
-        console.log("Raw result from updatePersonalInformations:", result);
+       
         
         // Verificar si la actualización realmente funcionó
         const verifyUpdate = await personalInfoService.listPersonalInformations({
           id: existingInfo[0].id
         });
-        console.log("Verification - record after update:", verifyUpdate);
+      
       } else {
         // Crear nueva información personal
-        console.log("Creating new personal info");
+     
         const createData = {
           customer_id: data.customer_id,
           avatar_url: data.avatar_url,
@@ -112,7 +110,7 @@ export const updatePersonalInfoStep = createStep(
         result = await personalInfoService.createPersonalInformations(createData);
       }
 
-      console.log("Personal info updated successfully:", result);
+     
       return new StepResponse(result, result);
     } catch (error) {
       console.error("Error updating personal info:", error);
@@ -121,7 +119,7 @@ export const updatePersonalInfoStep = createStep(
   },
   async (result, { container }) => {
     // Función de compensación en caso de error
-    console.log("Compensating personal info update");
+   
     // Aquí podrías implementar lógica de rollback si es necesario
   }
 );

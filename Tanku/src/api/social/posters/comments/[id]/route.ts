@@ -35,7 +35,6 @@ export async function PUT(req: MedusaRequest, res: MedusaResponse) {
       input: { comment_id: commentId, content }
     })
 
-    console.log("Comment edited successfully:", commentId)
 
     // Respuesta exitosa
     return res.status(200).json({
@@ -69,8 +68,7 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
       input: { comment_id: commentId }
     })
 
-    console.log("Comment deleted successfully:", commentId)
-
+    
     // Respuesta exitosa
     return res.status(200).json({
       success: true,

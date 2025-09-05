@@ -118,7 +118,7 @@ async function logger(
   res: MedusaResponse,
   next: MedusaNextFunction
 ) {
-  console.log("Request received");
+ 
   next();
 }
 

@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework"
-import { savePhaseOneWorkflow } from "../../../../workflows/onboarding/save-phase-one"
+import { savePhaseOneWorkflow } from "../../../../workflows/onboarding"
 
 interface PhaseOneRequest {
   customer_id: string
@@ -21,7 +21,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
 
     if (!data.customer_id) {
       return res.status(400).json({
-        success: false,
+        success: false, 
         message: "customer_id es requerido"
       })
     }

@@ -20,7 +20,7 @@ export const getUserPostersStep = createStep(
     )
     const customerService = container.resolve(Modules.CUSTOMER)
 
-    console.log("Getting posters for customer:", input.customer_id)
+  
 
     // 1. Obtener posters del usuario
     const userPosters = await socialModuleService.listPosters({
@@ -28,7 +28,7 @@ export const getUserPostersStep = createStep(
       is_active: true
     })
 
-    console.log("User posters found:", userPosters.length)
+
 
     // 2. Obtener información del customer para cada poster
     const postersWithCustomerInfo: any[] = []
@@ -55,7 +55,7 @@ export const getUserPostersStep = createStep(
       })
     }
 
-    console.log("Posters with customer info processed:", postersWithCustomerInfo.length)
+   
 
     return new StepResponse({
       posters: postersWithCustomerInfo

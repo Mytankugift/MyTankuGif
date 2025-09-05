@@ -13,8 +13,7 @@ export interface DeletePosterCommentOutput {
 export const deletePosterCommentStep = createStep(
   "delete-poster-comment-step",
   async (input: DeletePosterCommentInput, { container }) => {
-    console.log("=== DELETING POSTER COMMENT STEP ===")
-    console.log("Input:", input)
+   
     
     const socialModuleService: SocialModuleService = container.resolve(
       SOCIAL_MODULE
@@ -27,7 +26,7 @@ export const deletePosterCommentStep = createStep(
     // 2. Eliminar el comentario
     await socialModuleService.deletePosterComments(input.comment_id)
     
-    console.log("Comment deleted successfully:", input.comment_id)
+    
     
     // 3. Obtener el conteo actualizado de comentarios para este poster
     const remainingComments = await socialModuleService.listPosterComments({
@@ -46,11 +45,11 @@ export const deletePosterCommentStep = createStep(
       comments_count
     }
     
-    console.log("Delete comment result:", result)
+   
     
     return new StepResponse(result, async () => {
       // Compensación: recrear el comentario
-      console.log("Rolling back comment deletion:", input.comment_id)
+      
       await socialModuleService.createPosterComments({
         id: comment.id,
         poster_id: comment.poster_id,

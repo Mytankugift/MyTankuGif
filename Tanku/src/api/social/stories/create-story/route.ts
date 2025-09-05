@@ -14,16 +14,14 @@ const storyDataSchema = z.object({
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
   try {
-    console.log("=== CREANDO STORY ===");
-    console.log("Files received:", req.files);
-    console.log("Body received:", req.body);
+ 
     
     const files = req.files as Express.Multer.File[];
     let mediaUrls: string[] = [];
 
     // Procesar archivos si existen
     if (files?.length) {
-      console.log("Processing files:", files.length);
+    
       
       const { result } = await uploadFilesWorkflow(req.scope).run({
         input: {
@@ -37,7 +35,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       });
       
       mediaUrls = result.map((r) => r.url);
-      console.log("Generated URLs:", mediaUrls);
+     
     }
     
     // Obtener datos de la story desde el body
@@ -49,8 +47,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       customer_id: body.customer_id || undefined,
     };
     
-    console.log("Story data:", storyData);
-    
+ 
     // Validar datos
     const validatedData = storyDataSchema.parse(storyData);
 
@@ -68,14 +65,14 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       })),
     };
     
-    console.log("Workflow input:", workflowInput);
+    
     
     // Ejecutar el workflow
     const { result } = await createUserStoryWorkflow(req.scope).run({
       input: workflowInput,
     });
     
-    console.log("Workflow result:", result);
+    
     
     // Preparar respuesta para el frontend
     const response = {
@@ -93,7 +90,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       },
     };
     
-    console.log("Response:", response);
+   
     res.status(201).json(response);
     
   } catch (error) {

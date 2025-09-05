@@ -10,8 +10,7 @@ const UpdateStatusMessageSchema = z.object({
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   try {
-    console.log("=== Update Status Message Endpoint ===");
-    console.log("Body received:", req.body);
+   
 
     // Validar datos del cuerpo
     const validationResult = UpdateStatusMessageSchema.safeParse(req.body);
@@ -25,8 +24,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
     const { customer_id, status_message } = validationResult.data;
 
-    console.log("Customer ID:", customer_id);
-    console.log("Status Message:", status_message);
+   
 
     // Actualizar información personal usando el workflow
     const { result: updateResult } = await updatePersonalInfoWorkflow(req.scope).run({
@@ -35,8 +33,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         status_message
       }
     });
-
-    console.log("Update result:", updateResult);
 
     return res.status(200).json({
       success: true,

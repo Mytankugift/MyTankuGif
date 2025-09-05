@@ -18,8 +18,7 @@ export interface AddPosterCommentOutput {
 export const addPosterCommentStep = createStep(
   "add-poster-comment-step",
   async (input: AddPosterCommentInput, { container }) => {
-    console.log("=== ADDING POSTER COMMENT STEP ===")
-    console.log("Input:", input)
+   
     
     const socialModuleService: SocialModuleService = container.resolve(
       SOCIAL_MODULE
@@ -34,7 +33,7 @@ export const addPosterCommentStep = createStep(
       parent_id: input.parent_id || null
     })
     
-    console.log("Comment created successfully:", comment.id)
+   
     
     // 2. Obtener información del customer para enriquecer el comentario
     let customerInfo: any = null
@@ -68,11 +67,11 @@ export const addPosterCommentStep = createStep(
       comments_count
     }
     
-    console.log("Add comment result:", result)
+   
     
     return new StepResponse(result, async () => {
       // Compensación: eliminar el comentario si algo falla
-      console.log("Rolling back comment creation:", comment.id)
+  
       await socialModuleService.deletePosterComments(comment.id)
       
       // Revertir el contador

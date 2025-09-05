@@ -28,15 +28,14 @@ export interface SavePhaseTwoInput {
 export const savePhaseTwoStep = createStep(
   "save-phase-two-step",
   async (data: SavePhaseTwoInput, { container }) => {
-    console.log("Saving phase two data for customer:", data.customer_id)
     
-    const onboardingService: OnboardingModuleService = container.resolve(
+    
+    const onboardingService = container.resolve(
       ONBOARDING_MODULE
     )
 
-    try {
-      // Verificar si ya existe información de fase 2 para este customer
-      const existingPhaseTwo = await onboardingService.listOnboardingPhaseTwoes({
+   
+      const existingPhaseTwo = await onboardingService.listOnboardingPhaseTwos({
         customer_id: data.customer_id
       })
 
@@ -44,7 +43,7 @@ export const savePhaseTwoStep = createStep(
 
       if (existingPhaseTwo && existingPhaseTwo.length > 0) {
         // Actualizar información existente
-        console.log("Updating existing phase two data")
+      
         
         const updateData = {
           id: existingPhaseTwo[0].id,
@@ -66,13 +65,14 @@ export const savePhaseTwoStep = createStep(
           shopping_days: data.shopping_days,
           ecommerce_experience: data.ecommerce_experience,
           social_activity_level: data.social_activity_level,
-          notifications_preference: data.notifications_preference
+          notifications_preference: data.notifications_preference,
+          completed_at: existingPhaseTwo[0].completed_at || new Date('1900-01-01')
         }
         
-        result = await onboardingService.updateOnboardingPhaseTwoes(updateData)
+        result = await onboardingService.updateOnboardingPhaseTwos(updateData)
       } else {
         // Crear nueva información de fase 2
-        console.log("Creating new phase two data")
+        
         const createData = {
           customer_id: data.customer_id,
           product_interests: data.product_interests as any,
@@ -93,20 +93,18 @@ export const savePhaseTwoStep = createStep(
           shopping_days: data.shopping_days,
           ecommerce_experience: data.ecommerce_experience,
           social_activity_level: data.social_activity_level,
-          notifications_preference: data.notifications_preference
+          notifications_preference: data.notifications_preference,
+          completed_at: new Date('1900-01-01')
         }
         
-        result = await onboardingService.createOnboardingPhaseTwoes(createData)
+        result = await onboardingService.createOnboardingPhaseTwos(createData)
       }
 
-      console.log("Phase two data saved successfully:", result)
+    
       return new StepResponse(result, result)
-    } catch (error) {
-      console.error("Error saving phase two data:", error)
-      throw error
-    }
+    
   },
   async (result, { container }) => {
-    console.log("Compensating save phase two")
+  
   }
 )

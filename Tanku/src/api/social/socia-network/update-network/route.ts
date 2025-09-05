@@ -16,8 +16,7 @@ const updateSocialNetworksSchema = z.object({
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   try {
-    console.log("=== UPDATE SOCIAL NETWORKS ENDPOINT ===")
-    console.log("Body received:", req.body)
+   
 
     // Validar datos del formulario
     const validationResult = updateSocialNetworksSchema.safeParse(req.body)
@@ -39,7 +38,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       }
     })
 
-    console.log("Social networks updated successfully:", result)
+   
 
     // Respuesta exitosa
     return res.status(200).json({

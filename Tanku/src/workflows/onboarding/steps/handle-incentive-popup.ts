@@ -10,15 +10,14 @@ export interface HandleIncentivePopupInput {
 export const handleIncentivePopupStep = createStep(
   "handle-incentive-popup-step",
   async (data: HandleIncentivePopupInput, { container }) => {
-    console.log(`Handling incentive popup ${data.action} for customer:`, data.customer_id)
+   
     
-    const onboardingService: OnboardingModuleService = container.resolve(
+    const onboardingService = container.resolve(
       ONBOARDING_MODULE
     )
 
-    try {
-      // Verificar si existe el status del onboarding
-      const existingStatus = await onboardingService.listOnboardingStatus({
+    
+      const existingStatus = await onboardingService.listOnboardingStatuses({
         customer_id: data.customer_id
       })
 
@@ -26,7 +25,7 @@ export const handleIncentivePopupStep = createStep(
 
       if (existingStatus && existingStatus.length > 0) {
         // Actualizar status existente
-        console.log("Updating existing onboarding status for incentive popup")
+      
         
         const updateData: any = {
           id: existingStatus[0].id
@@ -38,10 +37,10 @@ export const handleIncentivePopupStep = createStep(
           updateData.incentive_popup_dismissed = true
         }
         
-        result = await onboardingService.updateOnboardingStatus(updateData)
+        result = await onboardingService.updateOnboardingStatuses(updateData)
       } else {
         // Crear nuevo status si no existe
-        console.log("Creating new onboarding status for incentive popup")
+       
         const createData = {
           customer_id: data.customer_id,
           phase_one_completed: false,
@@ -52,17 +51,14 @@ export const handleIncentivePopupStep = createStep(
           incentive_popup_dismissed: data.action === 'dismiss'
         }
         
-        result = await onboardingService.createOnboardingStatus(createData)
+        result = await onboardingService.createOnboardingStatuses(createData)
       }
 
-      console.log(`Incentive popup ${data.action} handled successfully:`, result)
+     
       return new StepResponse(result, result)
-    } catch (error) {
-      console.error(`Error handling incentive popup ${data.action}:`, error)
-      throw error
-    }
+    
   },
   async (result, { container }) => {
-    console.log("Compensating handle incentive popup")
+    
   }
 )

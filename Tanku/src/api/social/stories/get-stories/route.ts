@@ -4,8 +4,7 @@ import { getUserStoriesWorkflow, GetUserStoriesInput } from "../../../../workflo
 
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
   try {
-    console.log("=== GET STORIES ENDPOINT ===");
-    console.log("Query params:", req.query);
+   
     
     const customer_id = req.query.customer_id as string;
     
@@ -17,24 +16,21 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
       return;
     }
     
-    console.log("Customer ID:", customer_id);
+    
     
     // Preparar datos para el workflow
     const workflowInput: GetUserStoriesInput = {
       customer_id,
     };
     
-    console.log("Workflow input:", workflowInput);
+   
     
     // Ejecutar el workflow
     const { result } = await getUserStoriesWorkflow(req.scope).run({
       input: workflowInput,
     });
     
-    console.log("Workflow result:", {
-      userStoriesCount: result.userStories.length,
-      friendsStoriesCount: result.friendsStories.length
-    });
+    
     
     // Preparar respuesta para el frontend
     const response = {
@@ -43,7 +39,7 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
       friendsStories: result.friendsStories,
     };
     
-    console.log("Response prepared");
+  
     res.status(200).json(response);
     
   } catch (error) {

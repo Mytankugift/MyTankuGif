@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework"
-import { completeOnboardingPhaseWorkflow } from "../../../../workflows/onboarding/complete-onboarding-phase"
+import { completeOnboardingPhaseWorkflow } from "../../../../workflows/onboarding"
 
 interface CompletePhaseRequest {
   customer_id: string

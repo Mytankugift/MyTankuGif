@@ -16,8 +16,7 @@ export interface GetUserAndFriendsPostersOutput {
 export const getUserAndFriendsPostersStep = createStep(
   "get-user-and-friends-posters-step",
   async (input: GetUserAndFriendsPostersInput, { container }) => {
-    console.log("=== GETTING USER AND FRIENDS POSTERS STEP ===")
-    console.log("Input:", input)
+   
     
     const socialModuleService: SocialModuleService = container.resolve(
       SOCIAL_MODULE
@@ -33,7 +32,7 @@ export const getUserAndFriendsPostersStep = createStep(
       is_active: true
     })
     
-    console.log("User posters found:", userPosters.length)
+
     
     // 2. Obtener amigos del usuario (solicitudes aceptadas)
     const friendRequests = await socialModuleService.listFriendRequests({
@@ -53,7 +52,7 @@ export const getUserAndFriendsPostersStep = createStep(
       }
     }
     
-    console.log("Friend IDs found:", friendIds)
+
     
     // 3. Obtener posters de los amigos
     let friendsPosters: any[] = []
@@ -69,7 +68,6 @@ export const getUserAndFriendsPostersStep = createStep(
       }
     }
     
-    console.log("Friends posters found:", friendsPosters.length)
     
     // 4. Obtener información del customer para los posters del usuario
     const userPostersWithInfo: any[] = []

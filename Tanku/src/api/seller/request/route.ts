@@ -103,7 +103,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
 
     res.status(200).json({ seller_request: seller_request });
   } catch (error) {
-    console.log("este es el error en la solicitud de vendedores:", error);
+    console.error("este es el error en la solicitud de vendedores:", error);
     if (error instanceof z.ZodError) {
       res.status(400).json({ message: "Invalid input", errors: error.errors });
     } else {

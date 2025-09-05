@@ -10,9 +10,7 @@ const UpdateAvatarSchema = z.object({
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   try {
-    console.log("=== Update Avatar Endpoint ===");
-    console.log("Files received:", req.files);
-    console.log("Body received:", req.body);
+   
 
     // Validar que se recibió un archivo
     const avatarFile = req.file;
@@ -35,8 +33,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
     const { customer_id } = validationResult.data;
 
-    console.log("Avatar file:", avatarFile.originalname);
-    console.log("Customer ID:", customer_id);
+   
 
     // Subir archivo usando el workflow de Medusa
     const { result: uploadResult } = await uploadFilesWorkflow(req.scope).run({
@@ -50,7 +47,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       }
     });
 
-    console.log("Upload result:", uploadResult);
+   
 
     if (!uploadResult || !uploadResult.length) {
       return res.status(500).json({
@@ -60,7 +57,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     const avatarUrl = uploadResult[0].url;
-    console.log("Avatar URL:", avatarUrl);
+   
 
     // Actualizar información personal usando el workflow
     const { result: updateResult } = await updatePersonalInfoWorkflow(req.scope).run({
@@ -70,7 +67,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       }
     });
 
-    console.log("Update result:", updateResult);
+    
 
     return res.status(200).json({
       success: true,

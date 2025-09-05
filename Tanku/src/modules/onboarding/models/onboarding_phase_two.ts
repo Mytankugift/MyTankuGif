@@ -1,6 +1,6 @@
 import { model } from "@medusajs/framework/utils";
 
-export const OnboardingPhaseTwo = model.define("onboarding_phase_two", {
+const OnboardingPhaseTwo = model.define("onboarding_phase_two", {
   id: model.id().primaryKey(),
   customer_id: model.text(),
   
@@ -39,9 +39,8 @@ export const OnboardingPhaseTwo = model.define("onboarding_phase_two", {
   social_activity_level: model.text(), // muy_activo, observador, poco_activo
   notifications_preference: model.text(), // si, no, solo_productos, solo_amigos
   
-  // Control de estado
-  completed_at: model.dateTime(),
- 
+  // Campo temporal para compatibilidad con BD existente
+  completed_at: model.dateTime().nullable(),
 }).indexes([
   { on: ["customer_id"], unique: true } // Un registro por customer
 ]);

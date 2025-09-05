@@ -27,7 +27,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       input: { poster_id, customer_id }
     })
 
-    console.log("Poster like toggled successfully:", result)
 
     // Respuesta exitosa
     return res.status(200).json({

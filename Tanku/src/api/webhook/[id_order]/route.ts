@@ -5,7 +5,7 @@ import { updateOrderEpaycoWebhookWorkflow } from "../../../workflows/epayco_webh
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     try {
-        console.log("params",req.params)
+     
         const { id_order } = req.params  ;
         
         const dataProduct = await updateOrderEpaycoWebhookWorkflow(req.scope).run({

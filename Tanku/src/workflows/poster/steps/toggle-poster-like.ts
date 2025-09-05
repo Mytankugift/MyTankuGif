@@ -16,8 +16,7 @@ export interface TogglePosterLikeOutput {
 export const togglePosterLikeStep = createStep(
   "toggle-poster-like-step",
   async (input: TogglePosterLikeInput, { container }) => {
-    console.log("=== TOGGLING POSTER LIKE STEP ===")
-    console.log("Input:", input)
+   
     
     const socialModuleService: SocialModuleService = container.resolve(
       SOCIAL_MODULE
@@ -37,7 +36,7 @@ export const togglePosterLikeStep = createStep(
       // Ya existe un like, lo eliminamos
       await socialModuleService.deletePosterReactions(existingReaction[0].id)
       action = "removed"
-      console.log("Like removed from poster:", input.poster_id)
+     
     } else {
       // No existe un like, lo creamos
       reaction = await socialModuleService.createPosterReactions({
@@ -46,7 +45,7 @@ export const togglePosterLikeStep = createStep(
         reaction_type: "like"
       })
       action = "added"
-      console.log("Like added to poster:", input.poster_id)
+     
     }
     
     // 2. Obtener el conteo actualizado de likes para este poster
@@ -69,11 +68,11 @@ export const togglePosterLikeStep = createStep(
       likes_count
     }
     
-    console.log("Toggle like result:", result)
+    
     
     return new StepResponse(result, async () => {
       // Compensación: revertir la acción
-      console.log("Rolling back toggle like action")
+      
       if (action === "added" && reaction) {
         await socialModuleService.deletePosterReactions(reaction.id)
       } else if (action === "removed") {

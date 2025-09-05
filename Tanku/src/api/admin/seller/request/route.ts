@@ -35,7 +35,7 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     const { result } = await retrieveListSellerRequestWorkflowAdmin(
       req.scope
     ).run();
-    console.log("este es el resultado");
+   
     res.json(result);
   } catch (error) {
     res.status(500).json({

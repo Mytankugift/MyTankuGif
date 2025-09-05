@@ -39,7 +39,7 @@ export default defineMiddlewares({
           })(req, res, next);
         },
         (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) => {
-          console.log("Middleware de account ejecutado");
+        
           next();
         },
       ],

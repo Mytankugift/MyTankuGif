@@ -18,6 +18,7 @@ import { updateSocialNetworks } from "../actions/update-social-networks"
 import { usePersonalInfo } from "@lib/context/personal-info-context"
 import Link from "next/link"
 import FriendGroupsTab from "./FriendGroupsTab"
+import EventsCalendarTab from "./EventsCalendarTab"
 
 // Profile editing components
 import ProfileName from "@modules/account/components/profile-name"
@@ -1479,21 +1480,16 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
                 </div>
               )}
           
-              {activeTab === 'MY TANKU' && (
-                <div className="flex flex-col items-center justify-center py-4 sm:py-6 md:py-12 text-center">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gray-700 rounded-full flex items-center justify-center mb-2 sm:mb-3 md:mb-4">
-                    <svg className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
+              {activeTab === 'MY TANKU' && customer?.id && (
+                <div className="space-y-8 py-4 sm:py-6">
+                  <FriendGroupsTab customerId={customer.id} />
+                  <div className="border-t border-gray-700 pt-8">
+                    <EventsCalendarTab customerId={customer.id} />
                   </div>
-                  <h3 className="text-white text-base sm:text-lg font-medium mb-1 sm:mb-2">Próximamente</h3>
-                  <p className="text-gray-400 text-xs sm:text-sm">Esta sección estará disponible pronto.</p>
                 </div>
               )}
               
-              {activeTab === 'GRUPOS DE AMIGOS' && customer?.id && (
-                <FriendGroupsTab customerId={customer.id} />
-              )}
+             
               
               {activeTab === 'MIS COMPRAS' && (
                 <div className="flex flex-col items-center justify-center py-4 sm:py-6 md:py-12 text-center">

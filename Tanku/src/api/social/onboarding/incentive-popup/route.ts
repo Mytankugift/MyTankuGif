@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework"
-import { handleIncentivePopupWorkflow } from "../../../../workflows/onboarding/handle-incentive-popup"
+import { handleIncentivePopupWorkflow } from "../../../../workflows/onboarding"
 
 interface IncentivePopupRequest {
   customer_id: string

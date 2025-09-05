@@ -8,6 +8,7 @@ import { StoryFile } from "./models/story-file"
 import { StoriesUser } from "./models/stories-user"
 import { PosterReaction } from "./models/post-reaction"
 import { PosterComment } from "./models/poster-comment"
+import { EventsCalendar } from "./models/events-calendar"
 
 class SocialModuleService extends MedusaService({
   FriendRequest,
@@ -19,6 +20,7 @@ class SocialModuleService extends MedusaService({
   StoriesUser,
   PosterReaction,
   PosterComment,
+  EventsCalendar,
 }) {
   // Puedes añadir métodos personalizados aquí si es necesario
 }

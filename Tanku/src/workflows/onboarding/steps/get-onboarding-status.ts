@@ -9,24 +9,24 @@ export interface GetOnboardingStatusInput {
 export const getOnboardingStatusStep = createStep(
   "get-onboarding-status-step",
   async (data: GetOnboardingStatusInput, { container }) => {
-    console.log("Getting onboarding status for customer:", data.customer_id)
     
-    const onboardingService: OnboardingModuleService = container.resolve(
+    
+    const onboardingService = container.resolve(
       ONBOARDING_MODULE
     )
 
-    try {
-      // Verificar si existe el status del onboarding
-      const existingStatus = await onboardingService.listOnboardingStatus({
+ 
+      const existingStatus = await onboardingService.listOnboardingStatuses({
         customer_id: data.customer_id
       })
+     
 
       let status
       if (existingStatus && existingStatus.length > 0) {
         status = existingStatus[0]
       } else {
         // Crear status inicial si no existe
-        status = await onboardingService.createOnboardingStatus({
+        status = await onboardingService.createOnboardingStatuses({
           customer_id: data.customer_id,
           phase_one_completed: false,
           phase_two_completed: false,
@@ -42,7 +42,7 @@ export const getOnboardingStatusStep = createStep(
         customer_id: data.customer_id
       })
 
-      const phaseTwoData = await onboardingService.listOnboardingPhaseTwoes({
+      const phaseTwoData = await onboardingService.listOnboardingPhaseTwos({
         customer_id: data.customer_id
       })
 
@@ -59,14 +59,11 @@ export const getOnboardingStatusStep = createStep(
         has_phase_two_data: phaseTwoData && phaseTwoData.length > 0
       }
 
-      console.log("Onboarding status retrieved successfully:", result)
+     
       return new StepResponse(result, result)
-    } catch (error) {
-      console.error("Error getting onboarding status:", error)
-      throw error
-    }
+    
   },
   async (result, { container }) => {
-    console.log("Compensating get onboarding status")
+    
   }
 )

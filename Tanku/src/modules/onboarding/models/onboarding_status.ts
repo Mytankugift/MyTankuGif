@@ -1,6 +1,6 @@
 import { model } from "@medusajs/framework/utils";
 
-export const OnboardingStatus = model.define("onboarding_status", {
+const OnboardingStatus = model.define("onboarding_status", {
   id: model.id().primaryKey(),
   customer_id: model.text(),
   
@@ -21,7 +21,6 @@ export const OnboardingStatus = model.define("onboarding_status", {
   phase_one_current_step: model.number().default(1), // 1-6
   phase_two_current_step: model.number().default(1), // 1-8
   
-  // Metadatos
  
 }).indexes([
   { on: ["customer_id"], unique: true } // Un registro por customer

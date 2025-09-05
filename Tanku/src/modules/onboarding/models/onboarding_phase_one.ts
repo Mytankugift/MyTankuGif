@@ -1,6 +1,6 @@
 import { model } from "@medusajs/framework/utils";
 
-export const OnboardingPhaseOne = model.define("onboarding_phase_one", {
+const OnboardingPhaseOne = model.define("onboarding_phase_one", {
   id: model.id().primaryKey(),
   customer_id: model.text(),
   
@@ -26,8 +26,9 @@ export const OnboardingPhaseOne = model.define("onboarding_phase_one", {
   // Paso 6 - Celebraciones importantes
   important_celebrations: model.json().nullable(), // Array opcional: ["navidad", "año_nuevo", etc.]
   
-  // Control de estado
-  completed_at: model.dateTime(),
+  // Campo temporal para compatibilidad con BD existente
+  completed_at: model.dateTime().nullable(),
+
   
 }).indexes([
   { on: ["customer_id"], unique: true } // Un registro por customer

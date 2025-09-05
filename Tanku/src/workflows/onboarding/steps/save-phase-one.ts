@@ -19,14 +19,13 @@ export interface SavePhaseOneInput {
 export const savePhaseOneStep = createStep(
   "save-phase-one-step",
   async (data: SavePhaseOneInput, { container }) => {
-    console.log("Saving phase one data for customer:", data.customer_id)
+   
     
     const onboardingService: OnboardingModuleService = container.resolve(
       ONBOARDING_MODULE
     )
 
-    try {
-      // Verificar si ya existe información de fase 1 para este customer
+   
       const existingPhaseOne = await onboardingService.listOnboardingPhaseOnes({
         customer_id: data.customer_id
       })
@@ -35,7 +34,7 @@ export const savePhaseOneStep = createStep(
 
       if (existingPhaseOne && existingPhaseOne.length > 0) {
         // Actualizar información existente
-        console.log("Updating existing phase one data")
+       
         
         const updateData = {
           id: existingPhaseOne[0].id,
@@ -48,13 +47,14 @@ export const savePhaseOneStep = createStep(
           main_interests: data.main_interests as any,
           representative_colors: data.representative_colors as any,
           favorite_activities: data.favorite_activities as any,
-          important_celebrations: data.important_celebrations as any
+          important_celebrations: data.important_celebrations as any,
+          completed_at: existingPhaseOne[0].completed_at || new Date('1900-01-01')
         }
         
         result = await onboardingService.updateOnboardingPhaseOnes(updateData)
       } else {
         // Crear nueva información de fase 1
-        console.log("Creating new phase one data")
+       
         const createData = {
           customer_id: data.customer_id,
           birth_date: new Date(data.birth_date),
@@ -66,20 +66,17 @@ export const savePhaseOneStep = createStep(
           main_interests: data.main_interests as any,
           representative_colors: data.representative_colors as any,
           favorite_activities: data.favorite_activities as any,
-          important_celebrations: data.important_celebrations as any
+          important_celebrations: data.important_celebrations as any,
+          completed_at: new Date('1900-01-01')
         }
         
         result = await onboardingService.createOnboardingPhaseOnes(createData)
       }
 
-      console.log("Phase one data saved successfully:", result)
       return new StepResponse(result, result)
-    } catch (error) {
-      console.error("Error saving phase one data:", error)
-      throw error
-    }
+    
   },
   async (result, { container }) => {
-    console.log("Compensating save phase one")
+    
   }
 )

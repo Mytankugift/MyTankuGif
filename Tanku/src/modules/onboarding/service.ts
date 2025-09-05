@@ -8,8 +8,7 @@ class OnboardingModuleService extends MedusaService({
   OnboardingPhaseTwo,
   OnboardingStatus,
 }) {}
-
-export default OnboardingModuleService;
+export default OnboardingModuleService
 
   
 

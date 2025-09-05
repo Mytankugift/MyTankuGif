@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react'
 import { Calendar } from "@medusajs/icons"
+import { createEventCalendar } from '../actions/create-event-calendar'
+import { usePersonalInfo } from '@lib/context/personal-info-context'
 
 interface CalendarEventFormProps {
   onClose: () => void
@@ -9,6 +11,7 @@ interface CalendarEventFormProps {
 }
 
 const CalendarEventForm: React.FC<CalendarEventFormProps> = ({ onClose, onEventCreated }) => {
+  const { personalInfo } = usePersonalInfo()
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [eventType, setEventType] = useState('Cumpleaños (Anual)')
@@ -37,26 +40,32 @@ const CalendarEventForm: React.FC<CalendarEventFormProps> = ({ onClose, onEventC
       return
     }
 
+    if (!personalInfo?.id) {
+      alert('Error: No se pudo identificar al usuario')
+      return
+    }
+
     setIsSubmitting(true)
     
     try {
-      // TODO: Implement API call to save event
-      console.log('Saving event:', {
-        title: title.trim(),
-        date,
-        eventType,
-        description: description.trim()
-      })
+      const eventData = {
+        customer_id: personalInfo.id,
+        event_name: title.trim(),
+        event_date: date,
+        description: description.trim() || undefined,
+        event_type: eventType
+      }
+
+      console.log('Guardando evento:', eventData)
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const createdEvent = await createEventCalendar(eventData)
       
       alert('¡Evento creado exitosamente!')
       onEventCreated?.()
       handleClose()
-    } catch (error) {
-      console.error('Error creating event:', error)
-      alert('Error al crear el evento. Por favor, inténtalo de nuevo.')
+    } catch (error: any) {
+      console.error('Error al crear el evento:', error)
+      alert(error.message || 'Error al crear el evento. Por favor, inténtalo de nuevo.')
     } finally {
       setIsSubmitting(false)
     }

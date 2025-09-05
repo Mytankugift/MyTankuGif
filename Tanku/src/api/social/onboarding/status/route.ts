@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework"
-import { getOnboardingStatusWorkflow } from "../../../../workflows/onboarding/get-onboarding-status"
+import { getOnboardingStatusWorkflow } from "../../../../workflows/onboarding"
 
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
   try {

@@ -12,10 +12,7 @@ const createPosterSchema = z.object({
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   try {
-    console.log("=== CREATE POSTER ENDPOINT ===")
-    console.log("Files received:", req.files)
-    console.log("Body received:", req.body)
-
+  
     // Validar que hay archivos
     // Los archivos son opcionales ahora
     const files = req.files && Array.isArray(req.files) ? req.files : []
@@ -51,9 +48,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       }
     }
 
-    console.log("Image file:", imageFile?.originalname)
-    console.log("Video file:", videoFile?.originalname || "None")
-
     // Subir archivos usando el workflow de Medusa si existen
     let imageUrl = ""
     let videoUrl = ""
@@ -80,7 +74,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           }
         })
 
-        console.log("Upload result:", uploadResult)
 
         // Validar que el resultado de subida existe
         if (!uploadResult) {
@@ -99,17 +92,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             }
           }
 
-          console.log("Uploaded files found:", uploadedFiles.length)
-
+       
           // Asignar URLs basándose en el orden de subida
           for (let i = 0; i < uploadedFiles.length && i < filesToUpload.length; i++) {
             const uploadedFile = uploadedFiles[i] as any
             const originalFile = filesToUpload[i] as any
             
-            console.log(`Processing file ${i}:`, {
-              uploaded: uploadedFile,
-              original: originalFile.mimetype
-            })
+           
             
             const fileUrl = uploadedFile.url || uploadedFile.file_url || uploadedFile.path || ""
             
@@ -133,8 +122,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       })
     }
 
-    console.log("Image URL:", imageUrl)
-    console.log("Video URL:", videoUrl)
+   
 
     // Crear el poster usando el workflow
     const { result: poster } = await createPosterWorkflow(req.scope).run({
@@ -147,7 +135,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       }
     })
 
-    console.log("Poster created successfully:", poster.id)
+   
 
     // Respuesta exitosa
     return res.status(201).json({

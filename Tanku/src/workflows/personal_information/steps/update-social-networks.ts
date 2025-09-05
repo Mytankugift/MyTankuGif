@@ -16,7 +16,7 @@ export interface UpdateSocialNetworksInput {
 export const updateSocialNetworksStep = createStep(
   "update-social-networks-step",
   async (input: UpdateSocialNetworksInput, { container }) => {
-    console.log("UPDATING SOCIAL NETWORKS:", input)
+   
 
     const personalInfoService: PersonalInformationModuleService = container.resolve(
       PERSONAL_INFORMATION_MODULE
@@ -65,7 +65,7 @@ export const updateSocialNetworksStep = createStep(
         social_url: filteredSocialNetworks
       })
 
-      console.log("SOCIAL NETWORKS UPDATED:", updatedPersonalInfo)
+    
 
       return new StepResponse(
         {
@@ -88,7 +88,7 @@ export const updateSocialNetworksStep = createStep(
         social_url: filteredSocialNetworks
       })
 
-      console.log("NEW PERSONAL INFO CREATED WITH SOCIAL NETWORKS:", newPersonalInfo)
+    
 
       return new StepResponse(
         {

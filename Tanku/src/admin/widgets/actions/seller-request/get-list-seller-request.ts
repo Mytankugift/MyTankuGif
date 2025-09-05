@@ -14,7 +14,7 @@ export const getListSellerRequest = async () => {
     }
 
     const result = await response.json();
-    console.log(result);
+    
     return result;
   } catch (error) {
     console.error("Error al obtener la lista de aplicaciones:", error);

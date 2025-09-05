@@ -1,4 +1,3 @@
-import { PhaseOneData, PhaseTwoData } from "../components/modal"
 
 export interface OnboardingStatusResponse {
   phase_one_completed: boolean
@@ -52,7 +51,7 @@ export interface SavePhaseTwoPayload {
 export const getOnboardingStatus = async (customer_id: string): Promise<OnboardingStatusResponse> => {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/onboarding/status?customer_id=${customer_id}`,
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/onboarding/status?customer_id=${customer_id}`,
       {
         method: "GET",
         credentials: "include",
@@ -83,7 +82,7 @@ export const savePhaseOneData = async (
 ): Promise<any> => {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/onboarding/phase-one`,
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/onboarding/phase-one`,
       {
         method: "POST",
         credentials: "include",
@@ -115,7 +114,7 @@ export const savePhaseTwoData = async (
 ): Promise<any> => {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/onboarding/phase-two`,
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/onboarding/phase-two`,
       {
         method: "POST",
         credentials: "include",
@@ -147,7 +146,7 @@ export const completeOnboardingPhase = async (
 ): Promise<any> => {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/onboarding/complete-phase`,
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/onboarding/complete-phase`,
       {
         method: "POST",
         credentials: "include",
@@ -179,7 +178,7 @@ export const handleIncentivePopup = async (
 ): Promise<any> => {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/onboarding/incentive-popup`,
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/onboarding/incentive-popup`,
       {
         method: "POST",
         credentials: "include",

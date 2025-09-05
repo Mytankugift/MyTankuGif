@@ -10,15 +10,14 @@ export interface CompleteOnboardingPhaseInput {
 export const completeOnboardingPhaseStep = createStep(
   "complete-onboarding-phase-step",
   async (data: CompleteOnboardingPhaseInput, { container }) => {
-    console.log(`Completing phase ${data.phase} for customer:`, data.customer_id)
+  
     
-    const onboardingService: OnboardingModuleService = container.resolve(
+    const onboardingService = container.resolve(
       ONBOARDING_MODULE
     )
 
-    try {
-      // Verificar si existe el status del onboarding
-      const existingStatus = await onboardingService.listOnboardingStatus({
+   
+      const existingStatus = await onboardingService.listOnboardingStatuses({
         customer_id: data.customer_id
       })
 
@@ -26,7 +25,7 @@ export const completeOnboardingPhaseStep = createStep(
 
       if (existingStatus && existingStatus.length > 0) {
         // Actualizar status existente
-        console.log("Updating existing onboarding status")
+       
         
         const updateData: any = {
           id: existingStatus[0].id
@@ -40,10 +39,10 @@ export const completeOnboardingPhaseStep = createStep(
           updateData.phase_two_current_step = 1 // Completado
         }
         
-        result = await onboardingService.updateOnboardingStatus(updateData)
+        result = await onboardingService.updateOnboardingStatuses(updateData)
       } else {
         // Crear nuevo status
-        console.log("Creating new onboarding status")
+      
         const createData = {
           customer_id: data.customer_id,
           phase_one_completed: data.phase === 'one',
@@ -54,17 +53,13 @@ export const completeOnboardingPhaseStep = createStep(
           incentive_popup_dismissed: false
         }
         
-        result = await onboardingService.createOnboardingStatus(createData)
+        result = await onboardingService.createOnboardingStatuses(createData)
       }
 
-      console.log(`Phase ${data.phase} completed successfully:`, result)
+     
       return new StepResponse(result, result)
-    } catch (error) {
-      console.error(`Error completing phase ${data.phase}:`, error)
-      throw error
-    }
   },
   async (result, { container }) => {
-    console.log("Compensating complete onboarding phase")
+  
   }
 )
