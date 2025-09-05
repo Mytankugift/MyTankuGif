@@ -12,11 +12,11 @@ export const handleIncentivePopupStep = createStep(
   async (data: HandleIncentivePopupInput, { container }) => {
    
     
-    const onboardingService = container.resolve(
+    const onboardingService:OnboardingModuleService = container.resolve(
       ONBOARDING_MODULE
     )
 
-    
+      // @ts-ignore
       const existingStatus = await onboardingService.listOnboardingStatuses({
         customer_id: data.customer_id
       })
@@ -36,7 +36,7 @@ export const handleIncentivePopupStep = createStep(
         } else if (data.action === 'dismiss') {
           updateData.incentive_popup_dismissed = true
         }
-        
+        // @ts-ignore
         result = await onboardingService.updateOnboardingStatuses(updateData)
       } else {
         // Crear nuevo status si no existe
@@ -50,7 +50,7 @@ export const handleIncentivePopupStep = createStep(
           incentive_popup_shown: data.action === 'show',
           incentive_popup_dismissed: data.action === 'dismiss'
         }
-        
+        // @ts-ignore
         result = await onboardingService.createOnboardingStatuses(createData)
       }
 

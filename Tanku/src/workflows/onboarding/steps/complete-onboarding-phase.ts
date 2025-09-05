@@ -12,11 +12,11 @@ export const completeOnboardingPhaseStep = createStep(
   async (data: CompleteOnboardingPhaseInput, { container }) => {
   
     
-    const onboardingService = container.resolve(
+    const onboardingService: OnboardingModuleService = container.resolve(
       ONBOARDING_MODULE
     )
 
-   
+      // @ts-ignore
       const existingStatus = await onboardingService.listOnboardingStatuses({
         customer_id: data.customer_id
       })
@@ -38,7 +38,7 @@ export const completeOnboardingPhaseStep = createStep(
           updateData.phase_two_completed = true
           updateData.phase_two_current_step = 1 // Completado
         }
-        
+        // @ts-ignore
         result = await onboardingService.updateOnboardingStatuses(updateData)
       } else {
         // Crear nuevo status
@@ -52,7 +52,7 @@ export const completeOnboardingPhaseStep = createStep(
           incentive_popup_shown: false,
           incentive_popup_dismissed: false
         }
-        
+        // @ts-ignore
         result = await onboardingService.createOnboardingStatuses(createData)
       }
 

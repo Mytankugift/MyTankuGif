@@ -30,11 +30,12 @@ export const savePhaseTwoStep = createStep(
   async (data: SavePhaseTwoInput, { container }) => {
     
     
-    const onboardingService = container.resolve(
+    const onboardingService: OnboardingModuleService = container.resolve(
       ONBOARDING_MODULE
     )
 
-   
+    
+      // @ts-ignore
       const existingPhaseTwo = await onboardingService.listOnboardingPhaseTwos({
         customer_id: data.customer_id
       })
@@ -68,7 +69,7 @@ export const savePhaseTwoStep = createStep(
           notifications_preference: data.notifications_preference,
           completed_at: existingPhaseTwo[0].completed_at || new Date('1900-01-01')
         }
-        
+        // @ts-ignore
         result = await onboardingService.updateOnboardingPhaseTwos(updateData)
       } else {
         // Crear nueva información de fase 2
@@ -96,7 +97,7 @@ export const savePhaseTwoStep = createStep(
           notifications_preference: data.notifications_preference,
           completed_at: new Date('1900-01-01')
         }
-        
+        // @ts-ignore
         result = await onboardingService.createOnboardingPhaseTwos(createData)
       }
 
