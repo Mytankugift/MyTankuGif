@@ -1,5 +1,5 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
-import { FRIENDSHIP_GROUPS_MODULE } from "../../../modules/social"
+import { SOCIAL_MODULE } from "../../../modules/social"
 import SocialModuleService from "../../../modules/social/service";
 
 export const createFriendshipGroupStep = createStep(
@@ -11,7 +11,7 @@ export const createFriendshipGroupStep = createStep(
     created_by: string
     is_private: boolean
   }, { container }) => {
-    const friendshipGroupsModuleService: SocialModuleService = container.resolve(FRIENDSHIP_GROUPS_MODULE)
+    const friendshipGroupsModuleService: SocialModuleService = container.resolve(SOCIAL_MODULE)
 
     try {
       // Create the friendship group
@@ -31,7 +31,7 @@ export const createFriendshipGroupStep = createStep(
         solicitation_status: "accepted",
         joined_at: new Date(),
       })
-
+      
       return new StepResponse(group, {
         group_id: group.id,
         created_by: input.created_by,
@@ -44,7 +44,7 @@ export const createFriendshipGroupStep = createStep(
   async (compensationData, { container }) => {
     if (!compensationData) return
 
-    const friendshipGroupsModuleService: SocialModuleService = container.resolve(FRIENDSHIP_GROUPS_MODULE)
+    const friendshipGroupsModuleService: SocialModuleService = container.resolve(SOCIAL_MODULE)
 
     try {
       // Remove the group member entry

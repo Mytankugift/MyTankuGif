@@ -13,8 +13,8 @@ const ViewProductModal = ({ product, open, setOpen }: ViewProductModalProps) => 
   if (!product) return null
 
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <Drawer.Content className="py-20">
+    <Drawer open={open} onOpenChange={setOpen} >
+      <Drawer.Content className="py-20 z-50">
         <Drawer.Header>
           <div className="flex gap-4 items-start mb-4">
             <div className="w-24 h-24 relative">

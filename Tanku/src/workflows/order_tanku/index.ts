@@ -10,6 +10,9 @@ import createOrderStep from "./steps/create-order";
 import { createRemoteLinkStep } from "@medusajs/medusa/core-flows";
 import { Modules } from "@medusajs/framework/utils";
 import createOrderVariantStep from "./steps/create-orderVariant";
+import { getCustomerOrdersStep, GetCustomerOrdersInput } from "./steps/get-customer-orders";
+import { getSellerStoreStep, GetSellerStoreInput } from "./steps/get-seller-store";
+import { getSellerOrdersStep, GetSellerOrdersInput } from "./steps/get-seller-orders";
 
 export type OrderVariantData = {
   variant_id: string;
@@ -68,6 +71,32 @@ export type UpdateOrderStatusInput = {
   orderId: string;
   statusName: string;
 };
+
+export const getCustomerOrdersWorkflow = createWorkflow(
+  "get-customer-orders-workflow",
+  (input: GetCustomerOrdersInput) => {
+    
+    const ordersResult = getCustomerOrdersStep(input);
+
+    return new WorkflowResponse(ordersResult);
+  }
+);
+
+export const getSellerOrdersWorkflow = createWorkflow(
+  "get-seller-orders-workflow",
+  (input: GetSellerStoreInput) => {
+    
+    // First get the seller's store
+    const storeResult = getSellerStoreStep(input);
+    
+    // Then get orders filtered by store products
+    const ordersResult = getSellerOrdersStep({
+      store_id: storeResult.id
+    });
+
+    return new WorkflowResponse(ordersResult);
+  }
+);
 
 // export const updateOrderStatusTankuWorkflow = createWorkflow(
 //   "update-order-status-tanku-workflow",

@@ -49,41 +49,40 @@ export interface InviteToGroupData {
 // Get user's friend groups
 export const getFriendGroups = async (userId: string) => {
   try {
-    console.log("Fetching groups for user:", userId)
-    console.log("Backend URL:", process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL)
+   
+
+    // // For now, return mock data since backend endpoints are not implemented yet
+    // const mockGroups = [
+    //   {
+    //     id: "group_1",
+    //     group_name: "Amigos del Colegio",
+    //     description: "Grupo de amigos de la secundaria",
+    //     image_url: null,
+    //     created_by: userId,
+    //     is_private: false,
+    //     created_at: new Date().toISOString(),
+    //     member_count: 5,
+    //     role: "admin",
+    //   },
+    //   {
+    //     id: "group_2",
+    //     group_name: "Compañeros de Trabajo",
+    //     description: "Equipo de desarrollo",
+    //     image_url: null,
+    //     created_by: "other_user",
+    //     is_private: true,
+    //     created_at: new Date().toISOString(),
+    //     member_count: 8,
+    //     role: "member",
+    //   },
+    // ]
+
+    // return {
+    //   success: true,
+    //   groups: mockGroups,
+    // }
+
     
-    // For now, return mock data since backend endpoints are not implemented yet
-    const mockGroups = [
-      {
-        id: "group_1",
-        group_name: "Amigos del Colegio",
-        description: "Grupo de amigos de la secundaria",
-        image_url: null,
-        created_by: userId,
-        is_private: false,
-        created_at: new Date().toISOString(),
-        member_count: 5,
-        role: "admin"
-      },
-      {
-        id: "group_2", 
-        group_name: "Compañeros de Trabajo",
-        description: "Equipo de desarrollo",
-        image_url: null,
-        created_by: "other_user",
-        is_private: true,
-        created_at: new Date().toISOString(),
-        member_count: 8,
-        role: "member"
-      }
-    ]
-
-    return {
-      success: true,
-      groups: mockGroups
-    }
-
-    /* TODO: Uncomment when backend is ready
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/groups/user-groups?user_id=${userId}`,
       {
@@ -106,13 +105,13 @@ export const getFriendGroups = async (userId: string) => {
       success: true,
       groups: data.groups || []
     }
-    */
+    
   } catch (error) {
     console.error("Error al obtener grupos:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Error desconocido",
-      groups: []
+      groups: [],
     }
   }
 }
@@ -120,38 +119,19 @@ export const getFriendGroups = async (userId: string) => {
 // Create new friend group
 export const createFriendGroup = async (groupData: CreateGroupData) => {
   try {
-    console.log("Creating group:", groupData)
-    
-    // For now, return mock success since backend endpoints are not implemented yet
-    const mockGroup = {
-      id: `group_${Date.now()}`,
-      group_name: groupData.group_name,
-      description: groupData.description,
-      image_url: null,
-      created_by: groupData.created_by,
-      is_private: groupData.is_private,
-      created_at: new Date().toISOString(),
-      member_count: 1,
-      role: "admin"
-    }
-
-    return {
-      success: true,
-      group: mockGroup
-    }
-
-    /* TODO: Uncomment when backend is ready
     const formData = new FormData()
-    formData.append('group_name', groupData.group_name)
-    formData.append('created_by', groupData.created_by)
-    formData.append('is_private', groupData.is_private.toString())
-    
-    if (groupData.description) {
-      formData.append('description', groupData.description)
-    }
-    
+    formData.append(
+      "dataGroup",
+      JSON.stringify({
+        group_name: groupData.group_name,
+        description: groupData.description,
+        is_private: groupData.is_private,
+        created_by: groupData.created_by,
+      })
+    )
+
     if (groupData.image) {
-      formData.append('image', groupData.image)
+      formData.append("banner", groupData.image)
     }
 
     const response = await fetch(
@@ -160,28 +140,28 @@ export const createFriendGroup = async (groupData: CreateGroupData) => {
         method: "POST",
         credentials: "include",
         headers: {
-          "x-publishable-api-key": process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
+          "x-publishable-api-key":
+            process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
         },
-        body: formData
+        body: formData,
       }
     )
 
     const data = await response.json()
-    
+
     if (!response.ok) {
       throw new Error(data.error || "Error al crear grupo")
     }
 
     return {
       success: true,
-      group: data.group
+      group: data.group,
     }
-    */
   } catch (error) {
     console.error("Error al crear grupo:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Error desconocido"
+      error: error instanceof Error ? error.message : "Error desconocido",
     }
   }
 }
@@ -189,36 +169,35 @@ export const createFriendGroup = async (groupData: CreateGroupData) => {
 // Get group invitations for user
 export const getGroupInvitations = async (userId: string) => {
   try {
-    console.log("Fetching invitations for user:", userId)
     
-    // For now, return mock data since backend endpoints are not implemented yet
-    const mockInvitations = [
-      {
-        id: "invitation_1",
-        group_id: "group_3",
-        group_name: "Club de Fotografía",
-        sender_id: "friend_1",
-        sender_name: "Ana García",
-        message: "¡Únete a nuestro club de fotografía!",
-        created_at: new Date().toISOString()
-      },
-      {
-        id: "invitation_2",
-        group_id: "group_4", 
-        group_name: "Gamers Unidos",
-        sender_id: "friend_2",
-        sender_name: "Carlos López",
-        message: "Te invito a nuestro grupo de gaming",
-        created_at: new Date().toISOString()
-      }
-    ]
 
-    return {
-      success: true,
-      invitations: mockInvitations
-    }
+    // // For now, return mock data since backend endpoints are not implemented yet
+    // const mockInvitations = [
+    //   {
+    //     id: "invitation_1",
+    //     group_id: "group_3",
+    //     group_name: "Club de Fotografía",
+    //     sender_id: "friend_1",
+    //     sender_name: "Ana García",
+    //     message: "¡Únete a nuestro club de fotografía!",
+    //     created_at: new Date().toISOString(),
+    //   },
+    //   {
+    //     id: "invitation_2",
+    //     group_id: "group_4",
+    //     group_name: "Gamers Unidos",
+    //     sender_id: "friend_2",
+    //     sender_name: "Carlos López",
+    //     message: "Te invito a nuestro grupo de gaming",
+    //     created_at: new Date().toISOString(),
+    //   },
+    // ]
 
-    /* TODO: Uncomment when backend is ready
+    // return {
+    //   success: true,
+    //   invitations: mockInvitations,
+    // }
+
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/groups/invitations?user_id=${userId}`,
       {
@@ -241,19 +220,22 @@ export const getGroupInvitations = async (userId: string) => {
       success: true,
       invitations: data.invitations || []
     }
-    */
+    
   } catch (error) {
     console.error("Error al obtener invitaciones:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Error desconocido",
-      invitations: []
+      invitations: [],
     }
   }
 }
 
 // Respond to group invitation
-export const respondToGroupInvitation = async (invitationId: string, response: 'accepted' | 'rejected') => {
+export const respondToGroupInvitation = async (
+  invitationId: string,
+  response: "accepted" | "rejected"
+) => {
   try {
     const apiResponse = await fetch(
       `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/groups/invitations/respond`,
@@ -262,30 +244,31 @@ export const respondToGroupInvitation = async (invitationId: string, response: '
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "x-publishable-api-key": process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
+          "x-publishable-api-key":
+            process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
         },
         body: JSON.stringify({
           invitation_id: invitationId,
-          response: response
-        })
+          response: response,
+        }),
       }
     )
 
     const data = await apiResponse.json()
-    
+
     if (!apiResponse.ok) {
       throw new Error(data.error || "Error al responder invitación")
     }
 
     return {
       success: true,
-      message: data.message
+      message: data.message,
     }
   } catch (error) {
     console.error("Error al responder invitación:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Error desconocido"
+      error: error instanceof Error ? error.message : "Error desconocido",
     }
   }
 }
@@ -300,27 +283,28 @@ export const inviteToGroup = async (inviteData: InviteToGroupData) => {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "x-publishable-api-key": process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
+          "x-publishable-api-key":
+            process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
         },
-        body: JSON.stringify(inviteData)
+        body: JSON.stringify(inviteData),
       }
     )
 
     const data = await response.json()
-    
+
     if (!response.ok) {
       throw new Error(data.error || "Error al enviar invitaciones")
     }
 
     return {
       success: true,
-      message: data.message
+      message: data.message,
     }
   } catch (error) {
     console.error("Error al enviar invitaciones:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Error desconocido"
+      error: error instanceof Error ? error.message : "Error desconocido",
     }
   }
 }
@@ -335,27 +319,28 @@ export const getGroupMembers = async (groupId: string) => {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "x-publishable-api-key": process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
+          "x-publishable-api-key":
+            process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
         },
       }
     )
 
     const data = await response.json()
-    
+
     if (!response.ok) {
       throw new Error(data.error || "Error al obtener miembros")
     }
 
     return {
       success: true,
-      members: data.members || []
+      members: data.members || [],
     }
   } catch (error) {
     console.error("Error al obtener miembros:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Error desconocido",
-      members: []
+      members: [],
     }
   }
 }

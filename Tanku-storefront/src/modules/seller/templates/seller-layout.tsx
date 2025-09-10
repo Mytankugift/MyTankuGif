@@ -61,7 +61,7 @@ const SellerLayout: React.FC<SellerLayoutProps> = ({ customer, children }) => {
   const [showModal, setShowModal] = React.useState(false)
 
   const handleSubmit = (e: FormDataValues, files: formFiles) => {
-    console.log(customer?.id)
+   
     if (!customer || !customer?.id) return alert("No se encontro un usuario ")
     submitFormData(e, files, customer.id)
   }
@@ -72,7 +72,6 @@ const SellerLayout: React.FC<SellerLayoutProps> = ({ customer, children }) => {
   useEffect(() => {
     if (!customer || !customer?.id) return alert("No se encontro un usuario ")
     fetchSellerRequest(customer.id).then((res) => {
-      console.log(res)
       setIsSeller(res.dataSellerRequest)
       setStoreId(res.dataSellerRequest.store)
     })
@@ -91,7 +90,7 @@ const SellerLayout: React.FC<SellerLayoutProps> = ({ customer, children }) => {
       ) : isSeller?.status_id === "id_pending" ? (
         <RequestInPending />
       ) : isSeller?.status_id === "id_accept" ? (
-        <Store customer={customer}>{children}</Store>
+        <Store customer={customer} >{children}</Store>
       ) : isSeller?.status_id === "id_correction" ? (
         <RequestNeedsCorrection comment={isSeller.comment} />
       ) : (

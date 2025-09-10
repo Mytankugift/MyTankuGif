@@ -107,8 +107,8 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
   const loadFriends = async () => {
     try {
       const response = await getFriendRequests(customerId)
-      // Assuming accepted friends are in a different endpoint or property
-      setFriends([]) // TODO: Implement get accepted friends
+     
+      setFriends(response.sent) 
     } catch (error) {
       console.error('Error loading friends:', error)
     }
@@ -448,6 +448,7 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
               <button
                 type="submit"
                 disabled={createLoading || !createForm.group_name.trim()}
+                onClick={handleCreateGroup}
                 className="flex-1 bg-[#73FFA2] hover:bg-[#66DEDB] text-black px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {createLoading ? 'Creando...' : 'Crear Grupo'}
@@ -550,10 +551,14 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                         }}
                         className="rounded"
                       />
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#73FFA2] rounded-full flex items-center justify-center">
-                        <span className="text-black font-semibold text-xs">
-                          {friend.first_name[0]}{friend.last_name[0]}
-                        </span>
+                      <div className="w-6 h-6 sm:w-8 sm:h-8  rounded-full flex items-center justify-center">
+                       <Image
+                        src={friend.avatar_url || '/placeholder.png'}
+                        alt={friend.first_name}
+                        width={44}
+                        height={44}
+                        className="rounded-full"
+                      />
                       </div>
                       <span className="text-white text-xs sm:text-sm">{friend.first_name} {friend.last_name}</span>
                     </label>

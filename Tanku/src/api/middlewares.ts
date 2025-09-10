@@ -102,6 +102,13 @@ export default defineMiddlewares({
       ],
     },
     {
+      method: ["POST"],
+      matcher: "/social/groups/create",
+      middlewares: [
+        multerMiddleware(upload.single("banner")),
+      ],
+    },
+    {
       matcher: "/social*",
       middlewares: [
         (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) => {

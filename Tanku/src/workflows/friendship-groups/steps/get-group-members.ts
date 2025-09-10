@@ -1,47 +1,58 @@
-// import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
-// import { FRIENDSHIP_GROUPS_MODULE } from "../../../modules/social"
+import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
+import { SOCIAL_MODULE } from "../../../modules/social"
+import SocialModuleService from "../../../modules/social/service"
+import { Modules } from "@medusajs/framework/utils"
+import { PERSONAL_INFORMATION_MODULE } from "../../../modules/personal_information"
+import PersonalInformationModuleService from "../../../modules/personal_information/service"
 
-// export const getGroupMembersStep = createStep(
-//   "get-group-members",
-//   async (input: { group_id: string }, { container }) => {
-//     const friendshipGroupsModuleService = container.resolve(FRIENDSHIP_GROUPS_MODULE)
+export const getGroupMembersStep = createStep(
+  "get-group-members",
+  async (input: { group_id: string }, { container }) => {
+    const friendshipGroupsModuleService: SocialModuleService = container.resolve(SOCIAL_MODULE)
+    const personalInfoService: PersonalInformationModuleService = container.resolve(
+        PERSONAL_INFORMATION_MODULE
+      );
+    const customerModuleService = container.resolve(Modules.CUSTOMER)
 
-//     try {
-//       // Get all accepted members of the group
-//       const memberships = await friendshipGroupsModuleService.listFriendInGroup({
-//         group_id: input.group_id,
-//         solicitation_status: "accepted",
-//       })
+    try {
+      // Get all accepted members of the group
+      const memberships = await friendshipGroupsModuleService.listFriendInGroups({
+        group_id: input.group_id,
+        solicitation_status: "accepted",
+      })
 
-//       // Enrich with customer information
-//       const enrichedMembers = await Promise.all(
-//         memberships.map(async (membership) => {
-//           const customerInfo = await friendshipGroupsModuleService.getCustomerInfo(membership.customer_id)
+      // Enrich with customer information
+      const enrichedMembers = await Promise.all(
+        memberships.map(async (membership) => {
+          const customerInfo = await customerModuleService.retrieveCustomer(membership.customer_id)
+          const personalInfo = await personalInfoService.listPersonalInformations({
+            customer_id: membership.customer_id
+          })
           
-//           return {
-//             id: membership.id,
-//             customer_id: membership.customer_id,
-//             first_name: customerInfo?.first_name || 'Usuario',
-//             last_name: customerInfo?.last_name || '',
-//             email: customerInfo?.email || '',
-//             role: membership.role,
-//             joined_at: membership.joined_at,
-//             avatar_url: customerInfo?.avatar_url,
-//           }
-//         })
-//       )
+          return {
+            id: membership.id,
+            customer_id: membership.customer_id,
+            first_name: customerInfo?.first_name || 'Usuario',
+            last_name: customerInfo?.last_name || '',
+            email: customerInfo?.email || '',
+            role: membership.role,
+            joined_at: membership.joined_at,
+            avatar_url: personalInfo[0]?.avatar_url,
+          }
+        })
+      )
 
-//       // Sort by role (admin first) and then by join date
-//       enrichedMembers.sort((a, b) => {
-//         if (a.role === 'admin' && b.role !== 'admin') return -1
-//         if (b.role === 'admin' && a.role !== 'admin') return 1
-//         return new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime()
-//       })
+      // Sort by role (admin first) and then by join date
+      enrichedMembers.sort((a, b) => {
+        if (a.role === 'admin' && b.role !== 'admin') return -1
+        if (b.role === 'admin' && a.role !== 'admin') return 1
+        return new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime()
+      })
 
-//       return new StepResponse(enrichedMembers)
-//     } catch (error) {
-//       console.error("Error getting group members:", error)
-//       throw new Error(`Failed to get group members: ${error instanceof Error ? error.message : 'Unknown error'}`)
-//     }
-//   }
-// )
+      return new StepResponse(enrichedMembers)
+    } catch (error) {
+      console.error("Error getting group members:", error)
+      throw new Error(`Failed to get group members: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+)

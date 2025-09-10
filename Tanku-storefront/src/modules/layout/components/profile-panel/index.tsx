@@ -19,6 +19,7 @@ import { usePersonalInfo } from "@lib/context/personal-info-context"
 import Link from "next/link"
 import FriendGroupsTab from "./FriendGroupsTab"
 import EventsCalendarTab from "./EventsCalendarTab"
+import OrderCustomerTab from "./OrderCustomerTab"
 
 // Profile editing components
 import ProfileName from "@modules/account/components/profile-name"
@@ -312,7 +313,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
       const response = await getPosters(customer.id)
       if (response.success) {
         setPosters(response.posters)
-        console.log('Posters loaded:', response.posters.length)
+      
       } else {
         console.error('Error loading posters:', response.error)
       }
@@ -330,7 +331,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
     setWishListsLoading(true)
     try {
       const lists = await getListWishList(customer.id)
-      console.log("Listas de deseos obtenidas:", lists)
+     
       setWishLists(lists)
       
       // Inicializar el estado de expansión para cada lista
@@ -395,7 +396,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
   const handlerRemoveProductFromWishList = async (productId: string, wishListId: string) => {
     try {
       await deleteProductToWishList({ productId, wishListId })
-      console.log(`Producto ${productId} eliminado de la lista ${wishListId}`)
+     
       return true
     } catch (error) {
       console.error("Error al eliminar producto de la lista de deseos:", error)
@@ -407,7 +408,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
   const handleDeleteWishList = async (wishListId: string) => {
     try {
       await deleteWishList({ wishListId })
-      console.log(`Lista de deseos ${wishListId} eliminada`)
+     
       
       // Actualizar el estado local
       setWishLists(prevLists => prevLists.filter(list => list.id !== wishListId))
@@ -463,7 +464,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
       if (result.success && result.data?.banner_url) {
         // Update local context immediately for instant UI feedback
         updateLocalPersonalInfo({ banner_profile_url: result.data.banner_url })
-        console.log('Banner actualizado exitosamente:', result.data.banner_url)
+       
         
         // Refresh personal info from server to sync all data
         await refreshPersonalInfo()
@@ -542,7 +543,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
       if (result.success) {
         // Update local context only if backend save was successful
         updateLocalPersonalInfo({ social_url: updatedSocialUrl })
-        console.log(`✅ ${platform} saved successfully`)
+       
       } else {
         throw new Error(result.error || 'Error al guardar en el servidor')
       }
@@ -622,7 +623,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
           public_alias: aliasValue
         }
         updateLocalPersonalInfo({ social_url: updatedSocialUrl })
-        console.log(`✅ Alias saved successfully: @${aliasValue}`)
+     
         setEditingAlias(false)
       } else {
         if (result.error?.includes('alias ya existe') || result.error?.includes('already exists')) {
@@ -696,7 +697,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
       if (result.success && result.data?.avatar_url) {
         // Refresh context to get updated avatar
         await refreshPersonalInfo()
-        console.log('Avatar actualizado exitosamente:', result.data.avatar_url)
+    
       } else {
         console.error('Error al actualizar avatar:', result.error)
         alert('Error al actualizar el avatar: ' + result.error)
@@ -1336,7 +1337,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
           {/* Navegación de tabs - Solo mostrar si no está editando perfil */}
           {!isEditingProfile && (
             <div className="flex justify-start sm:justify-center space-x-2 sm:space-x-3 md:space-x-8 border-b border-gray-600 pb-1.5 sm:pb-2 mb-3 sm:mb-4 md:mb-6 overflow-x-auto scrollbar-hide px-1">
-              {['PUBLICACIONES', 'GRUPOS DE AMIGOS', 'MY TANKU', 'MIS COMPRAS'].map((tab) => (
+              {['PUBLICACIONES', 'MY TANKU', 'MIS COMPRAS'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -1481,7 +1482,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
               )}
           
               {activeTab === 'MY TANKU' && customer?.id && (
-                <div className="space-y-8 py-4 sm:py-6">
+                <div className="space-y-8 py-4 sm:py-6 border-gray-700 pt-8">
                   <FriendGroupsTab customerId={customer.id} />
                   <div className="border-t border-gray-700 pt-8">
                     <EventsCalendarTab customerId={customer.id} />
@@ -1489,17 +1490,9 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
                 </div>
               )}
               
-             
-              
               {activeTab === 'MIS COMPRAS' && (
                 <div className="flex flex-col items-center justify-center py-4 sm:py-6 md:py-12 text-center">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gray-700 rounded-full flex items-center justify-center mb-2 sm:mb-3 md:mb-4">
-                    <svg className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-white text-base sm:text-lg font-medium mb-1 sm:mb-2">Próximamente</h3>
-                  <p className="text-gray-400 text-xs sm:text-sm">Esta sección estará disponible pronto.</p>
+                  <OrderCustomerTab customerId={customer.id} />
                 </div>
               )}
             </>

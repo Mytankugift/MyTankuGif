@@ -1,0 +1,45 @@
+import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { getSellerOrdersWorkflow } from "../../../../workflows/order_tanku"
+
+export async function GET(
+  req: MedusaRequest,
+  res: MedusaResponse
+) {
+  try {
+    const { customerId } = req.query
+    
+    // Validate required parameter
+    if (!customerId || typeof customerId !== 'string') {
+      return res.status(400).json({
+        error: "customerId es requerido"
+      })
+    }
+    
+    // Execute the workflow
+    const { result } = await getSellerOrdersWorkflow(req.scope).run({
+      input: {
+        customer_id: customerId
+      }
+    })
+    
+    return res.status(200).json({
+      success: true,
+      orders: result
+    })
+    
+  } catch (error: any) {
+    console.error("Error al obtener órdenes del vendedor:", error)
+    
+    // Handle specific errors
+    if (error.message?.includes("obligatorio") || error.message?.includes("No se encontró tienda")) {
+      return res.status(400).json({
+        error: error.message
+      })
+    }
+    
+    return res.status(500).json({
+      error: "Error interno del servidor",
+      details: error.message
+    })
+  }
+}

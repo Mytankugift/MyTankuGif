@@ -275,7 +275,7 @@ const CategoryTemplateTanku: React.FC<CategoryTemplateTankuProps> = ({ category 
                 {filteredProducts.map((product) => (
                   <LocalizedClientLink
                     key={product.id}
-                    href={`/products/${product.handle}`}
+                    href={`/products/tanku/${product.handle}`}
                     className="group"
                   >
                     {viewMode === 'grid' ? (

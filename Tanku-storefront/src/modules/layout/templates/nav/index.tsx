@@ -11,6 +11,7 @@ import Image from "next/image"
 import {  PencilSquare } from "@medusajs/icons"
 import { Avatar } from "@medusajs/ui"
 import ProfilePanel from "@modules/layout/components/profile-panel"
+import SellerPanel from "@modules/layout/components/profile-panel/sellerPanle"
 import NewPostPanel from "@modules/layout/components/new-post-panel"
 import { updateAvatar } from "@modules/personal-info/actions/update-avatar"
 import { updateStatusMessage } from "@modules/personal-info/actions/update-status-message"
@@ -20,6 +21,7 @@ import NavResponsive from "./nav-responsive"
 function NavContent() {
   const [isExpanded, setIsExpanded] = useState(false)
   const [activePanel, setActivePanel] = useState<'none' | 'newPost' | 'profile'>('none')
+  const [panelType, setPanelType] = useState<'profile' | 'seller'>('profile')
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false)
   const [isEditingStatus, setIsEditingStatus] = useState(false)
   const [tempStatusMessage, setTempStatusMessage] = useState('')
@@ -33,7 +35,7 @@ function NavContent() {
   // Fallback logic if user data is not available
   useEffect(() => {
     if (!user && !isLoading) {
-      console.log('⚠️ No user data found in nav, attempting refresh...')
+    
       refreshPersonalInfo()
     }
   }, [user, isLoading, refreshPersonalInfo]);
@@ -65,6 +67,10 @@ function NavContent() {
   const handleClosePanel = () => {
     setIsExpanded(false)
     setActivePanel('none')
+  }
+
+  const handlePanelTypeToggle = () => {
+    setPanelType(prev => prev === 'profile' ? 'seller' : 'profile')
   }
 
   const handleEditAvatarClick = (e: React.MouseEvent) => {
@@ -105,7 +111,7 @@ function NavContent() {
       if (result.success && result.data?.avatar_url) {
         // Refresh context to get updated avatar
         await refreshPersonalInfo()
-        console.log('Avatar actualizado exitosamente:', result.data.avatar_url)
+      
       } else {
         console.error('Error al actualizar avatar:', result.error)
         alert('Error al actualizar el avatar: ' + result.error)
@@ -150,9 +156,7 @@ function NavContent() {
         // Refresh context to get updated status message
         await refreshPersonalInfo()
         setIsEditingStatus(false);
-        console.log('=== Status Message Update Successful ===');
-        console.log('New status message set to:', tempStatusMessage.trim());
-        console.log('Backend response:', result);
+    
       } else {
         console.error('Error al actualizar status message:', result.error);
         alert('Error al actualizar el mensaje: ' + result.error);
@@ -423,13 +427,42 @@ function NavContent() {
           }`}
           style={{ backgroundColor: '#2D3A3A' }}
         >
+          {}
+
           {activePanel === 'newPost' && (
             <NewPostPanel onClose={handleClosePanel} />
           )}
 
-          {activePanel === 'profile' && (
-            <ProfilePanel onClose={handleClosePanel} />
+          {activePanel === 'profile' && ( 
+            <div className="h-full flex flex-col py-1 overflow-y-auto ">
+              {/* Switch Button */}
+              <div className="flex justify-start items-center border-gray-600 ml-20 gap-5">
+                <button
+                  onClick={handlePanelTypeToggle}
+                  className={`px-4 py-1 rounded-full font-medium text-sm transition-all duration-300 ${
+                    panelType === 'profile'
+                      ? 'bg-[#73FFA2] text-gray-900'
+                      : 'bg-[#66DEDB] text-gray-900'
+                  }`}
+                >
+                  {panelType === 'profile' ? 'Ir a Tienda' : 'Ir al Perfil'}
+                </button> 
+                {panelType === 'profile' ? <p className="text-sm text-gray-400">
+                  ¿ Quieres vender en Tanku?
+                </p> : null}
+              </div>
+              
+              {/* Panel Content */}
+              <div className="flex-1">
+                {panelType === 'profile' ? (
+                  <ProfilePanel onClose={handleClosePanel} />
+                ) : (
+                  <SellerPanel onClose={handleClosePanel} />
+                )}
+              </div>
+            </div>
           )}
+
         </div>
 
         {/* Hidden file input for avatar upload */}

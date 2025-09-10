@@ -9,9 +9,9 @@ export interface FriendRequest {
 
 export const getFriendRequests = async (userId: string) => {
   try {
-    console.log("Obteniendo solicitudes de amistad para:", userId)
+   
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/friends/get-friend-requests?user_id=${userId}`,
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/friends/get-friend-requests/${userId}`,
       {
         method: "GET",
         credentials: "include",
@@ -23,9 +23,9 @@ export const getFriendRequests = async (userId: string) => {
       }
     )
     
-    console.log("Response status:", response.status)
+    
     const data = await response.json()
-    console.log("Friend requests data:", data)
+  
     
     if (!response.ok) {
       throw new Error(data.error || "Error al obtener solicitudes de amistad")

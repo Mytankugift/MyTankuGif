@@ -212,7 +212,7 @@ const TableProducts = () => {
       complete: (results: ParseResult<CsvProductRow>) => {
         try {
           const products = transformCsvToProducts(results.data);
-          console.log('Productos transformados:', products);
+      
           postAddProducts(products, storeId).then(() => {
             fetchProducts()
           })
@@ -239,14 +239,14 @@ const TableProducts = () => {
   }, [])
 
   return (
-    <Container className="mb-0">
+    <div className="p-6 bg-gray-800 min-h-full">
       <div className="flex justify-between items-center mb-6">
-        <Heading level="h1">Products</Heading>
-        <div className="flex gap-2">
-          <Button variant="secondary">
-            <ArrowDownTray className="mr-2" />
-            Export
-          </Button>
+        <h1 className="text-2xl font-bold text-white">Productos</h1>
+        <div className="flex gap-3">
+          <button className="px-4 py-2 bg-[#3B9BC3] text-white rounded-lg hover:bg-[#2a7a9e] transition-colors flex items-center gap-2">
+            <ArrowDownTray />
+            Exportar
+          </button>
           <div>
             <input
               type="file"
@@ -256,110 +256,126 @@ const TableProducts = () => {
               className="hidden"
               id="file-upload"
             />
-            <Button 
-              variant="secondary" 
+            <button 
+              className="px-4 py-2 bg-[#66DEDB] text-gray-900 rounded-lg hover:bg-[#5bc5c1] transition-colors flex items-center gap-2"
               onClick={() => fileInputRef.current?.click()}
             >
-              <ArrowUpTray className="mr-2" />
-              Import
-            </Button>
+              <ArrowUpTray />
+              Importar
+            </button>
           </div>
-          <Button variant="secondary" onClick={() => setCreateModalOpen(true)}>
-            <Plus className="mr-2"  />
-            Create
-          </Button>
+          <button 
+            className="px-4 py-2 bg-[#73FFA2] text-gray-900 rounded-lg hover:bg-[#66e891] transition-colors flex items-center gap-2"
+            onClick={() => setCreateModalOpen(true)}
+          >
+            <Plus />
+            Crear
+          </button>
         </div>
       </div>
 
-      <div className="flex justify-between items-center mb-4">
-        <Button variant="transparent">Add Filter</Button>
-        <div className="flex ">
-          <Input type="search" placeholder="Search products..." />
-          
+      <div className="flex justify-between items-center mb-6">
+        <button className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors">
+          Agregar Filtro
+        </button>
+        <div className="flex">
+          <input
+            type="search"
+            placeholder="Buscar productos..."
+            className="px-4 py-2 bg-gray-700 border border-[#3B9BC3] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#66DEDB] transition-colors"
+          />
         </div>
       </div>
 
-      <Table>
-        <Table.Header>
-          <Table.Row>
-            <Table.HeaderCell>Imagen</Table.HeaderCell>
-            <Table.HeaderCell>Producto</Table.HeaderCell>
-            <Table.HeaderCell>Variantes</Table.HeaderCell>
-            <Table.HeaderCell>Estado</Table.HeaderCell>
-            <Table.HeaderCell></Table.HeaderCell>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {products.length ? (
-            products.map((product) => (
-              <Table.Row key={product.id}>
-                <Table.Cell>
-                  <Image 
-                    src={product.thumbnail || '/placeholder.png'} 
-                    alt={product.title}
-                    width={48}
-                    height={48}
-                    className="w-12 h-12 object-cover rounded"
-                  />
-                </Table.Cell>
-                <Table.Cell>
-                  <div>
-                    <Text className="font-medium">{product.title}</Text>
-                    {product.description && (
-                      <Text className="text-sm text-gray-500">{product.description}</Text>
-                    )}
-                  </div>
-                </Table.Cell>
-                <Table.Cell>
-                  <Text>{product.variants?.length || 0} variantes</Text>
-                </Table.Cell>
-                <Table.Cell>
-                  <Badge color={product.status === "published" ? "green" : "grey"}>
-                    {product.status}
-                  </Badge>
-                </Table.Cell>
-                <Table.Cell>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="transparent" 
-                      size="small"
-                      onClick={() => {
-                        setSelectedProduct(product)
-                        setViewModalOpen(true)
-                      }}
-                    >
-                      Ver
-                    </Button>
-                    <Button 
-                      variant="transparent" 
-                      size="small"
-                      onClick={() => {
-                        setSelectedProduct(product)
-                        setEditModalOpen(true)
-                      }}
-                    >
-                      <PencilSquare className="mr-1" />
-                      Editar
-                    </Button>
-                  </div>
-                </Table.Cell>
-              </Table.Row>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={5} className="text-center py-8">
-                <div className="flex justify-center">
-                  <Spinner size="20" />
-                </div>
-              </td>
-            </tr>
-          )}
-        </Table.Body>
-      </Table>
+      {/* Custom styled table with Tanku theme */}
+      <div className="bg-gray-700 rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-600">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Imagen</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Producto</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Variantes</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Estado</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-600">
+              {products.length ? (
+                products.map((product) => (
+                  <tr key={product.id} className="hover:bg-gray-600 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Image 
+                        src={product.thumbnail || '/placeholder.png'} 
+                        alt={product.title}
+                        width={48}
+                        height={48}
+                        className="w-12 h-12 object-cover rounded-lg"
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="text-sm font-medium text-white">{product.title}</div>
+                        {product.description && (
+                          <div className="text-sm text-gray-400 truncate max-w-xs">{product.description}</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm text-gray-300">{product.variants?.length || 0} variantes</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        product.status === "published" 
+                          ? "bg-[#73FFA2] text-gray-900" 
+                          : "bg-gray-500 text-white"
+                      }`}>
+                        {product.status === "published" ? "Publicado" : "Borrador"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex gap-2">
+                        <button 
+                          className="text-[#66DEDB] hover:text-[#5bc5c1] transition-colors"
+                          onClick={() => {
+                            setSelectedProduct(product)
+                            setViewModalOpen(true)
+                          }}
+                        >
+                          Ver
+                        </button>
+                        <button 
+                          className="text-[#73FFA2] hover:text-[#66e891] transition-colors flex items-center gap-1"
+                          onClick={() => {
+                            setSelectedProduct(product)
+                            setEditModalOpen(true)
+                          }}
+                        >
+                          <PencilSquare />
+                          Editar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center">
+                    <div className="flex justify-center">
+                      <Spinner size={20} />
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <CreateProductModal open={createModalOpen} setOpen={setCreateModalOpen} fetchProducts={fetchProducts} />
       <ViewProductModal product={selectedProduct} open={viewModalOpen} setOpen={setViewModalOpen} />
       <EditProductModal product={selectedProduct} open={editModalOpen} setOpen={setEditModalOpen} fetchProducts={fetchProducts} />
-    </Container>
+    </div>
   )
 }
 

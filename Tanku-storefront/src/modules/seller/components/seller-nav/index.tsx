@@ -129,23 +129,6 @@ const SellerNav = ({
             </ul>
           </div>
         </div>
-        <div className="flex flex-col gap-y-4">
-          <AccountNavLink
-            href="/account"
-            route={route!}
-            data-testid="account-link"
-          >
-            My Account
-          </AccountNavLink>
-          <button
-            type="button"
-            onClick={handleLogout}
-            data-testid="logout-button"
-            className="text-start"
-          >
-            Log out
-          </button>
-        </div>
       </div>
     </div>
   )
@@ -164,16 +147,13 @@ const AccountNavLink = ({
   children,
   "data-testid": dataTestId,
 }: AccountNavLinkProps) => {
-  const { countryCode }: { countryCode: string } = useParams()
+  
 
-  const active = route.split(countryCode)[1] === href
+  
   return (
     <LocalizedClientLink
       href={href}
-      className={clx("text-ui-fg-subtle hover:text-ui-fg-base", {
-        "text-ui-fg-base font-semibold": active,
-      })}
-      data-testid={dataTestId}
+      
     >
       {children}
     </LocalizedClientLink>
