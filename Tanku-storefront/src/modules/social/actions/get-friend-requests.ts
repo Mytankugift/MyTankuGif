@@ -8,6 +8,9 @@ export interface FriendRequest {
 }
 
 export const getFriendRequests = async (userId: string) => {
+ 
+  
+   
   try {
    
     const response = await fetch(
@@ -25,7 +28,7 @@ export const getFriendRequests = async (userId: string) => {
     
     
     const data = await response.json()
-  
+   console.log("data amigosssssssssssss",data)
     
     if (!response.ok) {
       throw new Error(data.error || "Error al obtener solicitudes de amistad")

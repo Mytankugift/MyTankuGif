@@ -6,6 +6,7 @@ import ConditionalLayout from "@modules/layout/components/conditional-layout"
 import { retrieveCustomer } from "@lib/data/customer"
 import OnboardingModal from "@modules/onboarding/components/modal"
 import FloatingCart from "@modules/layout/components/floating-cart"
+import SocialChat from "@modules/layout/components/social-chat"
 import { retrieveCart } from "@lib/data/cart"
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default async function PageLayout(props: { children: React.ReactNode }) {
         <Nav />
         <OnboardingModal customer_id={customer?.id} />
         <FloatingCart cart={cart} />
+        <SocialChat customerId={customer?.id || ""} />
         <div className="lg:ml-52 ml-0 min-h-screen max-w-full overflow-x-hidden mb-16 lg:mb-0">
           {props.children}
         </div>

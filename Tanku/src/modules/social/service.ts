@@ -9,6 +9,10 @@ import { StoriesUser } from "./models/stories-user"
 import { PosterReaction } from "./models/post-reaction"
 import { PosterComment } from "./models/poster-comment"
 import { EventsCalendar } from "./models/events-calendar"
+import { ChatConversation } from "./models/chat-conversation"
+import { ChatMessage } from "./models/chat-message"
+import { ChatMessageStatus } from "./models/chat-message-status"
+
 
 class SocialModuleService extends MedusaService({
   FriendRequest,
@@ -21,6 +25,9 @@ class SocialModuleService extends MedusaService({
   PosterReaction,
   PosterComment,
   EventsCalendar,
+  ChatConversation,
+  ChatMessage,
+  ChatMessageStatus,
 }) {
   // Puedes añadir métodos personalizados aquí si es necesario
 }
