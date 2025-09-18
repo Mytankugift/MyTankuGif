@@ -596,7 +596,7 @@ const FormTanku = ({
                     
                     {/* Botón visible para el usuario */}
                     <div className="flex justify-center sm:justify-end">
-                      <Button 
+                    <Button 
                         type="button"
                         id="epayco-custom-button"
                         className="w-full sm:w-auto bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 text-white p-2 sm:p-3 md:p-4 text-sm sm:text-base flex items-center justify-center gap-2 transition-colors"

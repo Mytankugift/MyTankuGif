@@ -138,5 +138,27 @@ export default defineMiddlewares({
         },
       ],
     },
+    {
+      matcher: "/socket.io*",
+      middlewares: [
+        (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) => {
+          const configModule: ConfigModule = req.scope.resolve("configModule");
+          return cors({
+            origin: parseCorsOrigins(configModule.projectConfig.http.storeCors),
+            credentials: true,
+            methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+          })(req, res, next);
+        },
+        (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) => {
+          // Middleware específico para Socket.IO
+          res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+          res.header("Access-Control-Allow-Credentials", "true");
+          res.header("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE");
+          res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+          next();
+        },
+      ],
+    },
   ],
 });

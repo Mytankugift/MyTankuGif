@@ -5,6 +5,7 @@ import { UserProvider } from '@auth0/nextjs-auth0/client';
 import { StoreContextProvider } from "@lib/context/store-context";
 import { RegionProvider } from "@lib/context/region-context"
 import { PersonalInfoProvider } from "@lib/context/personal-info-context"
+import { StalkerGiftProvider } from "@lib/context/stalker-gift-context"
 
 export const metadata: Metadata = {
   metadataBase: new URL(getBaseURL()),
@@ -18,7 +19,9 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         <UserProvider>
           <StoreContextProvider>
             <PersonalInfoProvider>
-              <main className="relative">{props.children}</main>
+              <StalkerGiftProvider>
+                <main className="relative">{props.children}</main>
+              </StalkerGiftProvider>
             </PersonalInfoProvider>
           </StoreContextProvider>
         </UserProvider>

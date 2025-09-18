@@ -48,6 +48,12 @@ module.exports = defineConfig({
       resolve: "./src/modules/onboarding",
     },
     {
+      resolve: "./src/modules/socket",
+    },
+    {
+      resolve: "./src/modules/stalker_gift",
+    },
+    {
       resolve: "@medusajs/medusa/file",
       options: {
         providers: [

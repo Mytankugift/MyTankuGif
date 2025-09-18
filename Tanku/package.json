@@ -32,7 +32,7 @@
     "@mikro-orm/knex": "6.4.3",
     "@mikro-orm/migrations": "6.4.3",
     "@mikro-orm/postgresql": "6.4.3",
-    "@types/socket.io": "^3.0.1",
+    "@types/socket.io": "^3.0.2",
     "awilix": "^8.0.1",
     "cors": "^2.8.5",
     "medusa-ui": "github:medusajs/ui",
