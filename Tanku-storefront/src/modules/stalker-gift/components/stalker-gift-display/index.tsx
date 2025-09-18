@@ -20,25 +20,25 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">🎁</div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            HOLA <span className="text-[#FEF580]">@{recipientName.toUpperCase()}</span>, ERES MUY AFORTUNAD@
+            HOLA <span className="text-[#5FE085]">@{recipientName.toUpperCase()}</span>, ERES MUY AFORTUNAD@
           </h1>
           <p className="text-xl text-gray-300 mb-2">
-            Acabas de recibir un <span className="text-[#81007F] font-bold">#StalkerGift TANKU</span> 😊
+            Acabas de recibir un <span className="text-[#66DEDB] font-bold">#StalkerGift TANKU</span> 😊
           </p>
           <p className="text-lg text-gray-400">
-            (Un regalo incógnito de un admirador/@ secret@): <span className="text-[#FE9600] font-semibold">@{alias}</span>
+            (Un regalo incógnito de un admirador/@ secret@): <span className="text-[#5FE085] font-semibold">@{alias}</span>
           </p>
         </div>
 
         {/* Productos */}
-        <div className="bg-gradient-to-r from-[#81007F]/10 to-[#FE9600]/10 border border-[#81007F]/30 rounded-2xl p-8 mb-8">
-          <h2 className="text-2xl font-bold text-[#81007F] mb-6 text-center">
+        <div className="bg-gradient-to-r from-[#66DEDB]/10 to-[#5FE085]/10 border border-[#66DEDB]/30 rounded-2xl p-8 mb-8">
+          <h2 className="text-2xl font-bold text-[#66DEDB] mb-6 text-center">
             🎁 TUS REGALOS
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {products.map((product: any, index: number) => (
-              <div key={index} className="bg-[#262626]/50 rounded-xl p-6 border border-[#81007F]/20">
+              <div key={index} className="bg-[#262626]/50 rounded-xl p-6 border border-[#66DEDB]/20">
                 {/* Nombre del producto */}
                 <h3 className="text-xl font-bold text-white mb-4 text-center">
                   {product.title || "PRODUCTO SORPRESA"}
@@ -57,7 +57,7 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
                 {/* Precio */}
                 {product.variants?.[0]?.inventory?.price && (
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-[#FEF580]">
+                    <p className="text-2xl font-bold text-[#5FE085]">
                       ${product.variants[0].inventory.price.toLocaleString()}
                     </p>
                   </div>
@@ -69,11 +69,11 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
 
         {/* Mensaje personalizado */}
         {message && (
-          <div className="bg-gradient-to-r from-[#FE9600]/10 to-[#FEF580]/10 border border-[#FE9600]/30 rounded-2xl p-8 mb-8">
-            <h3 className="text-2xl font-bold text-[#FE9600] mb-4 text-center">
+          <div className="bg-gradient-to-r from-[#5FE085]/10 to-[#5FE085]/10 border border-[#5FE085]/30 rounded-2xl p-8 mb-8">
+            <h3 className="text-2xl font-bold text-[#5FE085] mb-4 text-center">
               💌 Y @{alias} te quiere decir:
             </h3>
-            <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#FE9600]/20">
+            <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#5FE085]/20">
               <p className="text-lg text-white leading-relaxed text-center italic">
                 "{message}"
               </p>
@@ -82,42 +82,42 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
         )}
 
         {/* Instrucciones */}
-        <div className="bg-gradient-to-r from-[#81007F]/10 to-[#FE9600]/10 border border-[#81007F]/30 rounded-2xl p-8 mb-8">
+        <div className="bg-gradient-to-r from-[#66DEDB]/10 to-[#5FE085]/10 border border-[#66DEDB]/30 rounded-2xl p-8 mb-8">
           <div className="text-center mb-6">
-            <h3 className="text-2xl font-bold text-[#81007F] mb-4">
+            <h3 className="text-2xl font-bold text-[#66DEDB] mb-4">
               ⏰ ¡TIENES 3 DÍAS PARA HACER EFECTIVO TU REGALO!
             </h3>
           </div>
           
           <div className="space-y-4 text-gray-300 leading-relaxed">
             <p>
-              Ahora <span className="text-[#FEF580] font-semibold">@{recipientName}</span> tienes <span className="text-[#E73230] font-bold">3 días</span> para hacer efectivo tu REGALO con la total tranquilidad que una vez crees tu cuenta en TANKU <span className="text-[#FE9600] font-semibold">@{alias}</span> NO recibirá ninguno de tus datos personales que serán tratados con la política de datos TANKU.
+              Ahora <span className="text-[#5FE085] font-semibold">@{recipientName}</span> tienes <span className="text-[#E73230] font-bold">3 días</span> para hacer efectivo tu REGALO con la total tranquilidad que una vez crees tu cuenta en TANKU <span className="text-[#5FE085] font-semibold">@{alias}</span> NO recibirá ninguno de tus datos personales que serán tratados con la política de datos TANKU.
             </p>
             
             <p>
-              Como es un regalo <span className="text-[#FEF580] font-bold">no tendrá ningún costo para ti</span>, así que regístrate en TANKU ahora, para que podamos enviarte tu regalo y comiences a disfrutarlo cuanto antes.
+              Como es un regalo <span className="text-[#5FE085] font-bold">no tendrá ningún costo para ti</span>, así que regístrate en TANKU ahora, para que podamos enviarte tu regalo y comiences a disfrutarlo cuanto antes.
             </p>
             
-            <p className="text-[#81007F] font-semibold">
-              Una vez termines tu registro se habilitará la comunicación con <span className="text-[#FE9600]">@{alias}</span> para que la vida te siga regalando lo mejor <span className="text-[#FEF580]">@{recipientName}</span>.
+            <p className="text-[#66DEDB] font-semibold">
+              Una vez termines tu registro se habilitará la comunicación con <span className="text-[#5FE085]">@{alias}</span> para que la vida te siga regalando lo mejor <span className="text-[#5FE085]">@{recipientName}</span>.
             </p>
           </div>
         </div>
 
         {/* Formulario de registro */}
-        <div className="bg-gradient-to-r from-[#81007F]/10 to-[#FE9600]/10 border border-[#81007F]/30 rounded-2xl p-8">
+        <div className="bg-gradient-to-r from-[#66DEDB]/10 to-[#5FE085]/10 border border-[#66DEDB]/30 rounded-2xl p-8">
           <div className="text-center mb-6">
-            <h3 className="text-2xl font-bold text-[#81007F] mb-2">
+            <h3 className="text-2xl font-bold text-[#66DEDB] mb-2">
               📋 COMPLETA TU REGISTRO
             </h3>
             <p className="text-gray-300 text-sm">
-              Para recibir tu regalo de <span className="text-[#FE9600] font-semibold">@{alias}</span>
+              Para recibir tu regalo de <span className="text-[#5FE085] font-semibold">@{alias}</span>
             </p>
           </div>
 
           {/* Formulario basado en el componente de registro existente */}
           <form className="max-w-md mx-auto">
-            <div className="flex flex-col gap-y-4 border-2 border-[#73FFA2] rounded-lg p-6 bg-black/20 backdrop-blur-sm">
+            <div className="flex flex-col gap-y-4 border-2 border-[#5FE085] rounded-lg p-6 bg-black/20 backdrop-blur-sm">
               
               {/* Nombre */}
               <div className="relative">
@@ -132,7 +132,7 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
                   placeholder="Nombre"
                   autoComplete="given-name"
                   required
-                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#73FFA2] focus:outline-none transition-colors text-sm"
+                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#5FE085] focus:outline-none transition-colors text-sm"
                 />
               </div>
 
@@ -149,7 +149,7 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
                   placeholder="Apellido"
                   autoComplete="family-name"
                   required
-                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#73FFA2] focus:outline-none transition-colors text-sm"
+                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#5FE085] focus:outline-none transition-colors text-sm"
                 />
               </div>
 
@@ -166,7 +166,7 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
                   placeholder="Correo Electrónico"
                   autoComplete="email"
                   required
-                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#73FFA2] focus:outline-none transition-colors text-sm"
+                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#5FE085] focus:outline-none transition-colors text-sm"
                 />
               </div>
 
@@ -183,7 +183,7 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
                   placeholder="Teléfono"
                   autoComplete="tel"
                   required
-                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#73FFA2] focus:outline-none transition-colors text-sm"
+                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#5FE085] focus:outline-none transition-colors text-sm"
                 />
               </div>
 
@@ -201,7 +201,7 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
                   placeholder="Dirección de envío"
                   autoComplete="street-address"
                   required
-                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#73FFA2] focus:outline-none transition-colors text-sm"
+                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#5FE085] focus:outline-none transition-colors text-sm"
                 />
               </div>
 
@@ -218,7 +218,7 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
                   placeholder="Contraseña"
                   autoComplete="new-password"
                   required
-                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#73FFA2] focus:outline-none transition-colors text-sm"
+                  className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#5FE085] focus:outline-none transition-colors text-sm"
                 />
               </div>
             </div>
@@ -227,11 +227,11 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
             <div className="text-center mt-4 mb-4">
               <span className="text-white text-xs">
                 Al crear una cuenta, aceptas los{" "}
-                <span className="text-[#73FFA2] underline hover:text-[#66DEDB] transition-colors cursor-pointer">
+                <span className="text-[#5FE085] underline hover:text-[#66DEDB] transition-colors cursor-pointer">
                   Términos
                 </span>{" "}
                 y{" "}
-                <span className="text-[#73FFA2] underline hover:text-[#66DEDB] transition-colors cursor-pointer">
+                <span className="text-[#5FE085] underline hover:text-[#66DEDB] transition-colors cursor-pointer">
                   Privacidad
                 </span>
               </span>
@@ -240,7 +240,7 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
             {/* Botón de registro */}
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-[#81007F] to-[#FE9600] text-white font-semibold rounded-lg hover:scale-105 hover:shadow-lg transition-all duration-300 text-sm"
+              className="w-full py-3 bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] text-white font-semibold rounded-lg hover:scale-105 hover:shadow-lg transition-all duration-300 text-sm"
             >
               🎁 CREAR CUENTA Y RECIBIR REGALO 🎁
             </button>
@@ -252,8 +252,8 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
         </div>
 
         {/* Footer motivacional */}
-        <div className="text-center mt-12 p-6 bg-gradient-to-r from-[#FEF580]/10 to-[#FE9600]/10 rounded-2xl border border-[#FEF580]/30">
-          <p className="text-[#FEF580] font-semibold text-lg">
+        <div className="text-center mt-12 p-6 bg-gradient-to-r from-[#5FE085]/10 to-[#5FE085]/10 rounded-2xl border border-[#5FE085]/30">
+          <p className="text-[#5FE085] font-semibold text-lg">
             ✨ Los mejores regalos llegan cuando menos los esperas ✨
           </p>
           <p className="text-gray-300 text-sm mt-2">

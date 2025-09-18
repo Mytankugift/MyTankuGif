@@ -101,6 +101,12 @@ export default function StalkerGiftTab() {
 
   // Función para seleccionar método de pago
   const handlePaymentMethodSelect = async (method: string) => {
+    // Validar que el mensaje esté completo
+    if (!stalkerGiftData.message?.trim()) {
+      console.log('Mensaje requerido para continuar')
+      return
+    }
+    
     console.log('Seleccionando método de pago:', method)
     setSelectedPaymentMethod(method)
     
@@ -303,14 +309,14 @@ export default function StalkerGiftTab() {
     <div className="max-w-4xl mx-auto p-6">
       {/* Header con gradiente violeta */}
       <div className="text-center mb-8">
-        <div className="inline-block bg-gradient-to-r from-[#81007F] to-[#81007F]/70 rounded-full px-6 py-2 mb-4">
+        <div className="inline-block bg-gradient-to-r from-[#66DEDB] to-[#66DEDB]/70 rounded-full px-6 py-2 mb-4">
           <h2 className="text-3xl font-bold text-white">#StalkerGift</h2>
         </div>
         <p className="text-gray-300 text-lg mb-6">
           Sorprende a esa persona con un regalo anónimo y crea una nueva conexión
         </p>
-        <div className="bg-[#81007F]/20 border border-[#81007F]/50 rounded-2xl p-6 mb-8">
-          <p className="text-[#81007F] font-semibold text-lg mb-2">
+        <div className="bg-[#66DEDB]/20 border border-[#66DEDB]/50 rounded-2xl p-6 mb-8">
+          <p className="text-[#66DEDB] font-semibold text-lg mb-2">
             🎁 ¿Qué es StalkerGift?
           </p>
           <p className="text-gray-300 leading-relaxed">
@@ -322,16 +328,31 @@ export default function StalkerGiftTab() {
 
       {/* Opciones de StalkerGift */}
       <div className="grid md:grid-cols-3 gap-6">
+        {/* Opción 3: Para usuario externo */}
+        <div 
+          onClick={() => setCurrentView('for-external-user')}
+          className="group bg-gradient-to-br from-[#262626] to-[#66DEDB]/10 border-2 border-[#66DEDB]/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:border-[#66DEDB] hover:shadow-lg hover:shadow-[#66DEDB]/20 hover:scale-105"
+        >
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] rounded-full flex items-center justify-center group-hover:animate-pulse">
+              <span className="text-2xl">📮</span>
+            </div>
+            <h3 className="text-xl font-bold text-[#66DEDB] mb-2">Regalo Para Usuario Externo</h3>
+            <p className="text-gray-400 text-sm">
+              Invita a alguien nuevo a Tanku con un regalo sorpresa
+            </p>
+          </div>
+        </div>
         {/* Opción 1: Para mí */}
         <div 
           onClick={() => setCurrentView('for-me')}
-          className="group bg-gradient-to-br from-[#262626] to-[#81007F]/10 border-2 border-[#81007F]/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:border-[#81007F] hover:shadow-lg hover:shadow-[#81007F]/20 hover:scale-105"
+          className="group bg-gradient-to-br from-[#262626] to-[#66DEDB]/10 border-2 border-[#66DEDB]/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:border-[#66DEDB] hover:shadow-lg hover:shadow-[#66DEDB]/20 hover:scale-105"
         >
           <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-[#81007F] to-[#FE9600] rounded-full flex items-center justify-center group-hover:animate-pulse">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] rounded-full flex items-center justify-center group-hover:animate-pulse">
               <span className="text-2xl">🛍️</span>
             </div>
-            <h3 className="text-xl font-bold text-[#81007F] mb-2">Un Producto Para Mí</h3>
+            <h3 className="text-xl font-bold text-[#66DEDB] mb-2">Un Producto Para Mí</h3>
             <p className="text-gray-400 text-sm">
               Compra productos para ti mismo de forma privada
             </p>
@@ -341,39 +362,25 @@ export default function StalkerGiftTab() {
         {/* Opción 2: Para usuario de Tanku */}
         <div 
           onClick={() => setCurrentView('for-tanku-user')}
-          className="group bg-gradient-to-br from-[#262626] to-[#81007F]/10 border-2 border-[#81007F]/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:border-[#81007F] hover:shadow-lg hover:shadow-[#81007F]/20 hover:scale-105"
+          className="group bg-gradient-to-br from-[#262626] to-[#66DEDB]/10 border-2 border-[#66DEDB]/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:border-[#66DEDB] hover:shadow-lg hover:shadow-[#66DEDB]/20 hover:scale-105"
         >
           <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-[#81007F] to-[#FE9600] rounded-full flex items-center justify-center group-hover:animate-pulse">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] rounded-full flex items-center justify-center group-hover:animate-pulse">
               <span className="text-2xl">🎁</span>
             </div>
-            <h3 className="text-xl font-bold text-[#81007F] mb-2">Regalo Para Usuario Tanku</h3>
+            <h3 className="text-xl font-bold text-[#66DEDB] mb-2">Regalo Para Usuario Tanku</h3>
             <p className="text-gray-400 text-sm">
               Envía un regalo anónimo a alguien registrado en Tanku
             </p>
           </div>
         </div>
 
-        {/* Opción 3: Para usuario externo */}
-        <div 
-          onClick={() => setCurrentView('for-external-user')}
-          className="group bg-gradient-to-br from-[#262626] to-[#81007F]/10 border-2 border-[#81007F]/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:border-[#81007F] hover:shadow-lg hover:shadow-[#81007F]/20 hover:scale-105"
-        >
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-[#81007F] to-[#FE9600] rounded-full flex items-center justify-center group-hover:animate-pulse">
-              <span className="text-2xl">📮</span>
-            </div>
-            <h3 className="text-xl font-bold text-[#81007F] mb-2">Regalo Para Usuario Externo</h3>
-            <p className="text-gray-400 text-sm">
-              Invita a alguien nuevo a Tanku con un regalo sorpresa
-            </p>
-          </div>
-        </div>
+        
       </div>
 
       {/* Mensaje de confianza */}
       <div className="mt-8 text-center">
-        <p className="text-[#81007F]/80 text-sm font-medium">
+        <p className="text-[#66DEDB]/80 text-sm font-medium">
           ✨ Tu identidad permanecerá en secreto hasta que decidas compartirla ✨
         </p>
       </div>
@@ -386,17 +393,17 @@ export default function StalkerGiftTab() {
       <div className="mb-6">
         <button 
           onClick={() => setCurrentView('intro')}
-          className="flex items-center text-[#81007F] hover:text-[#FE9600] transition-colors duration-300"
+          className="flex items-center text-[#66DEDB] hover:text-[#5FE085] transition-colors duration-300"
         >
           <span className="mr-2">←</span> Volver a opciones
         </button>
       </div>
       
-      <div className="bg-gradient-to-r from-[#81007F]/20 to-[#FE9600]/20 border border-[#81007F]/50 rounded-2xl p-8 text-center">
-        <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-[#81007F] to-[#FE9600] rounded-full flex items-center justify-center">
+      <div className="bg-gradient-to-r from-[#66DEDB]/20 to-[#5FE085]/20 border border-[#66DEDB]/50 rounded-2xl p-8 text-center">
+        <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] rounded-full flex items-center justify-center">
           <span className="text-3xl">🛍️</span>
         </div>
-        <h2 className="text-2xl font-bold text-[#81007F] mb-4">Un Producto Para Mí</h2>
+        <h2 className="text-2xl font-bold text-[#66DEDB] mb-4">Un Producto Para Mí</h2>
         <p className="text-gray-300 text-lg mb-6">
           Aquí podrás comprar productos para ti mismo de forma completamente privada.
         </p>
@@ -416,17 +423,17 @@ export default function StalkerGiftTab() {
       <div className="mb-6">
         <button 
           onClick={() => setCurrentView('intro')}
-          className="flex items-center text-[#81007F] hover:text-[#FE9600] transition-colors duration-300"
+          className="flex items-center text-[#66DEDB] hover:text-[#5FE085] transition-colors duration-300"
         >
           <span className="mr-2">←</span> Volver a opciones
         </button>
       </div>
       
-      <div className="bg-gradient-to-r from-[#81007F]/20 to-[#FE9600]/20 border border-[#81007F]/50 rounded-2xl p-8 text-center">
-        <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-[#81007F] to-[#FE9600] rounded-full flex items-center justify-center">
+      <div className="bg-gradient-to-r from-[#66DEDB]/20 to-[#5FE085]/20 border border-[#66DEDB]/50 rounded-2xl p-8 text-center">
+        <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] rounded-full flex items-center justify-center">
           <span className="text-3xl">🎁</span>
         </div>
-        <h2 className="text-2xl font-bold text-[#81007F] mb-4">Regalo Para Usuario Tanku</h2>
+        <h2 className="text-2xl font-bold text-[#66DEDB] mb-4">Regalo Para Usuario Tanku</h2>
         <p className="text-gray-300 text-lg mb-6">
           Sorprende a alguien especial que ya forma parte de la comunidad Tanku.
         </p>
@@ -459,18 +466,24 @@ export default function StalkerGiftTab() {
         <div className="mb-6">
           <button 
             onClick={() => setCurrentView('intro')}
-            className="flex items-center text-[#81007F] hover:text-[#FE9600] transition-colors duration-300"
+            className="flex items-center text-[#66DEDB] hover:text-[#5FE085] transition-colors duration-300"
           >
             <span className="mr-2">←</span> Volver a opciones
           </button>
         </div>
         
-        <div className="bg-gradient-to-r from-[#81007F]/10 to-[#FE9600]/10 border border-[#81007F]/30 rounded-2xl p-6 mb-6">
+        <div className="bg-gradient-to-r from-[#66DEDB]/10 to-[#5FE085]/10 border border-[#66DEDB]/30 rounded-2xl p-6 mb-6">
           <div className="text-center mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-[#81007F] to-[#FE9600] rounded-full flex items-center justify-center">
-              <span className="text-2xl">📮</span>
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] rounded-full flex items-center justify-center">
+              <Image
+                src="/stalker/StallkerGift.png"
+                alt="Stalker Gift"
+                width={64}
+                height={64}
+                className="w-10 h-10 object-contain"
+              />
             </div>
-            <h2 className="text-2xl font-bold text-[#81007F] mb-2">Regalo Para Usuario Externo</h2>
+            <h2 className="text-2xl font-bold text-[#66DEDB] mb-2">Regalo Para Usuario Externo</h2>
             <p className="text-gray-300">
               Invita a alguien nuevo a descubrir Tanku con un regalo sorpresa
             </p>
@@ -479,8 +492,8 @@ export default function StalkerGiftTab() {
           {/* Formulario */}
           <div className="space-y-6">
             {/* Sección 1: Tu Alias (Modo Incógnito) */}
-            <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#81007F]/20">
-              <h3 className="text-lg font-semibold text-[#81007F] mb-4 flex items-center">
+            <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#66DEDB]/20">
+              <h3 className="text-lg font-semibold text-[#66DEDB] mb-4 flex items-center">
                 <span className="mr-2">🎭</span> Tu Alias (Modo Incógnito)
               </h3>
               <p className="text-gray-400 text-sm mb-4">
@@ -491,13 +504,13 @@ export default function StalkerGiftTab() {
                 value={stalkerGiftData.alias}
                 onChange={(e) => setAlias(e.target.value)}
                 placeholder="Ej: Admirador Secreto, Amigo Anónimo..."
-                className="w-full bg-[#262626] border border-[#81007F]/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#81007F] focus:outline-none transition-colors"
+                className="w-full bg-[#262626] border border-[#66DEDB]/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#66DEDB] focus:outline-none transition-colors"
               />
             </div>
 
             {/* Sección 2: Datos de la Persona */}
-            <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#81007F]/20">
-              <h3 className="text-lg font-semibold text-[#81007F] mb-4 flex items-center">
+            <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#66DEDB]/20">
+              <h3 className="text-lg font-semibold text-[#66DEDB] mb-4 flex items-center">
                 <span className="mr-2">👤</span> Datos de la Persona
               </h3>
               
@@ -511,7 +524,7 @@ export default function StalkerGiftTab() {
                   value={stalkerGiftData.recipient.name}
                   onChange={(e) => setRecipientName(e.target.value)}
                   placeholder="Nombre de la persona"
-                  className="w-full bg-[#262626] border border-[#81007F]/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#81007F] focus:outline-none transition-colors"
+                  className="w-full bg-[#262626] border border-[#66DEDB]/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#66DEDB] focus:outline-none transition-colors"
                 />
               </div>
 
@@ -519,12 +532,12 @@ export default function StalkerGiftTab() {
               <div>
                 <label className="block text-gray-300 text-sm font-medium mb-2">
                   Métodos de Contacto * 
-                  <span className="text-[#FE9600] text-xs ml-2">
+                  <span className="text-[#5FE085] text-xs ml-2">
                     (Mínimo 1 requerido)
                   </span>
                 </label>
-                <div className="bg-[#81007F]/10 border border-[#81007F]/20 rounded-lg p-3 mb-4">
-                  <p className="text-[#FEF580] text-xs font-medium flex items-center">
+                <div className="bg-[#66DEDB]/10 border border-[#66DEDB]/20 rounded-lg p-3 mb-4">
+                  <p className="text-[#5FE085] text-xs font-medium flex items-center">
                     <span className="mr-2">💡</span>
                     Entre más datos de contacto proporciones, mayor será la posibilidad de que la persona reciba tu regalo
                   </p>
@@ -542,7 +555,7 @@ export default function StalkerGiftTab() {
                         value={method.value}
                         onChange={(e) => handleContactMethodChange(method.type, e.target.value)}
                         placeholder={getContactMethodPlaceholder(method.type)}
-                        className="w-full bg-[#262626] border border-[#81007F]/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-[#81007F] focus:outline-none transition-colors text-sm"
+                        className="w-full bg-[#262626] border border-[#66DEDB]/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-[#66DEDB] focus:outline-none transition-colors text-sm"
                       />
                     </div>
                   ))}
@@ -551,12 +564,12 @@ export default function StalkerGiftTab() {
             </div>
 
             {/* Estado del Formulario */}
-            <div className="bg-[#262626]/30 rounded-xl p-4 border border-[#81007F]/20">
+            <div className="bg-[#262626]/30 rounded-xl p-4 border border-[#66DEDB]/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="text-sm text-gray-400">
                     Métodos completados: 
-                    <span className={`ml-1 font-semibold ${filledMethods.length >= 1 ? 'text-[#FEF580]' : 'text-[#E73230]'}`}>
+                    <span className={`ml-1 font-semibold ${filledMethods.length >= 1 ? 'text-[#5FE085]' : 'text-[#E73230]'}`}>
                       {filledMethods.length}/5 
                       <span className="text-xs ml-1">
                         ({filledMethods.length >= 1 ? 'Válido' : 'Mín. 1'})
@@ -565,7 +578,7 @@ export default function StalkerGiftTab() {
                   </div>
                   <div className="text-sm text-gray-400">
                     Formulario: 
-                    <span className={`ml-1 font-semibold ${isFormValid ? 'text-[#FEF580]' : 'text-[#E73230]'}`}>
+                    <span className={`ml-1 font-semibold ${isFormValid ? 'text-[#5FE085]' : 'text-[#E73230]'}`}>
                       {isFormValid ? 'Completo' : 'Incompleto'}
                     </span>
                   </div>
@@ -576,7 +589,7 @@ export default function StalkerGiftTab() {
                   disabled={!isFormValid}
                   className={`px-6 py-2 rounded-lg font-semibold transition-all duration-300 ${
                     isFormValid
-                      ? 'bg-gradient-to-r from-[#81007F] to-[#FE9600] text-white hover:scale-105 hover:shadow-lg hover:shadow-[#81007F]/30'
+                      ? 'bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] text-white hover:scale-105 hover:shadow-lg hover:shadow-[#3B9BC3]/30'
                       : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                   }`}
                 >
@@ -587,11 +600,11 @@ export default function StalkerGiftTab() {
 
             {/* Mensaje motivacional adicional */}
             {filledMethods.length > 0 && filledMethods.length < 3 && (
-              <div className="bg-gradient-to-r from-[#FE9600]/10 to-[#FEF580]/10 border border-[#FE9600]/30 rounded-xl p-4 mt-4">
+              <div className="bg-gradient-to-r from-[#5FE085]/10 to-[#5FE085]/10 border border-[#5FE085]/30 rounded-xl p-4 mt-4">
                 <div className="flex items-center">
                   <span className="text-2xl mr-3">🎯</span>
                   <div>
-                    <p className="text-[#FE9600] font-semibold text-sm">
+                    <p className="text-[#5FE085] font-semibold text-sm">
                       ¡Aumenta tus posibilidades de éxito!
                     </p>
                     <p className="text-gray-300 text-xs mt-1">
@@ -606,7 +619,7 @@ export default function StalkerGiftTab() {
 
         {/* Mensaje de Confianza */}
         <div className="text-center">
-          <p className="text-[#81007F]/80 text-sm font-medium">
+          <p className="text-[#66DEDB]/80 text-sm font-medium">
             🔒 Toda la información se mantendrá privada y segura
           </p>
         </div>
@@ -623,30 +636,30 @@ export default function StalkerGiftTab() {
         <div className="mb-6">
           <button 
             onClick={() => setCurrentView('for-external-user')}
-            className="flex items-center text-[#81007F] hover:text-[#FE9600] transition-colors duration-300"
+            className="flex items-center text-[#66DEDB] hover:text-[#5FE085] transition-colors duration-300"
           >
             <span className="mr-2">←</span> Volver al formulario
           </button>
         </div>
 
         {/* Resumen de datos ingresados */}
-        <div className="bg-gradient-to-r from-[#81007F]/10 to-[#FE9600]/10 border border-[#81007F]/30 rounded-2xl p-6 mb-8">
-          <h2 className="text-2xl font-bold text-[#81007F] mb-6 text-center">
+        <div className="bg-gradient-to-r from-[#66DEDB]/10 to-[#5FE085]/10 border border-[#66DEDB]/30 rounded-2xl p-6 mb-8">
+          <h2 className="text-2xl font-bold text-[#66DEDB] mb-6 text-center">
             📋 Resumen de tu Regalo Anónimo
           </h2>
           
           <div className="grid md:grid-cols-2 gap-6">
             {/* Información del remitente */}
-            <div className="bg-[#262626]/30 rounded-xl p-4 border border-[#81007F]/20">
-              <h3 className="text-lg font-semibold text-[#81007F] mb-3 flex items-center">
+            <div className="bg-[#262626]/30 rounded-xl p-4 border border-[#66DEDB]/20">
+              <h3 className="text-lg font-semibold text-[#66DEDB] mb-3 flex items-center">
                 <span className="mr-2">🎭</span> Tu Alias
               </h3>
               <p className="text-gray-300">{stalkerGiftData.alias}</p>
             </div>
 
             {/* Información del destinatario */}
-            <div className="bg-[#262626]/30 rounded-xl p-4 border border-[#81007F]/20">
-              <h3 className="text-lg font-semibold text-[#81007F] mb-3 flex items-center">
+            <div className="bg-[#262626]/30 rounded-xl p-4 border border-[#66DEDB]/20">
+              <h3 className="text-lg font-semibold text-[#66DEDB] mb-3 flex items-center">
                 <span className="mr-2">👤</span> Destinatario
               </h3>
               <p className="text-gray-300 mb-2">{stalkerGiftData.recipient.name}</p>
@@ -664,16 +677,16 @@ export default function StalkerGiftTab() {
         </div>
 
         {/* Selección de productos */}
-        <div className="bg-gradient-to-r from-[#81007F]/10 to-[#FE9600]/10 border border-[#81007F]/30 rounded-2xl p-6">
+        <div className="bg-gradient-to-r from-[#66DEDB]/10 to-[#5FE085]/10 border border-[#66DEDB]/30 rounded-2xl p-6">
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-[#81007F] mb-2">
+            <h2 className="text-2xl font-bold text-[#66DEDB] mb-2">
               🎁 Selecciona los Productos para Regalar
             </h2>
             <p className="text-gray-300">
               Puedes seleccionar múltiples productos para crear el regalo perfecto
             </p>
             {stalkerGiftData.selectedProducts.length > 0 && (
-              <p className="text-[#FEF580] text-sm mt-2">
+              <p className="text-[#5FE085] text-sm mt-2">
                 ✨ {stalkerGiftData.selectedProducts.length} producto(s) seleccionado(s)
               </p>
             )}
@@ -682,7 +695,7 @@ export default function StalkerGiftTab() {
           {/* Lista de productos */}
           {isLoadingProducts ? (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#81007F]"></div>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#66DEDB]"></div>
               <p className="text-gray-300 mt-4">Cargando productos...</p>
             </div>
           ) : products.length > 0 ? (
@@ -692,8 +705,8 @@ export default function StalkerGiftTab() {
                   key={product.id}
                   className={`relative bg-[#262626]/30 border-2 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:scale-105 ${
                     isProductSelected(product.id)
-                      ? 'border-[#81007F] shadow-lg shadow-[#81007F]/20'
-                      : 'border-[#81007F]/20 hover:border-[#81007F]/50'
+                      ? 'border-[#66DEDB] shadow-lg shadow-[#66DEDB]/20'
+                      : 'border-[#66DEDB]/20 hover:border-[#66DEDB]/50'
                   }`}
                   onClick={() => toggleProductSelection(product)}
                 >
@@ -703,7 +716,7 @@ export default function StalkerGiftTab() {
                       type="checkbox"
                       checked={isProductSelected(product.id)}
                       onChange={() => toggleProductSelection(product)}
-                      className="w-5 h-5 text-[#81007F] bg-[#262626] border-[#81007F]/30 rounded focus:ring-[#81007F] focus:ring-2"
+                      className="w-5 h-5 text-[#66DEDB] bg-[#262626] border-[#66DEDB]/30 rounded focus:ring-[#66DEDB] focus:ring-2"
                     />
                   </div>
 
@@ -723,7 +736,7 @@ export default function StalkerGiftTab() {
                   </h3>
 
                   {/* Precio */}
-                  <div className="text-sm sm:text-base font-bold text-[#81007F]">
+                  <div className="text-sm sm:text-base font-bold text-[#66DEDB]">
                     {product.variants?.[0]?.inventory?.currency_code || '$'} {' '}
                     {product.variants?.[0]?.inventory?.price?.toLocaleString() || '0'}
                   </div>
@@ -736,12 +749,12 @@ export default function StalkerGiftTab() {
             </div>
           )}
 
-          {/* Botón de continuar original */}
+          {/* Botón de continuar */}
           {stalkerGiftData.selectedProducts.length > 0 && (
             <div ref={originalButtonRef} className="mt-8 text-center">
               <button
                 onClick={handleProceedToCheckout}
-                className="px-8 py-3 bg-gradient-to-r from-[#81007F] to-[#FE9600] text-white font-semibold rounded-lg hover:scale-105 hover:shadow-lg hover:shadow-[#81007F]/30 transition-all duration-300"
+                className="bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] text-white px-8 py-4 rounded-xl font-bold text-lg hover:scale-105 hover:shadow-2xl hover:shadow-[#3B9BC3]/50 transition-all duration-300"
               >
                 Continuar con el Envío ({stalkerGiftData.selectedProducts.length} productos)
               </button>
@@ -751,7 +764,7 @@ export default function StalkerGiftTab() {
 
         {/* Mensaje de confianza */}
         <div className="mt-6 text-center">
-          <p className="text-[#81007F]/80 text-sm font-medium">
+          <p className="text-[#66DEDB]/80 text-sm font-medium">
             🔒 Tu identidad permanecerá en secreto hasta que decidas revelarla
           </p>
         </div>
@@ -775,14 +788,14 @@ export default function StalkerGiftTab() {
         <div className="mb-6">
           <button 
             onClick={() => setCurrentView('product-selection')}
-            className="flex items-center text-[#81007F] hover:text-[#FE9600] transition-colors duration-300"
+            className="flex items-center text-[#66DEDB] hover:text-[#5FE085] transition-colors duration-300"
           >
             <span className="mr-2">←</span> Volver a selección de productos
           </button>
         </div>
 
-        <div className="bg-gradient-to-r from-[#81007F]/10 to-[#FE9600]/10 border border-[#81007F]/30 rounded-2xl p-6 mb-8">
-          <h2 className="text-3xl font-bold text-[#81007F] mb-6 text-center">
+        <div className="bg-gradient-to-r from-[#66DEDB]/10 to-[#5FE085]/10 border border-[#66DEDB]/30 rounded-2xl p-6 mb-8">
+          <h2 className="text-3xl font-bold text-[#66DEDB] mb-6 text-center">
             💳 Resumen de Compra - StalkerGift
           </h2>
 
@@ -790,8 +803,8 @@ export default function StalkerGiftTab() {
             {/* Columna izquierda - Resumen del regalo */}
             <div className="space-y-6">
               {/* Información del regalo */}
-              <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#81007F]/20">
-                <h3 className="text-xl font-semibold text-[#81007F] mb-4 flex items-center">
+              <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#66DEDB]/20">
+                <h3 className="text-xl font-semibold text-[#66DEDB] mb-4 flex items-center">
                   <span className="mr-2">🎁</span> Detalles del Regalo Anónimo
                 </h3>
                 
@@ -820,27 +833,34 @@ export default function StalkerGiftTab() {
               </div>
 
               {/* Mensaje personalizado */}
-              <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#81007F]/20">
-                <h3 className="text-xl font-semibold text-[#81007F] mb-4 flex items-center">
+              <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#66DEDB]/20">
+                <h3 className="text-xl font-semibold text-[#66DEDB] mb-4 flex items-center">
                   <span className="mr-2">💌</span> Mensaje Personalizado
                 </h3>
                 
                 <div className="space-y-3">
                   <label className="block text-gray-300 text-sm font-medium">
                     Escribe un mensaje para acompañar tu regalo
-                    <span className="text-gray-500 text-xs ml-2">(Opcional)</span>
+                    <span className="text-red-400 text-xs ml-2">*Requerido</span>
                   </label>
                   <textarea
                     value={stalkerGiftData.message || ''}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Ejemplo: ¡Espero que disfrutes este regalo! Eres una persona muy especial..."
-                    className="w-full bg-[#262626] border border-[#81007F]/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#81007F] focus:outline-none transition-colors resize-none"
+                    className="w-full bg-[#262626] border border-[#66DEDB]/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#66DEDB] focus:outline-none transition-colors resize-none"
                     rows={4}
                     maxLength={500}
                   />
                   <div className="flex justify-between items-center">
-                    <p className="text-gray-500 text-xs">
-                      💡 Un mensaje personal hace que el regalo sea más especial
+                    <p className={`text-xs ${
+                      !stalkerGiftData.message?.trim() 
+                        ? 'text-red-400 font-medium' 
+                        : 'text-gray-500'
+                    }`}>
+                      {!stalkerGiftData.message?.trim() 
+                        ? '⚠️ El mensaje es requerido para continuar' 
+                        : '💡 Un mensaje personal hace que el regalo sea más especial'
+                      }
                     </p>
                     <p className="text-gray-400 text-xs">
                       {stalkerGiftData.message?.length || 0}/500
@@ -850,8 +870,8 @@ export default function StalkerGiftTab() {
               </div>
 
               {/* Productos seleccionados */}
-              <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#81007F]/20">
-                <h3 className="text-xl font-semibold text-[#81007F] mb-4 flex items-center">
+              <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#66DEDB]/20">
+                <h3 className="text-xl font-semibold text-[#66DEDB] mb-4 flex items-center">
                   <span className="mr-2">📦</span> Productos Seleccionados ({stalkerGiftData.selectedProducts.length})
                 </h3>
                 
@@ -871,7 +891,7 @@ export default function StalkerGiftTab() {
                         <p className="text-gray-400 text-xs mt-1">Cantidad: 1</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[#81007F] font-bold">
+                        <p className="text-[#66DEDB] font-bold">
                           {currency} {(product.variants?.[0]?.inventory?.price || 0).toLocaleString()}
                         </p>
                       </div>
@@ -884,8 +904,8 @@ export default function StalkerGiftTab() {
             {/* Columna derecha - Resumen de precios */}
             <div className="space-y-6">
               {/* Totales */}
-              <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#81007F]/20 sticky top-6">
-                <h3 className="text-xl font-semibold text-[#81007F] mb-6 flex items-center">
+              <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#66DEDB]/20 sticky top-6">
+                <h3 className="text-xl font-semibold text-[#66DEDB] mb-6 flex items-center">
                   <span className="mr-2">🧾</span> Resumen de Compra
                 </h3>
                 
@@ -904,7 +924,7 @@ export default function StalkerGiftTab() {
                     <div className="flex flex-col">
                       <span className="text-gray-300">Envío</span>
                       {shipping === 0 && (
-                        <span className="text-[#FEF580] text-xs">¡Envío gratis!</span>
+                        <span className="text-[#5FE085] text-xs">¡Envío gratis!</span>
                       )}
                     </div>
                     <span className="text-white font-medium">
@@ -912,9 +932,9 @@ export default function StalkerGiftTab() {
                     </span>
                   </div>
                   
-                  <div className="flex justify-between items-center py-4 border-t-2 border-[#81007F]/30">
+                  <div className="flex justify-between items-center py-4 border-t-2 border-[#66DEDB]/30">
                     <span className="text-xl font-bold text-white">Total</span>
-                    <span className="text-2xl font-bold text-[#81007F]">{currency} {total.toLocaleString()}</span>
+                    <span className="text-2xl font-bold text-[#66DEDB]">{currency} {total.toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -949,12 +969,12 @@ export default function StalkerGiftTab() {
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-400">De parte de:</span>
-                          <span className="text-[#81007F]">{paymentDetails.alias}</span>
+                          <span className="text-[#66DEDB]">{paymentDetails.alias}</span>
                         </div>
                       </div>
                       
-                      <div className="mt-4 p-3 bg-[#81007F]/20 rounded-lg">
-                        <p className="text-[#FEF580] text-xs font-medium">
+                      <div className="mt-4 p-3 bg-[#66DEDB]/20 rounded-lg">
+                        <p className="text-[#5FE085] text-xs font-medium">
                           🎁 El regalo será enviado de forma anónima. Tu identidad permanecerá en secreto hasta que decidas revelarla.
                         </p>
                       </div>
@@ -962,7 +982,7 @@ export default function StalkerGiftTab() {
                   </div>
                 )}
 
-                {paymentStatus === 'failed' && (
+                {/* {paymentStatus === 'failed' && (
                   <div className="mt-6 p-6 bg-gradient-to-r from-red-500/20 to-red-600/20 border-2 border-red-500/50 rounded-xl">
                     <div className="text-center">
                       <div className="w-16 h-16 mx-auto mb-4 bg-red-500 rounded-full flex items-center justify-center">
@@ -986,7 +1006,7 @@ export default function StalkerGiftTab() {
                       </button>
                     </div>
                   </div>
-                )}
+                )} */}
 
                 {paymentStatus === 'pending' && (
                   <div className="mt-6 p-6 bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 border-2 border-yellow-500/50 rounded-xl">
@@ -1005,29 +1025,126 @@ export default function StalkerGiftTab() {
                 {/* Selección de método de pago - Solo mostrar si no hay pago exitoso */}
                 {paymentStatus !== 'success' && (
                   <div className="mt-6">
-                    <h4 className="text-lg font-semibold text-[#81007F] mb-4">Método de Pago</h4>
+                    <h4 className={`text-lg font-semibold mb-4 ${
+                      !stalkerGiftData.message?.trim() 
+                        ? 'text-gray-500' 
+                        : 'text-[#66DEDB]'
+                    }`}>
+                      Método de Pago
+                      {!stalkerGiftData.message?.trim() && (
+                        <span className="text-red-400 text-sm ml-2">(Completa el mensaje primero)</span>
+                      )}
+                    </h4>
                     <div className="space-y-3">
-                      <div className="flex items-center space-x-3 p-3 border border-[#81007F]/30 rounded-lg hover:border-[#81007F] transition-colors cursor-pointer"
-                           onClick={() => handlePaymentMethodSelect("epayco")}>
-                        <input
-                          type="radio"
-                          id="epayco-stalker"
-                          name="payment-method-stalker"
-                          value="epayco"
-                          checked={selectedPaymentMethod === "epayco"}
-                          onChange={() => handlePaymentMethodSelect("epayco")}
-                          className="h-4 w-4 text-[#81007F] bg-[#262626] border-[#81007F]/30 rounded focus:ring-[#81007F] focus:ring-2"
-                        />
-                        <label htmlFor="epayco-stalker" className="text-white font-medium cursor-pointer">
-                          ePayco - Pago Seguro
-                        </label>
-                      </div>
+                      <button
+                        onClick={async () => {
+                          if (stalkerGiftData.message?.trim()) {
+                            // Ejecutar directamente la lógica de pago de ePayco
+                            console.log('=== INICIANDO PAGO DIRECTO EPAYCO ===')
+                            setSelectedPaymentMethod("epayco")
+                            setIsProcessingPayment(true)
+                            
+                            try {
+                              const userCustomer = await retrieveCustomer().catch(() => null)
+                              
+                              if (!userCustomer) {
+                                alert("Debe iniciar sesión para realizar el pago")
+                                setIsProcessingPayment(false)
+                                return
+                              }
+
+                              const { total } = calculateTotals()
+                              const filledMethods = getFilledContactMethods()
+                              
+                              // Crear orden real de StalkerGift en el backend
+                              const orderData: CreateStalkerGiftData = {
+                                total_amount: total,
+                                first_name: userCustomer.first_name || "Usuario",
+                                phone: filledMethods.find(m => m.type === 'phone')?.value || userCustomer.phone || "000000000",
+                                email: userCustomer.email,
+                                alias: stalkerGiftData.alias,
+                                recipient_name: stalkerGiftData.recipient.name,
+                                contact_methods: filledMethods,
+                                products: stalkerGiftData.selectedProducts,
+                                message: stalkerGiftData.message,
+                                payment_method: "epayco",
+                                payment_status: "pending"
+                              }
+                              
+                              console.log('Creando orden en backend:', orderData)
+                              
+                              // Llamar al backend para crear la orden
+                              const response: CreateStalkerGiftResponse = await createStalkerGift(orderData)
+                              
+                              console.log('Orden creada exitosamente:', response)
+                              
+                              // Preparar configuración de ePayco
+                              const epaycoConfig = {
+                                key: 'a5bd3d6eaf8d072b2ad4265bd2dfaed9',
+                                test: true,
+                                external: false,
+                                autoclick: false,
+                                lang: 'es',
+                                invoice: response.stalkerGift.id.toString(),
+                                description: `StalkerGift - ${stalkerGiftData.selectedProducts.length} producto(s)`,
+                                value: total.toString(),
+                                tax: '0',
+                                tax_base: (total * 0.84).toString(),
+                                currency: 'COP',
+                                country: 'CO',
+                                email_billing: userCustomer.email,
+                                name_billing: stalkerGiftData.alias || 'Usuario Anónimo',
+                                address_billing: 'Dirección de prueba',
+                                type_person: '0',
+                                mobilephone_billing: filledMethods.find(m => m.type === 'phone')?.value || '3001234567',
+                                number_doc_billing: '12345678',
+                                response: `${window.location.origin}/stalker-gift/payment-response`,
+                                confirmation: `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/stalker-gift/payment-confirmation`,
+                                methodsDisable: ['CASH', 'DP']
+                              }
+                              
+                              console.log('Configuración de ePayco:', epaycoConfig)
+                              setPaymentEpayco(epaycoConfig)
+                              
+                              // Guardar datos de la orden
+                              setCreatedOrder(response)
+                              
+                              setPaymentStatus('success')
+                              setShowInvitationUrl(true)
+                              
+                            } catch (error) {
+                              console.error('Error al procesar el pago:', error)
+                              setPaymentStatus('failed')
+                            } finally {
+                              setIsProcessingPayment(false)
+                            }
+                          }
+                        }}
+                        disabled={!stalkerGiftData.message?.trim() || isProcessingPayment}
+                        className={`w-full flex items-center justify-center space-x-3 p-4 border rounded-lg transition-all duration-300 font-medium ${
+                          !stalkerGiftData.message?.trim() || isProcessingPayment
+                            ? 'border-gray-600 bg-gray-800/50 cursor-not-allowed opacity-50 text-gray-500'
+                            : 'border-[#66DEDB]/30 hover:border-[#66DEDB] hover:bg-[#66DEDB]/10 cursor-pointer text-white hover:scale-105'
+                        }`}
+                      >
+                        {isProcessingPayment ? (
+                          <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400"></div>
+                            <span>Procesando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-lg">💳</span>
+                            <span>ePayco - Pago Seguro</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                     
                     {isProcessingPayment && (
-                      <div className="mt-4 p-4 bg-[#81007F]/10 rounded-lg border border-[#81007F]/30">
-                        <p className="text-[#FEF580] font-medium flex items-center">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#FEF580] mr-2"></div>
+                      <div className="mt-4 p-4 bg-[#66DEDB]/10 rounded-lg border border-[#66DEDB]/30">
+                        <p className="text-[#5FE085] font-medium flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#5FE085] mr-2"></div>
                           Procesando orden...
                         </p>
                       </div>
@@ -1036,8 +1153,8 @@ export default function StalkerGiftTab() {
                 )}
 
                 {/* Información adicional */}
-                <div className="mt-4 p-4 bg-[#81007F]/10 rounded-lg">
-                  <p className="text-[#FEF580] text-xs font-medium flex items-center">
+                <div className="mt-4 p-4 bg-[#66DEDB]/10 rounded-lg">
+                  <p className="text-[#5FE085] text-xs font-medium flex items-center">
                     <span className="mr-2">🔒</span>
                     Pago seguro • El regalo se enviará de forma anónima
                   </p>
@@ -1057,7 +1174,7 @@ export default function StalkerGiftTab() {
                       <form id="epayco-payment-form-stalker">
                         <div className="mb-3 sm:mb-4">
                           <label htmlFor="epayco-payment-stalker" className="block text-sm font-medium text-white mb-2">
-                            Pago con ePayco
+                            Pago con ePayco 
                           </label>
                           <p className="text-xs sm:text-sm text-gray-300 mb-3 sm:mb-4">Haga clic en el botón a continuación para proceder con el pago seguro a través de ePayco.</p>
                           
@@ -1068,6 +1185,8 @@ export default function StalkerGiftTab() {
                               id="epayco-custom-button-stalker"
                               className="w-full sm:w-auto bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 text-white p-2 sm:p-3 md:p-4 text-sm sm:text-base flex items-center justify-center gap-2 transition-colors"
                               onClick={() => {
+
+                                
                                 console.log('=== INICIANDO PAGO STALKER GIFT ===');
                                 console.log('paymentEpayco:', paymentEpayco);
                                 console.log('window.ePayco:', window.ePayco);
@@ -1119,7 +1238,7 @@ export default function StalkerGiftTab() {
                                 }
                               }}
                             >
-                              <span>Pagar con ePayco</span>
+                              <span>Pagar con ePayco</span> 
                               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <rect width="20" height="14" x="2" y="5" rx="2" />
                                 <line x1="2" x2="22" y1="10" y2="10" />
@@ -1134,10 +1253,10 @@ export default function StalkerGiftTab() {
 
                 {/* Sección de URL de Invitación */}
                 {showInvitationUrl && createdOrder && (
-                  <div className="bg-gradient-to-r from-[#FEF580]/10 to-[#FE9600]/10 border border-[#FEF580]/30 rounded-2xl p-6 mt-6">
+                  <div className="bg-gradient-to-r from-[#5FE085]/10 to-[#5FE085]/10 border border-[#5FE085]/30 rounded-2xl p-6 mt-6">
                     <div className="text-center mb-4">
                       <div className="text-4xl mb-2">🎁</div>
-                      <h3 className="text-2xl font-bold text-[#FEF580] mb-2">
+                      <h3 className="text-2xl font-bold text-[#5FE085] mb-2">
                         ¡Orden Creada Exitosamente!
                       </h3>
                       <p className="text-gray-300 text-sm">
@@ -1146,8 +1265,8 @@ export default function StalkerGiftTab() {
                     </div>
 
                     {/* URL de invitación */}
-                    <div className="bg-[#262626]/50 rounded-xl p-4 border border-[#FEF580]/20 mb-4">
-                      <label className="block text-[#FEF580] text-sm font-medium mb-2">
+                    <div className="bg-[#262626]/50 rounded-xl p-4 border border-[#5FE085]/20 mb-4">
+                      <label className="block text-[#5FE085] text-sm font-medium mb-2">
                         🔗 URL de Invitación:
                       </label>
                       <div className="flex items-center space-x-2">
@@ -1155,11 +1274,11 @@ export default function StalkerGiftTab() {
                           type="text"
                           value={createdOrder.invitationUrl}
                           readOnly
-                          className="flex-1 bg-[#1E1E1E] border border-[#FEF580]/30 rounded-lg px-4 py-3 text-white text-sm focus:border-[#FEF580] focus:outline-none"
+                          className="flex-1 bg-[#1E1E1E] border border-[#5FE085]/30 rounded-lg px-4 py-3 text-white text-sm focus:border-[#5FE085] focus:outline-none"
                         />
                         <button
                           onClick={() => copyToClipboard(createdOrder.invitationUrl)}
-                          className="bg-gradient-to-r from-[#FEF580] to-[#FE9600] text-black px-4 py-3 rounded-lg font-semibold hover:scale-105 transition-transform flex items-center space-x-2"
+                          className="bg-gradient-to-r from-[#5FE085] to-[#5FE085] text-black px-4 py-3 rounded-lg font-semibold hover:scale-105 transition-transform flex items-center space-x-2"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -1169,39 +1288,7 @@ export default function StalkerGiftTab() {
                       </div>
                     </div>
 
-                    {/* Texto de invitación */}
-                    <div className="bg-[#262626]/50 rounded-xl p-4 border border-[#FEF580]/20 mb-4">
-                      <label className="block text-[#FEF580] text-sm font-medium mb-2">
-                        💌 Texto de Invitación:
-                      </label>
-                      <textarea
-                        value={createdOrder.invitationText}
-                        readOnly
-                        rows={8}
-                        className="w-full bg-[#1E1E1E] border border-[#FEF580]/30 rounded-lg px-4 py-3 text-white text-sm focus:border-[#FEF580] focus:outline-none resize-none"
-                      />
-                      <div className="flex justify-end mt-2">
-                        <button
-                          onClick={() => copyToClipboard(createdOrder.invitationText)}
-                          className="bg-gradient-to-r from-[#FEF580] to-[#FE9600] text-black px-4 py-2 rounded-lg font-semibold hover:scale-105 transition-transform flex items-center space-x-2 text-sm"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                          <span>Copiar Texto</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Instrucciones */}
-                    <div className="text-center">
-                      <p className="text-gray-300 text-sm mb-2">
-                        📱 Comparte la URL por WhatsApp, email o redes sociales
-                      </p>
-                      <p className="text-[#FE9600] text-xs font-medium">
-                        ⏰ El destinatario tiene 3 días para reclamar su regalo
-                      </p>
-                    </div>
+                    
                   </div>
                 )}
               </div>
@@ -1211,7 +1298,7 @@ export default function StalkerGiftTab() {
 
         {/* Mensaje de confianza */}
         <div className="text-center">
-          <p className="text-[#81007F]/80 text-sm font-medium">
+          <p className="text-[#66DEDB]/80 text-sm font-medium">
             🎭 Tu identidad permanecerá en secreto hasta que decidas revelarla
           </p>
         </div>
@@ -1244,7 +1331,7 @@ export default function StalkerGiftTab() {
         <div className="fixed bottom-6 right-[40%] z-50 animate-bounce">
           <button
             onClick={handleProceedToCheckout}
-            className="px-6 py-3 bg-gradient-to-r from-[#81007F] to-[#FE9600] text-white font-semibold rounded-full shadow-2xl hover:scale-110 hover:shadow-[#81007F]/50 transition-all duration-300 flex items-center space-x-2"
+            className="px-6 py-3 bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] text-white font-semibold rounded-full shadow-2xl hover:scale-110 hover:shadow-[#3B9BC3]/50 transition-all duration-300 flex items-center space-x-2"
           >
             <span>🛒</span>
             <span>Continuar ({stalkerGiftData.selectedProducts.length})</span>
