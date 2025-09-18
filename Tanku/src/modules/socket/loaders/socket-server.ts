@@ -1,5 +1,6 @@
 import { LoaderOptions } from "@medusajs/framework/types";
 import { asValue } from "awilix";
+import SocketModuleService from "../service";
 
 export default async function socketServerLoader({ 
   container
@@ -24,7 +25,7 @@ export default async function socketServerLoader({
     // Programar la inicialización automática después de que Medusa esté completamente cargado
     setTimeout(async () => {
       try {
-        const socketService = container.resolve("socket");
+        const socketService: SocketModuleService = container.resolve("socket");
         if (socketService && typeof socketService.attemptAutoInitialization === 'function') {
           await socketService.attemptAutoInitialization();
         }

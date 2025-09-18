@@ -3,6 +3,7 @@ import { SOCIAL_MODULE } from "../../../../../modules/social"
 import SocialModuleService from "../../../../../modules/social/service"
 import { Modules } from "@medusajs/framework/utils"
 import { PERSONAL_INFORMATION_MODULE } from "../../../../../modules/personal_information"
+import PersonalInformationService from "../../../../../modules/personal_information/service"
 
 export async function GET(
   req: MedusaRequest,
@@ -22,7 +23,7 @@ export async function GET(
     const socialModuleService: SocialModuleService = req.scope.resolve(
       SOCIAL_MODULE
     )
-    const personalInfoService = req.scope.resolve(PERSONAL_INFORMATION_MODULE)
+    const personalInfoService: PersonalInformationService = req.scope.resolve(PERSONAL_INFORMATION_MODULE)
     const customerModuleService = req.scope.resolve(Modules.CUSTOMER)
     
     // Obtener las solicitudes de amistad enviadas por el usuario

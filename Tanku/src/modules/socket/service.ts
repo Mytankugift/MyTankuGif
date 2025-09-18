@@ -9,10 +9,12 @@ class SocketModuleService extends MedusaService({
 }) {
   private io: SocketIOServer | null = null;
   private logger: Logger;
+  private container: any;
 
   constructor(container, options = {}) {
     super(...arguments);
     this.logger = container.logger;
+    this.container = container;
     
     // Registrar una función de inicialización que puede ser llamada desde fuera del módulo
     this.scheduleInitialization(container);
@@ -31,6 +33,17 @@ class SocketModuleService extends MedusaService({
         this.logger.debug(`[SOCKET MODULE] Error details: ${error.message}`);
       }
     }, 5000); // Esperar 5 segundos para que Medusa esté completamente inicializado
+  }
+
+  /**
+   * Método público para intentar la inicialización automática (usado por el loader)
+   */
+  async attemptAutoInitialization() {
+    try {
+      await this.attemptInitialization(this.container);
+    } catch (error) {
+      this.logger.debug(`[SOCKET MODULE] Auto-initialization failed: ${error.message}`);
+    }
   }
 
   /**
