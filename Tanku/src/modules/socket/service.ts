@@ -256,22 +256,60 @@ class SocketModuleService extends MedusaService({
   }
 
   /**
-   * Obtiene información sobre las conexiones activas
+   * Obtiene información de conexiones activas
    */
   async getConnectionInfo() {
     if (!this.io) {
-      return { connectedClients: 0, rooms: [] };
+      return {
+        connectedClients: 0,
+        rooms: []
+      };
     }
 
     const sockets = await this.io.fetchSockets();
-    const rooms = Array.from(this.io.sockets.adapter.rooms.keys());
-    
+    const rooms = Array.from(this.io.sockets.adapter.rooms.keys())
+      .filter(room => !this.io!.sockets.sockets.has(room)); // Filtrar rooms que no son socket IDs
+
     return {
       connectedClients: sockets.length,
-      rooms: rooms.filter(room => !room.startsWith("user_") && !room.startsWith("conversation_")),
-      userRooms: rooms.filter(room => room.startsWith("user_")),
-      conversationRooms: rooms.filter(room => room.startsWith("conversation_")),
+      rooms: rooms
     };
+  }
+
+  /**
+   * Verifica si un usuario está conectado
+   */
+  async isUserOnline(customerId: string): Promise<boolean> {
+    if (!this.io) {
+      return false;
+    }
+
+    try {
+      const sockets = await this.io.fetchSockets();
+      return sockets.some(socket => socket.data.customerId === customerId);
+    } catch (error) {
+      this.logger.error(`[SOCKET MODULE] Error checking user online status: ${error.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Obtiene todos los usuarios conectados
+   */
+  async getOnlineUsers(): Promise<string[]> {
+    if (!this.io) {
+      return [];
+    }
+
+    try {
+      const sockets = await this.io.fetchSockets();
+      return sockets
+        .map(socket => socket.data.customerId)
+        .filter(customerId => customerId); // Filtrar valores undefined
+    } catch (error) {
+      this.logger.error(`[SOCKET MODULE] Error getting online users: ${error.message}`);
+      return [];
+    }
   }
 }
 

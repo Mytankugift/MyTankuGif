@@ -24,3 +24,5 @@ build
 !.yarn/versions
 static/*
 .medusa
+SOCKET_CHAT_INTEGRATION.md
+SOCKET_TROUBLESHOOTING.md

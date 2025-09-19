@@ -34,6 +34,8 @@ const Users = ({ size = 24, className }: { size?: number; className?: string }) 
 import { getFriendRequests } from "@modules/social/actions/get-friend-requests"
 import { getChatConversation, ChatMessage } from "@modules/chat/actions/get-chat-conversation"
 import { sendChatMessage } from "@modules/chat/actions/send-chat-message"
+import { getUserStatus } from "@modules/chat/actions/get-user-status"
+import socketManager from "@lib/socket"
 
 
 interface Friend {
@@ -66,6 +68,8 @@ const SocialChat = ({ customerId }: { customerId: string }) => {
   const [friends, setFriends] = useState<Friend[]>([])
   const [chatWindows, setChatWindows] = useState<ChatWindow[]>([])
   const [loading, setLoading] = useState(false)
+  const [isSocketConnected, setIsSocketConnected] = useState(false)
+  const [typingUsers, setTypingUsers] = useState<{ [conversationId: string]: string[] }>({})
   const messagesEndRef = useRef<{ [key: string]: HTMLDivElement | null }>({})
 
   // Función para hacer scroll al final de los mensajes
@@ -112,6 +116,30 @@ const SocialChat = ({ customerId }: { customerId: string }) => {
         }
 
         setFriends(allFriends)
+        console.log("Amigos cargados:", allFriends)
+
+        // Cargar estado inicial de conexión de amigos
+        if (allFriends.length > 0) {
+          try {
+            const userIds = allFriends.map(friend => friend.id)
+            const statusResponse = await getUserStatus(userIds)
+            
+            if (statusResponse.success) {
+              setFriends(prev => 
+                prev.map(friend => {
+                  const status = statusResponse.data.find(s => s.user_id === friend.id)
+                  return {
+                    ...friend,
+                    isOnline: status?.is_online || false,
+                    lastSeen: status?.last_seen || "Hace tiempo"
+                  }
+                })
+              )
+            }
+          } catch (statusError) {
+            console.warn("Error al cargar estado de usuarios:", statusError)
+          }
+        }
       } catch (error) {
         console.error("Error al cargar amigos:", error)
         setFriends([])
@@ -123,7 +151,98 @@ const SocialChat = ({ customerId }: { customerId: string }) => {
     loadFriends()
   }, [customerId])
 
+  // Efecto para inicializar Socket.IO
+  useEffect(() => {
+    if (!customerId) return
 
+    // Conectar y autenticar
+    socketManager.authenticate(customerId)
+    
+    // Configurar listeners
+    const unsubscribeConnection = socketManager.onConnection((connected) => {
+      setIsSocketConnected(connected)
+      console.log('[SOCKET] Connection status:', connected)
+    })
+
+    const unsubscribeMessage = socketManager.onMessage((message) => {
+      console.log('[SOCKET] New message received:', message)
+      
+      // Agregar mensaje a la ventana de chat correspondiente
+      setChatWindows(prev => 
+        prev.map(chat => {
+          if (chat.conversationId === message.conversation_id) {
+            const newMessage = {
+              id: message.id,
+              senderId: message.sender_id,
+              content: message.content,
+              timestamp: message.created_at
+            }
+            
+            // Evitar duplicados
+            const messageExists = chat.messages.some(msg => msg.id === message.id)
+            if (!messageExists) {
+              return {
+                ...chat,
+                messages: [...chat.messages, newMessage]
+              }
+            }
+          }
+          return chat
+        })
+      )
+    })
+
+    const unsubscribeUserStatus = socketManager.onUserStatus((status) => {
+      console.log('[SOCKET] User status changed:', status)
+      
+      // Actualizar estado de conexión de amigos
+      setFriends(prev => 
+        prev.map(friend => 
+          friend.id === status.user_id 
+            ? { 
+                ...friend, 
+                isOnline: status.is_online,
+                lastSeen: status.last_seen || friend.lastSeen
+              }
+            : friend
+        )
+      )
+    })
+
+    const unsubscribeTyping = socketManager.onTyping((data) => {
+      console.log('[SOCKET] Typing indicator:', data)
+      
+      setTypingUsers(prev => {
+        const conversationTyping = prev[data.conversation_id] || []
+        
+        if (data.is_typing) {
+          // Agregar usuario a la lista de typing si no está
+          if (!conversationTyping.includes(data.user_id)) {
+            return {
+              ...prev,
+              [data.conversation_id]: [...conversationTyping, data.user_id]
+            }
+          }
+        } else {
+          // Remover usuario de la lista de typing
+          return {
+            ...prev,
+            [data.conversation_id]: conversationTyping.filter(id => id !== data.user_id)
+          }
+        }
+        
+        return prev
+      })
+    })
+
+    // Cleanup
+    return () => {
+      unsubscribeConnection()
+      unsubscribeMessage()
+      unsubscribeUserStatus()
+      unsubscribeTyping()
+    }
+  }, [customerId])
 
   const openChat = async (friend: Friend) => {
     const existingChat = chatWindows.find(chat => chat.friendId === friend.id)
@@ -278,6 +397,11 @@ const SocialChat = ({ customerId }: { customerId: string }) => {
               : c
           )
         )
+
+        // Unirse a la conversación en Socket.IO si no estaba ya
+        if (conversationId) {
+          socketManager.joinConversation(conversationId)
+        }
       }
     } catch (error) {
       console.error("Error al enviar mensaje:", error)
@@ -372,8 +496,9 @@ const SocialChat = ({ customerId }: { customerId: string }) => {
             onMaximize={() => maximizeChat(chat.friendId)}
             onSendMessage={(content) => sendMessage(chat.friendId, content)}
             customerId={customerId}
-            style={{ marginRight: `${index * 20}px` }}
+            style={{ zIndex: 40 - index }}
             messagesEndRef={messagesEndRef}
+            typingUsers={typingUsers}
           />
         ))}
       </div>
@@ -406,6 +531,7 @@ interface ChatWindowProps {
   customerId: string
   style?: React.CSSProperties
   messagesEndRef: React.MutableRefObject<{ [key: string]: HTMLDivElement | null }>
+  typingUsers: { [conversationId: string]: string[] }
 }
 
 const ChatWindow = ({ 
@@ -416,7 +542,8 @@ const ChatWindow = ({
   onSendMessage, 
   customerId,
   style,
-  messagesEndRef
+  messagesEndRef,
+  typingUsers
 }: ChatWindowProps) => {
   const [messageInput, setMessageInput] = useState("")
   const [isTyping, setIsTyping] = useState(false)
@@ -426,7 +553,10 @@ const ChatWindow = ({
       onSendMessage(messageInput.trim())
       setMessageInput("")
       
-      setIsTyping(false)
+      if (isTyping && chat.conversationId) {
+        setIsTyping(false)
+        socketManager.stopTyping(chat.conversationId)
+      }
     }
   }
 
@@ -437,8 +567,10 @@ const ChatWindow = ({
     if (chat.conversationId) {
       if (value.trim() && !isTyping) {
         setIsTyping(true)
+        socketManager.startTyping(chat.conversationId)
       } else if (!value.trim() && isTyping) {
         setIsTyping(false)
+        socketManager.stopTyping(chat.conversationId)
       }
     }
   }
@@ -521,6 +653,22 @@ const ChatWindow = ({
             </div>
           </div>
         ))}
+
+        {/* Indicador de "escribiendo..." */}
+        {chat.conversationId && typingUsers[chat.conversationId] && typingUsers[chat.conversationId].length > 0 && (
+          <div className="mb-3 flex justify-start">
+            <div className="bg-white border p-2 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+                <p className="text-xs text-gray-500">escribiendo...</p>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Indicador de typing */}
         {chat.isTyping && (

@@ -1,6 +1,8 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
 import { SOCIAL_MODULE } from "../../../modules/social"
 import SocialModuleService from "../../../modules/social/service"
+import { SOCKET_MODULE } from "../../../modules/socket"
+import SocketModuleService from "../../../modules/socket/service"
 
 export interface SendMessageInput {
   conversation_id: string
@@ -15,6 +17,7 @@ export const sendMessageStep = createStep(
   "send-message",
   async (data: SendMessageInput, { container }) => {
     const socialModuleService: SocialModuleService = container.resolve(SOCIAL_MODULE)
+    const socketService: SocketModuleService = container.resolve(SOCKET_MODULE)
 
     const { 
       conversation_id, 
@@ -54,6 +57,55 @@ export const sendMessageStep = createStep(
       status: "sent",
       status_at: new Date()
     }])
+
+    // 4. Obtener información de la conversación para Socket.IO
+    const conversation = await socialModuleService.listChatConversations({
+      id: conversation_id
+    })
+
+    // 5. Emitir evento Socket.IO a todos los participantes de la conversación
+    if (conversation && conversation.length > 0) {
+      const conv = conversation[0]
+      
+      // Obtener la amistad relacionada con esta conversación
+      const friendship = await socialModuleService.listFriends({
+        id: conv.relation_id
+      })
+
+      if (friendship && friendship.length > 0) {
+        const friendRecord = friendship[0]
+        
+        // Determinar quién es el receptor (el que no es el remitente)
+        const receiverId = friendRecord.customer_id === sender_id 
+          ? friendRecord.friend_customer_id 
+          : friendRecord.customer_id
+
+        // Emitir el mensaje al receptor
+        try {
+          await socketService.emitToUser(receiverId, "new-message", {
+            message: {
+              ...message,
+              sender_name: `Usuario ${sender_id}`, // Aquí podrías obtener el nombre real
+              conversation_id: conversation_id
+            },
+            conversation: conv
+          })
+        } catch (socketError) {
+          console.warn(`[SOCKET] Could not emit to user ${receiverId}:`, socketError.message)
+        }
+
+        // También emitir a la sala de la conversación
+        try {
+          await socketService.emitToConversation(conversation_id, "conversation-updated", {
+            conversation_id: conversation_id,
+            last_message: message,
+            last_message_at: new Date()
+          })
+        } catch (socketError) {
+          console.warn(`[SOCKET] Could not emit to conversation ${conversation_id}:`, socketError.message)
+        }
+      }
+    }
 
     return new StepResponse(
       {

@@ -12,9 +12,9 @@ module.exports = defineConfig({
     databaseUrl: process.env.DATABASE_URL,
     workerMode: process.env.MEDUSA_WORKER_MODE as "shared" | "worker" | "server",
     http: {
-      storeCors: process.env.STORE_CORS!,
-      adminCors: process.env.ADMIN_CORS!,
-      authCors: process.env.AUTH_CORS!,
+      storeCors: process.env.STORE_CORS || "http://localhost:8000,https://docs.medusajs.com",
+      adminCors: process.env.ADMIN_CORS || "http://localhost:7001,http://localhost:7000",
+      authCors: process.env.AUTH_CORS || "http://localhost:8000,http://localhost:7001,http://localhost:7000",
       jwtSecret: process.env.JWT_SECRET || "supersecret",
       cookieSecret: process.env.COOKIE_SECRET || "supersecret",
     },
