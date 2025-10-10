@@ -20,12 +20,14 @@ import Link from "next/link"
 import FriendGroupsTab from "./FriendGroupsTab"
 import EventsCalendarTab from "./EventsCalendarTab"
 import OrderCustomerTab from "./OrderCustomerTab"
+import StalkerGiftTab from "./StalkerGiftTab"
 
 // Profile editing components
 import ProfileName from "@modules/account/components/profile-name"
 import ProfileEmail from "@modules/account/components/profile-email"
 import ProfilePhone from "@modules/account/components/profile-phone"
 import ProfileBillingAddress from "@modules/account/components/profile-billing-address"
+
 
 // ... rest of the code ...
 
@@ -278,14 +280,10 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
     const loadData = async () => {
       setCustomerLoading(true)
       try {
-        const [customerData, regionsData] = await Promise.all([
+        const [customerData] = await Promise.all([
           retrieveCustomer(),
-          listRegions()
         ])
         setCustomer(customerData)
-        setRegions(regionsData || [])
-        
-        // Banner URL is now handled by personal info context
       } catch (error) {
         console.error('Error loading data:', error)
         setCustomer(null)
@@ -1337,7 +1335,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
           {/* Navegación de tabs - Solo mostrar si no está editando perfil */}
           {!isEditingProfile && (
             <div className="flex justify-start sm:justify-center space-x-2 sm:space-x-3 md:space-x-8 border-b border-gray-600 pb-1.5 sm:pb-2 mb-3 sm:mb-4 md:mb-6 overflow-x-auto scrollbar-hide px-1">
-              {['PUBLICACIONES', 'MY TANKU', 'MIS COMPRAS'].map((tab) => (
+              {['PUBLICACIONES', 'MY TANKU', 'MIS COMPRAS' , 'STALKER GIFTS'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -1493,6 +1491,11 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
               {activeTab === 'MIS COMPRAS' && (
                 <div className="flex flex-col items-center justify-center py-4 sm:py-6 md:py-12 text-center">
                   <OrderCustomerTab customerId={customer.id} />
+                </div>
+              )}
+              {activeTab === 'STALKER GIFTS' && (
+                <div className="flex flex-col items-center justify-center py-4 sm:py-6 md:py-12 text-center">
+                  <StalkerGiftTab customerId={customer.id} />
                 </div>
               )}
             </>

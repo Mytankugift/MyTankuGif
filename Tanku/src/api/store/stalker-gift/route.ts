@@ -5,8 +5,6 @@ export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
 ) {
-  console.log('=== API ROUTE: POST /store/stalker-gift ===')
-  console.log('Request body:', req.body)
 
   try {
     const {
@@ -19,6 +17,7 @@ export async function POST(
       contact_methods,
       products,
       message,
+      customer_giver_id,
       payment_method = "epayco",
       payment_status = "pending"
     } = req.body as {
@@ -31,6 +30,7 @@ export async function POST(
       contact_methods: any[]
       products: any[]
       message?: string
+      customer_giver_id?: string
       payment_method?: string
       payment_status?: string
     }
@@ -46,7 +46,7 @@ export async function POST(
     console.log('Ejecutando workflow createStalkerGiftWorkflow...')
 
     // Ejecutar el workflow
-    const { result } = await createStalkerGiftWorkflow.run({
+    const { result } = await createStalkerGiftWorkflow(req.scope).run({
       input: {
         total_amount,
         first_name,
@@ -57,6 +57,7 @@ export async function POST(
         contact_methods,
         products,
         message,
+        customer_giver_id,
         payment_method,
         payment_status
       }

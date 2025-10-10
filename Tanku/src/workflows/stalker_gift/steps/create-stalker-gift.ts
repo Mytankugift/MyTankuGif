@@ -12,6 +12,7 @@ export interface CreateStalkerGiftStepInput {
   contact_methods: any[]
   products: any[]
   message?: string
+  customer_giver_id?: string
   payment_method?: string
   payment_status?: string
 }
@@ -31,6 +32,7 @@ export const createStalkerGiftStep = createStep(
       contact_methods: input.contact_methods as unknown as Record<string, unknown>,
       products: input.products as unknown as Record<string, unknown>,
       message: input.message || null,
+      customer_giver_id: input.customer_giver_id || null,
       payment_method: input.payment_method || "epayco",
       payment_status: input.payment_status || "pending",
     }

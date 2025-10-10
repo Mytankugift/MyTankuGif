@@ -1,7 +1,12 @@
 "use client"
 
 import Image from "next/image"
+import { useState, useRef } from "react"
 import { StalkerGiftData } from "../../actions/get-stalker-gift"
+import { usePersonalInfoActions } from "@lib/context"
+import { redirect } from "next/navigation"
+import { relateOrderStalkerGift } from "@modules/stalker-gift/actions/relate-order-stalker-gift"
+
 
 interface StalkerGiftDisplayProps {
   stalkerGift: StalkerGiftData
@@ -13,10 +18,67 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
   const message = stalkerGift.message
   const products = stalkerGift.products || []
 
+  // Form handling logic
+  const { onRegistrationSuccess } = usePersonalInfoActions()
+  const [registrationSuccess, setRegistrationSuccess] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  // Handle registration directly
+  const handleRegistration = async () => {
+    if (!formRef.current) return
+
+    const formData = new FormData(formRef.current)
+    
+    // Validate required fields
+    const firstName = formData.get("first_name") as string
+    const lastName = formData.get("last_name") as string
+    const email = formData.get("email") as string
+    const phone = formData.get("phone") as string
+    const password = formData.get("password") as string
+
+    if (!firstName || !lastName || !email || !phone || !password) {
+      setErrorMessage("Por favor completa todos los campos requeridos")
+      return
+    }
+
+    setIsProcessing(true)
+    setErrorMessage(null)
+
+    try {
+      const { signup } = await import("@lib/data/customer")
+      const result = await signup(null, formData)
+      if (result && typeof result === 'object' && 'id' in result) {
+        relateOrderStalkerGift(result.id,  stalkerGift.id)
+        setRegistrationSuccess(true)
+        setTimeout(async () => {
+          try {
+            await onRegistrationSuccess()
+          
+          } catch (error) {
+            
+          }
+        }, 1000)
+        
+      } else if (typeof result === 'string') {
+        setErrorMessage(result)
+      } else {
+        setErrorMessage("Error desconocido durante el registro")
+      }
+      
+    } catch (error: any) {
+    
+      setErrorMessage(error.message || "Error durante el registro. Intenta nuevamente.")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   return (
     <div className="min-h-screen py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        {/* Header principal */}
+        
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">🎁</div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
@@ -115,8 +177,33 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
             </p>
           </div>
 
-          {/* Formulario basado en el componente de registro existente */}
-          <form className="max-w-md mx-auto">
+          {/* Mostrar mensaje de éxito si el registro fue exitoso */}
+          {registrationSuccess ? (
+            <div className="max-w-md mx-auto text-center">
+              <div className="bg-gradient-to-r from-[#5FE085]/20 to-[#66DEDB]/20 border border-[#5FE085] rounded-lg p-6">
+                <div className="text-4xl mb-4">🎉</div>
+                <h3 className="text-xl font-bold text-[#5FE085] mb-2">
+                  ¡Registro Exitoso!
+                </h3>
+                <p className="text-white text-sm mb-4">
+                  Tu cuenta ha sido creada exitosamente. Pronto recibirás tu regalo de <span className="text-[#5FE085] font-semibold">@{alias}</span>.
+                </p>
+                <p className="text-gray-300 text-xs">
+                  Revisa en tu perfil para ver mas información
+                </p>
+
+                <button
+                  onClick={() => redirect('/')}
+                  className="bg-[#5FE085] text-white px-6 py-2 rounded-lg mt-4 hover:bg-[#4CAF50] transition-colors"
+                >
+                  Ir al inicio
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Formulario basado en el componente de registro existente */}
+              <form ref={formRef} className="max-w-md mx-auto" onSubmit={(e) => e.preventDefault()}>
             <div className="flex flex-col gap-y-4 border-2 border-[#5FE085] rounded-lg p-6 bg-black/20 backdrop-blur-sm">
               
               {/* Nombre */}
@@ -198,9 +285,8 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
                 <input
                   name="address"
                   type="text"
-                  placeholder="Dirección de envío"
+                  placeholder="Dirección de envío (Opcional por ahora)"
                   autoComplete="street-address"
-                  required
                   className="w-full pl-10 pr-3 py-2.5 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-[#5FE085] focus:outline-none transition-colors text-sm"
                 />
               </div>
@@ -236,19 +322,44 @@ export default function StalkerGiftDisplay({ stalkerGift }: StalkerGiftDisplayPr
                 </span>
               </span>
             </div>
+
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
+                <p className="text-red-300 text-sm text-center">{errorMessage}</p>
+              </div>
+            )}
             
             {/* Botón de registro */}
             <button
-              type="submit"
-              className="w-full py-3 bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] text-white font-semibold rounded-lg hover:scale-105 hover:shadow-lg transition-all duration-300 text-sm"
+              type="button"
+              onClick={handleRegistration}
+              disabled={isProcessing}
+              className={`w-full py-3 bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] text-white font-semibold rounded-lg transition-all duration-300 text-sm ${
+                isProcessing 
+                  ? 'opacity-50 cursor-not-allowed' 
+                  : 'hover:scale-105 hover:shadow-lg'
+              }`}
             >
-              🎁 CREAR CUENTA Y RECIBIR REGALO 🎁
+              {isProcessing ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Creando cuenta...
+                </span>
+              ) : (
+                '🎁 CREAR CUENTA Y RECIBIR REGALO 🎁'
+              )}
             </button>
           </form>
 
           <p className="text-gray-400 text-xs mt-4 text-center">
             🔒 Tus datos están protegidos por la política de privacidad de TANKU
           </p>
+            </>
+          )}
         </div>
 
         {/* Footer motivacional */}

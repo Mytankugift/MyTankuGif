@@ -44,8 +44,6 @@ export interface CustomerOrder {
 
 export const getCustomerOrders = async (customerId: string) => {
   try {
-   
-    
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/order/get-order-customer?customerId=${customerId}`,
       {

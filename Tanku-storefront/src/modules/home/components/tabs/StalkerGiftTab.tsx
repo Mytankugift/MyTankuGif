@@ -103,27 +103,22 @@ export default function StalkerGiftTab() {
   const handlePaymentMethodSelect = async (method: string) => {
     // Validar que el mensaje esté completo
     if (!stalkerGiftData.message?.trim()) {
-      console.log('Mensaje requerido para continuar')
       return
     }
     
-    console.log('Seleccionando método de pago:', method)
     setSelectedPaymentMethod(method)
     
     // Si selecciona ePayco, crear la orden inmediatamente
     if (method === "epayco") {
-      console.log('Ejecutando handlePayment...')
       await handlePayment()
     }
   }
 
   // Función para procesar el pago
   const handlePayment = async () => {
-    console.log('=== INICIANDO handlePayment ===')
-    console.log('selectedPaymentMethod:', selectedPaymentMethod)
+
     
     const userCustomer = await retrieveCustomer().catch(() => null)
-    console.log('userCustomer:', userCustomer)
     
     if (!userCustomer) {
       alert("Debe iniciar sesión para realizar el pago")
@@ -131,15 +126,12 @@ export default function StalkerGiftTab() {
     }
 
     if (selectedPaymentMethod === "epayco") {
-      console.log('Procesando pago con ePayco...')
+    
       setIsProcessingPayment(true)
       try {
         const { total } = calculateTotals()
         const filledMethods = getFilledContactMethods()
-        
-        console.log('Total calculado:', total)
-        console.log('Métodos de contacto:', filledMethods)
-        
+          
         // Crear orden real de StalkerGift en el backend
         const orderData: CreateStalkerGiftData = {
           total_amount: total,
@@ -151,19 +143,16 @@ export default function StalkerGiftTab() {
           contact_methods: filledMethods,
           products: stalkerGiftData.selectedProducts,
           message: stalkerGiftData.message,
+          customer_giver_id: userCustomer.id,
+          
           payment_method: "epayco",
           payment_status: "pending"
         }
         
-        console.log('Creando orden en backend:', orderData)
         
         // Llamar al backend para crear la orden
         const response: CreateStalkerGiftResponse = await createStalkerGift(orderData)
-        
-        console.log('Orden creada exitosamente:', response)
-        console.log('URL de invitación:', response.invitationUrl)
-        console.log('Texto de invitación:', response.invitationText)
-        
+    
         // Preparar datos para ePayco con la orden real
         const stalkerGiftOrder = {
           id: response.stalkerGift.id,
@@ -180,7 +169,6 @@ export default function StalkerGiftTab() {
         }
         
         setPaymentEpayco(stalkerGiftOrder)
-        console.log('paymentEpayco establecido con orden real')
         
         // Guardar la respuesta completa y mostrar la URL
         setCreatedOrder(response)
@@ -241,7 +229,6 @@ export default function StalkerGiftTab() {
     const stalkerPayment = urlParams.get('stalker_payment')
     
     if (stalkerPayment === 'success' && paymentEpayco) {
-      console.log('Pago exitoso detectado desde ePayco')
       setPaymentStatus('success')
       setPaymentDetails({
         transactionId: `TXN-${Date.now()}`,
@@ -256,7 +243,6 @@ export default function StalkerGiftTab() {
       const newUrl = window.location.pathname
       window.history.replaceState({}, document.title, newUrl)
     } else if (stalkerPayment === 'failed' && paymentEpayco) {
-      console.log('Pago fallido detectado desde ePayco')
       setPaymentStatus('failed')
       
       // Limpiar URL sin recargar la página
@@ -271,7 +257,6 @@ export default function StalkerGiftTab() {
     
     const handleFocus = () => {
       if (paymentEpayco && paymentStatus === null) {
-        console.log('Ventana recuperó el foco, verificando estado del pago...')
         
         // Simular verificación del estado del pago (en producción sería una llamada al backend)
         focusTimer = setTimeout(() => {
@@ -778,11 +763,6 @@ export default function StalkerGiftTab() {
     const { subtotal, tax, shipping, total } = calculateTotals()
     const currency = stalkerGiftData.selectedProducts[0]?.variants?.[0]?.inventory?.currency_code || '$'
     
-    console.log('=== RENDERIZANDO CHECKOUT ===')
-    console.log('selectedPaymentMethod:', selectedPaymentMethod)
-    console.log('paymentEpayco:', paymentEpayco)
-    console.log('¿Mostrar sección ePayco?:', !!paymentEpayco)
-
     return (
       <div className="max-w-6xl mx-auto p-6">
         <div className="mb-6">
@@ -1040,7 +1020,7 @@ export default function StalkerGiftTab() {
                         onClick={async () => {
                           if (stalkerGiftData.message?.trim()) {
                             // Ejecutar directamente la lógica de pago de ePayco
-                            console.log('=== INICIANDO PAGO DIRECTO EPAYCO ===')
+                        
                             setSelectedPaymentMethod("epayco")
                             setIsProcessingPayment(true)
                             
@@ -1067,16 +1047,16 @@ export default function StalkerGiftTab() {
                                 contact_methods: filledMethods,
                                 products: stalkerGiftData.selectedProducts,
                                 message: stalkerGiftData.message,
+                                customer_giver_id: userCustomer.id,
                                 payment_method: "epayco",
                                 payment_status: "pending"
                               }
-                              
-                              console.log('Creando orden en backend:', orderData)
+                             
                               
                               // Llamar al backend para crear la orden
                               const response: CreateStalkerGiftResponse = await createStalkerGift(orderData)
                               
-                              console.log('Orden creada exitosamente:', response)
+                             
                               
                               // Preparar configuración de ePayco
                               const epaycoConfig = {
@@ -1103,7 +1083,7 @@ export default function StalkerGiftTab() {
                                 methodsDisable: ['CASH', 'DP']
                               }
                               
-                              console.log('Configuración de ePayco:', epaycoConfig)
+                           
                               setPaymentEpayco(epaycoConfig)
                               
                               // Guardar datos de la orden
@@ -1187,9 +1167,7 @@ export default function StalkerGiftTab() {
                               onClick={() => {
 
                                 
-                                console.log('=== INICIANDO PAGO STALKER GIFT ===');
-                                console.log('paymentEpayco:', paymentEpayco);
-                                console.log('window.ePayco:', window.ePayco);
+                          
                                 
                                 // Verificar si ePayco está cargado
                                 if (typeof window.ePayco === 'undefined') {
@@ -1205,7 +1183,7 @@ export default function StalkerGiftTab() {
                                   container.id = 'epayco-container-stalker';
                                   document.body.appendChild(container);
                                   
-                                  console.log('Configurando handler de ePayco...');
+                                 
                                   
                                   // Crear el botón de ePayco
                                   const handler = window.ePayco?.checkout.configure({
@@ -1213,7 +1191,7 @@ export default function StalkerGiftTab() {
                                     test: true
                                   });
                                   
-                                  console.log('Handler creado:', handler);
+                                 
                                   
                                   if (!handler) {
                                     throw new Error('No se pudo configurar el checkout de ePayco');

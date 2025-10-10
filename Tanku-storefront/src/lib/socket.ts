@@ -20,6 +20,34 @@ export interface UserStatus {
   last_seen: string | null
 }
 
+export interface StalkerChatMessage {
+  id: string
+  conversation_id: string
+  sender_id: string
+  sender_name?: string
+  content: string
+  message_type: string
+  created_at: string
+  is_edited: boolean
+  is_deleted: boolean
+}
+
+export interface StalkerGiftInfo {
+  id: string
+  alias: string
+  recipient_name: string
+  total_amount: number
+  products: any
+  message?: string
+}
+
+export interface StalkerChatEnabled {
+  conversation_id: string
+  stalker_gift_id: string
+  message: string
+  gift_info: StalkerGiftInfo
+}
+
 class SocketManager {
   private socket: Socket | null = null
   private customerId: string | null = null
@@ -32,6 +60,11 @@ class SocketManager {
   private userStatusListeners: ((status: UserStatus) => void)[] = []
   private connectionListeners: ((connected: boolean) => void)[] = []
   private typingListeners: ((data: { user_id: string; conversation_id: string; is_typing: boolean }) => void)[] = []
+  
+  // StalkerGift chat listeners
+  private stalkerMessageListeners: ((message: StalkerChatMessage) => void)[] = []
+  private stalkerChatEnabledListeners: ((data: StalkerChatEnabled) => void)[] = []
+  private stalkerTypingListeners: ((data: { user_id: string; conversation_id: string; is_typing: boolean; user_name?: string }) => void)[] = []
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -126,6 +159,26 @@ class SocketManager {
 
     this.socket.on('conversation-updated', (data) => {
       console.log('[SOCKET] Conversation updated:', data)
+    })
+
+    // 🎯 StalkerGift chat events
+    this.socket.on('stalker-chat-enabled', (data) => {
+      console.log('[SOCKET] StalkerGift chat enabled:', data)
+      this.notifyStalkerChatEnabledListeners(data)
+    })
+
+    this.socket.on('stalker-new-message', (data) => {
+      console.log('[SOCKET] StalkerGift new message:', data)
+      this.notifyStalkerMessageListeners(data.message)
+    })
+
+    this.socket.on('stalker-user-typing', (data) => {
+      console.log('[SOCKET] StalkerGift user typing:', data)
+      this.notifyStalkerTypingListeners(data)
+    })
+
+    this.socket.on('stalker-conversation-updated', (data) => {
+      console.log('[SOCKET] StalkerGift conversation updated:', data)
     })
   }
 
@@ -245,6 +298,59 @@ class SocketManager {
     }
   }
 
+  // 🎯 StalkerGift event listeners
+  onStalkerMessage(callback: (message: StalkerChatMessage) => void) {
+    this.stalkerMessageListeners.push(callback)
+    return () => {
+      this.stalkerMessageListeners = this.stalkerMessageListeners.filter(cb => cb !== callback)
+    }
+  }
+
+  onStalkerChatEnabled(callback: (data: StalkerChatEnabled) => void) {
+    this.stalkerChatEnabledListeners.push(callback)
+    return () => {
+      this.stalkerChatEnabledListeners = this.stalkerChatEnabledListeners.filter(cb => cb !== callback)
+    }
+  }
+
+  onStalkerTyping(callback: (data: { user_id: string; conversation_id: string; is_typing: boolean; user_name?: string }) => void) {
+    this.stalkerTypingListeners.push(callback)
+    return () => {
+      this.stalkerTypingListeners = this.stalkerTypingListeners.filter(cb => cb !== callback)
+    }
+  }
+
+  // StalkerGift chat methods
+  joinStalkerConversation(conversationId: string) {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('join-conversation', { conversationId: `stalker_${conversationId}` })
+    }
+  }
+
+  leaveStalkerConversation(conversationId: string) {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('leave-conversation', { conversationId: `stalker_${conversationId}` })
+    }
+  }
+
+  startStalkerTyping(conversationId: string) {
+    if (this.socket && this.socket.connected && this.customerId) {
+      this.socket.emit('typing-start', { 
+        conversationId: `stalker_${conversationId}`, 
+        userId: this.customerId 
+      })
+    }
+  }
+
+  stopStalkerTyping(conversationId: string) {
+    if (this.socket && this.socket.connected && this.customerId) {
+      this.socket.emit('typing-stop', { 
+        conversationId: `stalker_${conversationId}`, 
+        userId: this.customerId 
+      })
+    }
+  }
+
   // Private notification methods
   private notifyMessageListeners(message: ChatMessage) {
     this.messageListeners.forEach(callback => callback(message))
@@ -260,6 +366,19 @@ class SocketManager {
 
   private notifyTypingListeners(data: { user_id: string; conversation_id: string; is_typing: boolean }) {
     this.typingListeners.forEach(callback => callback(data))
+  }
+
+  // 🎯 StalkerGift private notification methods
+  private notifyStalkerMessageListeners(message: StalkerChatMessage) {
+    this.stalkerMessageListeners.forEach(callback => callback(message))
+  }
+
+  private notifyStalkerChatEnabledListeners(data: StalkerChatEnabled) {
+    this.stalkerChatEnabledListeners.forEach(callback => callback(data))
+  }
+
+  private notifyStalkerTypingListeners(data: { user_id: string; conversation_id: string; is_typing: boolean; user_name?: string }) {
+    this.stalkerTypingListeners.forEach(callback => callback(data))
   }
 
   // Getters

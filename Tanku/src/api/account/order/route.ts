@@ -6,7 +6,6 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
   try {
     const { customerId } = req.query;
   
-    
     if (!customerId) {
       return res.status(400).json({
         error: "Se requiere un customerId",

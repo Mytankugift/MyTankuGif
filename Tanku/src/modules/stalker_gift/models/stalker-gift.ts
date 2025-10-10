@@ -14,6 +14,8 @@ const StalkerGift = model.define("stalker_gift", {
   payment_status: model.text().default("pending"), // pending, success, failed
   payment_method: model.text().default("epayco"),
   transaction_id: model.text().nullable(),
+  customer_giver_id: model.text().nullable(),
+  customer_recipient_id: model.text().nullable(),
 })
 
 export default StalkerGift

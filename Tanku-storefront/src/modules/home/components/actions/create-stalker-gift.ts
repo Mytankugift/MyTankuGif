@@ -10,6 +10,7 @@ export interface CreateStalkerGiftData {
   contact_methods: any[]
   products: any[]
   message?: string
+  customer_giver_id?: string
   payment_method?: string
   payment_status?: string
 }
@@ -25,6 +26,7 @@ export interface StalkerGiftResponse {
   contact_methods: any
   products: any
   message?: string
+  customer_recipient_id?: string
   payment_method: string
   payment_status: string
   transaction_id?: string
@@ -58,7 +60,6 @@ export async function createStalkerGift(
       body: JSON.stringify(data),
     })
 
-    console.log('Response status:', response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -67,7 +68,7 @@ export async function createStalkerGift(
     }
 
     const result = await response.json()
-    console.log('StalkerGift creado exitosamente:', result)
+   
     
     return result
   } catch (error) {
