@@ -29,7 +29,8 @@ export const listUsersStep = createStep(
       id: customer.id,
       first_name: customer.first_name,
       last_name: customer.last_name,
-      avatar_url: customer.avatar_url
+      avatar_url: customer.avatar_url,
+      email: customer.email
     }))
     return new StepResponse(customerNames, null)
   }

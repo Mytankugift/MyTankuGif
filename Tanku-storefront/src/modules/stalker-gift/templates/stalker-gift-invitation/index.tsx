@@ -16,7 +16,7 @@ export default function StalkerGiftInvitation({ stalkerGiftId }: StalkerGiftInvi
   useEffect(() => {
     const fetchStalkerGift = async () => {
       try {
-        console.log('Fetching StalkerGift with ID:', stalkerGiftId)
+        
         const data = await getStalkerGiftById(stalkerGiftId)
         
         if (!data) {
@@ -49,7 +49,7 @@ export default function StalkerGiftInvitation({ stalkerGiftId }: StalkerGiftInvi
     )
   }
 
-  if (error || !stalkerGift) {
+  if (error || !stalkerGift || stalkerGift) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#1E1E1E] via-[#262626] to-[#1E1E1E] flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">

@@ -71,7 +71,6 @@ export default function StalkerGiftTab() {
     setCurrentView('product-selection')
   }
 
-
   const handleProceedToCheckout = () => {
     setCurrentView('checkout')
   }
