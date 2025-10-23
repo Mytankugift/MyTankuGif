@@ -48,12 +48,19 @@ export default function CheckoutView({
     }
   }
 
-  // Calcular total real
-  const calculateTotal = () => {
-    return selectedProducts.reduce((total, product) => {
+  // Calcular totales con desglose
+  const calculateTotals = () => {
+    const subtotal = selectedProducts.reduce((total, product) => {
       const { price } = getProductPrice(product)
-      return total + price
+      const quantity = (product as any).quantity || 1
+      return total + (price * quantity)
     }, 0)
+    
+    const tax = subtotal * 0.16 // 16% IVA adicional
+    const shipping = subtotal > 50000 ? 0 : 5000 // Envío gratis si es mayor a $50,000
+    const total = subtotal + tax + shipping
+    
+    return { subtotal, tax, shipping, total }
   }
 
   const handleCompleteOrder = async () => {
@@ -138,15 +145,26 @@ export default function CheckoutView({
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-medium text-white line-clamp-2">{product.title}</h4>
-                  <p className="text-xs text-gray-400">Cantidad: 1</p>
+                  <p className="text-xs text-gray-400">
+                    Cantidad: {(product as any).quantity || 1}
+                  </p>
                 </div>
                 <div className="text-right">
                   {(() => {
                     const { price, currency } = getProductPrice(product)
+                    const quantity = (product as any).quantity || 1
+                    const totalPrice = price * quantity
                     return price > 0 ? (
-                      <p className="text-[#66DEDB] font-semibold">
-                        {currency} {Math.round(price).toLocaleString()}
-                      </p>
+                      <div>
+                        <p className="text-[#66DEDB] font-semibold">
+                          {currency} {Math.round(totalPrice).toLocaleString()}
+                        </p>
+                        {quantity > 1 && (
+                          <p className="text-xs text-gray-400">
+                            {currency} {Math.round(price).toLocaleString()} × {quantity}
+                          </p>
+                        )}
+                      </div>
                     ) : (
                       <p className="text-gray-400 text-sm">Precio no disponible</p>
                     )
@@ -156,17 +174,49 @@ export default function CheckoutView({
             ))}
           </div>
 
-          {/* Total */}
+          {/* Totales con desglose */}
           <div className="border-t border-[#66DEDB]/20 pt-4">
-            <div className="flex justify-between items-center">
-              <span className="text-lg font-semibold text-white">Total:</span>
-              <span className="text-2xl font-bold text-[#66DEDB]">
-                {(() => {
-                  const total = calculateTotal()
-                  const currency = selectedProducts.length > 0 ? getProductPrice(selectedProducts[0]).currency : 'COP'
-                  return `${currency} ${Math.round(total).toLocaleString()}`
-                })()}
-              </span>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Subtotal:</span>
+                <span className="text-white">
+                  {(() => {
+                    const { subtotal } = calculateTotals()
+                    const currency = selectedProducts.length > 0 ? getProductPrice(selectedProducts[0]).currency : 'COP'
+                    return `${currency} ${Math.round(subtotal).toLocaleString()}`
+                  })()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">IVA (16% adicional):</span>
+                <span className="text-white">
+                  {(() => {
+                    const { tax } = calculateTotals()
+                    const currency = selectedProducts.length > 0 ? getProductPrice(selectedProducts[0]).currency : 'COP'
+                    return `${currency} ${Math.round(tax).toLocaleString()}`
+                  })()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Envío:</span>
+                <span className="text-white">
+                  {(() => {
+                    const { shipping } = calculateTotals()
+                    const currency = selectedProducts.length > 0 ? getProductPrice(selectedProducts[0]).currency : 'COP'
+                    return `${currency} ${Math.round(shipping).toLocaleString()}`
+                  })()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-600">
+                <span className="text-lg font-semibold text-white">Total:</span>
+                <span className="text-2xl font-bold text-[#66DEDB]">
+                  {(() => {
+                    const { total } = calculateTotals()
+                    const currency = selectedProducts.length > 0 ? getProductPrice(selectedProducts[0]).currency : 'COP'
+                    return `${currency} ${Math.round(total).toLocaleString()}`
+                  })()}
+                </span>
+              </div>
             </div>
             <p className="text-gray-400 text-xs mt-1">
               *Precios obtenidos del sistema de inventario

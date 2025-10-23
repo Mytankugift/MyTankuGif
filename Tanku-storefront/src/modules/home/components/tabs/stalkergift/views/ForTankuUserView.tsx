@@ -7,6 +7,10 @@ import { getProductSuggestions, ProductSuggestion } from "../../../../../social/
 import CheckoutView from "./CheckoutView"
 import OrderSummaryView from "./OrderSummaryView"
 import { usePersonalInfo } from "../../../../../../lib/context"
+import { usePayment } from "../hooks/usePayment"
+import { useStalkerGift } from "../../../../../../lib/context"
+import { createStalkerGift, CreateStalkerGiftData } from "../../../actions/create-stalker-gift"
+import { retrieveCustomer } from "@lib/data/customer"
 
 interface ForTankuUserViewProps {
   onBack: () => void
@@ -15,20 +19,49 @@ interface ForTankuUserViewProps {
 
 export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }: ForTankuUserViewProps) {
   const { personalInfo } = usePersonalInfo()
+  const { stalkerGiftData, setAlias, setRecipientName, setMessage, toggleProductSelection: contextToggleProductSelection } = useStalkerGift()
+  
+  // Hook de pago
+  const {
+    selectedPaymentMethod,
+    paymentEpayco,
+    isProcessingPayment,
+    createdOrder,
+    showInvitationUrl,
+    paymentStatus,
+    paymentDetails,
+    calculateTotals,
+    handlePayment,
+    handlePaymentMethodSelect,
+    copyToClipboard,
+    setPaymentEpayco
+  } = usePayment()
+
   const [selectedUser, setSelectedUser] = useState<SelectableUser | null>(null)
   const [wishlists, setWishlists] = useState<PublicWishlist[]>([])
   const [productSuggestions, setProductSuggestions] = useState<ProductSuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [showWishlists, setShowWishlists] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [selectedProducts, setSelectedProducts] = useState<(WishlistProduct | ProductSuggestion)[]>([])
+  const [selectedProducts, setSelectedProducts] = useState<Array<WishlistProduct | ProductSuggestion & { quantity?: number }>>([])
   const [pseudonym, setPseudonym] = useState("")
   const [showPseudonymInput, setShowPseudonymInput] = useState(false)
-  const [currentView, setCurrentView] = useState<'selection' | 'checkout' | 'summary'>('selection')
+  const [showPseudonymPopup, setShowPseudonymPopup] = useState(false)
+  const [tempPseudonym, setTempPseudonym] = useState("")
+  const [currentView, setCurrentView] = useState<'selection' | 'checkout' | 'payment' | 'summary'>('selection')
   const [orderId, setOrderId] = useState("")
+  const [localSelectedPaymentMethod, setLocalSelectedPaymentMethod] = useState<string>("")
+  const [localIsProcessingPayment, setLocalIsProcessingPayment] = useState(false)
 
   // Obtener el nombre real del usuario actual
   const realUserName = personalInfo ? `${personalInfo.first_name} ${personalInfo.last_name}`.trim() : currentUserName
+
+  // Efecto para manejar cuando el pago se complete
+  useEffect(() => {
+    if (createdOrder && paymentStatus === 'success') {
+      handlePaymentSuccess(createdOrder)
+    }
+  }, [createdOrder, paymentStatus])
 
   const handleUserSelect = async (user: SelectableUser) => {
     setSelectedUser(user)
@@ -94,23 +127,42 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
   }
 
   const toggleProductSelection = (product: WishlistProduct | ProductSuggestion) => {
-    setSelectedProducts(prev => {
-      const isSelected = prev.some(p => p.id === product.id)
+    setSelectedProducts((prev: Array<WishlistProduct | ProductSuggestion & { quantity?: number }>) => {
+      const isSelected = prev.some((p: WishlistProduct | ProductSuggestion) => p.id === product.id)
       if (isSelected) {
-        return prev.filter(p => p.id !== product.id)
+        return prev.filter((p: WishlistProduct | ProductSuggestion) => p.id !== product.id)
       } else {
-        return [...prev, product]
+        return [...prev, { ...product, quantity: 1 }]
       }
     })
   }
 
   const isProductSelected = (productId: string) => {
-    return selectedProducts.some(p => p.id === productId)
+    return selectedProducts.some((p: WishlistProduct | ProductSuggestion) => p.id === productId)
+  }
+
+  const updateProductQuantity = (productId: string, quantity: number) => {
+    if (quantity < 1) return
+    
+    setSelectedProducts(prev => 
+      prev.map(p => 
+        p.id === productId 
+          ? { ...p, quantity: Math.min(quantity, 10) } // Máximo 10 unidades
+          : p
+      )
+    )
+  }
+
+  const getProductQuantity = (productId: string) => {
+    const product = selectedProducts.find(p => p.id === productId)
+    return (product as any)?.quantity || 1
   }
 
   const handlePseudonymSubmit = () => {
-    if (pseudonym.trim()) {
+    if (pseudonym.trim().length >= 2) {
       setShowPseudonymInput(false)
+    } else {
+      alert("El seudónimo debe tener al menos 2 caracteres")
     }
   }
 
@@ -119,15 +171,126 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
       alert("Por favor selecciona al menos un producto")
       return
     }
-    // El seudónimo es opcional, no bloqueamos si está vacío
+    
+    // Validar que el seudónimo esté presente
+    if (!pseudonym || pseudonym.trim().length < 2) {
+      setTempPseudonym(pseudonym) // Guardar el valor actual
+      setShowPseudonymPopup(true) // Mostrar popup
+      return
+    }
+    
+    // Sincronizar datos con el contexto de stalker gift
+    setAlias(pseudonym)
+    setRecipientName(selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : "")
+    
+    // Sincronizar productos seleccionados con el contexto
+    selectedProducts.forEach(product => {
+      if (!stalkerGiftData.selectedProducts.some(p => p.id === product.id)) {
+        // Convertir el producto al formato esperado por el contexto
+        const contextProduct = {
+          id: product.id,
+          handle: product.id, // Usar ID como handle
+          title: product.title,
+          thumbnail: product.thumbnail,
+          variants: product.variants?.map(variant => ({
+            inventory: variant.inventory ? {
+              price: variant.inventory.price,
+              currency_code: variant.inventory.currency_code || 'COP'
+            } : undefined
+          })) || []
+        }
+        contextToggleProductSelection(contextProduct)
+      }
+    })
+    
     setCurrentView('checkout')
   }
 
-  const handleCompleteOrder = () => {
-    // Generar un ID de orden simulado
-    const newOrderId = `STG-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
-    setOrderId(newOrderId)
+  const handleProceedToPayment = () => {
+    setCurrentView('payment')
+  }
+
+  const handlePaymentSuccess = (orderData: any) => {
+    setOrderId(orderData.id)
     setCurrentView('summary')
+  }
+
+  // Función local para manejar la selección de método de pago
+  const handleLocalPaymentMethodSelect = (method: string) => {
+    console.log('Seleccionando método de pago:', method)
+    setLocalSelectedPaymentMethod(method)
+    handlePaymentMethodSelect(method)
+  }
+
+  // Función local para procesar el pago
+  const handleLocalPayment = async () => {
+    if (!selectedUser || !pseudonym || selectedProducts.length === 0) {
+      alert("Faltan datos para procesar el pago")
+      return
+    }
+
+    try {
+      setLocalIsProcessingPayment(true)
+      
+      // Obtener datos del usuario actual
+      const userCustomer = await retrieveCustomer().catch(() => null)
+      if (!userCustomer) {
+        alert("Debe iniciar sesión para realizar el pago")
+        return
+      }
+
+      // Calcular totales
+      const subtotal = selectedProducts.reduce((total, product) => {
+        const price = product.variants?.[0]?.inventory?.price || 0
+        const quantity = (product as any).quantity || 1
+        return total + (price * quantity)
+      }, 0)
+      const tax = subtotal * 0.16
+      const shipping = subtotal > 50000 ? 0 : 5000
+      const total = subtotal + tax + shipping
+
+      // Crear datos para el stalker gift
+      const orderData: CreateStalkerGiftData = {
+        total_amount: total,
+        first_name: userCustomer.first_name || "Usuario",
+        phone: userCustomer.phone || "000000000",
+        email: userCustomer.email,
+        alias: pseudonym,
+        recipient_name: `${selectedUser.first_name} ${selectedUser.last_name}`,
+        contact_methods: [
+          { type: 'email', value: selectedUser.email },
+          { type: 'phone', value: userCustomer.phone || "000000000" }
+        ],
+        products: selectedProducts,
+        message: "",
+        customer_giver_id: userCustomer.id,
+        customer_recipient_id: selectedUser.id, // Agregar ID del destinatario
+        payment_method: "epayco",
+        payment_status: "recibida" // Estado recibida para este ejercicio
+      }
+
+      console.log('Creando stalker gift con datos:', orderData)
+      console.log('Productos seleccionados con cantidades:', selectedProducts.map(p => ({
+        id: p.id,
+        title: p.title,
+        quantity: (p as any).quantity || 1,
+        price: p.variants?.[0]?.inventory?.price || 0
+      })))
+
+      // Crear el stalker gift en la BD
+      const response = await createStalkerGift(orderData)
+      
+      console.log('Stalker gift creado:', response)
+
+      // Simular éxito del pago y continuar al summary
+      handlePaymentSuccess(response.stalkerGift)
+
+    } catch (error) {
+      console.error('Error al procesar el pago:', error)
+      alert('Error al procesar el pago. Por favor intenta de nuevo.')
+    } finally {
+      setLocalIsProcessingPayment(false)
+    }
   }
 
   const handleNewGift = () => {
@@ -138,8 +301,36 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
     setSelectedProducts([])
     setPseudonym("")
     setShowPseudonymInput(false)
+    setShowPseudonymPopup(false)
+    setTempPseudonym("")
     setCurrentView('selection')
     setOrderId("")
+    setLocalSelectedPaymentMethod("")
+    
+    // Resetear contexto de stalker gift
+    setAlias("")
+    setRecipientName("")
+    setMessage("")
+    
+    // Limpiar productos del contexto
+    stalkerGiftData.selectedProducts.forEach(product => {
+      contextToggleProductSelection(product)
+    })
+  }
+
+  const handlePseudonymPopupSubmit = () => {
+    if (tempPseudonym.trim().length >= 2) {
+      setPseudonym(tempPseudonym.trim())
+      setShowPseudonymPopup(false)
+      setCurrentView('checkout') // Continuar al checkout
+    } else {
+      alert("El seudónimo debe tener al menos 2 caracteres")
+    }
+  }
+
+  const handlePseudonymPopupCancel = () => {
+    setShowPseudonymPopup(false)
+    setTempPseudonym("")
   }
 
   // Mostrar vista de checkout
@@ -150,13 +341,179 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
         pseudonym={pseudonym || realUserName}
         selectedProducts={selectedProducts}
         onBack={() => setCurrentView('selection')}
-        onCompleteOrder={handleCompleteOrder}
+        onCompleteOrder={handleProceedToPayment}
       />
+    )
+  }
+
+  // Mostrar vista de pago
+  if (currentView === 'payment' && selectedUser) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="mb-6">
+          <button 
+            onClick={() => setCurrentView('checkout')}
+            className="flex items-center text-[#66DEDB] hover:text-[#5FE085] transition-colors duration-300"
+          >
+            <span className="mr-2">←</span> Volver al resumen
+          </button>
+          <h2 className="text-3xl font-bold text-white mt-4 flex items-center">
+            <span className="mr-3">💳</span>
+            Procesar Pago
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Resumen del pedido */}
+          <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#66DEDB]/20">
+            <h3 className="text-xl font-bold text-[#66DEDB] mb-4 flex items-center">
+              <span className="mr-2">📋</span>
+              Resumen del Pedido
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="relative w-12 h-12">
+                  <img
+                    src="/feed/avatar.png"
+                    alt={`${selectedUser.first_name} ${selectedUser.last_name}`}
+                    className="w-full h-full rounded-full object-cover border-2 border-[#66DEDB]"
+                  />
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-white">
+                    {selectedUser.first_name} {selectedUser.last_name}
+                  </h4>
+                  <p className="text-gray-400 text-sm">{selectedUser.email}</p>
+                </div>
+              </div>
+              
+              <div className="bg-[#1E1E1E]/50 rounded-lg p-4">
+                <h5 className="text-sm font-medium text-[#66DEDB] mb-2">Remitente:</h5>
+                <p className="text-white">"{pseudonym}"</p>
+              </div>
+
+              {/* Totales */}
+              <div className="bg-[#1E1E1E]/50 rounded-lg p-4">
+                <h5 className="text-sm font-medium text-[#66DEDB] mb-2">Resumen de Costos:</h5>
+                {(() => {
+                  // Calcular totales directamente desde los productos seleccionados
+                  const subtotal = selectedProducts.reduce((total, product) => {
+                    const price = product.variants?.[0]?.inventory?.price || 0
+                    const quantity = (product as any).quantity || 1
+                    return total + (price * quantity)
+                  }, 0)
+                  
+                  const tax = subtotal * 0.16 // 16% IVA adicional
+                  const shipping = subtotal > 50000 ? 0 : 5000 // Envío gratis si es mayor a $50,000 (ajustado para pesos colombianos)
+                  const total = subtotal + tax + shipping
+                  
+                  return (
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Subtotal:</span>
+                        <span className="text-white">${subtotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">IVA (16% adicional):</span>
+                        <span className="text-white">${tax.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Envío:</span>
+                        <span className="text-white">${shipping.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-gray-600 pt-2 mt-2">
+                        <span className="text-[#66DEDB] font-semibold">Total:</span>
+                        <span className="text-[#66DEDB] font-bold text-lg">${total.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* Formulario de pago */}
+          <div className="bg-[#262626]/30 rounded-xl p-6 border border-[#66DEDB]/20">
+            <h3 className="text-xl font-bold text-[#66DEDB] mb-4 flex items-center">
+              <span className="mr-2">💳</span>
+              Método de Pago
+            </h3>
+            
+            <div className="space-y-4">
+              <button
+                onClick={() => {
+                  console.log('Seleccionando ePayco...')
+                  handleLocalPaymentMethodSelect("epayco")
+                }}
+                className={`w-full p-4 rounded-lg border-2 transition-colors ${
+                  localSelectedPaymentMethod === "epayco"
+                    ? "border-[#66DEDB] bg-[#66DEDB]/10"
+                    : "border-gray-600 hover:border-[#66DEDB]/50"
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-[#66DEDB]/20 rounded-full flex items-center justify-center">
+                    <span className="text-[#66DEDB] font-bold">E</span>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-white font-medium">ePayco</p>
+                    <p className="text-gray-400 text-sm">Pago seguro con tarjeta</p>
+                  </div>
+                  {localSelectedPaymentMethod === "epayco" && (
+                    <div className="ml-auto">
+                      <div className="w-5 h-5 bg-[#66DEDB] rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs">✓</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </button>
+            </div>
+
+            {/* Debug info */}
+            <div className="mt-4 p-3 bg-gray-800 rounded-lg text-xs">
+              <p className="text-gray-400">Debug Info:</p>
+              <p className="text-white">selectedPaymentMethod (hook): {selectedPaymentMethod || 'null'}</p>
+              <p className="text-white">localSelectedPaymentMethod: {localSelectedPaymentMethod || 'null'}</p>
+              <p className="text-white">selectedProducts: {selectedProducts.length}</p>
+              <p className="text-white">pseudonym: {pseudonym || 'null'}</p>
+            </div>
+
+            {localSelectedPaymentMethod && (
+              <div className="mt-6">
+                <button
+                  onClick={handleLocalPayment}
+                  disabled={localIsProcessingPayment}
+                  className="w-full bg-gradient-to-r from-[#3B9BC3] to-[#5FE085] text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {localIsProcessingPayment ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Procesando...
+                    </div>
+                  ) : (
+                    "Procesar Pago"
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     )
   }
 
   // Mostrar vista de resumen
   if (currentView === 'summary' && selectedUser && orderId) {
+    console.log('Pasando datos a OrderSummaryView:', {
+      selectedProducts: selectedProducts.map(p => ({
+        id: p.id,
+        title: p.title,
+        quantity: (p as any).quantity || 1
+      }))
+    })
+    
     return (
       <OrderSummaryView
         selectedUser={selectedUser}
@@ -236,12 +593,12 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-white mb-2">
-                    {pseudonym ? `Seudónimo: "${pseudonym}"` : "No has ingresado un seudónimo"}
+                    {pseudonym ? `Seudónimo: "${pseudonym}"` : "⚠️ No has ingresado un seudónimo"}
                   </p>
                   <p className="text-gray-400 text-sm">
                     {pseudonym 
                       ? "El destinatario verá este seudónimo" 
-                      : "El destinatario verá tu nombre real (seudónimo opcional)"
+                      : "Debes ingresar un seudónimo para continuar"
                     }
                   </p>
                 </div>
@@ -256,18 +613,19 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
               <div className="space-y-4">
                 <div>
                   <label className="block text-white text-sm font-medium mb-2">
-                    Ingresa tu seudónimo (opcional)
+                    Ingresa tu seudónimo <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="text"
                     value={pseudonym}
                     onChange={(e) => setPseudonym(e.target.value)}
-                    placeholder="Ej: Un amigo secreto, Tu crush, etc. (opcional)"
+                    placeholder="Ej: Un amigo secreto, Tu crush, etc."
                     className="w-full px-4 py-3 bg-[#1E1E1E] border border-[#66DEDB]/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#66DEDB] focus:border-transparent"
                     maxLength={50}
+                    required
                   />
                   <p className="text-gray-400 text-xs mt-1">
-                    Máximo 50 caracteres. Puedes dejarlo vacío para enviar con tu nombre real.
+                    Máximo 50 caracteres. Este campo es obligatorio.
                   </p>
                 </div>
                 <div className="flex space-x-3">
@@ -433,16 +791,40 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-medium text-white line-clamp-2">{product.title}</h4>
-                    <p className="text-xs text-gray-400">Cantidad: 1</p>
+                    <p className="text-xs text-gray-400">
+                      Precio: ${product.variants?.[0]?.inventory?.price?.toLocaleString() || '0'}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {/* Controles de cantidad */}
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => updateProductQuantity(product.id, ((product as any).quantity || 1) - 1)}
+                        disabled={((product as any).quantity || 1) <= 1}
+                        className="w-6 h-6 rounded-full bg-[#66DEDB]/20 text-[#66DEDB] hover:bg-[#66DEDB]/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      >
+                        <span className="text-xs">-</span>
+                      </button>
+                      <span className="text-sm text-white min-w-[20px] text-center">
+                        {(product as any).quantity || 1}
+                      </span>
+                      <button
+                        onClick={() => updateProductQuantity(product.id, ((product as any).quantity || 1) + 1)}
+                        disabled={((product as any).quantity || 1) >= 10}
+                        className="w-6 h-6 rounded-full bg-[#66DEDB]/20 text-[#66DEDB] hover:bg-[#66DEDB]/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      >
+                        <span className="text-xs">+</span>
+                      </button>
                   </div>
                   <button
                     onClick={() => toggleProductSelection(product)}
-                    className="text-red-400 hover:text-red-300 transition-colors"
+                      className="text-red-400 hover:text-red-300 transition-colors ml-2"
                   >
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                   </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -465,6 +847,61 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
         )}
 
       </div>
+
+      {/* Popup de Seudónimo Obligatorio */}
+      {showPseudonymPopup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1E1E1E] rounded-xl p-6 w-full max-w-md border border-[#66DEDB]/30">
+            <div className="flex items-center mb-4">
+              <div className="w-10 h-10 bg-[#66DEDB]/20 rounded-full flex items-center justify-center mr-3">
+                <span className="text-2xl">🎭</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Seudónimo Requerido</h3>
+                <p className="text-gray-400 text-sm">Necesitas un seudónimo para continuar</p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <label className="block text-white text-sm font-medium mb-2">
+                Ingresa tu seudónimo <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={tempPseudonym}
+                onChange={(e) => setTempPseudonym(e.target.value)}
+                placeholder="Ej: Un amigo secreto, Tu crush, etc."
+                className="w-full px-4 py-3 bg-[#262626] border border-[#66DEDB]/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#66DEDB] focus:border-transparent"
+                maxLength={50}
+                autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handlePseudonymPopupSubmit()
+                  }
+                }}
+              />
+              <p className="text-gray-400 text-xs mt-1">
+                Máximo 50 caracteres. Este campo es obligatorio.
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={handlePseudonymPopupCancel}
+                className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handlePseudonymPopupSubmit}
+                className="flex-1 bg-[#66DEDB] text-white px-4 py-2 rounded-lg hover:bg-[#5FE085] transition-colors"
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

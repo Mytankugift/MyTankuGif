@@ -11,6 +11,7 @@ export interface CreateStalkerGiftData {
   products: any[]
   message?: string
   customer_giver_id?: string
+  customer_recipient_id?: string
   payment_method?: string
   payment_status?: string
 }
