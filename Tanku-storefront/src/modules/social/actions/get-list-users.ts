@@ -1,7 +1,6 @@
 
 export const getListUsers = async () => {
     try {
-        console.log("envia al punto final")
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/friends/get-list-users`,
         {
@@ -14,12 +13,15 @@ export const getListUsers = async () => {
           },
         }
       )
-      console.log("response", response)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
       const data = await response.json()
-      console.log("data", data)
-      return data.users
+      return data.users || []
     } catch (error) {
-      console.log("Error al obtener las listas de usuarios:", error)
+      console.error("Error al obtener las listas de usuarios:", error)
       throw error
     }
   }

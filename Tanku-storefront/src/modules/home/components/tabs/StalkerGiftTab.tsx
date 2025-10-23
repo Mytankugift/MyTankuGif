@@ -66,10 +66,10 @@ export default function StalkerGiftTab() {
   }
 
   const handleSubmitExternalUser = async () => {
-    // Cargar productos y cambiar a vista de selección
-    await loadProducts()
-    setCurrentView('product-selection')
-  }
+        // Cargar productos y cambiar a vista de selección
+        await loadProducts()
+        setCurrentView('product-selection')
+      }
 
 
   const handleProceedToCheckout = () => {

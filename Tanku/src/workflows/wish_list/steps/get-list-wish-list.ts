@@ -23,21 +23,25 @@ const getListWishListStep = createStep(
         WISH_LIST_MODULE
     );
     const query = container.resolve(ContainerRegistrationKeys.QUERY);
-        const { data: wishLists } = await query.graph({
+        const { data: customers } = await query.graph({
           entity: "customer",
           fields: [
             "wish_lists.*",
-            "wish_lists.products.*"
+            "wish_lists.products.*",
+            "wish_lists.products.variants.*",
+            "wish_lists.products.variants.inventory.*"
           ],
           filters: {
             id: customerId,
           },
         });
 
-        const wishlist = wishLists[0].wish_lists
+        if (!customers || customers.length === 0) {
+          return new StepResponse([])
+        }
 
-
-        const wishlistFiltered = wishlist?.filter((list: any) => list)
+        const wishlist = customers[0]?.wish_lists || []
+        const wishlistFiltered = wishlist?.filter((list: any) => list) || []
         
     return new StepResponse(wishlistFiltered);
   },
