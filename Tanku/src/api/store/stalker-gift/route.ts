@@ -18,6 +18,7 @@ export async function POST(
       products,
       message,
       customer_giver_id,
+      customer_recipient_id,
       payment_method = "epayco",
       payment_status = "pending"
     } = req.body as {
@@ -31,6 +32,7 @@ export async function POST(
       products: any[]
       message?: string
       customer_giver_id?: string
+      customer_recipient_id?: string
       payment_method?: string
       payment_status?: string
     }
@@ -58,6 +60,7 @@ export async function POST(
         products,
         message,
         customer_giver_id,
+        customer_recipient_id,
         payment_method,
         payment_status
       }
@@ -83,6 +86,7 @@ MyTanku - Regalos que conectan corazones`
     console.log('Texto de invitación:', invitationText)
 
     res.status(201).json({
+      success: true,
       stalkerGift: result,
       invitationUrl,
       invitationText,

@@ -11,7 +11,7 @@ export interface CreateStalkerGiftPayload {
   first_name: string
   phone: string
   email: string
-  giver_alias: string
+  alias: string // ← Corregido: era giver_alias
   recipient_name: string
   contact_methods: Array<{
     type: string
@@ -24,7 +24,8 @@ export interface CreateStalkerGiftPayload {
     price: number
   }>
   message?: string
-  giver_id?: string
+  customer_giver_id?: string // ← Corregido: era giver_id
+  customer_recipient_id?: string // ← Agregado
   payment_method?: string
   payment_status?: string
 }
@@ -75,7 +76,7 @@ export async function createStalkerGift(
   payload: CreateStalkerGiftPayload
 ): Promise<StalkerGiftResponse> {
   try {
-    const response = await fetch(`${BACKEND_URL}/stalker-gift`, {
+    const response = await fetch(`${BACKEND_URL}/store/stalker-gift`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -88,7 +89,18 @@ export async function createStalkerGift(
       throw new Error(errorData.error || "Error creating stalker gift")
     }
 
-    return await response.json()
+    const data = await response.json()
+
+    // Adaptar respuesta del backend al formato esperado
+    return {
+      success: true,
+      data: {
+        stalkerGift: data.stalkerGift,
+        invitationUrl: data.invitationUrl,
+        invitationText: data.invitationText,
+      },
+      message: data.message || "StalkerGift creado exitosamente",
+    }
   } catch (error) {
     console.error("[API] Error creating stalker gift:", error)
     throw error

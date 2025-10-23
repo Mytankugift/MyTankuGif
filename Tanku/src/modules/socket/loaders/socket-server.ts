@@ -54,7 +54,7 @@ export default async function socketServerLoader({
       } catch (error) {
         logger.warn(`[SOCKET LOADER] Auto-initialization failed: ${error.message}`);
       }
-    }, 10000); // Esperar 10 segundos para que Medusa esté completamente inicializado
+    }, 15000); // Esperar 15 segundos para que Medusa esté completamente inicializado
     
   } catch (error) {
     logger.error(`[SOCKET LOADER] Error in socket loader: ${error.message}`);
