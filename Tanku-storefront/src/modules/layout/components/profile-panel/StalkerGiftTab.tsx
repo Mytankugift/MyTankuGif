@@ -652,14 +652,7 @@ const StalkerGiftTab: React.FC<StalkerGiftTabProps> = ({ customerId }) => {
                         </div>
                       </div>
                       
-                      {/* Product Price */}
-                      {selectedGift.isGiver && (
-                        <div className="text-right flex-shrink-0">
-                          <div className="text-sm font-medium text-white">
-                            {formatCurrency(product.price || 0)}
-                          </div>
-                        </div>
-                      )}
+                      {/* No mostrar precios en la vista de detalles del perfil */}
                     </div>
                   ))}
                 </div>

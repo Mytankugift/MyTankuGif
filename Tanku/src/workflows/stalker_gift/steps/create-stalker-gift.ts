@@ -13,6 +13,7 @@ export interface CreateStalkerGiftStepInput {
   products: any[]
   message?: string
   customer_giver_id?: string
+  customer_recipient_id?: string
   payment_method?: string
   payment_status?: string
 }
@@ -33,9 +34,14 @@ export const createStalkerGiftStep = createStep(
       products: input.products as unknown as Record<string, unknown>,
       message: input.message || null,
       customer_giver_id: input.customer_giver_id || null,
+      customer_recipient_id: input.customer_recipient_id || null,
       payment_method: input.payment_method || "epayco",
       payment_status: input.payment_status || "pending",
     }
+
+    console.log('=== CREANDO STALKER GIFT EN BD ===')
+    console.log('Datos del stalker gift:', JSON.stringify(stalkerGiftData, null, 2))
+    console.log('Productos a guardar:', JSON.stringify(input.products, null, 2))
 
     const stalkerGifts = await stalkerGiftModuleService.createStalkerGifts([stalkerGiftData])
     const stalkerGift = stalkerGifts[0] // Tomar el primer elemento del array

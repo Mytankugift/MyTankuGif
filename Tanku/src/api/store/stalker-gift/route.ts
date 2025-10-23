@@ -18,6 +18,7 @@ export async function POST(
       products,
       message,
       customer_giver_id,
+      customer_recipient_id,
       payment_method = "epayco",
       payment_status = "pending"
     } = req.body as {
@@ -31,6 +32,7 @@ export async function POST(
       products: any[]
       message?: string
       customer_giver_id?: string
+      customer_recipient_id?: string
       payment_method?: string
       payment_status?: string
     }
@@ -44,6 +46,7 @@ export async function POST(
     }
 
     console.log('Ejecutando workflow createStalkerGiftWorkflow...')
+    console.log('Productos recibidos:', JSON.stringify(products, null, 2))
 
     // Ejecutar el workflow
     const { result } = await createStalkerGiftWorkflow(req.scope).run({
@@ -58,6 +61,7 @@ export async function POST(
         products,
         message,
         customer_giver_id,
+        customer_recipient_id,
         payment_method,
         payment_status
       }
