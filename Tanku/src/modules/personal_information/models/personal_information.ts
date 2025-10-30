@@ -5,6 +5,7 @@ export const PersonalInformation = model.define("personal_information", {
   customer_id: model.text(),
   avatar_url: model.text().nullable(),
   status_message: model.text().nullable(),
+  pseudonym: model.text().nullable(),
   banner_profile_url: model.text().nullable(),
   social_url: model.json().nullable(), // Objeto: {social: "facebook", url: "la url", alias: "@alias"}
   birthday: model.dateTime().nullable(),

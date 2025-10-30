@@ -18,7 +18,7 @@ interface ForTankuUserViewProps {
 }
 
 export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }: ForTankuUserViewProps) {
-  const { personalInfo } = usePersonalInfo()
+  const { personalInfo, updatePseudonym } = usePersonalInfo()
   const { stalkerGiftData, setAlias, setRecipientName, setMessage, toggleProductSelection: contextToggleProductSelection } = useStalkerGift()
   
   // Hook de pago
@@ -48,6 +48,8 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
   const [showPseudonymInput, setShowPseudonymInput] = useState(false)
   const [showPseudonymPopup, setShowPseudonymPopup] = useState(false)
   const [tempPseudonym, setTempPseudonym] = useState("")
+  const [pseudonymError, setPseudonymError] = useState<string | null>(null)
+  const [pseudonymSaving, setPseudonymSaving] = useState(false)
   const [currentView, setCurrentView] = useState<'selection' | 'checkout' | 'payment' | 'summary'>('selection')
   const [orderId, setOrderId] = useState("")
   const [localSelectedPaymentMethod, setLocalSelectedPaymentMethod] = useState<string>("")
@@ -55,6 +57,13 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
 
   // Obtener el nombre real del usuario actual
   const realUserName = personalInfo ? `${personalInfo.first_name} ${personalInfo.last_name}`.trim() : currentUserName
+
+  // Prefill con seudónimo guardado si existe
+  useEffect(() => {
+    if (!pseudonym && personalInfo?.pseudonym) {
+      setPseudonym(personalInfo.pseudonym)
+    }
+  }, [personalInfo?.pseudonym, pseudonym])
 
   // Efecto para manejar cuando el pago se complete
   useEffect(() => {
@@ -158,11 +167,30 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
     return (product as any)?.quantity || 1
   }
 
-  const handlePseudonymSubmit = () => {
-    if (pseudonym.trim().length >= 2) {
+  const handlePseudonymSubmit = async () => {
+    const value = pseudonym.trim()
+    if (value.length < 2) {
+      setPseudonymError("El seudónimo debe tener al menos 2 caracteres")
+      return
+    }
+    if (value.length > 40) {
+      setPseudonymError("El seudónimo no puede exceder 40 caracteres")
+      return
+    }
+    setPseudonymError(null)
+    try {
+      setPseudonymSaving(true)
+      // Persistir vía contexto
+      if (updatePseudonym) {
+        const resp = await updatePseudonym(value)
+        if (!resp.success) {
+          setPseudonymError(resp.error || "No se pudo guardar el seudónimo")
+          return
+        }
+      }
       setShowPseudonymInput(false)
-    } else {
-      alert("El seudónimo debe tener al menos 2 caracteres")
+    } finally {
+      setPseudonymSaving(false)
     }
   }
 
@@ -171,39 +199,9 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
       alert("Por favor selecciona al menos un producto")
       return
     }
-    
-    // Validar que el seudónimo esté presente
-    if (!pseudonym || pseudonym.trim().length < 2) {
-      setTempPseudonym(pseudonym) // Guardar el valor actual
-      setShowPseudonymPopup(true) // Mostrar popup
-      return
-    }
-    
-    // Sincronizar datos con el contexto de stalker gift
-    setAlias(pseudonym)
-    setRecipientName(selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : "")
-    
-    // Sincronizar productos seleccionados con el contexto
-    selectedProducts.forEach(product => {
-      if (!stalkerGiftData.selectedProducts.some(p => p.id === product.id)) {
-        // Convertir el producto al formato esperado por el contexto
-        const contextProduct = {
-          id: product.id,
-          handle: product.id, // Usar ID como handle
-          title: product.title,
-          thumbnail: product.thumbnail,
-          variants: product.variants?.map(variant => ({
-            inventory: variant.inventory ? {
-              price: variant.inventory.price,
-              currency_code: variant.inventory.currency_code || 'COP'
-            } : undefined
-          })) || []
-        }
-        contextToggleProductSelection(contextProduct)
-      }
-    })
-    
-    setCurrentView('checkout')
+    // Siempre pedir confirmación del seudónimo en popup (aun si ya existe)
+    setTempPseudonym(pseudonym)
+    setShowPseudonymPopup(true)
   }
 
   const handleProceedToPayment = () => {
@@ -318,14 +316,49 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
     })
   }
 
-  const handlePseudonymPopupSubmit = () => {
-    if (tempPseudonym.trim().length >= 2) {
-      setPseudonym(tempPseudonym.trim())
-      setShowPseudonymPopup(false)
-      setCurrentView('checkout') // Continuar al checkout
-    } else {
+  const handlePseudonymPopupSubmit = async () => {
+    const value = tempPseudonym.trim()
+    if (value.length < 2) {
       alert("El seudónimo debe tener al menos 2 caracteres")
+      return
     }
+    if (value.length > 40) {
+      alert("El seudónimo no puede exceder 40 caracteres")
+      return
+    }
+    // Persistir en perfil antes de continuar
+    if (updatePseudonym) {
+      const resp = await updatePseudonym(value)
+      if (!resp.success) {
+        alert(resp.error || 'No se pudo guardar el seudónimo')
+        return
+      }
+    }
+    setPseudonym(value)
+    setAlias(value)
+    if (selectedUser) {
+      setRecipientName(`${selectedUser.first_name} ${selectedUser.last_name}`)
+    }
+    // Sincronizar productos seleccionados con el contexto
+    selectedProducts.forEach(product => {
+      if (!stalkerGiftData.selectedProducts.some(p => p.id === product.id)) {
+        const contextProduct = {
+          id: product.id,
+          handle: product.id,
+          title: product.title,
+          thumbnail: product.thumbnail,
+          variants: product.variants?.map(variant => ({
+            inventory: variant.inventory ? {
+              price: variant.inventory.price,
+              currency_code: variant.inventory.currency_code || 'COP'
+            } : undefined
+          })) || []
+        }
+        contextToggleProductSelection(contextProduct)
+      }
+    })
+    setShowPseudonymPopup(false)
+    setCurrentView('checkout')
   }
 
   const handlePseudonymPopupCancel = () => {
@@ -618,22 +651,35 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                   <input
                     type="text"
                     value={pseudonym}
-                    onChange={(e) => setPseudonym(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setPseudonym(v)
+                      if (!v.trim()) {
+                        setPseudonymError("El seudónimo es obligatorio")
+                      } else if (v.trim().length < 2) {
+                        setPseudonymError("Mínimo 2 caracteres")
+                      } else if (v.trim().length > 40) {
+                        setPseudonymError("Máximo 40 caracteres")
+                      } else {
+                        setPseudonymError(null)
+                      }
+                    }}
                     placeholder="Ej: Un amigo secreto, Tu crush, etc."
                     className="w-full px-4 py-3 bg-[#1E1E1E] border border-[#66DEDB]/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#66DEDB] focus:border-transparent"
-                    maxLength={50}
+                    maxLength={40}
                     required
                   />
-                  <p className="text-gray-400 text-xs mt-1">
-                    Máximo 50 caracteres. Este campo es obligatorio.
+                  <p className={`text-xs mt-1 ${pseudonymError ? 'text-red-400' : 'text-gray-400'}`}>
+                    {pseudonymError ? pseudonymError : 'Máximo 40 caracteres. Este campo es obligatorio.'}
                   </p>
                 </div>
                 <div className="flex space-x-3">
                   <button
                     onClick={handlePseudonymSubmit}
-                    className="bg-[#66DEDB] text-white px-6 py-2 rounded-lg hover:bg-[#5FE085] transition-colors"
+                    disabled={!!pseudonymError || pseudonymSaving}
+                    className={`px-6 py-2 rounded-lg transition-colors ${pseudonymError || pseudonymSaving ? 'bg-[#66DEDB]/50 cursor-not-allowed' : 'bg-[#66DEDB] hover:bg-[#5FE085]'} text-white`}
                   >
-                    Confirmar
+                    {pseudonymSaving ? 'Guardando...' : 'Confirmar'}
                   </button>
                   <button
                     onClick={() => setShowPseudonymInput(false)}
@@ -848,7 +894,7 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
 
       </div>
 
-      {/* Popup de Seudónimo Obligatorio */}
+      {/* Popup de confirmación/ingreso de Seudónimo */}
       {showPseudonymPopup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1E1E1E] rounded-xl p-6 w-full max-w-md border border-[#66DEDB]/30">
@@ -857,14 +903,20 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                 <span className="text-2xl">🎭</span>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Seudónimo Requerido</h3>
-                <p className="text-gray-400 text-sm">Necesitas un seudónimo para continuar</p>
+                <h3 className="text-lg font-bold text-white">
+                  {personalInfo?.pseudonym ? 'Confirmar seudónimo' : 'Seudónimo Requerido'}
+                </h3>
+                <p className="text-gray-400 text-sm">
+                  {personalInfo?.pseudonym
+                    ? 'Este es tu último seudónimo usado. ¿Quieres seguir usándolo o cambiarlo antes de continuar?'
+                    : 'Necesitas un seudónimo para continuar'}
+                </p>
               </div>
             </div>
             
             <div className="mb-6">
               <label className="block text-white text-sm font-medium mb-2">
-                Ingresa tu seudónimo <span className="text-red-400">*</span>
+                {personalInfo?.pseudonym ? 'Confirma o edita tu seudónimo' : 'Ingresa tu seudónimo'} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -872,7 +924,7 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                 onChange={(e) => setTempPseudonym(e.target.value)}
                 placeholder="Ej: Un amigo secreto, Tu crush, etc."
                 className="w-full px-4 py-3 bg-[#262626] border border-[#66DEDB]/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#66DEDB] focus:border-transparent"
-                maxLength={50}
+                maxLength={40}
                 autoFocus
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
@@ -881,7 +933,7 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                 }}
               />
               <p className="text-gray-400 text-xs mt-1">
-                Máximo 50 caracteres. Este campo es obligatorio.
+                Máximo 40 caracteres. Este campo es obligatorio.
               </p>
             </div>
 
@@ -890,13 +942,13 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                 onClick={handlePseudonymPopupCancel}
                 className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
               >
-                Cancelar
+                {personalInfo?.pseudonym ? 'Volver' : 'Cancelar'}
               </button>
               <button
                 onClick={handlePseudonymPopupSubmit}
                 className="flex-1 bg-[#66DEDB] text-white px-4 py-2 rounded-lg hover:bg-[#5FE085] transition-colors"
               >
-                Continuar
+                {personalInfo?.pseudonym ? 'Usar este seudónimo' : 'Continuar'}
               </button>
             </div>
           </div>
