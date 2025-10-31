@@ -23,7 +23,8 @@ export const sendFriendRequestStep = createStep(
     // Verificar que no exista ya una solicitud entre estos usuarios
     const existingRequest = await socialModuleService.listFriendRequests({
       sender_id: input.sender_id,
-      receiver_id: input.receiver_id
+      receiver_id: input.receiver_id,
+      status: "pending"
     })
     
     if (existingRequest.length > 0) {

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react"
 import Image from "next/image"
 import { getListUsers } from "../../../../../social/actions/get-list-users"
+import { getFriends } from "../../../../../social/actions/get-friends"
 import { usePersonalInfo } from "../../../../../../lib/context"
 
 export type SelectableUser = {
@@ -10,6 +11,9 @@ export type SelectableUser = {
   first_name: string
   last_name: string
   email: string
+  avatar_url?: string | null
+  alias?: string | null
+  is_friend?: boolean
 }
 
 interface SelectableUsersListProps {
@@ -18,7 +22,8 @@ interface SelectableUsersListProps {
 }
 
 export default function SelectableUsersList({ onUserSelect, selectedUserId }: SelectableUsersListProps) {
-  const [users, setUsers] = useState<SelectableUser[]>([])
+  const [friends, setFriends] = useState<SelectableUser[]>([])
+  const [allUsers, setAllUsers] = useState<SelectableUser[]>([])
   const [searchResults, setSearchResults] = useState<SelectableUser[]>([])
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [showDropdown, setShowDropdown] = useState<boolean>(false)
@@ -32,11 +37,24 @@ export default function SelectableUsersList({ onUserSelect, selectedUserId }: Se
     const loadUsers = async () => {
       try {
         setIsLoading(true)
-        const usersData = await getListUsers()
-        // Filtrar al usuario actual de la lista
-        const filteredUsers = usersData.filter((user: SelectableUser) => user.id !== personalInfo.id)
-        setUsers(filteredUsers)
-        console.log("filteredUsers", filteredUsers)
+        const [usersData, friendsData] = await Promise.all([
+          getListUsers(),
+          getFriends(personalInfo.id)
+        ])
+        const filteredAll = (usersData || []).filter((u: any) => u.id !== personalInfo.id)
+        setAllUsers(filteredAll)
+
+        // Map friends to SelectableUser shape
+        const mappedFriends: SelectableUser[] = (friendsData || []).map((f: any) => ({
+          id: f.friend_customer_id,
+          first_name: f.friend?.first_name || "",
+          last_name: f.friend?.last_name || "",
+          email: f.friend?.email || "",
+          avatar_url: f.friend?.avatar_url || null,
+          alias: f.friend?.alias || null,
+          is_friend: true,
+        })).filter((u) => u.id !== personalInfo.id)
+        setFriends(mappedFriends)
       } catch (error) {
         console.error('Error al cargar usuarios:', error)
       } finally {
@@ -54,7 +72,8 @@ export default function SelectableUsersList({ onUserSelect, selectedUserId }: Se
       setSearchResults([])
       setShowDropdown(false)
     } else {
-      const filtered = users.filter(user => 
+      const pool = allUsers
+      const filtered = pool.filter(user => 
         (user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
@@ -63,7 +82,7 @@ export default function SelectableUsersList({ onUserSelect, selectedUserId }: Se
       setSearchResults(filtered)
       setShowDropdown(true)
     }
-  }, [searchTerm, users, personalInfo])
+  }, [searchTerm, allUsers, personalInfo])
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value)
@@ -118,7 +137,7 @@ export default function SelectableUsersList({ onUserSelect, selectedUserId }: Se
                   <div className="flex items-center">
                     <div className="relative w-10 h-10 mr-3">
                       <Image
-                        src="/feed/avatar.png"
+                        src={(user as any).avatar_url || "/feed/avatar.png"}
                         alt={`${user.first_name} ${user.last_name}`}
                         fill
                         className="rounded-full object-cover border border-[#66DEDB]"
@@ -129,7 +148,7 @@ export default function SelectableUsersList({ onUserSelect, selectedUserId }: Se
                         {user.first_name} {user.last_name}
                       </span>
                       <span className="text-gray-400 text-sm">
-                        {user.email}
+                        @{(user as any).alias || user.email.split('@')[0]}
                       </span>
                     </div>
                   </div>
@@ -151,9 +170,9 @@ export default function SelectableUsersList({ onUserSelect, selectedUserId }: Se
         )}
       </div>
 
-      {/* Lista de usuarios en grid */}
+      {/* Lista de amigos o fallback a todos los usuarios */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {users.slice(0, 12).map((user) => (
+        {(friends.length > 0 ? friends : allUsers).slice(0, 12).map((user) => (
           <div 
             key={user.id} 
             onClick={() => handleUserClick(user)}
@@ -166,7 +185,7 @@ export default function SelectableUsersList({ onUserSelect, selectedUserId }: Se
             <div className="flex flex-col items-center text-center">
               <div className="relative w-16 h-16 mb-3">
                 <Image
-                  src="/feed/avatar.png"
+                  src={(user as any).avatar_url || "/feed/avatar.png"}
                   alt={`${user.first_name} ${user.last_name}`}
                   fill
                   className="rounded-full object-cover border-2 border-[#66DEDB]"
@@ -176,8 +195,15 @@ export default function SelectableUsersList({ onUserSelect, selectedUserId }: Se
                 {user.first_name} {user.last_name}
               </h3>
               <p className="text-xs text-gray-400 truncate w-full">
-                {user.email}
+                @{(user as any).alias || user.email.split('@')[0]}
               </p>
+              {friends.length > 0 && (
+                <div className="mt-2">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#66DEDB]/20 text-[#66DEDB] border border-[#66DEDB]/30">
+                    Amigos
+                  </span>
+                </div>
+              )}
               {selectedUserId === user.id && (
                 <div className="mt-2 flex items-center text-[#66DEDB] text-xs">
                   <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -191,15 +217,15 @@ export default function SelectableUsersList({ onUserSelect, selectedUserId }: Se
         ))}
       </div>
 
-      {users.length > 12 && (
+      {(friends.length > 0 ? friends : allUsers).length > 12 && (
         <div className="text-center">
           <p className="text-gray-400 text-sm">
-            Mostrando los primeros 12 usuarios. Usa el buscador para encontrar usuarios específicos.
+            {friends.length > 0 ? 'Mostrando tus primeros 12 amigos.' : 'Mostrando los primeros 12 usuarios.'} Usa el buscador para encontrar personas.
           </p>
         </div>
       )}
 
-      {users.length === 0 && !isLoading && (
+      {friends.length === 0 && allUsers.length === 0 && !isLoading && (
         <div className="text-center py-12">
           <p className="text-gray-400">No hay usuarios disponibles</p>
         </div>
