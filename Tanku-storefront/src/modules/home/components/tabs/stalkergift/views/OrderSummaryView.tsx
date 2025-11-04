@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { WishlistProduct } from "../../../../../social/actions/get-public-wishlists"
 import { ProductSuggestion } from "../../../../../social/actions/get-product-suggestions"
 
@@ -9,6 +10,8 @@ interface SelectableUser {
   first_name: string
   last_name: string
   email: string
+  avatar_url?: string | null
+  is_friend?: boolean
 }
 
 interface OrderSummaryViewProps {
@@ -126,8 +129,29 @@ export default function OrderSummaryView({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h4 className="text-white font-semibold mb-2">Destinatario:</h4>
-                <p className="text-gray-300">{selectedUser.first_name} {selectedUser.last_name}</p>
-                <p className="text-gray-400 text-sm">{selectedUser.email}</p>
+                <div className="flex items-center space-x-3">
+                  <div className="relative w-12 h-12 flex-shrink-0">
+                    <Image
+                      src={selectedUser.avatar_url || "/feed/avatar.png"}
+                      alt={`${selectedUser.first_name} ${selectedUser.last_name}`}
+                      width={48}
+                      height={48}
+                      className="rounded-full object-cover border-2 border-[#66DEDB] w-12 h-12"
+                      style={{ aspectRatio: '1/1' }}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-gray-300">{selectedUser.first_name} {selectedUser.last_name}</p>
+                      {selectedUser.is_friend && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#66DEDB]/20 text-[#66DEDB] border border-[#66DEDB]/30">
+                          Amigos
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-400 text-sm">{selectedUser.email}</p>
+                  </div>
+                </div>
               </div>
               <div>
                 <h4 className="text-white font-semibold mb-2">Remitente:</h4>

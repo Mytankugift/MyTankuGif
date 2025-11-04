@@ -10,6 +10,7 @@ import { getGroupInvitationsStep } from "./steps/get-group-invitations"
 import { respondToGroupInvitationStep } from "./steps/respond-to-group-invitation"
 import { inviteToGroupStep } from "./steps/invite-to-group"
 import { getGroupMembersStep } from "./steps/get-group-members"
+import { removeMemberFromGroupStep } from "./steps/remove-member-from-group"
 
 // Create Friendship Group Workflow
 export const createFriendshipGroupWorkflow = createWorkflow(
@@ -94,6 +95,23 @@ export const getGroupMembersWorkflow = createWorkflow(
     
     return new WorkflowResponse({
       members
+    })
+  }
+)
+
+// Remove Member from Group Workflow
+export const removeMemberFromGroupWorkflow = createWorkflow(
+  "remove-member-from-group",
+  (input: {
+    group_id: string
+    member_id: string
+    removed_by: string
+  }) => {
+    const result = removeMemberFromGroupStep(input)
+    
+    return new WorkflowResponse({
+      success: result.success,
+      message: result.message
     })
   }
 )
