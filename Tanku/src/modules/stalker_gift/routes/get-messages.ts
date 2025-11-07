@@ -78,7 +78,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     let messageStatuses: any[] = [];
 
     if (messageIds.length > 0) {
-      messageStatuses = await stalkerGiftModuleService.listStalkerMessageStatuses({
+      messageStatuses = await stalkerGiftModuleService.listStalkerMessageStatus({
         message_id: messageIds,
         customer_id: customer_id as string,
       });

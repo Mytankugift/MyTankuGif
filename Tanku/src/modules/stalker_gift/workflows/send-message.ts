@@ -120,7 +120,7 @@ export const createMessageStatusStep = createStep(
       status: "sent",
       status_at: new Date(),
     };
-
+ //@ts-ignore
     const statuses = await stalkerGiftModuleService.createStalkerMessageStatuses([
       statusData,
     ]);
@@ -140,7 +140,7 @@ export const createMessageStatusStep = createStep(
     const stalkerGiftModuleService: StalkerGiftModuleService = container.resolve(
       STALKER_GIFT_MODULE
     );
-
+ //@ts-ignore
     await stalkerGiftModuleService.deleteStalkerMessageStatuses([statusId]);
   }
 );
@@ -175,6 +175,10 @@ export const updateConversationLastMessageStep = createStep(
     });
   },
   async (compensateData, { container }) => {
+    if (!compensateData) {
+      return;
+    }
+
     // Rollback: restaurar ultimo mensaje anterior
     const stalkerGiftModuleService: StalkerGiftModuleService = container.resolve(
       STALKER_GIFT_MODULE

@@ -1,13 +1,9 @@
 /**
  * Stalker Gift Module - API Routes
  *
- * Este archivo exporta todas las rutas API del modulo Stalker Gift.
- * Las rutas estan diseñadas para trabajar con los workflows del modulo.
+ * En Medusa v2, las rutas se descubren automáticamente.
+ * No es necesario exportar las rutas desde este archivo.
+ * Cada archivo de ruta debe exportar sus propias funciones GET, POST, etc.
  */
 
-export * from "./create";
-export * from "./get-by-id";
-export * from "./update-payment";
-export * from "./enable-chat";
-export * from "./send-message";
-export * from "./get-messages";
+// No exportar rutas aquí para evitar conflictos de nombres de métodos HTTP duplicados

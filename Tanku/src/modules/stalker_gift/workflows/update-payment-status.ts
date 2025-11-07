@@ -57,6 +57,10 @@ export const updatePaymentStatusStep = createStep(
     });
   },
   async (compensateData, { container }) => {
+    if (!compensateData) {
+      return;
+    }
+
     // Rollback: restaurar el estado anterior
     const stalkerGiftModuleService: StalkerGiftModuleService = container.resolve(
       STALKER_GIFT_MODULE

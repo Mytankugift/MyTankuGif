@@ -109,6 +109,10 @@ export const enableConversationStep = createStep(
     );
   },
   async (compensateData, { container }) => {
+    if (!compensateData) {
+      return;
+    }
+
     // Rollback: si se creo nueva conversacion, eliminarla
     if (compensateData.was_new) {
       const stalkerGiftModuleService: StalkerGiftModuleService = container.resolve(
