@@ -89,14 +89,23 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
   }, [customerId])
 
   const loadGroups = async () => {
+    if (!customerId) {
+      console.error('No customerId provided')
+      return
+    }
+    
     setLoading(true)
     try {
       const response = await getFriendGroups(customerId)
       if (response.success) {
-        setGroups(response.groups)
+        setGroups(response.groups || [])
+      } else {
+        console.error('Error loading groups:', response.error)
+        setGroups([])
       }
     } catch (error) {
       console.error('Error loading groups:', error)
+      setGroups([])
     } finally {
       setLoading(false)
     }
@@ -138,37 +147,17 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
 
   const loadGroupMembersForInvite = async (groupId: string) => {
     try {
-      // Cargar miembros aceptados para obtener el rol del usuario
+      // Cargar miembros del grupo para obtener el rol del usuario y filtrar contactos ya agregados
+      // En el modelo de Red Tanku (clasificación privada), no hay invitaciones pendientes
+      // Los contactos se agregan directamente, así que solo necesitamos los miembros actuales
       const response = await getGroupMembers(groupId)
       if (response.success) {
-        const acceptedMemberIds = new Set<string>(response.members.map((m: GroupMember) => m.customer_id))
+        const memberIds = new Set<string>(response.members.map((m: GroupMember) => m.customer_id))
         const currentMember = response.members.find((m: GroupMember) => m.customer_id === customerId)
         setCurrentUserRole(currentMember?.role || null)
-        
-        // Obtener invitaciones pendientes del grupo para filtrar también esos usuarios
-        const invitationsResponse = await getGroupInvitations(customerId)
-        if (invitationsResponse.success) {
-          // Filtrar invitaciones pendientes que pertenecen a este grupo
-          const pendingInvitations = invitationsResponse.invitations.filter(
-            (inv: GroupInvitation) => inv.group_id === groupId
-          )
-          
-          // También necesitamos obtener todos los miembros pendientes del grupo
-          // Para esto, necesitamos hacer una consulta adicional o usar el endpoint de invitaciones
-          // Por ahora, usaremos solo los aceptados y el backend evitará duplicados
-          // Pero podemos mejorar esto consultando las invitaciones pendientes del grupo
-          
-          // Combinar IDs de miembros aceptados y pendientes
-          const allMemberIds = new Set<string>(acceptedMemberIds)
-          
-          // Nota: Las invitaciones pendientes solo muestran las que recibió el usuario actual
-          // Para obtener todas las invitaciones pendientes del grupo, necesitaríamos un endpoint adicional
-          // Por ahora, el backend ya maneja esto y evita duplicados
-          
-          setGroupMemberIds(allMemberIds)
-        } else {
-          setGroupMemberIds(acceptedMemberIds)
-        }
+        setGroupMemberIds(memberIds)
+      } else {
+        setGroupMemberIds(new Set<string>())
       }
     } catch (error) {
       console.error('Error loading group members for invite:', error)
