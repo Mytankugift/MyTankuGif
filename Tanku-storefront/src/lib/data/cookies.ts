@@ -18,6 +18,8 @@ export const getAuthHeaders = async (): Promise<
 
 export const getCacheTag = async (tag: string): Promise<string> => {
   try {
+    // During build time (generateStaticParams), cookies() is not available
+    // Return empty string to skip cache tagging during build
     const cookies = await nextCookies()
     const cacheId = cookies.get("_medusa_cache_id")?.value
 
@@ -27,6 +29,7 @@ export const getCacheTag = async (tag: string): Promise<string> => {
 
     return `${tag}-${cacheId}`
   } catch (error) {
+    // Silently fail during build time when cookies are not available
     return ""
   }
 }
