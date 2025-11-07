@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { getFriendGroups, createFriendGroup, getGroupInvitations, respondToGroupInvitation, inviteToGroup, getGroupMembers } from '../actions/friend-groups'
-import { getFriendRequests } from '@modules/social/actions/get-friend-requests'
+import { getFriendGroups, createFriendGroup, getGroupInvitations, respondToGroupInvitation, inviteToGroup, getGroupMembers, removeMemberFromGroup } from '../actions/friend-groups'
+import { getFriends } from '@modules/social/actions/get-friends'
 
 interface FriendGroup {
   id: string
@@ -58,6 +58,8 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([])
   const [friends, setFriends] = useState<Friend[]>([])
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
+  const [groupMemberIds, setGroupMemberIds] = useState<Set<string>>(new Set())
   
   // Create group form state
   const [createForm, setCreateForm] = useState({
@@ -106,9 +108,18 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
 
   const loadFriends = async () => {
     try {
-      const response = await getFriendRequests(customerId)
-     
-      setFriends(response.sent) 
+      const friendsList = await getFriends(customerId)
+      
+      // Mapear FriendItem a Friend usando friend_customer_id como id
+      const mappedFriends: Friend[] = friendsList.map((item) => ({
+        id: item.friend_customer_id, // Usar friend_customer_id como id para las invitaciones
+        first_name: item.friend.first_name || 'Usuario',
+        last_name: item.friend.last_name || '',
+        email: item.friend.email || '',
+        avatar_url: item.friend.avatar_url || undefined,
+      }))
+      
+      setFriends(mappedFriends)
     } catch (error) {
       console.error('Error loading friends:', error)
     }
@@ -119,9 +130,81 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
       const response = await getGroupMembers(groupId)
       if (response.success) {
         setGroupMembers(response.members)
+        // Obtener el rol del usuario actual en el grupo
+        const currentMember = response.members.find((m: GroupMember) => m.customer_id === customerId)
+        setCurrentUserRole(currentMember?.role || null)
       }
     } catch (error) {
       console.error('Error loading group members:', error)
+    }
+  }
+
+  const loadGroupMembersForInvite = async (groupId: string) => {
+    try {
+      // Cargar miembros aceptados para obtener el rol del usuario
+      const response = await getGroupMembers(groupId)
+      if (response.success) {
+        const acceptedMemberIds = new Set<string>(response.members.map((m: GroupMember) => m.customer_id))
+        const currentMember = response.members.find((m: GroupMember) => m.customer_id === customerId)
+        setCurrentUserRole(currentMember?.role || null)
+        
+        // Obtener invitaciones pendientes del grupo para filtrar también esos usuarios
+        const invitationsResponse = await getGroupInvitations(customerId)
+        if (invitationsResponse.success) {
+          // Filtrar invitaciones pendientes que pertenecen a este grupo
+          const pendingInvitations = invitationsResponse.invitations.filter(
+            (inv: GroupInvitation) => inv.group_id === groupId
+          )
+          
+          // También necesitamos obtener todos los miembros pendientes del grupo
+          // Para esto, necesitamos hacer una consulta adicional o usar el endpoint de invitaciones
+          // Por ahora, usaremos solo los aceptados y el backend evitará duplicados
+          // Pero podemos mejorar esto consultando las invitaciones pendientes del grupo
+          
+          // Combinar IDs de miembros aceptados y pendientes
+          const allMemberIds = new Set<string>(acceptedMemberIds)
+          
+          // Nota: Las invitaciones pendientes solo muestran las que recibió el usuario actual
+          // Para obtener todas las invitaciones pendientes del grupo, necesitaríamos un endpoint adicional
+          // Por ahora, el backend ya maneja esto y evita duplicados
+          
+          setGroupMemberIds(allMemberIds)
+        } else {
+          setGroupMemberIds(acceptedMemberIds)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading group members for invite:', error)
+      setGroupMemberIds(new Set<string>())
+    }
+  }
+
+  const handleRemoveMember = async (memberId: string, memberName: string) => {
+    if (!selectedGroup) return
+    
+    if (!confirm(`¿Estás seguro de que quieres eliminar a ${memberName} del grupo?`)) {
+      return
+    }
+
+    try {
+      const response = await removeMemberFromGroup({
+        group_id: selectedGroup,
+        member_id: memberId,
+        removed_by: customerId
+      })
+
+      if (response.success) {
+        alert(response.message || 'Miembro eliminado exitosamente')
+        // Recargar miembros del grupo
+        loadGroupMembers(selectedGroup)
+        // Recargar grupos para actualizar el contador
+        loadGroups()
+      } else {
+        alert(response.error || 'Error al eliminar miembro')
+      }
+    } catch (error) {
+      console.error('Error removing member:', error)
+      alert('Error al eliminar miembro')
     }
   }
 
@@ -186,7 +269,10 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
         setShowInviteModal(false)
         setSelectedFriends([])
         setInviteMessage('')
+        setSelectedGroup(null)
         alert('Invitaciones enviadas exitosamente')
+        // Recargar grupos para actualizar el contador de miembros si es necesario
+        loadGroups()
       } else {
         alert(response.error || 'Error al enviar invitaciones')
       }
@@ -292,8 +378,12 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                     </button>
                     {group.role === 'admin' && (
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           setSelectedGroup(group.id)
+                          setSelectedFriends([]) // Limpiar selecciones anteriores
+                          setInviteMessage('') // Limpiar mensaje anterior
+                          // Cargar miembros del grupo para filtrar amigos ya agregados
+                          await loadGroupMembersForInvite(group.id)
                           setShowInviteModal(true)
                         }}
                         className="bg-[#73FFA2] hover:bg-[#66DEDB] text-black px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm transition-colors"
@@ -495,6 +585,17 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                   }`}>
                     {member.role}
                   </span>
+                  {currentUserRole === 'admin' && member.customer_id !== customerId && (
+                    <button
+                      onClick={() => handleRemoveMember(member.id, `${member.first_name} ${member.last_name}`)}
+                      className="text-red-400 hover:text-red-300 p-1 rounded transition-colors"
+                      title="Eliminar miembro"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -509,7 +610,12 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white text-base sm:text-lg font-semibold">Invitar Amigos</h3>
               <button
-                onClick={() => setShowInviteModal(false)}
+                onClick={() => {
+                  setShowInviteModal(false)
+                  setSelectedGroup(null)
+                  setSelectedFriends([])
+                  setInviteMessage('')
+                }}
                 className="text-gray-400 hover:text-white"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -537,32 +643,53 @@ const FriendGroupsTab: React.FC<FriendGroupsTabProps> = ({ customerId }) => {
                   Seleccionar Amigos
                 </label>
                 <div className="max-h-32 sm:max-h-40 overflow-y-auto space-y-1 sm:space-y-2">
-                  {friends.map((friend) => (
-                    <label key={friend.id} className="flex items-center gap-2 sm:gap-3 p-1.5 sm:p-2 hover:bg-gray-700 rounded cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedFriends.includes(friend.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedFriends(prev => [...prev, friend.id])
-                          } else {
-                            setSelectedFriends(prev => prev.filter(id => id !== friend.id))
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <div className="w-6 h-6 sm:w-8 sm:h-8  rounded-full flex items-center justify-center">
-                       <Image
-                        src={friend.avatar_url || '/placeholder.png'}
-                        alt={friend.first_name}
-                        width={44}
-                        height={44}
-                        className="rounded-full"
-                      />
+                  {(() => {
+                    // Filtrar amigos que ya están en el grupo (aceptados o pendientes)
+                    const availableFriends = friends.filter(friend => !groupMemberIds.has(friend.id))
+                    
+                    return availableFriends.length > 0 ? (
+                      availableFriends.map((friend) => (
+                      <label key={friend.id} className="flex items-center gap-2 sm:gap-3 p-1.5 sm:p-2 hover:bg-gray-700 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedFriends.includes(friend.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedFriends(prev => [...prev, friend.id])
+                            } else {
+                              setSelectedFriends(prev => prev.filter(id => id !== friend.id))
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-gray-600 overflow-hidden">
+                          {friend.avatar_url ? (
+                            <Image
+                              src={friend.avatar_url}
+                              alt={`${friend.first_name} ${friend.last_name}`}
+                              width={32}
+                              height={32}
+                              className="rounded-full w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-white text-xs font-semibold">
+                              {friend.first_name?.[0]?.toUpperCase() || 'U'}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-white text-xs sm:text-sm">
+                          {friend.first_name} {friend.last_name}
+                        </span>
+                      </label>
+                    ))
+                    ) : (
+                      <div className="text-center py-4 text-gray-400 text-xs sm:text-sm">
+                        {friends.length === 0 
+                          ? 'No tienes amigos agregados aún'
+                          : 'Todos tus amigos ya están en este grupo'}
                       </div>
-                      <span className="text-white text-xs sm:text-sm">{friend.first_name} {friend.last_name}</span>
-                    </label>
-                  ))}
+                    )
+                  })()}
                 </div>
               </div>
 

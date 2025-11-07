@@ -28,15 +28,15 @@ export const getFriendRequests = async (userId: string) => {
     
     
     const data = await response.json()
-   console.log("data amigosssssssssssss",data)
+    console.log("friend-requests data", data)
     
     if (!response.ok) {
       throw new Error(data.error || "Error al obtener solicitudes de amistad")
     }
     
     return {
-      sent: data.sent_requests || [],
-      received: data.received_requests || []
+      sent: data.sent || [],
+      received: data.received || []
     }
   } catch (error) {
     console.error("Error al obtener solicitudes de amistad:", error)

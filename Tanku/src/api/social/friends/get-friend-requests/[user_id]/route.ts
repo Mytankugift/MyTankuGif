@@ -25,29 +25,59 @@ export async function GET(
     )
     const personalInfoService: PersonalInformationService = req.scope.resolve(PERSONAL_INFORMATION_MODULE)
     const customerModuleService = req.scope.resolve(Modules.CUSTOMER)
-    
-    // Obtener las solicitudes de amistad enviadas por el usuario
-    const sentRequests = await socialModuleService.listFriends({
-      customer_id: user_id as string
-    })
-    const dataCustomer = await Promise.all(sentRequests.map(async (friend) => {
-      const customer = await customerModuleService.retrieveCustomer(friend.friend_customer_id)
-      
-      const personalInfo = await personalInfoService.listPersonalInformations({
-        customer_id: friend.friend_customer_id
-      })
-      console.log("personalInfo:", personalInfo)
 
+    // Solicitudes ENVIADAS por el usuario (sender_id = user_id)
+    const sentRequests = await socialModuleService.listFriendRequests({
+      sender_id: user_id as string
+    })
+
+    const sentWithProfiles = await Promise.all(sentRequests.map(async (req) => {
+      const customer = await customerModuleService.retrieveCustomer(req.receiver_id)
+      const personalInfo = await personalInfoService.listPersonalInformations({
+        customer_id: req.receiver_id
+      })
       return {
-        ...friend,
-        ...customer,
-        avatar_url: personalInfo[0]?.avatar_url || null,
+        id: req.id,
+        sender_id: req.sender_id,
+        receiver_id: req.receiver_id,
+        status: req.status,
+        message: req.message,
+        created_at: req.created_at,
+        receiver: {
+          ...customer,
+          avatar_url: personalInfo[0]?.avatar_url || null,
+        }
       }
     }))
-        
+
+    // Solicitudes RECIBIDAS por el usuario (receiver_id = user_id)
+    const receivedRequests = await socialModuleService.listFriendRequests({
+      receiver_id: user_id as string
+    })
+
+    const receivedWithProfiles = await Promise.all(receivedRequests.map(async (req) => {
+      const customer = await customerModuleService.retrieveCustomer(req.sender_id)
+      const personalInfo = await personalInfoService.listPersonalInformations({
+        customer_id: req.sender_id
+      })
+      return {
+        id: req.id,
+        sender_id: req.sender_id,
+        receiver_id: req.receiver_id,
+        status: req.status,
+        message: req.message,
+        created_at: req.created_at,
+        sender: {
+          ...customer,
+          avatar_url: personalInfo[0]?.avatar_url || null,
+        }
+      }
+    }))
+
     return res.status(200).json({
       success: true,
-      sent_requests: dataCustomer,
+      sent: sentWithProfiles,
+      received: receivedWithProfiles,
     })
     
   } catch (error: any) {

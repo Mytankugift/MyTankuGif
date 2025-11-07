@@ -6,6 +6,7 @@ export interface UpdatePersonalInfoInput {
   customer_id: string;
   avatar_url?: string;
   status_message?: string;
+  pseudonym?: string;
   banner_profile_url?: string;
   social_url?: any;
   birthday?: Date;
@@ -45,6 +46,9 @@ export const updatePersonalInfoStep = createStep(
         }
         if (data.status_message !== undefined) {
           updateData.status_message = data.status_message;
+        }
+        if (data.pseudonym !== undefined) {
+          updateData.pseudonym = data.pseudonym;
         }
         if (data.banner_profile_url !== undefined) {
           updateData.banner_profile_url = data.banner_profile_url;
@@ -97,6 +101,7 @@ export const updatePersonalInfoStep = createStep(
           customer_id: data.customer_id,
           avatar_url: data.avatar_url,
           status_message: data.status_message,
+          pseudonym: data.pseudonym,
           banner_profile_url: data.banner_profile_url,
           social_url: data.social_url,
           birthday: data.birthday,

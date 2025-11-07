@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import SelectableUsersList, { SelectableUser } from "../components/SelectableUsersList"
 import { getPublicWishlists, PublicWishlist, WishlistProduct } from "../../../../../social/actions/get-public-wishlists"
 import { getProductSuggestions, ProductSuggestion } from "../../../../../social/actions/get-product-suggestions"
@@ -11,6 +12,7 @@ import { usePayment } from "../hooks/usePayment"
 import { useStalkerGift } from "../../../../../../lib/context"
 import { createStalkerGift, CreateStalkerGiftData } from "../../../actions/create-stalker-gift"
 import { retrieveCustomer } from "@lib/data/customer"
+import { getCommonGroups, FriendGroup } from "../../../../../layout/components/actions/friend-groups"
 
 interface ForTankuUserViewProps {
   onBack: () => void
@@ -18,7 +20,7 @@ interface ForTankuUserViewProps {
 }
 
 export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }: ForTankuUserViewProps) {
-  const { personalInfo } = usePersonalInfo()
+  const { personalInfo, updatePseudonym } = usePersonalInfo()
   const { stalkerGiftData, setAlias, setRecipientName, setMessage, toggleProductSelection: contextToggleProductSelection } = useStalkerGift()
   
   // Hook de pago
@@ -44,10 +46,14 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
   const [showWishlists, setShowWishlists] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedProducts, setSelectedProducts] = useState<Array<WishlistProduct | ProductSuggestion & { quantity?: number }>>([])
+  const [commonGroups, setCommonGroups] = useState<FriendGroup[]>([])
+  const [loadingCommonGroups, setLoadingCommonGroups] = useState(false)
   const [pseudonym, setPseudonym] = useState("")
   const [showPseudonymInput, setShowPseudonymInput] = useState(false)
   const [showPseudonymPopup, setShowPseudonymPopup] = useState(false)
   const [tempPseudonym, setTempPseudonym] = useState("")
+  const [pseudonymError, setPseudonymError] = useState<string | null>(null)
+  const [pseudonymSaving, setPseudonymSaving] = useState(false)
   const [currentView, setCurrentView] = useState<'selection' | 'checkout' | 'payment' | 'summary'>('selection')
   const [orderId, setOrderId] = useState("")
   const [localSelectedPaymentMethod, setLocalSelectedPaymentMethod] = useState<string>("")
@@ -55,6 +61,13 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
 
   // Obtener el nombre real del usuario actual
   const realUserName = personalInfo ? `${personalInfo.first_name} ${personalInfo.last_name}`.trim() : currentUserName
+
+  // Prefill con seudónimo guardado si existe
+  useEffect(() => {
+    if (!pseudonym && personalInfo?.pseudonym) {
+      setPseudonym(personalInfo.pseudonym)
+    }
+  }, [personalInfo?.pseudonym, pseudonym])
 
   // Efecto para manejar cuando el pago se complete
   useEffect(() => {
@@ -71,8 +84,35 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
     setSelectedProducts([]) // Limpiar productos seleccionados al cambiar usuario
     setPseudonym("") // Limpiar seudónimo al cambiar usuario
     setShowPseudonymInput(false) // Cerrar input de seudónimo si está abierto
+    setCommonGroups([]) // Limpiar grupos en común
     
     try {
+      // Si es amigo, cargar grupos en común
+      if (user.is_friend && personalInfo?.id) {
+        console.log("Cargando grupos en común para:", {
+          userId: personalInfo.id,
+          friendId: user.id,
+          isFriend: user.is_friend
+        })
+        setLoadingCommonGroups(true)
+        try {
+          const groups = await getCommonGroups(personalInfo.id, user.id)
+          console.log("Grupos en común encontrados:", groups)
+          setCommonGroups(groups)
+        } catch (error) {
+          console.error("Error al cargar grupos en común:", error)
+          setCommonGroups([])
+        } finally {
+          setLoadingCommonGroups(false)
+        }
+      } else {
+        console.log("No se cargan grupos en común:", {
+          isFriend: user.is_friend,
+          hasPersonalInfo: !!personalInfo?.id,
+          personalInfoId: personalInfo?.id
+        })
+      }
+      
       // Intentar obtener wishlists públicas
       const wishlistsResponse = await getPublicWishlists(user.id)
       
@@ -158,11 +198,30 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
     return (product as any)?.quantity || 1
   }
 
-  const handlePseudonymSubmit = () => {
-    if (pseudonym.trim().length >= 2) {
+  const handlePseudonymSubmit = async () => {
+    const value = pseudonym.trim()
+    if (value.length < 2) {
+      setPseudonymError("El seudónimo debe tener al menos 2 caracteres")
+      return
+    }
+    if (value.length > 40) {
+      setPseudonymError("El seudónimo no puede exceder 40 caracteres")
+      return
+    }
+    setPseudonymError(null)
+    try {
+      setPseudonymSaving(true)
+      // Persistir vía contexto
+      if (updatePseudonym) {
+        const resp = await updatePseudonym(value)
+        if (!resp.success) {
+          setPseudonymError(resp.error || "No se pudo guardar el seudónimo")
+          return
+        }
+      }
       setShowPseudonymInput(false)
-    } else {
-      alert("El seudónimo debe tener al menos 2 caracteres")
+    } finally {
+      setPseudonymSaving(false)
     }
   }
 
@@ -171,39 +230,9 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
       alert("Por favor selecciona al menos un producto")
       return
     }
-    
-    // Validar que el seudónimo esté presente
-    if (!pseudonym || pseudonym.trim().length < 2) {
-      setTempPseudonym(pseudonym) // Guardar el valor actual
-      setShowPseudonymPopup(true) // Mostrar popup
-      return
-    }
-    
-    // Sincronizar datos con el contexto de stalker gift
-    setAlias(pseudonym)
-    setRecipientName(selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : "")
-    
-    // Sincronizar productos seleccionados con el contexto
-    selectedProducts.forEach(product => {
-      if (!stalkerGiftData.selectedProducts.some(p => p.id === product.id)) {
-        // Convertir el producto al formato esperado por el contexto
-        const contextProduct = {
-          id: product.id,
-          handle: product.id, // Usar ID como handle
-          title: product.title,
-          thumbnail: product.thumbnail,
-          variants: product.variants?.map(variant => ({
-            inventory: variant.inventory ? {
-              price: variant.inventory.price,
-              currency_code: variant.inventory.currency_code || 'COP'
-            } : undefined
-          })) || []
-        }
-        contextToggleProductSelection(contextProduct)
-      }
-    })
-    
-    setCurrentView('checkout')
+    // Siempre pedir confirmación del seudónimo en popup (aun si ya existe)
+    setTempPseudonym(pseudonym)
+    setShowPseudonymPopup(true)
   }
 
   const handleProceedToPayment = () => {
@@ -318,14 +347,49 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
     })
   }
 
-  const handlePseudonymPopupSubmit = () => {
-    if (tempPseudonym.trim().length >= 2) {
-      setPseudonym(tempPseudonym.trim())
-      setShowPseudonymPopup(false)
-      setCurrentView('checkout') // Continuar al checkout
-    } else {
+  const handlePseudonymPopupSubmit = async () => {
+    const value = tempPseudonym.trim()
+    if (value.length < 2) {
       alert("El seudónimo debe tener al menos 2 caracteres")
+      return
     }
+    if (value.length > 40) {
+      alert("El seudónimo no puede exceder 40 caracteres")
+      return
+    }
+    // Persistir en perfil antes de continuar
+    if (updatePseudonym) {
+      const resp = await updatePseudonym(value)
+      if (!resp.success) {
+        alert(resp.error || 'No se pudo guardar el seudónimo')
+        return
+      }
+    }
+    setPseudonym(value)
+    setAlias(value)
+    if (selectedUser) {
+      setRecipientName(`${selectedUser.first_name} ${selectedUser.last_name}`)
+    }
+    // Sincronizar productos seleccionados con el contexto
+    selectedProducts.forEach(product => {
+      if (!stalkerGiftData.selectedProducts.some(p => p.id === product.id)) {
+        const contextProduct = {
+          id: product.id,
+          handle: product.id,
+          title: product.title,
+          thumbnail: product.thumbnail,
+          variants: product.variants?.map(variant => ({
+            inventory: variant.inventory ? {
+              price: variant.inventory.price,
+              currency_code: variant.inventory.currency_code || 'COP'
+            } : undefined
+          })) || []
+        }
+        contextToggleProductSelection(contextProduct)
+      }
+    })
+    setShowPseudonymPopup(false)
+    setCurrentView('checkout')
   }
 
   const handlePseudonymPopupCancel = () => {
@@ -373,20 +437,83 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
             
             <div className="space-y-4">
               <div className="flex items-center space-x-4">
-                <div className="relative w-12 h-12">
-                  <img
-                    src="/feed/avatar.png"
+                <div className="relative w-12 h-12 flex-shrink-0">
+                  <Image
+                    src={selectedUser.avatar_url || "/feed/avatar.png"}
                     alt={`${selectedUser.first_name} ${selectedUser.last_name}`}
-                    className="w-full h-full rounded-full object-cover border-2 border-[#66DEDB]"
+                    width={48}
+                    height={48}
+                    className="rounded-full object-cover border-2 border-[#66DEDB] w-12 h-12"
+                    style={{ aspectRatio: '1/1' }}
                   />
                 </div>
-                <div>
-                  <h4 className="text-lg font-semibold text-white">
-                    {selectedUser.first_name} {selectedUser.last_name}
-                  </h4>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="text-lg font-semibold text-white">
+                      {selectedUser.first_name} {selectedUser.last_name}
+                    </h4>
+                    {selectedUser.is_friend && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#66DEDB]/20 text-[#66DEDB] border border-[#66DEDB]/30">
+                        Amigos
+                      </span>
+                    )}
+                  </div>
                   <p className="text-gray-400 text-sm">{selectedUser.email}</p>
                 </div>
               </div>
+              
+              {/* Grupos en común - Solo si es amigo */}
+              {selectedUser.is_friend && (
+                <div className="bg-[#1E1E1E]/50 rounded-lg p-4">
+                  <h5 className="text-sm font-medium text-[#66DEDB] mb-2">
+                    Grupos en común
+                  </h5>
+                  {loadingCommonGroups ? (
+                    <div className="flex items-center gap-2 text-gray-400 text-sm">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#66DEDB]"></div>
+                      Cargando grupos...
+                    </div>
+                  ) : commonGroups.length > 0 ? (
+                    <div className="space-y-2">
+                      {commonGroups.map((group) => (
+                        <div
+                          key={group.id}
+                          className="flex items-center gap-2 p-2 bg-[#1E1E1E]/30 rounded-lg hover:bg-[#1E1E1E]/50 transition-colors"
+                        >
+                          {group.image_url ? (
+                            <Image
+                              src={group.image_url}
+                              alt={group.group_name}
+                              width={24}
+                              height={24}
+                              className="rounded-lg object-cover w-6 h-6"
+                            />
+                          ) : (
+                            <div className="w-6 h-6 bg-gradient-to-r from-[#1A485C] to-[#73FFA2] rounded-lg flex items-center justify-center">
+                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                              </svg>
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <p className="text-white text-sm font-medium">{group.group_name}</p>
+                            {group.description && (
+                              <p className="text-gray-400 text-xs truncate">{group.description}</p>
+                            )}
+                          </div>
+                          {group.is_private && (
+                            <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 text-sm">No hay grupos en común</p>
+                  )}
+                </div>
+              )}
               
               <div className="bg-[#1E1E1E]/50 rounded-lg p-4">
                 <h5 className="text-sm font-medium text-[#66DEDB] mb-2">Remitente:</h5>
@@ -556,17 +683,27 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
         {selectedUser && (
           <div className="mt-6 bg-[#262626]/30 rounded-xl p-4 border border-[#66DEDB]/20">
             <div className="flex items-center space-x-4">
-              <div className="relative w-12 h-12">
-                <img
-                  src="/feed/avatar.png"
+              <div className="relative w-12 h-12 flex-shrink-0">
+                <Image
+                  src={selectedUser.avatar_url || "/feed/avatar.png"}
                   alt={`${selectedUser.first_name} ${selectedUser.last_name}`}
-                  className="w-full h-full rounded-full object-cover border-2 border-[#66DEDB]"
+                  width={48}
+                  height={48}
+                  className="rounded-full object-cover border-2 border-[#66DEDB] w-12 h-12"
+                  style={{ aspectRatio: '1/1' }}
                 />
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">
-                  {selectedUser.first_name} {selectedUser.last_name}
-                </h3>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-lg font-bold text-white">
+                    {selectedUser.first_name} {selectedUser.last_name}
+                  </h3>
+                  {selectedUser.is_friend && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#66DEDB]/20 text-[#66DEDB] border border-[#66DEDB]/30">
+                      Amigos
+                    </span>
+                  )}
+                </div>
                 <p className="text-gray-400 text-sm">{selectedUser.email}</p>
                 <p className="text-[#66DEDB] text-xs">ID: {selectedUser.id}</p>
               </div>
@@ -579,6 +716,59 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                 </div>
               </div>
             </div>
+            
+            {/* Grupos en común - Solo si es amigo */}
+            {selectedUser.is_friend && (
+              <div className="mt-4 bg-[#1E1E1E]/50 rounded-lg p-4 border border-[#66DEDB]/20">
+                <h5 className="text-sm font-medium text-[#66DEDB] mb-2">
+                  Grupos en común
+                </h5>
+                {loadingCommonGroups ? (
+                  <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#66DEDB]"></div>
+                    Cargando grupos...
+                  </div>
+                ) : commonGroups.length > 0 ? (
+                  <div className="space-y-2">
+                    {commonGroups.map((group) => (
+                      <div
+                        key={group.id}
+                        className="flex items-center gap-2 p-2 bg-[#1E1E1E]/30 rounded-lg hover:bg-[#1E1E1E]/50 transition-colors"
+                      >
+                        {group.image_url ? (
+                          <Image
+                            src={group.image_url}
+                            alt={group.group_name}
+                            width={24}
+                            height={24}
+                            className="rounded-lg object-cover w-6 h-6"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 bg-gradient-to-r from-[#1A485C] to-[#73FFA2] rounded-lg flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                            </svg>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <p className="text-white text-sm font-medium">{group.group_name}</p>
+                          {group.description && (
+                            <p className="text-gray-400 text-xs truncate">{group.description}</p>
+                          )}
+                        </div>
+                        {group.is_private && (
+                          <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">No hay grupos en común</p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -618,22 +808,35 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                   <input
                     type="text"
                     value={pseudonym}
-                    onChange={(e) => setPseudonym(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setPseudonym(v)
+                      if (!v.trim()) {
+                        setPseudonymError("El seudónimo es obligatorio")
+                      } else if (v.trim().length < 2) {
+                        setPseudonymError("Mínimo 2 caracteres")
+                      } else if (v.trim().length > 40) {
+                        setPseudonymError("Máximo 40 caracteres")
+                      } else {
+                        setPseudonymError(null)
+                      }
+                    }}
                     placeholder="Ej: Un amigo secreto, Tu crush, etc."
                     className="w-full px-4 py-3 bg-[#1E1E1E] border border-[#66DEDB]/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#66DEDB] focus:border-transparent"
-                    maxLength={50}
+                    maxLength={40}
                     required
                   />
-                  <p className="text-gray-400 text-xs mt-1">
-                    Máximo 50 caracteres. Este campo es obligatorio.
+                  <p className={`text-xs mt-1 ${pseudonymError ? 'text-red-400' : 'text-gray-400'}`}>
+                    {pseudonymError ? pseudonymError : 'Máximo 40 caracteres. Este campo es obligatorio.'}
                   </p>
                 </div>
                 <div className="flex space-x-3">
                   <button
                     onClick={handlePseudonymSubmit}
-                    className="bg-[#66DEDB] text-white px-6 py-2 rounded-lg hover:bg-[#5FE085] transition-colors"
+                    disabled={!!pseudonymError || pseudonymSaving}
+                    className={`px-6 py-2 rounded-lg transition-colors ${pseudonymError || pseudonymSaving ? 'bg-[#66DEDB]/50 cursor-not-allowed' : 'bg-[#66DEDB] hover:bg-[#5FE085]'} text-white`}
                   >
-                    Confirmar
+                    {pseudonymSaving ? 'Guardando...' : 'Confirmar'}
                   </button>
                   <button
                     onClick={() => setShowPseudonymInput(false)}
@@ -848,7 +1051,7 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
 
       </div>
 
-      {/* Popup de Seudónimo Obligatorio */}
+      {/* Popup de confirmación/ingreso de Seudónimo */}
       {showPseudonymPopup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1E1E1E] rounded-xl p-6 w-full max-w-md border border-[#66DEDB]/30">
@@ -857,14 +1060,20 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                 <span className="text-2xl">🎭</span>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Seudónimo Requerido</h3>
-                <p className="text-gray-400 text-sm">Necesitas un seudónimo para continuar</p>
+                <h3 className="text-lg font-bold text-white">
+                  {personalInfo?.pseudonym ? 'Confirmar seudónimo' : 'Seudónimo Requerido'}
+                </h3>
+                <p className="text-gray-400 text-sm">
+                  {personalInfo?.pseudonym
+                    ? 'Este es tu último seudónimo usado. ¿Quieres seguir usándolo o cambiarlo antes de continuar?'
+                    : 'Necesitas un seudónimo para continuar'}
+                </p>
               </div>
             </div>
             
             <div className="mb-6">
               <label className="block text-white text-sm font-medium mb-2">
-                Ingresa tu seudónimo <span className="text-red-400">*</span>
+                {personalInfo?.pseudonym ? 'Confirma o edita tu seudónimo' : 'Ingresa tu seudónimo'} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -872,7 +1081,7 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                 onChange={(e) => setTempPseudonym(e.target.value)}
                 placeholder="Ej: Un amigo secreto, Tu crush, etc."
                 className="w-full px-4 py-3 bg-[#262626] border border-[#66DEDB]/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#66DEDB] focus:border-transparent"
-                maxLength={50}
+                maxLength={40}
                 autoFocus
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
@@ -881,7 +1090,7 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                 }}
               />
               <p className="text-gray-400 text-xs mt-1">
-                Máximo 50 caracteres. Este campo es obligatorio.
+                Máximo 40 caracteres. Este campo es obligatorio.
               </p>
             </div>
 
@@ -890,13 +1099,13 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                 onClick={handlePseudonymPopupCancel}
                 className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
               >
-                Cancelar
+                {personalInfo?.pseudonym ? 'Volver' : 'Cancelar'}
               </button>
               <button
                 onClick={handlePseudonymPopupSubmit}
                 className="flex-1 bg-[#66DEDB] text-white px-4 py-2 rounded-lg hover:bg-[#5FE085] transition-colors"
               >
-                Continuar
+                {personalInfo?.pseudonym ? 'Usar este seudónimo' : 'Continuar'}
               </button>
             </div>
           </div>

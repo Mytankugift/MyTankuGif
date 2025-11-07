@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { WishlistProduct } from "../../../../../social/actions/get-public-wishlists"
 import { ProductSuggestion } from "../../../../../social/actions/get-product-suggestions"
 
@@ -9,6 +10,8 @@ interface SelectableUser {
   first_name: string
   last_name: string
   email: string
+  avatar_url?: string | null
+  is_friend?: boolean
 }
 
 interface CheckoutViewProps {
@@ -97,17 +100,27 @@ export default function CheckoutView({
             Destinatario
           </h3>
           <div className="flex items-center space-x-4 mb-4">
-            <div className="relative w-16 h-16">
-              <img
-                src="/feed/avatar.png"
+            <div className="relative w-16 h-16 flex-shrink-0">
+              <Image
+                src={selectedUser.avatar_url || "/feed/avatar.png"}
                 alt={`${selectedUser.first_name} ${selectedUser.last_name}`}
-                className="w-full h-full rounded-full object-cover border-2 border-[#66DEDB]"
+                width={64}
+                height={64}
+                className="rounded-full object-cover border-2 border-[#66DEDB] w-16 h-16"
+                style={{ aspectRatio: '1/1' }}
               />
             </div>
-            <div>
-              <h4 className="text-lg font-semibold text-white">
-                {selectedUser.first_name} {selectedUser.last_name}
-              </h4>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h4 className="text-lg font-semibold text-white">
+                  {selectedUser.first_name} {selectedUser.last_name}
+                </h4>
+                {selectedUser.is_friend && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#66DEDB]/20 text-[#66DEDB] border border-[#66DEDB]/30">
+                    Amigos
+                  </span>
+                )}
+              </div>
               <p className="text-gray-400 text-sm">{selectedUser.email}</p>
             </div>
           </div>

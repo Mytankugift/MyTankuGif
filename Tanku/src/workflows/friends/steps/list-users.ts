@@ -19,9 +19,12 @@ export const listUsersStep = createStep(
       const data = await personalInfoService.listPersonalInformations({
         customer_id: customer.id
       })
+      const social = (data && data[0] && (data[0] as any).social_url) ? (data[0] as any).social_url : null
+      const alias = social?.public_alias || social?.alias || ""
       return {
         ...customer,
-        avatar_url: (data && data[0] && data[0].avatar_url) ? data[0].avatar_url : ""
+        avatar_url: (data && data[0] && data[0].avatar_url) ? data[0].avatar_url : "",
+        alias
       }
     }))
     // Extrae los nombres
@@ -30,7 +33,8 @@ export const listUsersStep = createStep(
       first_name: customer.first_name,
       last_name: customer.last_name,
       avatar_url: customer.avatar_url,
-      email: customer.email
+      email: customer.email,
+      alias: (customer as any).alias
     }))
     return new StepResponse(customerNames, null)
   }

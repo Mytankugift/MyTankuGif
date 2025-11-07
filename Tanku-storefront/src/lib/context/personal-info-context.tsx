@@ -22,6 +22,7 @@ interface PersonalInfo extends HttpTypes.StoreCustomer {
   favorite_colors?: any
   favorite_activities?: any
   friends_count?: number
+  pseudonym?: string
 }
 
 // Unified user data structure
@@ -64,6 +65,7 @@ export interface PersonalInfoContextType {
   refreshPersonalInfo: () => Promise<void>
   clearPersonalInfo: () => void
   updateLocalPersonalInfo: (updates: Partial<PersonalInfo>) => void
+  updatePseudonym?: (pseudonym: string) => Promise<{ success: boolean; error?: string }>
 
   // Unified user getter
   getUser: () => UserData | null
@@ -98,12 +100,8 @@ export const PersonalInfoProvider: React.FC<PersonalInfoProviderProps> = ({ chil
       const customer = await retrieveCustomer()
       
       if (customer) {
-        console.log('✅ Customer data retrieved:', customer.email)
-        
         // Get additional personal info from dedicated endpoint
-        console.log('🔄 Calling getPersonalInfo for customer ID:', customer.id)
         const personalInfoResult = await getPersonalInfo(customer.id)
-        console.log('📋 getPersonalInfo result:', personalInfoResult)
         
         // Start with customer data extended with metadata fields
         const extendedInfo: PersonalInfo = {
@@ -119,18 +117,9 @@ export const PersonalInfoProvider: React.FC<PersonalInfoProviderProps> = ({ chil
           friends_count: (customer.metadata?.friends_count as number) || undefined,
         }
         
-        console.log('📋 Base extended info from customer metadata:', {
-          avatar_url: extendedInfo.avatar_url,
-          status_message: extendedInfo.status_message,
-          bio: extendedInfo.bio,
-          location: extendedInfo.location
-        })
-        
         // If we have additional personal info from the dedicated endpoint, merge it
         if (personalInfoResult.success && personalInfoResult.data) {
-          console.log('✅ Additional personal info retrieved from endpoint')
           const personalData = personalInfoResult.data
-          console.log('📋 Personal data from endpoint:', personalData)
           
           // Merge the additional personal info, giving priority to the dedicated endpoint data
           const mergedData = {
@@ -148,25 +137,17 @@ export const PersonalInfoProvider: React.FC<PersonalInfoProviderProps> = ({ chil
             favorite_colors: personalData.favorite_colors,
             favorite_activities: personalData.favorite_activities,
             friends_count: personalData.friends_count,
+            pseudonym: personalData.pseudonym,
           }
           
           Object.assign(extendedInfo, mergedData)
-          console.log('📋 Final merged data:', mergedData)
-          console.log('✅ Personal info merged successfully with additional data')
-        } else {
-          console.log('⚠️ No additional personal info found or failed to retrieve')
-          console.log('📋 getPersonalInfo error details:', personalInfoResult.error)
-          console.log('📋 Using customer metadata only')
         }
         
         setPersonalInfo(extendedInfo)
-        console.log('✅ Complete personal info refreshed successfully:', extendedInfo.email)
       } else {
         setPersonalInfo(null)
-        console.log('ℹ️ No authenticated user found')
       }
     } catch (err) {
-      console.error('❌ Error refreshing personal info:', err)
       setError(err instanceof Error ? err.message : 'Failed to refresh personal info')
       setPersonalInfo(null)
     } finally {
@@ -179,7 +160,6 @@ export const PersonalInfoProvider: React.FC<PersonalInfoProviderProps> = ({ chil
     setPersonalInfoState(null)
     setError(null)
     setIsLoading(false)
-    console.log('🧹 Personal info cleared')
   }, [])
 
   // Update local personal info without server call
@@ -189,6 +169,23 @@ export const PersonalInfoProvider: React.FC<PersonalInfoProviderProps> = ({ chil
       return { ...prev, ...updates }
     })
   }, [])
+
+  // Server updater for pseudonym
+  const updatePseudonym = useCallback(async (pseudonym: string) => {
+    try {
+      const customer = await retrieveCustomer()
+      if (!customer) return { success: false, error: 'No autenticado' }
+      const { updatePseudonym: updatePseudonymAction } = await import('@modules/personal-info/actions/update-pseudonym')
+      const resp = await updatePseudonymAction({ customer_id: customer.id, pseudonym })
+      if (resp.success) {
+        updateLocalPersonalInfo({ pseudonym })
+        return { success: true }
+      }
+      return { success: false, error: resp.error || 'No se pudo actualizar' }
+    } catch (e) {
+      return { success: false, error: 'Error de conexión' }
+    }
+  }, [updateLocalPersonalInfo])
 
   // Unified user getter - contains all user data in organized structure
   const getUser = useCallback(() => {
@@ -245,6 +242,7 @@ export const PersonalInfoProvider: React.FC<PersonalInfoProviderProps> = ({ chil
     refreshPersonalInfo,
     clearPersonalInfo,
     updateLocalPersonalInfo,
+    updatePseudonym,
 
     // Unified user getter
     getUser,

@@ -309,6 +309,45 @@ export const inviteToGroup = async (inviteData: InviteToGroupData) => {
   }
 }
 
+// Get common groups between two users
+export const getCommonGroups = async (userId1: string, userId2: string): Promise<FriendGroup[]> => {
+  try {
+    console.log("getCommonGroups llamado con:", { userId1, userId2 })
+    
+    // Obtener grupos de ambos usuarios en paralelo
+    const [user1Groups, user2Groups] = await Promise.all([
+      getFriendGroups(userId1),
+      getFriendGroups(userId2)
+    ])
+
+    console.log("Grupos obtenidos:", {
+      user1Groups: user1Groups.success ? user1Groups.groups.length : 0,
+      user2Groups: user2Groups.success ? user2Groups.groups.length : 0,
+      user1GroupsList: user1Groups.success ? user1Groups.groups.map(g => ({ id: g.id, name: g.group_name })) : [],
+      user2GroupsList: user2Groups.success ? user2Groups.groups.map(g => ({ id: g.id, name: g.group_name })) : []
+    })
+
+    if (!user1Groups.success || !user2Groups.success) {
+      console.log("Error obteniendo grupos:", {
+        user1Success: user1Groups.success,
+        user2Success: user2Groups.success
+      })
+      return []
+    }
+
+    // Encontrar grupos en común (mismo group_id)
+    const user1GroupIds = new Set(user1Groups.groups.map(g => g.id))
+    const commonGroups = user2Groups.groups.filter(g => user1GroupIds.has(g.id))
+
+    console.log("Grupos en común encontrados:", commonGroups.length, commonGroups.map(g => ({ id: g.id, name: g.group_name })))
+
+    return commonGroups
+  } catch (error) {
+    console.error("Error al obtener grupos en común:", error)
+    return []
+  }
+}
+
 // Get group members
 export const getGroupMembers = async (groupId: string) => {
   try {
@@ -341,6 +380,46 @@ export const getGroupMembers = async (groupId: string) => {
       success: false,
       error: error instanceof Error ? error.message : "Error desconocido",
       members: [],
+    }
+  }
+}
+
+// Remove member from group
+export const removeMemberFromGroup = async (data: {
+  group_id: string
+  member_id: string
+  removed_by: string
+}) => {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/groups/members`,
+      {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "x-publishable-api-key":
+            process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
+        },
+        body: JSON.stringify(data),
+      }
+    )
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.error || "Error al eliminar miembro")
+    }
+
+    return {
+      success: true,
+      message: result.message,
+    }
+  } catch (error) {
+    console.error("Error al eliminar miembro:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error desconocido",
     }
   }
 }

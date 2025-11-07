@@ -4,6 +4,9 @@ import { getListUsers } from "../actions/get-list-users"
 import { sendFriendRequest } from "../actions/send-friend-request"
 import { acceptFriendRequest } from "../actions/accept-friend-request"
 import { getFriendRequests, FriendRequest } from "../actions/get-friend-requests"
+import { getFriends } from "../actions/get-friends"
+import { cancelFriendRequest } from "../actions/cancel-friend-request"
+import { unfriend } from "../actions/unfriend"
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { StoreCustomer } from "@medusajs/types"
@@ -35,8 +38,9 @@ type User = {
         // Cargar usuarios y solicitudes de amistad
         Promise.all([
             getListUsers(),
-            getFriendRequests(personalInfo.id)
-        ]).then(([usersData, friendRequestsData]) => {
+            getFriendRequests(personalInfo.id),
+            getFriends(personalInfo.id)
+        ]).then(([usersData, friendRequestsData, friendsData]) => {
             // Filtrar al usuario actual de la lista
             const filteredUsers = usersData.filter((user: User) => user.id !== personalInfo.id)
             setUsers(filteredUsers)
@@ -61,19 +65,9 @@ type User = {
             )
             setReceivedRequestIds(receivedIds)
             
-            // Crear set de IDs de usuarios que ya son amigos (solicitudes aceptadas)
-            const acceptedSentIds = new Set<string>(
-                friendRequestsData.sent
-                    .filter((req: FriendRequest) => req.status === 'accepted')
-                    .map((req: FriendRequest) => req.receiver_id)
-            )
-            const acceptedReceivedIds = new Set<string>(
-                friendRequestsData.received
-                    .filter((req: FriendRequest) => req.status === 'accepted')
-                    .map((req: FriendRequest) => req.sender_id)
-            )
-            const allFriendIds = new Set<string>([...Array.from(acceptedSentIds), ...Array.from(acceptedReceivedIds)])
-            setFriendIds(allFriendIds)
+            // IDs de amigos reales (tabla friend)
+            const realFriendIds = new Set<string>(friendsData.map((f: any) => f.friend_customer_id))
+            setFriendIds(realFriendIds)
         })
     }, [personalInfo])
 
@@ -156,6 +150,34 @@ type User = {
         }
     }
 
+    const handleCancelFriendRequest = async (userId: string) => {
+        if (!personalInfo) return
+        try {
+            await cancelFriendRequest(personalInfo.id, userId)
+            setSentRequestIds(prev => {
+                const s = new Set(Array.from(prev))
+                s.delete(userId)
+                return s
+            })
+        } catch (e: any) {
+            alert(e.message || 'No se pudo cancelar la solicitud')
+        }
+    }
+
+    const handleUnfriend = async (userId: string) => {
+        if (!personalInfo) return
+        try {
+            await unfriend(personalInfo.id, userId)
+            setFriendIds(prev => {
+                const s = new Set(Array.from(prev))
+                s.delete(userId)
+                return s
+            })
+        } catch (e: any) {
+            alert(e.message || 'No se pudo eliminar la amistad')
+        }
+    }
+
     return (
         <div className="p-6 bg-[#1E1E1E] min-h-screen">
             <h1 className="text-3xl font-bold text-white mb-8 text-center">Lista de Usuarios</h1>
@@ -200,9 +222,9 @@ type User = {
                                         </span>
                                     </div>
                                     {friendIds.has(user.id) ? (
-                                        <button 
+                                    <button 
                                             disabled
-                                            className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-medium cursor-not-allowed"
+                                            className="bg-[#66DEDB] text-black px-3 py-1 rounded-lg text-sm font-medium cursor-not-allowed"
                                         >
                                             Amigos
                                         </button>
@@ -246,26 +268,37 @@ type User = {
                         <div className="flex flex-col items-center text-center flex-grow">
                             <div className="relative w-16 h-16 mb-3">
                                 <Image
-                                    src="/feed/avatar.png"
+                                    src={(user as any).avatar_url || "/feed/avatar.png"}
                                     alt={`${user.first_name} ${user.last_name}`}
                                     fill
                                     className="rounded-full object-cover border-2 border-[#73FFA2]"
                                 />
                             </div>
-                            <h3 className="text-sm font-semibold text-white mb-2 flex-grow">
+                            <h3 className="text-sm font-semibold text-white mb-1 flex-grow">
                                 {user.first_name} {user.last_name}
                             </h3>
+                            <p className="text-xs text-gray-400 mb-2">
+                                @{((user as any).alias || (user as any).email?.split('@')[0] || 'usuario')}
+                            </p>
                         </div>
                         <div className="mt-auto">
                             {friendIds.has(user.id) ? (
                                 <div className="w-full text-center">
-                                    <button 
-                                        disabled
-                                        className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed mb-2"
-                                    >
-                                        Ya son Amigos
-                                    </button>
-                                    <div className="flex items-center justify-center text-xs text-blue-400">
+                                    <div className="space-y-2">
+                                        <button 
+                                            disabled
+                                            className="w-full bg-[#66DEDB] text-black px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed"
+                                        >
+                                            Ya son Amigos
+                                        </button>
+                                        <button
+                                            onClick={() => handleUnfriend(user.id)}
+                                            className="w-full bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                                        >
+                                            Eliminar amigo
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-center text-xs text-[#66DEDB]">
                                         <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                             <path fillRule="evenodd" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" clipRule="evenodd" />
                                         </svg>
@@ -280,21 +313,37 @@ type User = {
                                     >
                                         Aceptar Solicitud
                                     </button>
-                                    <div className="flex items-center justify-center text-xs text-green-400">
-                                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 2L3 7v11a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V7l-7-5z" clipRule="evenodd" />
-                                        </svg>
-                                        Te envió solicitud
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-green-400 flex items-center">
+                                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 2L3 7v11a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V7l-7-5z" clipRule="evenodd" />
+                                            </svg>
+                                            Te envió solicitud
+                                        </span>
+                                        <button
+                                            onClick={() => handleCancelFriendRequest(user.id)}
+                                            className="text-red-400 hover:text-red-300"
+                                        >
+                                            Rechazar
+                                        </button>
                                     </div>
                                 </div>
                             ) : sentRequestIds.has(user.id) ? (
                                 <div className="w-full text-center">
-                                    <button 
-                                        disabled
-                                        className="w-full bg-gray-600 text-gray-300 px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed mb-2"
-                                    >
-                                        Solicitud Enviada
-                                    </button>
+                                    <div className="space-y-2 mb-2">
+                                        <button 
+                                            disabled
+                                            className="w-full bg-[#66DEDB] text-black px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed"
+                                        >
+                                            Solicitud Enviada
+                                        </button>
+                                        <button 
+                                            onClick={() => handleCancelFriendRequest(user.id)}
+                                            className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-600"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
                                     <div className="flex items-center justify-center text-xs text-gray-400">
                                         <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -305,7 +354,7 @@ type User = {
                             ) : (
                                 <button 
                                     onClick={() => handleSendFriendRequest(user.id)}
-                                    className="w-full bg-[#66DEDB] text-gray-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#73FFA2] transition-colors duration-200"
+                                    className="w-full bg-[#73FFA2] hover:bg-[#66DEDB] text-black px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
                                 >
                                     Agregar Amigo
                                 </button>
