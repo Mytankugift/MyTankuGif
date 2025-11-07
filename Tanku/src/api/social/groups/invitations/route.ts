@@ -8,16 +8,11 @@ const getInvitationsSchema = z.object({
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   try {
-    const { user_id } = getInvitationsSchema.parse(req.query)
-
-    // Execute the workflow
-    const { result } = await getGroupInvitationsWorkflow(req.scope).run({
-      input: { user_id },
-    })
-
+    // In the new private classification model, there are no invitations
+    // This endpoint is kept for backward compatibility but always returns empty
     res.status(200).json({
       success: true,
-      invitations: result.invitations
+      invitations: []
     })
   } catch (error) {
     console.error("Error getting group invitations:", error)

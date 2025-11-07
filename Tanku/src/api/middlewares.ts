@@ -105,7 +105,14 @@ export default defineMiddlewares({
       method: ["POST"],
       matcher: "/social/groups/create",
       middlewares: [
-        multerMiddleware(upload.single("banner")),
+        multerMiddleware(upload.single("image")),
+      ],
+    },
+    {
+      method: ["PUT"],
+      matcher: "/social/groups/update",
+      middlewares: [
+        multerMiddleware(upload.single("image")),
       ],
     },
     {

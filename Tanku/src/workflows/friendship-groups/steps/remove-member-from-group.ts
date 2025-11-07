@@ -31,36 +31,10 @@ export const removeMemberFromGroupStep = createStep(
 
       const member = memberMembership[0]
 
-      // Check if the user removing has permission (must be admin or group creator)
-      const removerMembership = await friendshipGroupsModuleService.listFriendInGroups({
-        group_id: input.group_id,
-        customer_id: input.removed_by,
-        solicitation_status: "accepted",
-      })
-
-      if (removerMembership.length === 0) {
-        throw new Error("No tienes permisos para eliminar miembros de este grupo")
-      }
-
-      const remover = removerMembership[0]
-
-      // Check permissions: must be admin or group creator
-      if (remover.role !== "admin" && group.created_by !== input.removed_by) {
-        throw new Error("Solo los administradores pueden eliminar miembros del grupo")
-      }
-
-      // Prevent removing yourself if you're the only admin
-      if (member.customer_id === input.removed_by && member.role === "admin") {
-        // Check if there are other admins
-        const allAdmins = await friendshipGroupsModuleService.listFriendInGroups({
-          group_id: input.group_id,
-          role: "admin",
-          solicitation_status: "accepted",
-        })
-
-        if (allAdmins.length === 1) {
-          throw new Error("No puedes eliminarte a ti mismo si eres el único administrador del grupo")
-        }
+      // Check permissions: only the group creator can remove members (private classification model)
+      // In the new model, groups are private and only the creator manages them
+      if (group.created_by !== input.removed_by) {
+        throw new Error("Solo el creador del grupo puede eliminar miembros")
       }
 
       // Delete the member from the group

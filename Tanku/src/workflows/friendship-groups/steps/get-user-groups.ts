@@ -8,27 +8,25 @@ export const getUserGroupsStep = createStep(
     const friendshipGroupsModuleService: SocialModuleService = container.resolve(SOCIAL_MODULE)
 
     try {
-      // Get user's group memberships
-      const memberships = await friendshipGroupsModuleService.listFriendInGroups({
-        customer_id: input.user_id,
-        solicitation_status: "accepted",
-      })
-
-      // Get group details for each membership
-      const groupIds = memberships.map(membership => membership.group_id)
+      // Get groups created by the user (private classification model)
+      // In the new model, users only see groups they created
       const groups = await friendshipGroupsModuleService.listFriendshipGroups({
-        id: groupIds,
+        created_by: input.user_id,
       })
 
       // Enrich groups with membership info and member counts
       const enrichedGroups = await Promise.all(
         groups.map(async (group) => {
-          const membership = memberships.find(m => m.group_id === group.id)
+          // Get user's membership in this group (should exist as creator)
+          const memberships = await friendshipGroupsModuleService.listFriendInGroups({
+            group_id: group.id,
+            customer_id: input.user_id,
+          })
+          const membership = memberships[0]
           
-          // Get member count
+          // Get member count (all contacts in the group)
           const allMembers = await friendshipGroupsModuleService.listFriendInGroups({
             group_id: group.id,
-            solicitation_status: "accepted",
           })
 
           return {

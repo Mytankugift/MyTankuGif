@@ -23,12 +23,12 @@ export const createFriendshipGroupStep = createStep(
         is_private: input.is_private,
       })
 
-      // Add the creator as admin member
+      // Add the creator as admin member (private classification model)
+      // In the new model, there's no solicitation_status needed
       await friendshipGroupsModuleService.createFriendInGroups({
         group_id: group.id,
         customer_id: input.created_by,
         role: "admin",
-        solicitation_status: "accepted",
         joined_at: new Date(),
       })
       

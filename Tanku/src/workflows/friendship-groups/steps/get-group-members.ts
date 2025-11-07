@@ -15,10 +15,10 @@ export const getGroupMembersStep = createStep(
     const customerModuleService = container.resolve(Modules.CUSTOMER)
 
     try {
-      // Get all accepted members of the group
+      // Get all members of the group (private classification model)
+      // In the new model, there's no solicitation_status, contacts are added directly
       const memberships = await friendshipGroupsModuleService.listFriendInGroups({
         group_id: input.group_id,
-        solicitation_status: "accepted",
       })
 
       // Enrich with customer information
