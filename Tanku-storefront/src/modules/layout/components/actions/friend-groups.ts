@@ -95,10 +95,17 @@ export const getFriendGroups = async (userId: string) => {
       }
     )
 
-    const data = await response.json()
+    let data
+    try {
+      data = await response.json()
+    } catch (jsonError) {
+      // Si la respuesta no es JSON, intentar obtener el texto
+      const text = await response.text()
+      throw new Error(text || `Error ${response.status}: ${response.statusText}`)
+    }
     
     if (!response.ok) {
-      throw new Error(data.error || "Error al obtener grupos")
+      throw new Error(data.error || data.message || `Error ${response.status}: ${response.statusText}`)
     }
 
     return {
@@ -309,7 +316,47 @@ export const inviteToGroup = async (inviteData: InviteToGroupData) => {
   }
 }
 
-// Get common groups between two users
+// Get Red Tanku groups where user has classified a contact
+export const getUserRedTankuGroups = async (
+  userId: string, 
+  contactId: string
+): Promise<FriendGroup[]> => {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/groups/user-red-tanku-groups?user_id=${userId}&contact_id=${contactId}`,
+      {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "x-publishable-api-key": process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
+        },
+      }
+    )
+
+    let data
+    try {
+      data = await response.json()
+    } catch (jsonError) {
+      const text = await response.text()
+      throw new Error(text || `Error ${response.status}: ${response.statusText}`)
+    }
+    
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `Error ${response.status}: ${response.statusText}`)
+    }
+
+    return data.groups || []
+  } catch (error) {
+    console.error("Error al obtener Redes Tanku del usuario:", error)
+    return []
+  }
+}
+
+// Get common groups between two users (DEPRECATED - Mantenido para referencia)
+// Esta función ya no se usa en el modelo de Red Tanku (clasificación privada)
+// Se mantiene comentada por si se necesita en el futuro
+/*
 export const getCommonGroups = async (userId1: string, userId2: string): Promise<FriendGroup[]> => {
   try {
     console.log("getCommonGroups llamado con:", { userId1, userId2 })
@@ -347,6 +394,7 @@ export const getCommonGroups = async (userId1: string, userId2: string): Promise
     return []
   }
 }
+*/
 
 // Get group members
 export const getGroupMembers = async (groupId: string) => {

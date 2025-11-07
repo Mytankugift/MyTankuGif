@@ -12,7 +12,7 @@ import { usePayment } from "../hooks/usePayment"
 import { useStalkerGift } from "../../../../../../lib/context"
 import { createStalkerGift, CreateStalkerGiftData } from "../../../actions/create-stalker-gift"
 import { retrieveCustomer } from "@lib/data/customer"
-import { getCommonGroups, FriendGroup } from "../../../../../layout/components/actions/friend-groups"
+import { getUserRedTankuGroups, FriendGroup } from "../../../../../layout/components/actions/friend-groups"
 
 interface ForTankuUserViewProps {
   onBack: () => void
@@ -46,8 +46,8 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
   const [showWishlists, setShowWishlists] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedProducts, setSelectedProducts] = useState<Array<WishlistProduct | ProductSuggestion & { quantity?: number }>>([])
-  const [commonGroups, setCommonGroups] = useState<FriendGroup[]>([])
-  const [loadingCommonGroups, setLoadingCommonGroups] = useState(false)
+  const [userRedTankuGroups, setUserRedTankuGroups] = useState<FriendGroup[]>([])
+  const [loadingRedTankuGroups, setLoadingRedTankuGroups] = useState(false)
   const [pseudonym, setPseudonym] = useState("")
   const [showPseudonymInput, setShowPseudonymInput] = useState(false)
   const [showPseudonymPopup, setShowPseudonymPopup] = useState(false)
@@ -84,29 +84,29 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
     setSelectedProducts([]) // Limpiar productos seleccionados al cambiar usuario
     setPseudonym("") // Limpiar seudónimo al cambiar usuario
     setShowPseudonymInput(false) // Cerrar input de seudónimo si está abierto
-    setCommonGroups([]) // Limpiar grupos en común
+    setUserRedTankuGroups([]) // Limpiar Redes Tanku
     
     try {
-      // Si es amigo, cargar grupos en común
+      // Si es amigo, cargar Redes Tanku donde está clasificado
       if (user.is_friend && personalInfo?.id) {
-        console.log("Cargando grupos en común para:", {
+        console.log("Cargando Redes Tanku para:", {
           userId: personalInfo.id,
-          friendId: user.id,
+          contactId: user.id,
           isFriend: user.is_friend
         })
-        setLoadingCommonGroups(true)
+        setLoadingRedTankuGroups(true)
         try {
-          const groups = await getCommonGroups(personalInfo.id, user.id)
-          console.log("Grupos en común encontrados:", groups)
-          setCommonGroups(groups)
+          const groups = await getUserRedTankuGroups(personalInfo.id, user.id)
+          console.log("Redes Tanku encontradas:", groups)
+          setUserRedTankuGroups(groups)
         } catch (error) {
-          console.error("Error al cargar grupos en común:", error)
-          setCommonGroups([])
+          console.error("Error al cargar Redes Tanku:", error)
+          setUserRedTankuGroups([])
         } finally {
-          setLoadingCommonGroups(false)
+          setLoadingRedTankuGroups(false)
         }
       } else {
-        console.log("No se cargan grupos en común:", {
+        console.log("No se cargan Redes Tanku:", {
           isFriend: user.is_friend,
           hasPersonalInfo: !!personalInfo?.id,
           personalInfoId: personalInfo?.id
@@ -456,20 +456,20 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                 </div>
               </div>
               
-              {/* Grupos en común - Solo si es amigo */}
+              {/* En mis Redes Tanku - Solo si es amigo */}
               {selectedUser.is_friend && (
                 <div className="bg-[#1E1E1E]/50 rounded-lg p-4">
                   <h5 className="text-sm font-medium text-[#66DEDB] mb-2">
-                    Grupos en común
+                    En mis Redes Tanku
                   </h5>
-                  {loadingCommonGroups ? (
+                  {loadingRedTankuGroups ? (
                     <div className="flex items-center gap-2 text-gray-400 text-sm">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#66DEDB]"></div>
-                      Cargando grupos...
+                      Cargando Redes...
                     </div>
-                  ) : commonGroups.length > 0 ? (
+                  ) : userRedTankuGroups.length > 0 ? (
                     <div className="space-y-2">
-                      {commonGroups.map((group) => (
+                      {userRedTankuGroups.map((group) => (
                         <div
                           key={group.id}
                           className="flex items-center gap-2 p-2 bg-[#1E1E1E]/30 rounded-lg hover:bg-[#1E1E1E]/50 transition-colors"
@@ -504,7 +504,7 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-400 text-sm">No hay grupos en común</p>
+                    <p className="text-gray-400 text-sm">Esta persona no está clasificada en ninguna de tus Redes Tanku</p>
                   )}
                 </div>
               )}
@@ -711,20 +711,20 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
               </div>
             </div>
             
-            {/* Grupos en común - Solo si es amigo */}
+            {/* En mis Redes Tanku - Solo si es amigo */}
             {selectedUser.is_friend && (
               <div className="mt-4 bg-[#1E1E1E]/50 rounded-lg p-4 border border-[#66DEDB]/20">
                 <h5 className="text-sm font-medium text-[#66DEDB] mb-2">
-                  Grupos en común
+                  En mis Redes Tanku
                 </h5>
-                {loadingCommonGroups ? (
+                {loadingRedTankuGroups ? (
                   <div className="flex items-center gap-2 text-gray-400 text-sm">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#66DEDB]"></div>
-                    Cargando grupos...
+                    Cargando Redes...
                   </div>
-                ) : commonGroups.length > 0 ? (
+                ) : userRedTankuGroups.length > 0 ? (
                   <div className="space-y-2">
-                    {commonGroups.map((group) => (
+                    {userRedTankuGroups.map((group) => (
                       <div
                         key={group.id}
                         className="flex items-center gap-2 p-2 bg-[#1E1E1E]/30 rounded-lg hover:bg-[#1E1E1E]/50 transition-colors"
