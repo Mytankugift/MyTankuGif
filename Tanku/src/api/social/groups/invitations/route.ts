@@ -1,5 +1,4 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { getGroupInvitationsWorkflow } from "../../../../workflows/friendship-groups"
 import { z } from "zod"
 
 const getInvitationsSchema = z.object({

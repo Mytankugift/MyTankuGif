@@ -1,5 +1,4 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { respondToGroupInvitationWorkflow } from "../../../../../workflows/friendship-groups"
 import { z } from "zod"
 
 const respondToInvitationSchema = z.object({
@@ -13,14 +12,11 @@ export async function PUT(req: MedusaRequest, res: MedusaResponse) {
   try {
     const validatedData = respondToInvitationSchema.parse(req.body)
 
-    // Execute the workflow
-    const { result } = await respondToGroupInvitationWorkflow(req.scope).run({
-      input: validatedData,
-    })
-
+    // Workflow de invitaciones deshabilitado - ver DOCUMENTACION_INVITACIONES_FUTURO.md
+    // En el nuevo modelo de clasificación privada, no hay invitaciones
     res.status(200).json({
       success: true,
-      message: result.message
+      message: "Las invitaciones no están disponibles en el modelo actual"
     })
   } catch (error) {
     console.error("Error responding to group invitation:", error)
