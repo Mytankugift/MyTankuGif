@@ -116,6 +116,13 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
       // Intentar obtener wishlists públicas
       const wishlistsResponse = await getPublicWishlists(user.id)
       
+      // Siempre cargar sugerencias de productos (15 productos)
+      const suggestionsResponse = await getProductSuggestions(15)
+      if (suggestionsResponse.success) {
+        setProductSuggestions(suggestionsResponse.data)
+        setShowSuggestions(true)
+      }
+      
       if (wishlistsResponse.success && wishlistsResponse.data.length > 0) {
         // Verificar si las wishlists tienen productos
         const wishlistsWithProducts = wishlistsResponse.data.filter(wishlist => 
@@ -123,30 +130,17 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
         )
         
         if (wishlistsWithProducts.length > 0) {
-          // Hay wishlists con productos - solo mostrar wishlists
+          // Hay wishlists con productos - mostrar wishlists Y sugerencias
           setWishlists(wishlistsWithProducts)
           setShowWishlists(true)
-          setShowSuggestions(false)
         } else {
           // Hay wishlists pero están vacías - mostrar wishlists vacías + sugerencias
           setWishlists(wishlistsResponse.data)
           setShowWishlists(true)
-          
-          // También obtener sugerencias
-          const suggestionsResponse = await getProductSuggestions(15)
-          if (suggestionsResponse.success) {
-            setProductSuggestions(suggestionsResponse.data)
-            setShowSuggestions(true)
-          }
         }
       } else {
         // No hay wishlists públicas - solo mostrar sugerencias
-        const suggestionsResponse = await getProductSuggestions(15)
-        if (suggestionsResponse.success) {
-          setProductSuggestions(suggestionsResponse.data)
-          setShowSuggestions(true)
-          setShowWishlists(false)
-        }
+        setShowWishlists(false)
       }
     } catch (error) {
       console.error("Error al cargar datos del usuario:", error)

@@ -14,7 +14,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   try {
     // Parse form data for potential image upload
     const formData = JSON.parse((req.body as any).dataGroup);
-    const files = req.files as Express.Multer.File[];
+    const file = req.file as Express.Multer.File;
     
     const groupData = {
       group_name: formData.group_name as string,
@@ -27,18 +27,18 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const validatedData = createGroupSchema.parse(groupData)
 
     let imageUrl: string | undefined;
-    if (files?.length) {
-    const { result } = await uploadFilesWorkflow(req.scope).run({
-          input: {
-            files: files?.map((f) => ({
-              filename: f.originalname,
-              mimeType: f.mimetype,
-              content: f.buffer.toString("binary"),
-              access: "public",
-            })),
-          },
-        });
-        imageUrl = result[0].url;
+    if (file) {
+      const { result } = await uploadFilesWorkflow(req.scope).run({
+        input: {
+          files: [{
+            filename: file.originalname,
+            mimeType: file.mimetype,
+            content: file.buffer.toString("binary"),
+            access: "public",
+          }],
+        },
+      });
+      imageUrl = result[0].url;
     }
    
 

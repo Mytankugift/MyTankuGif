@@ -1,27 +1,37 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { inviteToGroupWorkflow } from "../../../../workflows/friendship-groups"
+import { addFriendshipToGroupWorkflow } from "../../../../workflows/friendship-groups"
 import { z } from "zod"
 
-const inviteToGroupSchema = z.object({
+const addContactToGroupSchema = z.object({
   group_id: z.string().min(1, "El ID del grupo es requerido"),
-  friend_ids: z.array(z.string()).min(1, "Debe seleccionar al menos un amigo"),
-  message: z.string().optional(),
-  invited_by: z.string().min(1, "El ID del invitador es requerido"),
+  friend_ids: z.array(z.string()).min(1, "Debe seleccionar al menos un contacto"),
+  added_by: z.string().min(1, "El ID del usuario es requerido"),
+  // Legacy: support old field name for backward compatibility
+  invited_by: z.string().optional(),
 })
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   try {
-    const validatedData = inviteToGroupSchema.parse(req.body)
+    const body = req.body as any
+    // Support both new and old field names
+    const validatedData = addContactToGroupSchema.parse({
+      ...body,
+      added_by: body.added_by || body.invited_by,
+    })
 
     // Execute the workflow
-    const { result } = await inviteToGroupWorkflow(req.scope).run({
-      input: validatedData,
+    const { result } = await addFriendshipToGroupWorkflow(req.scope).run({
+      input: {
+        group_id: validatedData.group_id,
+        friend_ids: validatedData.friend_ids,
+        added_by: validatedData.added_by,
+      },
     })
 
     res.status(200).json({
       success: true,
       message: result.message,
-      invitations_sent: result.invitations_sent
+      contacts_added: result.contacts_added
     })
   } catch (error) {
     console.error("Error inviting to group:", error)

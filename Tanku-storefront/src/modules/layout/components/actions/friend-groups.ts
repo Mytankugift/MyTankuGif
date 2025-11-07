@@ -131,7 +131,7 @@ export const createFriendGroup = async (groupData: CreateGroupData) => {
     )
 
     if (groupData.image) {
-      formData.append("banner", groupData.image)
+      formData.append("image", groupData.image)
     }
 
     const response = await fetch(
@@ -417,6 +417,118 @@ export const removeMemberFromGroup = async (data: {
     }
   } catch (error) {
     console.error("Error al eliminar miembro:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error desconocido",
+    }
+  }
+}
+
+// Delete friend group
+export const deleteFriendGroup = async (groupId: string, deletedBy: string) => {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/groups/delete?group_id=${encodeURIComponent(groupId)}&deleted_by=${encodeURIComponent(deletedBy)}`,
+      {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "x-publishable-api-key": process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
+        },
+        body: JSON.stringify({
+          group_id: groupId,
+          deleted_by: deletedBy,
+        }),
+      }
+    )
+
+    let data
+    try {
+      data = await response.json()
+    } catch (jsonError) {
+      // If response is not JSON, try to get text
+      const text = await response.text()
+      throw new Error(text || `Error ${response.status}: ${response.statusText}`)
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `Error ${response.status}: ${response.statusText}`)
+    }
+
+    return {
+      success: true,
+      message: data.message || "Grupo eliminado exitosamente",
+    }
+  } catch (error) {
+    console.error("Error al eliminar grupo:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error desconocido",
+    }
+  }
+}
+
+// Update friend group
+export interface UpdateGroupData {
+  group_id: string
+  group_name?: string
+  description?: string
+  image_url?: string
+  updated_by: string
+  image?: File | null
+}
+
+export const updateFriendGroup = async (groupData: UpdateGroupData) => {
+  try {
+    const formData = new FormData()
+    
+    // Add text fields
+    formData.append("dataGroup", JSON.stringify({
+      group_id: groupData.group_id,
+      group_name: groupData.group_name,
+      description: groupData.description,
+      image_url: groupData.image_url,
+      updated_by: groupData.updated_by,
+    }))
+
+    // Add image if provided
+    if (groupData.image) {
+      formData.append("image", groupData.image)
+    }
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/social/groups/update`,
+      {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "x-publishable-api-key": process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
+        },
+        body: formData,
+      }
+    )
+
+    let data
+    try {
+      data = await response.json()
+    } catch (jsonError) {
+      // If response is not JSON, try to get text
+      const text = await response.text()
+      throw new Error(text || `Error ${response.status}: ${response.statusText}`)
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `Error ${response.status}: ${response.statusText}`)
+    }
+
+    return {
+      success: true,
+      group: data.group,
+      message: data.message || "Grupo actualizado exitosamente",
+    }
+  } catch (error) {
+    console.error("Error al actualizar grupo:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Error desconocido",
