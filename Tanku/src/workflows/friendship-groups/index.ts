@@ -6,6 +6,7 @@ import {
 } from "@medusajs/framework/workflows-sdk"
 import { createFriendshipGroupStep } from "./steps/create-friendship-group"
 import { getUserGroupsStep } from "./steps/get-user-groups"
+import { getUserRedTankuGroupsStep } from "./steps/get-user-red-tanku-groups"
 // Workflows de invitaciones mantenidos para uso futuro (ver DOCUMENTACION_INVITACIONES_FUTURO.md)
 // import { getGroupInvitationsStep } from "./steps/get-group-invitations"
 // import { respondToGroupInvitationStep } from "./steps/respond-to-group-invitation"
@@ -38,6 +39,18 @@ export const getUserGroupsWorkflow = createWorkflow(
   "get-user-groups",
   (input: { user_id: string }) => {
     const groups = getUserGroupsStep(input)
+    
+    return new WorkflowResponse({
+      groups
+    })
+  }
+)
+
+// Get User Red Tanku Groups Workflow (for Stalker Gift)
+export const getUserRedTankuGroupsWorkflow = createWorkflow(
+  "get-user-red-tanku-groups",
+  (input: { user_id: string, contact_id: string }) => {
+    const groups = getUserRedTankuGroupsStep(input)
     
     return new WorkflowResponse({
       groups
