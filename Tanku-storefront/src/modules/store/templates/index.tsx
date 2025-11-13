@@ -2,12 +2,11 @@ import { Suspense } from "react"
 import { HttpTypes } from "@medusajs/types"
 
 import SkeletonProductGrid from "@modules/skeletons/templates/skeleton-product-grid"
-import RefinementList from "@modules/store/components/refinement-list"
-import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
-import PaginatedProducts from "./paginated-products"
+import StoreProductsClient from "./store-products-client"
+import CategoriesBanner from "./categories-banner"
 
 type StoreTemplateProps = {
-  sortBy?: SortOptions
+  sortBy?: string
   page?: string
   countryCode: string
 }
@@ -17,25 +16,22 @@ const StoreTemplate = ({
   page,
   countryCode,
 }: StoreTemplateProps) => {
-  const pageNumber = page ? parseInt(page) : 1
-  const sort = sortBy || "created_at"
-
   return (
     <div
-      className="flex flex-col small:flex-row small:items-start py-6 content-container"
+      className="flex flex-col py-6 content-container"
       data-testid="category-container"
+      style={{ backgroundColor: "#1E1E1E", minHeight: "100vh" }}
     >
-      <RefinementList sortBy={sort} />
       <div className="w-full">
-        <div className="mb-8 text-2xl-semi">
-          <h1 data-testid="store-page-title">All products</h1>
+        <div className="mb-6 text-2xl-semi">
+          <h1 data-testid="store-page-title" className="text-white text-3xl font-bold">Give-Commerce</h1>
         </div>
+
+        {/* Banner de Categorías */}
+        <CategoriesBanner />
+
         <Suspense fallback={<SkeletonProductGrid />}>
-          <PaginatedProducts
-            sortBy={sort}
-            page={pageNumber}
-            countryCode={countryCode}
-          />
+          <StoreProductsClient />
         </Suspense>
       </div>
     </div>

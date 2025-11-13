@@ -1,11 +1,10 @@
 import { Metadata } from "next"
 import { getBaseURL } from "@lib/util/env"
 import Footer from "@modules/layout/templates/footer"
-import Nav from "@modules/layout/templates/nav"
+import NavNew from "@modules/layout/templates/nav/nav-new"
 import ConditionalLayout from "@modules/layout/components/conditional-layout"
 import { retrieveCustomer } from "@lib/data/customer"
 import OnboardingModal from "@modules/onboarding/components/modal"
-import FloatingCart from "@modules/layout/components/floating-cart"
 import SocialChat from "@modules/layout/components/social-chat"
 import { retrieveCart } from "@lib/data/cart"
 
@@ -18,17 +17,16 @@ export default async function PageLayout(props: { children: React.ReactNode }) {
   const cart = await retrieveCart().catch(() => null)
 
   if (!customer) return <> {props.children}</>
-    
- 
-    return (
-      <>
-        <Nav />
-        <OnboardingModal customer_id={customer?.id} />
-        <FloatingCart cart={cart} />
-        <SocialChat customerId={customer?.id || ""} />
-        <div className="lg:ml-52 ml-0 min-h-screen max-w-full overflow-x-hidden mb-16 lg:mb-0">
-          {props.children}
-        </div>
-      </>
-    )
+
+
+        return (
+          <>
+            <NavNew />
+            <OnboardingModal customer_id={customer?.id} />
+            <SocialChat customerId={customer?.id || ""} />
+            <div className="lg:ml-64 ml-0 min-h-screen max-w-full overflow-x-hidden mb-16 lg:mb-0">
+              {props.children}
+            </div>
+          </>
+        )
 }
