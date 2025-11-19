@@ -4,16 +4,21 @@ import { cookies as nextCookies } from "next/headers"
 export const getAuthHeaders = async (): Promise<
   { authorization: string } | {}
 > => {
-  const cookies = await nextCookies()
-  const token = cookies.get("_medusa_jwt")?.value
+  try {
+    // During build time (generateStaticParams), cookies() is not available
+    // Return empty object to skip auth headers during build
+    const cookies = await nextCookies()
+    const token = cookies.get("_medusa_jwt")?.value
 
-  if (!token) {
-    console.log("No JWT token found in cookies")
+    if (!token) {
+      return {}
+    }
+
+    return { authorization: `Bearer ${token}` }
+  } catch (error) {
+    // Silently fail during build time when cookies are not available
     return {}
   }
-
-  console.log("JWT token found, creating authorization header")
-  return { authorization: `Bearer ${token}` }
 }
 
 export const getCacheTag = async (tag: string): Promise<string> => {
