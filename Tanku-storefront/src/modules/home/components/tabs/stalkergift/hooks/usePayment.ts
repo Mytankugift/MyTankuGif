@@ -205,6 +205,11 @@ export function usePayment() {
     handlePayment,
     handlePaymentMethodSelect,
     copyToClipboard,
-    setPaymentEpayco
+    setPaymentEpayco,
+    setCreatedOrder,
+    setPaymentStatus,
+    setShowInvitationUrl,
+    setIsProcessingPayment,
+    setSelectedPaymentMethod
   }
 }
