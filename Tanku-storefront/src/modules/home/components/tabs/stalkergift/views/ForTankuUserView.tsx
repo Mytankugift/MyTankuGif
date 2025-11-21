@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
+import Script from "next/script"
+import { Button } from "@medusajs/ui"
 import SelectableUsersList, { SelectableUser } from "../components/SelectableUsersList"
 import { getPublicWishlists, PublicWishlist, WishlistProduct } from "../../../../../social/actions/get-public-wishlists"
 import { getProductSuggestions, ProductSuggestion } from "../../../../../social/actions/get-product-suggestions"
@@ -10,9 +12,22 @@ import OrderSummaryView from "./OrderSummaryView"
 import { usePersonalInfo } from "../../../../../../lib/context"
 import { usePayment } from "../hooks/usePayment"
 import { useStalkerGift } from "../../../../../../lib/context"
-import { createStalkerGift, CreateStalkerGiftData } from "../../../actions/create-stalker-gift"
+import { createStalkerGift, CreateStalkerGiftData, CreateStalkerGiftResponse } from "../../../actions/create-stalker-gift"
 import { retrieveCustomer } from "@lib/data/customer"
 import { getUserRedTankuGroups, FriendGroup } from "../../../../../layout/components/actions/friend-groups"
+
+// Declaración para TypeScript para el objeto ePayco en window
+declare global {
+  interface Window {
+    ePayco?: {
+      checkout: {
+        configure: (config: any) => {
+          open: (options: any) => void
+        }
+      }
+    }
+  }
+}
 
 interface ForTankuUserViewProps {
   onBack: () => void
@@ -58,6 +73,9 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
   const [orderId, setOrderId] = useState("")
   const [localSelectedPaymentMethod, setLocalSelectedPaymentMethod] = useState<string>("")
   const [localIsProcessingPayment, setLocalIsProcessingPayment] = useState(false)
+  const [localPaymentEpayco, setLocalPaymentEpayco] = useState<any>(null)
+  const [localCreatedOrder, setLocalCreatedOrder] = useState<CreateStalkerGiftResponse | null>(null)
+  const [localShowInvitationUrl, setLocalShowInvitationUrl] = useState(false)
 
   // Obtener el nombre real del usuario actual
   const realUserName = personalInfo ? `${personalInfo.first_name} ${personalInfo.last_name}`.trim() : currentUserName
@@ -240,7 +258,6 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
 
   // Función local para manejar la selección de método de pago
   const handleLocalPaymentMethodSelect = (method: string) => {
-    console.log('Seleccionando método de pago:', method)
     setLocalSelectedPaymentMethod(method)
     handlePaymentMethodSelect(method)
   }
@@ -259,6 +276,7 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
       const userCustomer = await retrieveCustomer().catch(() => null)
       if (!userCustomer) {
         alert("Debe iniciar sesión para realizar el pago")
+        setLocalIsProcessingPayment(false)
         return
       }
 
@@ -287,26 +305,42 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
         products: selectedProducts,
         message: "",
         customer_giver_id: userCustomer.id,
-        customer_recipient_id: selectedUser.id, // Agregar ID del destinatario
+        customer_recipient_id: selectedUser.id,
         payment_method: "epayco",
-        payment_status: "recibida" // Estado recibida para este ejercicio
+        payment_status: "pending" // Cambiar a pending para procesar el pago real
       }
 
-      console.log('Creando stalker gift con datos:', orderData)
-      console.log('Productos seleccionados con cantidades:', selectedProducts.map(p => ({
-        id: p.id,
-        title: p.title,
-        quantity: (p as any).quantity || 1,
-        price: p.variants?.[0]?.inventory?.price || 0
-      })))
-
       // Crear el stalker gift en la BD
-      const response = await createStalkerGift(orderData)
-      
-      console.log('Stalker gift creado:', response)
+      const response: CreateStalkerGiftResponse = await createStalkerGift(orderData)
 
-      // Simular éxito del pago y continuar al summary
-      handlePaymentSuccess(response.stalkerGift)
+      // Preparar configuración de ePayco
+      const epaycoConfig = {
+        key: 'a5bd3d6eaf8d072b2ad4265bd2dfaed9',
+        test: true,
+        external: false,
+        autoclick: false,
+        lang: 'es',
+        invoice: response.stalkerGift.id.toString(),
+        description: `StalkerGift - ${selectedProducts.length} producto(s)`,
+        value: total.toString(),
+        tax: '0',
+        tax_base: (total * 0.84).toString(),
+        currency: 'COP',
+        country: 'CO',
+        email_billing: userCustomer.email,
+        name_billing: pseudonym || 'Usuario Anónimo',
+        address_billing: 'Dirección de prueba',
+        type_person: '0',
+        mobilephone_billing: userCustomer.phone || '3001234567',
+        number_doc_billing: '12345678',
+        response: `${window.location.origin}/stalker-gift/payment-response`,
+        confirmation: `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/stalker-gift/payment-confirmation`,
+        methodsDisable: ['CASH', 'DP']
+      }
+      
+      setLocalPaymentEpayco(epaycoConfig)
+      setLocalCreatedOrder(response)
+      setLocalShowInvitationUrl(true)
 
     } catch (error) {
       console.error('Error al procesar el pago:', error)
@@ -564,7 +598,6 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
             <div className="space-y-4">
               <button
                 onClick={() => {
-                  console.log('Seleccionando ePayco...')
                   handleLocalPaymentMethodSelect("epayco")
                 }}
                 className={`w-full p-4 rounded-lg border-2 transition-colors ${
@@ -592,15 +625,6 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
               </button>
             </div>
 
-            {/* Debug info */}
-            <div className="mt-4 p-3 bg-gray-800 rounded-lg text-xs">
-              <p className="text-gray-400">Debug Info:</p>
-              <p className="text-white">selectedPaymentMethod (hook): {selectedPaymentMethod || 'null'}</p>
-              <p className="text-white">localSelectedPaymentMethod: {localSelectedPaymentMethod || 'null'}</p>
-              <p className="text-white">selectedProducts: {selectedProducts.length}</p>
-              <p className="text-white">pseudonym: {pseudonym || 'null'}</p>
-            </div>
-
             {localSelectedPaymentMethod && (
               <div className="mt-6">
                 <button
@@ -614,9 +638,153 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
                       Procesando...
                     </div>
                   ) : (
-                    "Procesar Pago"
+                    "Confirmar y Proceder al Pago"
                   )}
                 </button>
+              </div>
+            )}
+
+            {/* Sección de ePayco */}
+            {localPaymentEpayco && (
+              <>
+                <Script 
+                  id="epayco-script-tanku-user"
+                  src="https://checkout.epayco.co/checkout.js"
+                  strategy="afterInteractive"
+                />
+                
+                <div className="mt-6">
+                  <form 
+                    id="epayco-payment-form-tanku-user"
+                    data-epayco-amount={localPaymentEpayco?.value || ''}
+                    data-epayco-currency={localPaymentEpayco?.currency?.toLowerCase() || 'cop'}
+                    data-epayco-country={localPaymentEpayco?.country?.toLowerCase() || 'co'}
+                    data-epayco-invoice={localPaymentEpayco?.invoice || ''}
+                    data-epayco-description={localPaymentEpayco?.description || ''}
+                  >
+                    <div className="mb-3 sm:mb-4">
+                      <label htmlFor="epayco-payment-tanku-user" className="block text-sm font-medium text-white mb-2">
+                        Pago con ePayco 
+                      </label>
+                      <p className="text-xs sm:text-sm text-gray-300 mb-3 sm:mb-4">Haga clic en el botón a continuación para proceder con el pago seguro a través de ePayco.</p>
+                      
+                      <div className="flex justify-center sm:justify-end">
+                        <Button 
+                          type="button"
+                          id="epayco-custom-button-tanku-user"
+                          className="w-full sm:w-auto bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 text-white p-2 sm:p-3 md:p-4 text-sm sm:text-base flex items-center justify-center gap-2 transition-colors"
+                          onClick={() => {
+                            if (typeof window.ePayco === 'undefined') {
+                              console.error('ePayco no está cargado correctamente');
+                              alert('Error al cargar el sistema de pago. Por favor, intente nuevamente.');
+                              return;
+                            }
+                            
+                            try {
+                              if (!localPaymentEpayco) {
+                                console.error('Error: localPaymentEpayco es null o undefined')
+                                alert('Error: No se ha configurado el pago. Por favor, intente nuevamente.')
+                                return
+                              }
+                              
+                              if (!localPaymentEpayco.value) {
+                                console.error('Error: localPaymentEpayco.value es undefined o null')
+                                alert('Error: El monto no está definido. Por favor, intente nuevamente.')
+                                return
+                              }
+                              
+                              const amountValue = parseFloat(localPaymentEpayco.value)
+                              
+                              if (isNaN(amountValue)) {
+                                console.error('Error: El monto no es un número válido:', localPaymentEpayco.value)
+                                alert('Error: El monto no es válido. Por favor, intente nuevamente.')
+                                return
+                              }
+                              
+                              const container = document.createElement('div');
+                              container.style.display = 'none';
+                              container.id = 'epayco-container-tanku-user';
+                              document.body.appendChild(container);
+                              
+                              const handler = window.ePayco?.checkout.configure({
+                                key: 'a5bd3d6eaf8d072b2ad4265bd2dfaed9',
+                                test: true
+                              });
+                              
+                              if (!handler) {
+                                throw new Error('No se pudo configurar el checkout de ePayco');
+                              }
+                              
+                              handler.open({
+                                amount: amountValue,
+                                name: localPaymentEpayco.description,
+                                description: localPaymentEpayco.description,
+                                currency: localPaymentEpayco.currency?.toLowerCase() || 'cop',
+                                country: localPaymentEpayco.country?.toLowerCase() || 'co',
+                                external: localPaymentEpayco.external || false,
+                                response: localPaymentEpayco.response,
+                                confirmation: localPaymentEpayco.confirmation,
+                                name_billing: localPaymentEpayco.name_billing,
+                                mobilephone_billing: localPaymentEpayco.mobilephone_billing
+                              });
+                            } catch (error) {
+                              console.error('Error al iniciar el pago con ePayco:', error);
+                              alert('Error al iniciar el pago. Por favor, intente nuevamente.');
+                            }
+                          }}
+                        >
+                          <span>Pagar con ePayco</span> 
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect width="20" height="14" x="2" y="5" rx="2" />
+                            <line x1="2" x2="22" y1="10" y2="10" />
+                          </svg>
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </>
+            )}
+
+            {/* Sección de URL de Invitación */}
+            {localShowInvitationUrl && localCreatedOrder && (
+              <div className="bg-gradient-to-r from-[#5FE085]/10 to-[#5FE085]/10 border border-[#5FE085]/30 rounded-2xl p-6 mt-6">
+                <div className="text-center mb-4">
+                  <div className="text-4xl mb-2">🎁</div>
+                  <h3 className="text-2xl font-bold text-[#5FE085] mb-2">
+                    ¡Orden Creada Exitosamente!
+                  </h3>
+                  <p className="text-gray-300 text-sm">
+                    Tu StalkerGift ha sido creado. Comparte esta URL con el destinatario:
+                  </p>
+                </div>
+
+                {/* URL de invitación */}
+                <div className="bg-[#262626]/50 rounded-xl p-4 border border-[#5FE085]/20 mb-4">
+                  <label className="block text-[#5FE085] text-sm font-medium mb-2">
+                    🔗 URL de Invitación:
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={localCreatedOrder.invitationUrl}
+                      readOnly
+                      className="flex-1 bg-[#1E1E1E] border border-[#5FE085]/30 rounded-lg px-4 py-3 text-white text-sm focus:border-[#5FE085] focus:outline-none"
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(localCreatedOrder.invitationUrl)
+                        alert('¡URL copiada al portapapeles!')
+                      }}
+                      className="bg-gradient-to-r from-[#5FE085] to-[#5FE085] text-black px-4 py-3 rounded-lg font-semibold hover:scale-105 transition-transform flex items-center space-x-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <span>Copiar</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -627,14 +795,6 @@ export default function ForTankuUserView({ onBack, currentUserName = "Usuario" }
 
   // Mostrar vista de resumen
   if (currentView === 'summary' && selectedUser && orderId) {
-    console.log('Pasando datos a OrderSummaryView:', {
-      selectedProducts: selectedProducts.map(p => ({
-        id: p.id,
-        title: p.title,
-        quantity: (p as any).quantity || 1
-      }))
-    })
-    
     return (
       <OrderSummaryView
         selectedUser={selectedUser}
