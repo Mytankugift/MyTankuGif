@@ -132,7 +132,7 @@ export default function OrderSummaryView({
                 <div className="flex items-center space-x-3">
                   <div className="relative w-12 h-12 flex-shrink-0">
                     <Image
-                      src={selectedUser.avatar_url || "/feed/avatar.png"}
+                      src={selectedUser?.avatar_url || "/feed/avatar.png"}
                       alt={`${selectedUser.first_name} ${selectedUser.last_name}`}
                       width={48}
                       height={48}

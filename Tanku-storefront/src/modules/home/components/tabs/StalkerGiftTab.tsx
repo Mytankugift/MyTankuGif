@@ -11,6 +11,7 @@ import {
   CheckoutView 
 } from "./stalkergift/views"
 import { useProducts, usePayment, useFloatingButton } from "./stalkergift/hooks"
+import CheckoutViewUsersOutside from "./stalkergift/views/CheckoutViewUsersOutside"
 
 // Declaración para TypeScript para el objeto ePayco en window
 declare global {
@@ -44,7 +45,12 @@ export default function StalkerGiftTab() {
     calculateTotals,
     handlePaymentMethodSelect,
     copyToClipboard,
-    setPaymentEpayco
+    setPaymentEpayco,
+    setCreatedOrder,
+    setPaymentStatus,
+    setShowInvitationUrl,
+    setIsProcessingPayment,
+    setSelectedPaymentMethod
   } = usePayment()
   const { isFloatingButtonVisible, originalButtonRef } = useFloatingButton(currentView)
 
@@ -100,7 +106,7 @@ export default function StalkerGiftTab() {
               originalButtonRef={originalButtonRef}
             />
           case 'checkout':
-            return <CheckoutView 
+            return <CheckoutViewUsersOutside
               onBack={handleBackToProductSelection}
               calculateTotals={calculateTotals}
               selectedPaymentMethod={selectedPaymentMethod}
@@ -112,6 +118,12 @@ export default function StalkerGiftTab() {
               paymentDetails={paymentDetails}
               onPaymentMethodSelect={handlePaymentMethodSelect}
               copyToClipboard={copyToClipboard}
+              setPaymentEpayco={setPaymentEpayco}
+              setCreatedOrder={setCreatedOrder}
+              setPaymentStatus={setPaymentStatus}
+              setShowInvitationUrl={setShowInvitationUrl}
+              setIsProcessingPayment={setIsProcessingPayment}
+              setSelectedPaymentMethod={setSelectedPaymentMethod}
             />
           default:
             return <IntroView onSelectOption={handleSelectOption} />

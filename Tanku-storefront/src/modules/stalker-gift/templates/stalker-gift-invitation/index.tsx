@@ -49,7 +49,7 @@ export default function StalkerGiftInvitation({ stalkerGiftId }: StalkerGiftInvi
     )
   }
 
-  if (error || !stalkerGift || stalkerGift) {
+  if (error || !stalkerGift) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#1E1E1E] via-[#262626] to-[#1E1E1E] flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
