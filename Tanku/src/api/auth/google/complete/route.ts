@@ -13,7 +13,8 @@ export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
 ) {
-  const { customer_id } = req.body
+  const body = req.body as { customer_id?: string }
+  const { customer_id } = body
 
   if (!customer_id) {
     return res.status(400).json({ error: "customer_id es requerido" })
@@ -33,7 +34,9 @@ export async function POST(
     
     // Obtener el JWT secret de la configuración
     const configModule = req.scope.resolve("configModule")
-    const jwtSecret = configModule.projectConfig.http.jwtSecret || process.env.JWT_SECRET || "supersecret"
+    const jwtSecretRaw = configModule.projectConfig.http.jwtSecret || process.env.JWT_SECRET || "supersecret"
+    // Asegurar que jwtSecret sea un string
+    const jwtSecret = typeof jwtSecretRaw === 'string' ? jwtSecretRaw : String(jwtSecretRaw)
     
     // Generar token JWT con el mismo formato que usa Medusa
     // El formato correcto es: { actor_id, actor_type, auth_identity_id, app_metadata }

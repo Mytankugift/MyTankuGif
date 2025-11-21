@@ -95,19 +95,16 @@ export async function GET(
 
       if (existingCustomers && existingCustomers.length > 0) {
         customer = existingCustomers[0]
-        // Si el customer existe pero no tiene cuenta, actualizarlo
-        if (!customer.has_account) {
-          customer = await customerModuleService.updateCustomers(customer.id, {
-            has_account: true,
-            metadata: {
-              ...customer.metadata,
-              google_id: googleId,
-              google_picture: picture,
-              auth_provider: "google",
-            },
-          })
-          customer = Array.isArray(customer) ? customer[0] : customer
-        }
+        // Si el customer existe, actualizar metadata con información de Google
+        customer = await customerModuleService.updateCustomers(customer.id, {
+          metadata: {
+            ...customer.metadata,
+            google_id: googleId,
+            google_picture: picture,
+            auth_provider: "google",
+          },
+        })
+        customer = Array.isArray(customer) ? customer[0] : customer
       } else {
         // Crear nuevo customer como registrado (has_account: true)
         const newCustomer = await customerModuleService.createCustomers({

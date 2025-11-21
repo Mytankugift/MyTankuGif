@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import { handleGoogleAuthCallback } from "@lib/data/customer/google-auth"
 
-export default function GoogleCallbackPage() {
+function GoogleCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -185,6 +185,32 @@ export default function GoogleCallbackPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function GoogleCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#1E1E1E]">
+        <div className="text-center">
+          <div className="mb-4">
+            <Image
+              src="/logoTanku.png"
+              alt="TANKU Logo"
+              width={100}
+              height={100}
+              className="object-contain mx-auto"
+            />
+          </div>
+          <p className="text-white text-lg">Cargando...</p>
+          <div className="mt-4">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#73FFA2]"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <GoogleCallbackContent />
+    </Suspense>
   )
 }
 

@@ -10,18 +10,55 @@ type Props = {
 
 export async function generateStaticParams() {
   try {
-    const countryCodes = await listRegions().then((regions) =>
-      regions?.map((r) => r.countries?.map((c) => c.iso_2)).flat()
+    // During build time, we can't use cookies, so we make direct calls without auth
+    // This is safe because we're only fetching public data (regions and product handles)
+    const { sdk } = await import("@lib/config")
+    
+    // Fetch regions directly without using getCacheOptions (which requires cookies)
+    const { regions } = await sdk.client.fetch<{ regions: Array<{ countries?: Array<{ iso_2?: string }> }> }>(
+      `/store/regions`,
+      {
+        method: "GET",
+        cache: "force-cache",
+      }
     )
 
-    if (!countryCodes) {
+    if (!regions || regions.length === 0) {
       return []
     }
 
-    const products = await listProducts({
-      countryCode: "co",
-      queryParams: { fields: "handle" },
-    }).then(({ response }) => response.products)
+    const countryCodes = regions
+      ?.map((r) => r.countries?.map((c) => c.iso_2))
+      .flat()
+      .filter(Boolean) as string[]
+
+    if (!countryCodes || countryCodes.length === 0) {
+      return []
+    }
+
+    // Find a region to use for fetching products (use first available)
+    const firstRegion = regions[0]
+    if (!firstRegion) {
+      return []
+    }
+
+    // Fetch products directly without using listProducts (which requires cookies)
+    const { products } = await sdk.client.fetch<{ products: Array<{ handle: string }> }>(
+      `/store/products`,
+      {
+        method: "GET",
+        query: {
+          limit: 100,
+          offset: 0,
+          fields: "handle",
+        },
+        cache: "force-cache",
+      }
+    )
+
+    if (!products || products.length === 0) {
+      return []
+    }
 
     return countryCodes
       .map((countryCode) =>
@@ -33,10 +70,12 @@ export async function generateStaticParams() {
       .flat()
       .filter((param) => param.handle)
   } catch (error) {
-    console.error(
+    // During build time, the backend might not be available or fetch might fail
+    // Return empty array to allow build to continue with dynamic rendering
+    console.warn(
       `Failed to generate static paths for product pages: ${
         error instanceof Error ? error.message : "Unknown error"
-      }.`
+      }. Build will continue with dynamic rendering.`
     )
     return []
   }
