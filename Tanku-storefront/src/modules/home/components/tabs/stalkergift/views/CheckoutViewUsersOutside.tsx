@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Script from "next/script"
 import { Button } from "@medusajs/ui"
@@ -74,6 +74,19 @@ export default function CheckoutView({
   const filledMethods = getFilledContactMethods()
   const { subtotal, tax, shipping, total } = calculateTotals()
   const currency = stalkerGiftData.selectedProducts[0]?.variants?.[0]?.inventory?.currency_code || '$'
+
+  // Debug: Log inicial del componente
+  console.log('🔍 [DEBUG] 🚀 CheckoutView renderizado')
+  console.log('🔍 [DEBUG] 🚀 paymentEpayco en render:', paymentEpayco)
+  console.log('🔍 [DEBUG] 🚀 total calculado en render:', total)
+
+  // Debug: Monitorear cambios en paymentEpayco
+  useEffect(() => {
+    console.log('🔍 [DEBUG] 🔄 paymentEpayco cambió:', paymentEpayco)
+    if (paymentEpayco) {
+      console.log('🔍 [DEBUG] 🔄 paymentEpayco.value:', paymentEpayco.value)
+    }
+  }, [paymentEpayco])
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -304,7 +317,10 @@ export default function CheckoutView({
                   <div className="space-y-3">
                     <button
                       onClick={async () => {
+                        console.log('🔍 [DEBUG] 🎯 BOTÓN "ePayco - Pago Seguro" CLICKEADO')
+                        console.log('🔍 [DEBUG] 🎯 stalkerGiftData.message:', stalkerGiftData.message)
                         if (stalkerGiftData.message?.trim()) {
+                          console.log('🔍 [DEBUG] 🎯 Mensaje válido, procediendo...')
                           setSelectedPaymentMethod("epayco")
                           setIsProcessingPayment(true)
                           
@@ -318,6 +334,9 @@ export default function CheckoutView({
                             }
 
                             const { total } = calculateTotals()
+                            console.log('🔍 [DEBUG] total calculado:', total)
+                            console.log('🔍 [DEBUG] typeof total:', typeof total)
+                            console.log('🔍 [DEBUG] total.toString():', total.toString())
                             const filledMethods = getFilledContactMethods()
                             
                             // Crear orden real de StalkerGift en el backend
@@ -364,13 +383,19 @@ export default function CheckoutView({
                               methodsDisable: ['CASH', 'DP']
                             }
                             
+                            console.log('🔍 [DEBUG] epaycoConfig completo:', epaycoConfig)
+                            console.log('🔍 [DEBUG] epaycoConfig.value:', epaycoConfig.value)
+                            console.log('🔍 [DEBUG] typeof epaycoConfig.value:', typeof epaycoConfig.value)
+                            
                             setPaymentEpayco(epaycoConfig)
+                            console.log('🔍 [DEBUG] ✅ setPaymentEpayco ejecutado con:', epaycoConfig)
                             
                             // Guardar datos de la orden
                             setCreatedOrder(response)
                             
                             setPaymentStatus('success')
                             setShowInvitationUrl(true)
+                            console.log('🔍 [DEBUG] ✅ Estado actualizado - paymentStatus: success')
                             
                           } catch (error) {
                             console.error('Error al procesar el pago:', error)
@@ -403,10 +428,10 @@ export default function CheckoutView({
                   
                   {isProcessingPayment && (
                     <div className="mt-4 p-4 bg-[#66DEDB]/10 rounded-lg border border-[#66DEDB]/30">
-                      <p className="text-[#5FE085] font-medium flex items-center">
+                      <div className="text-[#5FE085] font-medium flex items-center">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#5FE085] mr-2"></div>
                         Procesando orden...
-                      </p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -421,6 +446,11 @@ export default function CheckoutView({
               </div>
 
               {/* Sección de ePayco */}
+              {(() => {
+                console.log('🔍 [DEBUG] Renderizando sección ePayco. paymentEpayco existe?', !!paymentEpayco)
+                console.log('🔍 [DEBUG] paymentEpayco completo:', paymentEpayco)
+                return null
+              })()}
               {paymentEpayco && (
                 <>
                   <Script 
@@ -430,7 +460,14 @@ export default function CheckoutView({
                   />
                   
                   <div className="mt-4 sm:mt-6">
-                    <form id="epayco-payment-form-stalker">
+                    <form 
+                      id="epayco-payment-form-stalker"
+                      data-epayco-amount={paymentEpayco?.value || ''}
+                      data-epayco-currency={paymentEpayco?.currency?.toLowerCase() || 'cop'}
+                      data-epayco-country={paymentEpayco?.country?.toLowerCase() || 'co'}
+                      data-epayco-invoice={paymentEpayco?.invoice || ''}
+                      data-epayco-description={paymentEpayco?.description || ''}
+                    >
                       <div className="mb-3 sm:mb-4">
                         <label htmlFor="epayco-payment-stalker" className="block text-sm font-medium text-white mb-2">
                           Pago con ePayco 
@@ -443,6 +480,8 @@ export default function CheckoutView({
                             id="epayco-custom-button-stalker"
                             className="w-full sm:w-auto bg-[#3B9BC3] hover:bg-[#66DEDB] hover:text-zinc-800 text-white p-2 sm:p-3 md:p-4 text-sm sm:text-base flex items-center justify-center gap-2 transition-colors"
                             onClick={() => {
+                              console.log('🔍 [DEBUG] ⭐ BOTÓN CLICKEADO - Inicio del onClick')
+                              console.log('🔍 [DEBUG] Form data-epayco-amount:', document.getElementById('epayco-payment-form-stalker')?.getAttribute('data-epayco-amount'))
                               if (typeof window.ePayco === 'undefined') {
                                 console.error('ePayco no está cargado correctamente');
                                 alert('Error al cargar el sistema de pago. Por favor, intente nuevamente.');
@@ -450,6 +489,32 @@ export default function CheckoutView({
                               }
                               
                               try {
+                                console.log('🔍 [DEBUG] paymentEpayco al hacer clic:', paymentEpayco)
+                                console.log('🔍 [DEBUG] paymentEpayco?.value:', paymentEpayco?.value)
+                                console.log('🔍 [DEBUG] typeof paymentEpayco?.value:', typeof paymentEpayco?.value)
+                                
+                                const amountValue = parseFloat(paymentEpayco?.value)
+                                console.log('🔍 [DEBUG] parseFloat(paymentEpayco.value):', amountValue)
+                                console.log('🔍 [DEBUG] isNaN(amountValue):', isNaN(amountValue))
+                                
+                                if (!paymentEpayco) {
+                                  console.error('❌ [ERROR] paymentEpayco es null o undefined')
+                                  alert('Error: No se ha configurado el pago. Por favor, intente nuevamente.')
+                                  return
+                                }
+                                
+                                if (!paymentEpayco.value) {
+                                  console.error('❌ [ERROR] paymentEpayco.value es undefined o null')
+                                  alert('Error: El monto no está definido. Por favor, intente nuevamente.')
+                                  return
+                                }
+                                
+                                if (isNaN(amountValue)) {
+                                  console.error('❌ [ERROR] El monto no es un número válido:', paymentEpayco.value)
+                                  alert('Error: El monto no es válido. Por favor, intente nuevamente.')
+                                  return
+                                }
+                                
                                 const container = document.createElement('div');
                                 container.style.display = 'none';
                                 container.id = 'epayco-container-stalker';
@@ -464,18 +529,24 @@ export default function CheckoutView({
                                   throw new Error('No se pudo configurar el checkout de ePayco');
                                 }
                                 
-                                handler.open({
-                                  amount: paymentEpayco.total_amount,
-                                  name: `StalkerGift para ${paymentEpayco.recipient_name}`,
-                                  description: `Regalo anónimo de ${paymentEpayco.alias}`,
-                                  currency: 'cop',
-                                  country: 'co',
-                                  external: false,
-                                  response: `${process.env.NEXT_PUBLIC_BASE_URL}/home?stalker_payment=success`,
-                                  confirmation: `${process.env.NEXT_PUBLIC_MEDUSA_WEBHOOK_URL}/stalker-gift/${paymentEpayco.id}`,
-                                  name_billing: paymentEpayco.first_name,
-                                  mobilephone_billing: paymentEpayco.phone
-                                });
+                                const handlerOptions = {
+                                  amount: amountValue,
+                                  name: paymentEpayco.description,
+                                  description: paymentEpayco.description,
+                                  currency: paymentEpayco.currency?.toLowerCase() || 'cop',
+                                  country: paymentEpayco.country?.toLowerCase() || 'co',
+                                  external: paymentEpayco.external || false,
+                                  response: paymentEpayco.response,
+                                  confirmation: paymentEpayco.confirmation,
+                                  name_billing: paymentEpayco.name_billing,
+                                  mobilephone_billing: paymentEpayco.mobilephone_billing
+                                }
+                                
+                                console.log('🔍 [DEBUG] handlerOptions que se envían a ePayco:', handlerOptions)
+                                console.log('🔍 [DEBUG] handlerOptions.amount:', handlerOptions.amount)
+                                console.log('🔍 [DEBUG] typeof handlerOptions.amount:', typeof handlerOptions.amount)
+                                
+                                handler.open(handlerOptions);
                               } catch (error) {
                                 console.error('Error al iniciar el pago con ePayco:', error);
                                 alert('Error al iniciar el pago. Por favor, intente nuevamente.');
