@@ -21,6 +21,51 @@ module.exports = defineConfig({
   },
   modules: [
     {
+      resolve: "@medusajs/auth",
+      options: {
+        // URL de tu frontend (Next.js)
+        client_url: (process.env.MEDUSA_CLIENT_URL && process.env.MEDUSA_CLIENT_URL.trim() !== "") 
+          ? process.env.MEDUSA_CLIENT_URL 
+          : "http://localhost:8000",
+        // La URL de tu API de Medusa
+        backend_url: process.env.MEDUSA_BACKEND_URL,
+        // Configuración de proveedores de autenticación
+        providers: [
+          {
+            resolve: "@medusajs/auth-emailpass",
+            id: "emailpass",
+            options: {
+              // Configuración para email/password
+            },
+          },
+          {
+            resolve: "@medusajs/auth-google",
+            id: "google",
+            options: {
+              // Claves de la aplicación de Google (usar camelCase)
+              clientId: process.env.GOOGLE_CLIENT_ID,
+              clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+              // Rutas de redirección
+              // clientUrl: URL del frontend donde se redirige después de la autenticación
+              clientUrl: (process.env.MEDUSA_CLIENT_URL && process.env.MEDUSA_CLIENT_URL.trim() !== "") 
+                ? process.env.MEDUSA_CLIENT_URL 
+                : "http://localhost:8000",
+              // callbackUrl: URL del backend de Medusa que recibe el código de Google
+              // Medusa usa automáticamente /auth/customer/google/callback
+              callbackUrl: `${(process.env.MEDUSA_BACKEND_URL && process.env.MEDUSA_BACKEND_URL.trim() !== "") ? process.env.MEDUSA_BACKEND_URL : "http://localhost:9000"}/auth/customer/google/callback`,
+              // Ámbitos solicitados
+              scope: ["email", "profile"],
+              // IMPORTANTE: Especificar que el tipo de actor es "customer"
+              // Esto asegura que Medusa cree o vincule un customer correctamente
+              type: "customer",
+            },
+          },
+        ],
+        // Otras configuraciones del módulo Auth
+        jwt_secret: process.env.JWT_SECRET || "supersecret",
+      },
+    },
+    {
       resolve: "./src/modules/user-profiles",
     },
     {

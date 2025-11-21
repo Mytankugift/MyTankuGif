@@ -21,13 +21,15 @@ const HomePage = () => {
             />
           </div>
 
-          {/* Button - top right */}
-          <LocalizedClientLink
-            href="/account"
-            className="text-center bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-3 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 lg:px-8 lg:py-4 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm md:text-base min-w-[120px] sm:min-w-[150px] md:min-w-[180px] lg:min-w-[200px]"
-          >
-            Únete a Tanku
-          </LocalizedClientLink>
+          {/* Buttons - top right */}
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+            <LocalizedClientLink
+              href="/account"
+              className="text-center bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-3 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 lg:px-8 lg:py-4 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm md:text-base min-w-[120px] sm:min-w-[150px] md:min-w-[180px] lg:min-w-[200px]"
+            >
+              Únete a Tanku
+            </LocalizedClientLink>
+          </div>
         </div>
 
         {/* Main content - centered */}

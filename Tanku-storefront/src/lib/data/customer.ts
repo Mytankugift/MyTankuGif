@@ -24,6 +24,8 @@ export const retrieveCustomer =
       return null
     }
 
+    // Log para debugging
+    console.log("🔍 retrieveCustomer - authHeaders:", authHeaders ? "present" : "missing")
    
     const headers = {
       ...authHeaders,
@@ -44,11 +46,12 @@ export const retrieveCustomer =
         cache: "force-cache",
       })
       .then(({ customer }) => {
-      
+        console.log("✅ retrieveCustomer - Customer obtenido:", customer?.email)
         return customer
       })
       .catch((error) => {
-        console.error("Error fetching customer from API:", error)
+        console.error("❌ Error fetching customer from API:", error)
+        console.error("Error details:", error.message, error.status)
         return null
       })
   }
@@ -149,12 +152,22 @@ type DecodedToken = {
 
 
 export async function signout(countryCode: string) {
-  await sdk.auth.logout()
+  try {
+    // Cerrar sesión en Medusa (esto cierra la sesión tanto de email/password como de OAuth)
+    await sdk.auth.logout()
+  } catch (error) {
+    // Si falla, continuar con el logout local
+    console.error("Error cerrando sesión en Medusa:", error)
+  }
+  
+  // Remover el token de las cookies
   removeAuthToken()
   
+  // Revalidar el cache del customer
   const customerCacheTag = await getCacheTag("customers")
   revalidateTag(customerCacheTag)
   
+  // Redirigir a la página principal (igual que el login normal)
   redirect(`/`)
 }
 

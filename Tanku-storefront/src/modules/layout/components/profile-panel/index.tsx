@@ -739,6 +739,9 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate })
               onClick={async () => {
                 await signout("co").then(() => {
                   clearPersonalInfo()
+                  // No redirigir automáticamente, dejar que el usuario se quede en la página actual
+                  // O redirigir a la página principal si es necesario
+                  window.location.href = "/"
                 })
                 
               }} 

@@ -11,12 +11,15 @@ export const getAuthHeaders = async (): Promise<
     const token = cookies.get("_medusa_jwt")?.value
 
     if (!token) {
+      console.log("⚠️ getAuthHeaders - No token encontrado en cookies")
       return {}
     }
 
+    console.log("✅ getAuthHeaders - Token encontrado:", token.substring(0, 20) + "...")
     return { authorization: `Bearer ${token}` }
   } catch (error) {
     // Silently fail during build time when cookies are not available
+    console.error("❌ getAuthHeaders - Error:", error)
     return {}
   }
 }
@@ -63,6 +66,8 @@ export const setAuthToken = async (token: string) => {
     sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
   })
+  // Log para debugging
+  console.log("🍪 setAuthToken - Token establecido en cookie:", token.substring(0, 20) + "...")
 }
 
 export const removeAuthToken = async () => {
