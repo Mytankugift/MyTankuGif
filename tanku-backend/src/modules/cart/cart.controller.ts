@@ -1,0 +1,451 @@
+import { Request, Response, NextFunction } from 'express';
+import { CartService } from './cart.service';
+import { BadRequestError } from '../../shared/errors/AppError';
+import { RequestWithUser } from '../../shared/types';
+import { prisma } from '../../config/database';
+
+export class CartController {
+  private cartService: CartService;
+
+  constructor() {
+    this.cartService = new CartService();
+  }
+
+  /**
+   * GET /store/carts/:id
+   * Obtener carrito por ID
+   * Soporta query params: fields (para formatear respuesta)
+   */
+  getCart = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const fields = req.query.fields as string | undefined;
+
+      if (!id) {
+        throw new BadRequestError('ID del carrito es requerido');
+      }
+
+
+      const cart = await this.cartService.getCartById(id, fields);
+
+      console.log(`🔍 [CART] Carrito obtenido:`, {
+        id: cart?.id,
+        itemsCount: cart?.items?.length || 0,
+        hasFields: !!fields,
+      });
+
+      // Si el carrito no existe, retornar 404
+      // El frontend debe crear un carrito nuevo usando POST /store/carts
+      if (!cart) {
+        return res.status(404).json({
+          message: 'Carrito no encontrado',
+          cart: null,
+        });
+      }
+
+      // Si hay campos específicos solicitados, formatear respuesta según campos
+      if (fields) {
+        // Parsear campos solicitados (formato: *items, *region, *items.product, etc.)
+        const requestedFields = this.parseFields(fields);
+        console.log(`🔍 [CART] Campos solicitados:`, requestedFields);
+        console.log(`🔍 [CART] Carrito antes de formatear tiene ${cart.items.length} items`);
+        const formattedCart = this.formatCartByFields(cart, requestedFields);
+        console.log(`🔍 [CART] Carrito después de formatear tiene ${formattedCart.items?.length || 0} items`);
+        return res.status(200).json({ cart: formattedCart });
+      }
+
+      // Respuesta estándar - asegurar que items siempre estén incluidos
+      const cartWithItems = {
+        ...cart,
+        items: cart.items || [],
+        subtotal: cart.subtotal || 0,
+        total: cart.total || cart.subtotal || 0,
+        region_id: null,
+        region: null,
+        shipping_methods: [],
+        promotions: [],
+      };
+
+      res.status(200).json({
+        cart: cartWithItems,
+      });
+    } catch (error) {
+      console.error(`❌ [CART] Error obteniendo carrito:`, error);
+      next(error);
+    }
+  };
+
+  /**
+   * Parsear string de campos solicitados
+   */
+  private parseFields(fields: string): string[] {
+    return fields
+      .split(',')
+      .map((f) => f.trim())
+      .filter((f) => f.length > 0);
+  }
+
+  /**
+   * Formatear carrito según campos solicitados
+   */
+  private formatCartByFields(cart: any, fields: string[]): any {
+    const result: any = {};
+
+    // Campos básicos siempre incluidos
+    result.id = cart.id;
+    result.created_at = cart.created_at;
+    result.updated_at = cart.updated_at;
+    result.region_id = cart.region_id || null;
+
+    // Verificar si se solicitan items (el * indica que se incluyen todos los campos base)
+    const wantsItems = fields.some((f) => f.includes('items') || f.includes('*items'));
+    if (wantsItems) {
+      // Asegurar que items sea un array
+      const itemsArray = Array.isArray(cart.items) ? cart.items : [];
+      result.items = itemsArray.map((item: any) => {
+        const itemResult: any = {
+          id: item.id,
+          variant_id: item.variant_id || item.variantId, // Soportar ambos formatos
+          quantity: item.quantity,
+        };
+
+        // Verificar si se solicitan campos anidados (el * indica incluir todo)
+        const wantsProduct = fields.some((f) => f.includes('items.product') || f.includes('*items.product'));
+        if (wantsProduct) {
+          // El item puede tener product directamente o a través de variant.product
+          const product = item.product || (item.variant && item.variant.product);
+          itemResult.product = product ? {
+            id: product.id,
+            title: product.title,
+            handle: product.handle,
+            images: product.images || [],
+            description: product.description || null,
+          } : null;
+        }
+
+        const wantsVariant = fields.some((f) => f.includes('items.variant') || f.includes('*items.variant'));
+        if (wantsVariant) {
+          // El item puede tener variant directamente
+          const variant = item.variant;
+          if (variant) {
+            // Calcular stock desde warehouseVariants si está disponible
+            let stock = 0;
+            if ('warehouseVariants' in variant) {
+              stock = (variant as any).warehouseVariants?.reduce(
+                (sum: number, wv: any) => sum + (wv.stock || 0),
+                0
+              ) || 0;
+            } else if ('stock' in variant) {
+              stock = (variant as any).stock || 0;
+            }
+
+            itemResult.variant = {
+              id: variant.id,
+              sku: variant.sku,
+              title: variant.title,
+              price: variant.suggestedPrice || variant.price, // Usar suggestedPrice como prioridad
+              suggestedPrice: variant.suggestedPrice || null, // Incluir también suggestedPrice explícitamente
+              stock: stock,
+              active: variant.active,
+            };
+          } else {
+            itemResult.variant = null;
+          }
+        }
+
+        const wantsThumbnail = fields.some((f) => f.includes('items.thumbnail') || f.includes('*items.thumbnail'));
+        if (wantsThumbnail) {
+          const product = item.product || (item.variant && item.variant.product);
+          itemResult.thumbnail = product?.images?.[0] || null;
+        }
+
+        const wantsMetadata = fields.some((f) => f.includes('items.metadata') || f.includes('*items.metadata'));
+        if (wantsMetadata) {
+          itemResult.metadata = item.metadata || {};
+        }
+
+        // Siempre incluir unit_price (precio unitario del variant con incremento)
+        const variant = item.variant;
+        if (variant) {
+          const basePrice = variant.suggestedPrice || variant.price || 0;
+          // Aplicar incremento: (precio * 1.15) + 10,000
+          const unitPrice = basePrice > 0 ? Math.round((basePrice * 1.15) + 10000) : 0;
+          itemResult.unit_price = unitPrice;
+          
+          // El + indica campo calculado
+          const wantsTotal = fields.some((f) => f.includes('items.total') || f.includes('+items.total'));
+          if (wantsTotal) {
+            itemResult.total = unitPrice * item.quantity;
+          }
+        } else {
+          itemResult.unit_price = 0;
+          itemResult.total = 0;
+        }
+
+        return itemResult;
+      });
+    } else {
+      // Si no se solicitan items, devolver array vacío
+      result.items = [];
+    }
+
+    // Verificar si se solicita region (el * indica incluir todo)
+    const wantsRegion = fields.some((f) => f.includes('region') || f.includes('*region'));
+    if (wantsRegion) {
+      result.region = cart.region || null;
+    }
+
+    // Verificar si se solicitan shipping_methods (el + indica campo calculado o específico)
+    const wantsShippingMethods = fields.some((f) => f.includes('shipping_methods'));
+    if (wantsShippingMethods) {
+      result.shipping_methods = cart.shipping_methods || [];
+    }
+
+    // Verificar si se solicitan promotions (el * indica incluir todo)
+    const wantsPromotions = fields.some((f) => f.includes('promotions') || f.includes('*promotions'));
+    if (wantsPromotions) {
+      result.promotions = cart.promotions || [];
+    }
+
+    return result;
+  }
+
+  /**
+   * POST /store/carts
+   * Crear carrito nuevo
+   * Acepta region_id en el body
+   */
+  createCart = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+      const { region_id } = req.body; // Aceptar pero no usar todavía
+
+
+      const cart = await this.cartService.createCart(userId);
+
+      // Formatear respuesta
+      const formattedCart = {
+        ...cart,
+        region_id: region_id || null,
+        region: null,
+        shipping_methods: [],
+        promotions: [],
+      };
+
+      res.status(201).json({
+        cart: formattedCart,
+      });
+    } catch (error) {
+      console.error(`❌ [CART] Error creando carrito:`, error);
+      next(error);
+    }
+  };
+
+  /**
+   * POST /store/carts/:id
+   * Actualizar carrito
+   * Acepta: region_id, email, shipping_address, billing_address, etc.
+   */
+  updateCart = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body; // region_id, email, etc.
+
+
+      if (!id) {
+        throw new BadRequestError('ID del carrito es requerido');
+      }
+
+      // Obtener carrito actual
+      const cart = await this.cartService.getCartById(id);
+      
+      // Si no existe, retornar 404
+      // El backend NUNCA crea carts con IDs del request
+      if (!cart) {
+        return res.status(404).json({
+          message: 'Carrito no encontrado',
+          cart: null,
+        });
+      }
+
+      // Formatear respuesta (por ahora solo aceptamos region_id pero no lo usamos)
+      const formattedCart = {
+        ...cart,
+        subtotal: cart.subtotal || 0,
+        total: cart.total || cart.subtotal || 0,
+        region_id: updateData.region_id || null,
+        region: null,
+        shipping_methods: [],
+        promotions: [],
+      };
+
+      res.status(200).json({
+        cart: formattedCart,
+      });
+    } catch (error) {
+      console.error(`❌ [CART] Error actualizando carrito:`, error);
+      next(error);
+    }
+  };
+
+  /**
+   * POST /store/cart/add-item
+   * Agregar item al carrito
+   */
+  addItem = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { cart_id, variant_id, quantity } = req.body;
+
+
+      if (!cart_id) {
+        throw new BadRequestError('cart_id es requerido');
+      }
+
+      if (!variant_id) {
+        throw new BadRequestError('variant_id es requerido');
+      }
+
+      if (!quantity || quantity < 1) {
+        throw new BadRequestError('quantity debe ser mayor a 0');
+      }
+
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id; // Obtener userId del usuario autenticado
+      
+      console.log(`🔍 [CART] Agregando item: cart_id=${cart_id}, variant_id=${variant_id}, quantity=${quantity}, userId=${userId || 'null'}`);
+      
+      const cart = await this.cartService.addItemToCart(cart_id, variant_id, quantity, userId);
+      
+      // Si el carrito no tenía userId y ahora tenemos uno, actualizarlo
+      if (userId && cart && !cart.userId) {
+        console.log(`🛒 [CART] Actualizando cart ${cart.id} con userId: ${userId}`);
+        await prisma.cart.update({
+          where: { id: cart.id },
+          data: { userId },
+        });
+        // Re-obtener el carrito actualizado
+        const updatedCart = await this.cartService.getCartById(cart.id);
+        if (updatedCart) {
+          Object.assign(cart, updatedCart);
+        }
+      }
+
+      console.log(`✅ [CART] Item agregado. Carrito tiene ${cart.items.length} items`);
+
+      // Formatear respuesta
+      const formattedCart = {
+        ...cart,
+        subtotal: cart.subtotal || 0,
+        total: cart.total || cart.subtotal || 0,
+        region_id: null,
+        region: null,
+        shipping_methods: [],
+        promotions: [],
+      };
+
+      const response = {
+        success: true,
+        message: 'Item agregado al carrito',
+        data: formattedCart,
+        cart: formattedCart,
+        cart_id: cart.id,
+      };
+
+      console.log(`✅ [CART] Item agregado exitosamente. Respuesta:`, JSON.stringify(response, null, 2));
+
+      res.status(200).json(response);
+    } catch (error) {
+      console.error(`❌ [CART] Error agregando item:`, error);
+      next(error);
+    }
+  };
+
+  /**
+   * POST /store/cart/update-item
+   * Actualizar cantidad de item en el carrito
+   */
+  updateItem = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { cart_id, line_id, quantity } = req.body;
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id; // Obtener userId si está autenticado
+
+      if (!cart_id) {
+        throw new BadRequestError('cart_id es requerido');
+      }
+
+      if (!line_id) {
+        throw new BadRequestError('line_id es requerido');
+      }
+
+      if (quantity === undefined || quantity === null) {
+        throw new BadRequestError('quantity es requerido');
+      }
+
+      console.log(`🛒 [CART] Actualizando item: cartId=${cart_id}, lineId=${line_id}, quantity=${quantity}, userId=${userId || 'null'}`);
+
+      const cart = await this.cartService.updateCartItem(cart_id, line_id, quantity, userId);
+
+      // Formatear respuesta
+      const formattedCart = {
+        ...cart,
+        subtotal: cart.subtotal || 0,
+        total: cart.total || cart.subtotal || 0,
+        region_id: null,
+        region: null,
+        shipping_methods: [],
+        promotions: [],
+      };
+
+      res.status(200).json({
+        success: true,
+        message: 'Item actualizado',
+        data: formattedCart,
+        cart: formattedCart,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * DELETE /store/cart/delete-item
+   * Eliminar item del carrito
+   */
+  deleteItem = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { cart_id, line_id } = req.body;
+
+      if (!cart_id) {
+        throw new BadRequestError('cart_id es requerido');
+      }
+
+      if (!line_id) {
+        throw new BadRequestError('line_id es requerido');
+      }
+
+      const cart = await this.cartService.deleteCartItem(cart_id, line_id);
+
+      // Formatear respuesta
+      const formattedCart = {
+        ...cart,
+        subtotal: cart.subtotal || 0,
+        total: cart.total || cart.subtotal || 0,
+        region_id: null,
+        region: null,
+        shipping_methods: [],
+        promotions: [],
+      };
+
+      res.status(200).json({
+        success: true,
+        message: 'Item eliminado',
+        data: formattedCart,
+        cart: formattedCart,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+}
