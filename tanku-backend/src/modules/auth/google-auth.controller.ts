@@ -129,4 +129,46 @@ export class GoogleAuthController {
       next(error);
     }
   };
+
+  /**
+   * POST /auth/customer/google/callback
+   * Callback de Google OAuth para el frontend (compatibilidad con Medusa)
+   * El frontend envía el código y espera recibir el token en JSON
+   */
+  customerCallback = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code, state } = req.body;
+
+      if (!code) {
+        throw new BadRequestError('Código de autorización es requerido');
+      }
+
+      console.log('🔄 [GOOGLE OAUTH CUSTOMER] Intercambiando código por tokens...');
+      // Intercambiar código por tokens
+      const accessToken = await this.googleAuthService.exchangeCodeForTokens(code);
+
+      console.log('✅ [GOOGLE OAUTH CUSTOMER] Tokens obtenidos, obteniendo información del usuario...');
+      // Obtener información del usuario
+      const userInfo = await this.googleAuthService.getUserInfo(accessToken);
+
+      console.log('🔄 [GOOGLE OAUTH CUSTOMER] Autenticando/creando usuario...');
+      // Autenticar o crear usuario
+      const authResult = await this.googleAuthService.authenticateWithGoogle(userInfo);
+
+      const response: ApiResponse = {
+        success: true,
+        data: {
+          token: authResult.accessToken,
+          refreshToken: authResult.refreshToken,
+          user: authResult.user,
+        },
+      };
+
+      console.log('✅ [GOOGLE OAUTH CUSTOMER] Autenticación exitosa, devolviendo token');
+      res.status(200).json(response);
+    } catch (error) {
+      console.error('❌ [GOOGLE OAUTH CUSTOMER] Error en callback:', error);
+      next(error);
+    }
+  };
 }

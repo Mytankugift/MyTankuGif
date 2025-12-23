@@ -42,4 +42,10 @@ router.get('/google/callback', googleAuthController.callback);
  */
 router.post('/google/complete', googleAuthController.complete);
 
+/**
+ * POST /auth/customer/google/callback
+ * Callback de Google OAuth para el frontend (compatibilidad con Medusa)
+ */
+router.post('/customer/google/callback', googleAuthController.customerCallback);
+
 export default router;
