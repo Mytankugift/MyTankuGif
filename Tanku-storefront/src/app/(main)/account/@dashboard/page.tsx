@@ -6,7 +6,8 @@ export const metadata: Metadata = {
   description: "Overview of your account activity.",
 }
 
-export default async function OverviewTemplate() {
+export const dynamic = 'force-dynamic'
 
+export default async function OverviewTemplate() {
   redirect(`/`)
 }

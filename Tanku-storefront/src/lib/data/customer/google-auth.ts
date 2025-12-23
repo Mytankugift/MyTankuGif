@@ -6,15 +6,13 @@ import { sdk } from "@lib/config"
 
 /**
  * Maneja el callback de Google cuando recibimos un código de autorización
- * Usa el endpoint oficial de Medusa para autenticar, igual que el login normal
+ * Usa el endpoint del backend para autenticar con Google OAuth
  */
 export async function handleGoogleAuthCallback(code: string, state?: string) {
   try {
-    // Usar el endpoint oficial de Medusa para autenticar con Google
-    // Esto es lo mismo que hace sdk.auth.login() pero para OAuth
+    // Llamar al endpoint del backend para el callback de Google
     const backendUrl = process.env.MEDUSA_BACKEND_URL || process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000"
     
-    // Llamar al endpoint oficial de Medusa para el callback de Google
     const response = await fetch(`${backendUrl}/auth/customer/google/callback`, {
       method: "POST",
       headers: {
@@ -32,10 +30,12 @@ export async function handleGoogleAuthCallback(code: string, state?: string) {
     }
 
     const data = await response.json()
-    const token = data.token || data.access_token
+    // El backend devuelve el token en data.data.token (estructura ApiResponse)
+    const token = data.data?.token || data.token || data.access_token
 
     if (!token) {
-      throw new Error("No se recibió el token del endpoint de Medusa")
+      console.error("❌ [GOOGLE AUTH] Respuesta del backend:", data)
+      throw new Error("No se recibió el token del backend")
     }
 
     // Establecer el token en las cookies, igual que el login normal
