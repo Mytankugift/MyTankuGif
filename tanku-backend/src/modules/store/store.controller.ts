@@ -161,7 +161,7 @@ export class StoreController {
                   id: true,
                   title: true,
                   handle: true,
-                  thumbnail: true,
+                  images: true,
                 },
               },
             },
@@ -179,11 +179,11 @@ export class StoreController {
         public: list.public,
         createdAt: list.createdAt,
         updatedAt: list.updatedAt,
-        products: list.items.map((item) => ({
+        products: list.items.map((item: { product: { id: string; title: string; handle: string; images: string[] } }) => ({
           id: item.product.id,
           title: item.product.title,
           handle: item.product.handle,
-          thumbnail: item.product.thumbnail,
+          thumbnail: item.product.images?.[0] || null,
         })),
       }));
 
