@@ -1,9 +1,8 @@
 "use client"
 
-import { Metadata } from "next"
-import { notFound } from "next/navigation"
 import { CheckCircleSolid, ShoppingBag, CreditCard } from "@medusajs/icons"
 import { useEffect, useState, use } from "react"
+import { useRouter } from "next/navigation"
 
 import { retrieveOrder } from "@lib/data/orders"
 import { convertToLocale } from "@lib/util/money"
@@ -17,8 +16,10 @@ type Props = {
 
 export default function OrderConfirmedPage({ params }: Props) {
   const resolvedParams = use(params)
+  const router = useRouter()
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { navigateToOrders } = useNavigateToOrders()
 
   useEffect(() => {
@@ -72,9 +73,10 @@ export default function OrderConfirmedPage({ params }: Props) {
             }
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error loading order:', error)
-        notFound()
+        setError(error?.message || 'No se pudo cargar la orden')
+        setOrder(null)
       } finally {
         setLoading(false)
       }
@@ -91,8 +93,38 @@ export default function OrderConfirmedPage({ params }: Props) {
     )
   }
 
-  if (!order) {
-    notFound()
+  if (error || !order) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="max-w-md mx-auto px-4 text-center">
+          <div className="mb-4">
+            <div className="w-16 h-16 rounded-full bg-red-500/20 mx-auto flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Orden no encontrada</h2>
+            <p className="text-gray-300 mb-6">
+              {error || 'No se pudo cargar la información de la orden. Por favor, verifica el ID de la orden.'}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button 
+              onClick={() => router.push('/account/orders')}
+              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-xl transition-colors"
+            >
+              Ver mis órdenes
+            </button>
+            <button 
+              onClick={() => router.push('/')}
+              className="flex-1 bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] hover:from-[#5accc9] hover:to-[#66e68f] text-black font-semibold py-3 px-6 rounded-xl transition-all"
+            >
+              Volver al inicio
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // ✅ Detectar método de pago de múltiples formas
@@ -257,7 +289,7 @@ export default function OrderConfirmedPage({ params }: Props) {
           
           {/* Items */}
               <div className="space-y-3 mb-6">
-            {order.items?.map((item: any) => {
+            {order.items && Array.isArray(order.items) && order.items.length > 0 ? order.items.map((item: any) => {
               // ✅ Obtener imagen del producto desde variant.product.thumbnail o item.thumbnail
               const productImage = item.variant?.product?.thumbnail || 
                                    item.product?.thumbnail || 
@@ -316,7 +348,11 @@ export default function OrderConfirmedPage({ params }: Props) {
                 </div>
               </div>
             )
-            })}
+            }) : (
+              <div className="text-center py-8">
+                <p className="text-gray-400 text-sm">No hay items en esta orden</p>
+              </div>
+            )}
           </div>
 
           {/* Totales */}
