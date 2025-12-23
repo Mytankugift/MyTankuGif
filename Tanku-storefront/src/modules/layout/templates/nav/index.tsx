@@ -35,9 +35,13 @@ const ServicesDropdown = ({
       <h3 className="mb-2 px-2" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 500 }}>Servicios</h3>
       <div className="flex flex-col gap-1">
         {/* StalkerGift */}
-        <Link
+        <a
           href="/stalkergift"
-          className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10 text-left"
+          onClick={(e) => {
+            e.preventDefault()
+            window.location.href = "/stalkergift"
+          }}
+          className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10 text-left cursor-pointer"
           style={{ fontFamily: 'Poppins, sans-serif' }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 33" fill="none">
@@ -57,7 +61,7 @@ const ServicesDropdown = ({
           >
             StalkerGift
           </span>
-        </Link>
+        </a>
 
         {/* MultiPay */}
         <LocalizedClientLink
@@ -413,9 +417,13 @@ function NavContent() {
             <h3 className="mb-2 px-2" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 500 }}>GivE-Commerce</h3>
             <div className="flex flex-col gap-1">
               {/* My TANKU */}
-              <Link 
+              <a 
                 href="/" 
-                className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
+                onClick={(e) => {
+                  e.preventDefault()
+                  window.location.href = "/"
+                }}
+                className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10 cursor-pointer"
               >
                 <Image 
                   src="/feed/Icons/Home_Green.png" 
@@ -430,13 +438,17 @@ function NavContent() {
                 >
                   My TANKU
                 </span>
-              </Link>
+              </a>
 
               {/* Mi Perfil */}
               {isAuthenticated ? (
-                <Link 
+                <a 
                   href="/profile" 
-                  className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    window.location.href = "/profile"
+                  }}
+                  className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10 cursor-pointer"
                 >
                   <Image 
                     src="/feed/Icons/Profile_Green.png" 
@@ -451,7 +463,7 @@ function NavContent() {
                   >
                     Mi Perfil
                   </span>
-                </Link>
+                </a>
               ) : (
                 <div 
                   className="flex items-center gap-3 px-4 py-2 rounded-lg opacity-50 cursor-not-allowed"
@@ -475,9 +487,13 @@ function NavContent() {
 
               {/* Amigos */}
               {isAuthenticated ? (
-                <Link 
+                <a 
                   href="/friends" 
-                  className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    window.location.href = "/friends"
+                  }}
+                  className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10 cursor-pointer"
                 >
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#73FFA2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -491,7 +507,7 @@ function NavContent() {
                   >
                     Amigos
                   </span>
-                </Link>
+                </a>
               ) : (
                 <div 
                   className="flex items-center gap-3 px-4 py-2 rounded-lg opacity-50 cursor-not-allowed"
@@ -514,9 +530,13 @@ function NavContent() {
 
               {/* Wishlist */}
               {isAuthenticated ? (
-                <Link 
+                <a 
                   href="/wishlist" 
-                  className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    window.location.href = "/wishlist"
+                  }}
+                  className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10 cursor-pointer"
                 >
                   <Image 
                     src="/feed/Icons/Shopping_Cart_Green.png" 
@@ -531,7 +551,7 @@ function NavContent() {
                   >
                     Wishlist
                   </span>
-                </Link>
+                </a>
               ) : (
                 <div 
                   className="flex items-center gap-3 px-4 py-2 rounded-lg opacity-50 cursor-not-allowed"

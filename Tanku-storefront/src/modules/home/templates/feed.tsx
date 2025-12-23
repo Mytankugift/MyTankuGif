@@ -1732,12 +1732,16 @@ function HomeContent() {
 
         {/* Botón "Únete a Tanku" - Solo visible cuando no hay sesión */}
         {!personalInfo?.id && (
-          <Link
+          <a
             href="/account"
+            onClick={(e) => {
+              e.preventDefault()
+              window.location.href = "/account"
+            }}
             className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
           >
             Únete a Tanku
-          </Link>
+          </a>
         )}
 
         <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center">
@@ -2028,6 +2032,18 @@ function HomeContent() {
         {!hasMoreProducts && products.length > 0 && !productsLoading && (
           <div className="flex justify-center items-center py-8">
             <div className="text-white text-sm opacity-70">No hay más productos</div>
+          </div>
+        )}
+        
+        {/* Mensaje cuando no hay productos en la categoría seleccionada */}
+        {!productsLoading && products.length === 0 && selectedCategoryId !== null && (
+          <div className="flex flex-col justify-center items-center py-12">
+            <div className={`text-lg sm:text-xl font-semibold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+              No hay productos en esta categoría
+            </div>
+            <div className={`text-sm opacity-70 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+              Intenta con otra categoría o busca productos
+            </div>
           </div>
         )}
       </div>
