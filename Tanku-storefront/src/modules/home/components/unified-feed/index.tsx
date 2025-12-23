@@ -2333,14 +2333,58 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
   }, [customerId])
 
 
+  // Usar useRef para comparar valores anteriores y evitar re-renders infinitos
+  const prevProductsIdsRef = useRef<string>('')
+  const prevPostersIdsRef = useRef<string>('')
+  const prevIsLoadingRef = useRef<boolean>(isLoading)
+  const prevHidePostersRef = useRef<boolean>(hidePostersWhileLoading)
+  const prevProductsLengthRef = useRef<number>(products?.length || 0)
+  const prevPostersLengthRef = useRef<number>(posters?.length || 0)
+
   // Combinar productos, posters y banner con frecuencia optimizada
   // Estrategia: Banner al inicio, luego 1 publicación cada 4-5 productos
   useEffect(() => {
+    // Calcular IDs solo si la longitud cambió (optimización)
+    const currentProductsLength = products?.length || 0
+    const currentPostersLength = posters?.length || 0
+    
+    // Solo calcular IDs si la longitud cambió
+    let currentProductsIds = prevProductsIdsRef.current
+    if (currentProductsLength !== prevProductsLengthRef.current) {
+      currentProductsIds = products?.map(p => p?.id).filter(Boolean).join(',') || ''
+    }
+    
+    let currentPostersIds = prevPostersIdsRef.current
+    if (currentPostersLength !== prevPostersLengthRef.current) {
+      currentPostersIds = posters?.map(p => p?.id).filter(Boolean).join(',') || ''
+    }
+    
+    // Solo ejecutar si realmente cambiaron los datos
+    const productsChanged = currentProductsIds !== prevProductsIdsRef.current
+    const postersChanged = currentPostersIds !== prevPostersIdsRef.current
+    const isLoadingChanged = isLoading !== prevIsLoadingRef.current
+    const hidePostersChanged = hidePostersWhileLoading !== prevHidePostersRef.current
+    
+    if (!productsChanged && !postersChanged && !isLoadingChanged && !hidePostersChanged) {
+      // No hay cambios, no ejecutar
+      return
+    }
+    
+    // Actualizar referencias
+    prevProductsIdsRef.current = currentProductsIds
+    prevPostersIdsRef.current = currentPostersIds
+    prevIsLoadingRef.current = isLoading
+    prevHidePostersRef.current = hidePostersWhileLoading
+    prevProductsLengthRef.current = currentProductsLength
+    prevPostersLengthRef.current = currentPostersLength
+    
     console.log(`🔄 [UNIFIED FEED] useEffect ejecutado:`, {
       productsCount: products?.length || 0,
       postersCount: posters?.length || 0,
       isLoading,
-      hidePostersWhileLoading
+      hidePostersWhileLoading,
+      productsChanged,
+      postersChanged
     });
     
     // OPTIMIZACIÓN: Banner estático que no se recarga al cambiar categoría
@@ -2504,7 +2548,8 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
       // Incluso si no hay productos ni posters, mostrar banner vacío (ya está en combined)
       setFeedItems(combined)
     }
-  }, [products, posters, isLoading, hidePostersWhileLoading])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products?.length, posters?.length, isLoading, hidePostersWhileLoading, staticBannerData])
 
   // Funciones para manejar los modales
   const openPosterModal = (poster: Poster) => {

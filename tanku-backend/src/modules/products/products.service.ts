@@ -51,8 +51,11 @@ export class ProductsService {
       // active: true, // Comentado temporalmente para ver todos los productos
     };
 
-    if (query.category_id) {
-      where.categoryId = query.category_id;
+    // Si hay búsqueda, ignorar el filtro de categoría (buscar en todos los productos)
+    if (query.search) {
+      console.log(`🔍 [PRODUCTS SERVICE] Búsqueda activa: "${query.search}" - Ignorando filtro de categoría`);
+      // Cuando hay búsqueda, NO aplicar filtro de categoría para buscar en todos los productos
+    } else if (query.category_id) {
       console.log(`📦 [PRODUCTS SERVICE] Filtrando por categoría: ${query.category_id}`);
       
       // Verificar si la categoría existe
@@ -62,37 +65,58 @@ export class ProductsService {
       });
       
       if (!categoryExists) {
-        console.log(`⚠️ [PRODUCTS SERVICE] La categoría ${query.category_id} NO existe en la BD`);
+        console.log(`⚠️ [PRODUCTS SERVICE] La categoría ${query.category_id} NO existe en la BD - Mostrando todos los productos`);
+        // No aplicar filtro de categoría si la categoría no existe
       } else {
         console.log(`✅ [PRODUCTS SERVICE] Categoría encontrada: ${categoryExists.name} (${categoryExists.handle})`);
+        
+        // Verificar cuántos productos tienen esta categoría
+        const productsWithCategory = await prisma.product.count({
+          where: { categoryId: query.category_id },
+        });
+        console.log(`📦 [PRODUCTS SERVICE] Productos con esta categoría en BD: ${productsWithCategory}`);
+        
+        if (productsWithCategory === 0) {
+          console.log(`⚠️ [PRODUCTS SERVICE] La categoría no tiene productos - Mostrando todos los productos`);
+          // No aplicar filtro de categoría si no tiene productos
+        } else {
+          // Aplicar filtro de categoría solo si tiene productos
+          where.categoryId = query.category_id;
+        }
+        
+        // Verificar productos sin categoría
+        const productsWithoutCategory = await prisma.product.count({
+          where: { categoryId: null },
+        });
+        console.log(`📦 [PRODUCTS SERVICE] Productos SIN categoría en BD: ${productsWithoutCategory}`);
+        
+        // Verificar productos con otras categorías
+        const productsWithOtherCategories = await prisma.product.count({
+          where: {
+            categoryId: query.category_id ? { not: query.category_id } : { not: null },
+          },
+        });
+        console.log(`📦 [PRODUCTS SERVICE] Productos con otras categorías: ${productsWithOtherCategories}`);
       }
-      
-      // Verificar cuántos productos tienen esta categoría
-      const productsWithCategory = await prisma.product.count({
-        where: { categoryId: query.category_id },
-      });
-      console.log(`📦 [PRODUCTS SERVICE] Productos con esta categoría en BD: ${productsWithCategory}`);
-      
-      // Verificar productos sin categoría
-      const productsWithoutCategory = await prisma.product.count({
-        where: { categoryId: null },
-      });
-      console.log(`📦 [PRODUCTS SERVICE] Productos SIN categoría en BD: ${productsWithoutCategory}`);
-      
-      // Verificar productos con otras categorías
-      const productsWithOtherCategories = await prisma.product.count({
-        where: {
-          categoryId: query.category_id ? { not: query.category_id } : { not: null },
-        },
-      });
-      console.log(`📦 [PRODUCTS SERVICE] Productos con otras categorías: ${productsWithOtherCategories}`);
     }
 
     if (query.search) {
+      // Búsqueda mejorada: buscar en título, descripción y variantes (SKU, título)
       where.OR = [
         { title: { contains: query.search, mode: 'insensitive' } },
         { description: { contains: query.search, mode: 'insensitive' } },
+        { 
+          variants: {
+            some: {
+              OR: [
+                { sku: { contains: query.search, mode: 'insensitive' } },
+                { title: { contains: query.search, mode: 'insensitive' } },
+              ]
+            }
+          }
+        },
       ];
+      console.log(`🔍 [PRODUCTS SERVICE] Búsqueda: "${query.search}" - Buscando en título, descripción y variantes`);
     }
 
     // Log de la query que se va a ejecutar

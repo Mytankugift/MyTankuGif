@@ -541,11 +541,13 @@ function HomeContent() {
       window.addEventListener('cartUpdated', handleCartUpdate)
     }
     
-    // Actualizar el carrito cada 2 segundos para mantener el contador actualizado
-    const cartInterval = setInterval(loadCart, 2000)
+    // OPTIMIZACIÓN: Eliminar polling constante. El carrito se actualiza mediante eventos
+    // Si necesitas actualización periódica, usar un intervalo más largo (ej: 30 segundos)
+    // o mejor aún, usar WebSockets/Socket.io para actualizaciones en tiempo real
+    // const cartInterval = setInterval(loadCart, 30000) // 30 segundos si es necesario
     
     return () => {
-      clearInterval(cartInterval)
+      // clearInterval(cartInterval) // Ya no hay intervalo
       if (typeof window !== 'undefined') {
         window.removeEventListener('cartUpdated', handleCartUpdate)
       }
@@ -750,7 +752,14 @@ function HomeContent() {
 
   // Cargar productos cuando cambia la categoría
   useEffect(() => {
-    console.log(`[CATEGORY-CHANGE] 🔄 Categoría: ${selectedCategoryId?.slice(-6) || 'TODAS'}`)
+    // Si hay búsqueda activa, no cambiar productos (la búsqueda tiene prioridad)
+    if (productSearchQuery.trim()) {
+      console.log(`[CATEGORY-CHANGE] ⏭️ Skip (búsqueda activa: "${productSearchQuery}")`)
+      return
+    }
+    
+    const categoryLabel = selectedCategoryId ? selectedCategoryId.slice(-6) : 'TODAS'
+    console.log(`[CATEGORY-CHANGE] 🔄 Categoría: ${categoryLabel}`)
     
     // Skip SOLO en el montaje inicial cuando selectedCategoryId es null (ya se carga en el otro useEffect)
     // Pero si el usuario cambia a "Todas las categorías" después, sí debe ejecutarse
@@ -836,7 +845,9 @@ function HomeContent() {
         // OPTIMIZACIÓN: Cargar menos productos inicialmente al cambiar categoría
         // Cargar productos con filtro de categoría desde el backend
         // Si selectedCategoryId es null, cargar TODOS los productos (sin filtro)
-        const result = await fetchListStoreProduct(INITIAL_PRODUCTS, 0, selectedCategoryId || undefined)
+        // IMPORTANTE: Pasar undefined explícitamente cuando es null para que no se envíe category_id
+        const categoryIdForFetch = selectedCategoryId === null ? undefined : selectedCategoryId
+        const result = await fetchListStoreProduct(INITIAL_PRODUCTS, 0, categoryIdForFetch)
         const loadedProducts = result.products || []
         
         console.log(`[LOAD-CAT] ✅ ${loadedProducts.length} prods, hasMore=${result.hasMore}`)
@@ -891,7 +902,82 @@ function HomeContent() {
     
     loadProductsForCategory()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCategoryId])
+  }, [selectedCategoryId, productSearchQuery])
+
+  // Búsqueda de productos en el backend (busca en TODOS los productos de la BD)
+  useEffect(() => {
+    // Debounce para evitar demasiadas peticiones mientras el usuario escribe
+    const searchTimeout = setTimeout(() => {
+      if (productSearchQuery.trim()) {
+        console.log(`[SEARCH] 🔍 Buscando: "${productSearchQuery}"`)
+        setProductsLoading(true)
+        setProducts([])
+        setProductsOffset(0)
+        productsOffsetRef.current = 0
+        setHasMoreProducts(true)
+        
+        // Buscar en el backend (ignora categoría cuando hay búsqueda)
+        fetchListStoreProduct(INITIAL_PRODUCTS, 0, undefined, productSearchQuery.trim())
+          .then((result) => {
+            const searchProducts = result.products || []
+            console.log(`[SEARCH] ✅ Encontrados: ${searchProducts.length} productos`)
+            setProducts(searchProducts)
+            setHasMoreProducts(result.hasMore || false)
+            const newOffset = searchProducts.length
+            setProductsOffset(newOffset)
+            productsOffsetRef.current = newOffset
+            
+            // Scroll al inicio para mostrar resultados
+            const scrollContainer = document.querySelector('.custom-scrollbar') as HTMLElement
+            if (scrollContainer) {
+              scrollContainer.scrollTop = 0
+            }
+          })
+          .catch((error) => {
+            console.error("[SEARCH] ❌ Error buscando productos:", error)
+            setProducts([])
+            setHasMoreProducts(false)
+          })
+          .finally(() => {
+            setProductsLoading(false)
+          })
+      } else {
+        // Si se limpia la búsqueda, restaurar productos de la categoría seleccionada
+        console.log(`[SEARCH] 🧹 Búsqueda limpiada, restaurando categoría`)
+        setProductsLoading(true)
+        
+        // Cargar productos de la categoría seleccionada (o todos si es null)
+        const categoryIdForFetch = selectedCategoryId === null ? undefined : selectedCategoryId
+        fetchListStoreProduct(INITIAL_PRODUCTS, 0, categoryIdForFetch)
+          .then((result) => {
+            const categoryProducts = result.products || []
+            console.log(`[SEARCH] ✅ Productos de categoría restaurados: ${categoryProducts.length}`)
+            
+            // Restaurar productos de la categoría
+            setProducts(categoryProducts)
+            setHasMoreProducts(result.hasMore || false)
+            const newOffset = categoryProducts.length
+            setProductsOffset(newOffset)
+            productsOffsetRef.current = newOffset
+            
+            // Actualizar caché de categoría
+            setAllProductsByCategory(prev => {
+              const newMap = new Map(prev)
+              newMap.set(selectedCategoryId, categoryProducts)
+              return newMap
+            })
+          })
+          .catch((error) => {
+            console.error("[SEARCH] ❌ Error restaurando categoría:", error)
+          })
+          .finally(() => {
+            setProductsLoading(false)
+          })
+      }
+    }, 500) // Esperar 500ms después de que el usuario deje de escribir
+
+    return () => clearTimeout(searchTimeout)
+  }, [productSearchQuery])
 
   // Cuando se cambia la categoría, resetear el scroll al inicio del feed y mover el slider
   useEffect(() => {
@@ -985,10 +1071,8 @@ function HomeContent() {
             return
           }
 
-          // Si hay búsqueda activa, no cargar más productos ni restaurar scroll
-          if (productSearchQuery.trim()) {
-            return
-          }
+          // Si hay búsqueda activa, permitir cargar más resultados de búsqueda
+          // (no retornar aquí, continuar con la lógica de carga)
           
           // CORRECCIÓN: Scroll más permisivo para cargar más productos
           // Solo verificar que haya scroll mínimo para evitar carga automática al montar
@@ -1017,18 +1101,30 @@ function HomeContent() {
           setProductsLoading(true)
           
           const currentCategoryId = selectedCategoryIdRef.current
+          const currentSearchQuery = productSearchQuery.trim()
           
-          // Usar el ref para obtener el valor más reciente de los productos por categoría
-          const currentProductsForCategory = allProductsByCategoryRef.current.get(currentCategoryId) || []
-          const currentOffset = currentProductsForCategory.length
-          
-          console.log(`[INFINITE-SCROLL] Cargando más productos - Offset: ${currentOffset}, Categoría: ${currentCategoryId || 'all'}, Productos cargados: ${currentProductsForCategory.length}`)
+          // Si hay búsqueda activa, usar offset de productos de búsqueda
+          // Si no hay búsqueda, usar offset de productos de categoría
+          let currentOffset: number
+          if (currentSearchQuery) {
+            // Búsqueda activa: usar cantidad de productos de búsqueda cargados
+            currentOffset = products.length
+            console.log(`[INFINITE-SCROLL] 🔍 Búsqueda activa: "${currentSearchQuery}" - Offset: ${currentOffset}`)
+          } else {
+            // Sin búsqueda: usar productos de categoría
+            const currentProductsForCategory = allProductsByCategoryRef.current.get(currentCategoryId) || []
+            currentOffset = currentProductsForCategory.length
+            console.log(`[INFINITE-SCROLL] Cargando más productos - Offset: ${currentOffset}, Categoría: ${currentCategoryId || 'all'}, Productos cargados: ${currentProductsForCategory.length}`)
+          }
           
           // Guardar posición del scroll ANTES de actualizar productos (solo si no hay búsqueda)
-          const savedScrollTop = productSearchQuery.trim() ? 0 : (scrollContainer.scrollTop || 0)
+          const savedScrollTop = currentSearchQuery ? 0 : (scrollContainer.scrollTop || 0)
           const savedScrollHeight = scrollContainer.scrollHeight
           
-          fetchListStoreProduct(PRODUCTS_PER_PAGE, currentOffset, currentCategoryId || undefined)
+          // IMPORTANTE: Si hay búsqueda, pasar el término de búsqueda y NO category_id
+          // Si no hay búsqueda, pasar category_id normalmente
+          const categoryIdForFetch = currentSearchQuery ? undefined : (currentCategoryId === null ? undefined : currentCategoryId)
+          fetchListStoreProduct(PRODUCTS_PER_PAGE, currentOffset, categoryIdForFetch, currentSearchQuery || undefined)
             .then((result) => {
               const newProducts = result.products || []
               const categoryId = selectedCategoryIdRef.current
@@ -1048,35 +1144,59 @@ function HomeContent() {
                 return
               }
               
-              // Actualizar productos en memoria por categoría
-              setAllProductsByCategory(prev => {
-                const newMap = new Map(prev)
-                const currentProducts = newMap.get(categoryId) || []
-                // Filtrar duplicados antes de agregar
-                const existingIds = new Set(currentProducts.map((p: any) => p.id))
+              // Si hay búsqueda activa, agregar directamente a productos (no a categoría)
+              // Si no hay búsqueda, agregar a categoría como antes
+              const currentSearchQuery = productSearchQuery.trim()
+              
+              if (currentSearchQuery) {
+                // Búsqueda activa: agregar directamente a productos
+                const existingIds = new Set(products.map((p: any) => p.id))
                 const uniqueNewProducts = newProducts.filter((p: any) => !existingIds.has(p.id))
-                const updated = [...currentProducts, ...uniqueNewProducts]
-                newMap.set(categoryId, updated)
                 
-                // Actualizar el ref también
-                allProductsByCategoryRef.current = newMap
+                // Agregar productos directamente
+                setProducts((prev) => {
+                  const allIds = new Set(prev.map((p: any) => p.id))
+                  const unique = newProducts.filter((p: any) => !allIds.has(p.id))
+                  return [...prev, ...unique]
+                })
                 
-                // Calcular el nuevo offset basado en la cantidad total de productos cargados
-                const newOffset = updated.length
+                // Actualizar offset basado en productos de búsqueda
+                const newOffset = products.length + uniqueNewProducts.length
                 productsOffsetRef.current = newOffset
                 setProductsOffset(newOffset)
                 
-                console.log(`[INFINITE-SCROLL] Productos actualizados - Total: ${updated.length}, Nuevos: ${uniqueNewProducts.length}`)
+                console.log(`[INFINITE-SCROLL] 🔍 Búsqueda: Productos agregados - Nuevos: ${uniqueNewProducts.length}, Total: ${products.length + uniqueNewProducts.length}`)
+              } else {
+                // Sin búsqueda: agregar a categoría como antes
+                setAllProductsByCategory(prev => {
+                  const newMap = new Map(prev)
+                  const currentProducts = newMap.get(categoryId) || []
+                  // Filtrar duplicados antes de agregar
+                  const existingIds = new Set(currentProducts.map((p: any) => p.id))
+                  const uniqueNewProducts = newProducts.filter((p: any) => !existingIds.has(p.id))
+                  const updated = [...currentProducts, ...uniqueNewProducts]
+                  newMap.set(categoryId, updated)
+                  
+                  // Actualizar el ref también
+                  allProductsByCategoryRef.current = newMap
+                  
+                  // Calcular el nuevo offset basado en la cantidad total de productos cargados
+                  const newOffset = updated.length
+                  productsOffsetRef.current = newOffset
+                  setProductsOffset(newOffset)
+                  
+                  console.log(`[INFINITE-SCROLL] Productos actualizados - Total: ${updated.length}, Nuevos: ${uniqueNewProducts.length}`)
+                  
+                  return newMap
+                })
                 
-                return newMap
-              })
-              
-              setAllProducts((prev) => {
-                // Filtrar duplicados
-                const existingIds = new Set(prev.map((p: any) => p.id))
-                const uniqueNewProducts = newProducts.filter((p: any) => !existingIds.has(p.id))
-                return [...prev, ...uniqueNewProducts]
-              })
+                setAllProducts((prev) => {
+                  // Filtrar duplicados
+                  const existingIds = new Set(prev.map((p: any) => p.id))
+                  const uniqueNewProducts = newProducts.filter((p: any) => !existingIds.has(p.id))
+                  return [...prev, ...uniqueNewProducts]
+                })
+              }
               
               // Agregar productos de forma gradual para que se sienta más natural
               const existingIds = new Set(products.map((p: any) => p.id))
@@ -1756,6 +1876,24 @@ function HomeContent() {
               id="categories-scroll"
               className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-2 ml-8 mr-8 scrollbar-hide scroll-smooth"
             >
+              {/* Botón "Todas" al inicio */}
+              <button
+                key="all-categories"
+                data-category-id="all"
+                onClick={() => setSelectedCategoryId(null)}
+                className={`flex-shrink-0 flex flex-col items-center justify-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl transition-all duration-300 border-2 min-w-[80px] sm:min-w-[100px] ${
+                  selectedCategoryId === null
+                    ? "bg-gradient-to-r from-[#73FFA2] to-[#66DEDB] border-[#73FFA2] shadow-lg shadow-[#73FFA2]/30 scale-105"
+                    : "bg-gray-700/50 border-transparent hover:bg-gray-700 hover:border-[#73FFA2]/30 hover:scale-105"
+                }`}
+              >
+                <span className={`text-xs sm:text-sm font-semibold text-center line-clamp-2 ${
+                  selectedCategoryId === null ? "text-black" : "text-white"
+                }`} style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  Todas
+                </span>
+              </button>
+              
               {apiCategories.map((c, index) => {
                 const category = {
                   id: c.id,
@@ -1855,22 +1993,7 @@ function HomeContent() {
         }}
       >
         <MyTankuTab 
-          products={
-            // Filtrar productos por búsqueda si hay un término de búsqueda
-            productSearchQuery.trim()
-              ? products.filter((product) => {
-                  const searchLower = productSearchQuery.toLowerCase()
-                  return (
-                    product.title?.toLowerCase().includes(searchLower) ||
-                    product.description?.toLowerCase().includes(searchLower) ||
-                    product.variants?.some((v: any) => 
-                      v.title?.toLowerCase().includes(searchLower) ||
-                      v.sku?.toLowerCase().includes(searchLower)
-                    )
-                  )
-                })
-              : products
-          } 
+          products={products} 
           customerId={personalInfo?.id || ""} 
           isLightMode={isLightMode} 
           isLoading={productsLoading}

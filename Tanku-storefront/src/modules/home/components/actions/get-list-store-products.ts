@@ -1,9 +1,9 @@
-export const fetchListStoreProduct = async (limit: number = 20, offset: number = 0, categoryId?: string | null) => {
+export const fetchListStoreProduct = async (limit: number = 20, offset: number = 0, categoryId?: string | null, search?: string) => {
+    // LOG: Detectar de dónde viene la petición (sin stack trace para no saturar console)
+    const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
     try {
-      // LOG: Detectar de dónde viene la petición (sin stack trace para no saturar console)
-      const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
       const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'http://localhost:9000';
-      console.log(`[${timestamp}] 📥 FETCH: limit=${limit}, offset=${offset}, cat=${categoryId ? categoryId.slice(-6) : 'TODAS'}`);
+      console.log(`[${timestamp}] 📥 FETCH: limit=${limit}, offset=${offset}, cat=${categoryId ? categoryId.slice(-6) : 'TODAS'}, search=${search || 'none'}`);
       console.log(`[${timestamp}] 🔗 URL: ${backendUrl}/store/product/`);
       
       // Construir URL con parámetros
@@ -12,8 +12,13 @@ export const fetchListStoreProduct = async (limit: number = 20, offset: number =
         offset: offset.toString(),
       })
       
-      // Agregar category_id si se proporciona
-      if (categoryId) {
+      // Si hay búsqueda, NO enviar category_id (buscar en todos los productos)
+      // Si no hay búsqueda, enviar category_id si se proporciona
+      if (search && search.trim()) {
+        // Búsqueda activa: ignorar categoría y buscar en todos los productos
+        params.append('search', search.trim())
+      } else if (categoryId) {
+        // Sin búsqueda: aplicar filtro de categoría
         params.append('category_id', categoryId)
       }
       
