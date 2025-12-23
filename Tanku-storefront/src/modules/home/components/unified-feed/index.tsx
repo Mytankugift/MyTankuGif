@@ -2550,7 +2550,8 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
         }
       }
       
-      setFeedItems(combined)
+      console.log(`📋 [UNIFIED FEED] Estableciendo ${combined.length} items (productos y posters mezclados)`);
+      setFeedItems(() => combined)
     } else if (hasProducts) {
       // Solo productos - banner ya está en combined
       console.log(`📦 [UNIFIED FEED] Procesando ${products.length} productos (sin posters)`);
@@ -2576,24 +2577,30 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
       }
       
       const productItems = validProductsForItems.map(p => ({ type: 'product' as const, data: p }))
-      console.log(`📋 [UNIFIED FEED] Creando ${productItems.length} items de feed`);
-      setFeedItems([
+      const finalItems = [
         ...combined, // Banner ya está aquí
         ...productItems
-      ])
+      ]
+      console.log(`📋 [UNIFIED FEED] Creando ${productItems.length} items de feed, total: ${finalItems.length}`);
+      // Usar función de actualización para asegurar que el estado se actualice correctamente
+      setFeedItems(() => finalItems)
     } else if (posters && Array.isArray(posters) && shouldShowPosters) {
       // Solo posters - banner ya está en combined (solo si no está cargando)
       const validPosters = posters.filter(p => p && p.id)
-      setFeedItems([
+      const finalItems = [
         ...combined, // Banner ya está aquí
         ...validPosters.map(p => ({ type: 'poster' as const, data: p }))
-      ])
+      ]
+      console.log(`📋 [UNIFIED FEED] Estableciendo ${finalItems.length} items (solo posters)`);
+      setFeedItems(() => finalItems)
     } else {
       // Incluso si no hay productos ni posters, mostrar banner vacío (ya está en combined)
-      setFeedItems(combined)
+      console.log(`📋 [UNIFIED FEED] Estableciendo solo banner (${combined.length} items)`);
+      setFeedItems(() => combined)
     }
+    // Usar los arrays completos como dependencias para detectar cambios en el contenido, no solo en la longitud
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [products?.length, posters?.length, isLoading, hidePostersWhileLoading, staticBannerData])
+  }, [products, posters, isLoading, hidePostersWhileLoading, staticBannerData])
 
   // Funciones para manejar los modales
   const openPosterModal = (poster: Poster) => {
