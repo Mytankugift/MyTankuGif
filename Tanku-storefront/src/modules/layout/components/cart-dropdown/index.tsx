@@ -64,22 +64,6 @@ const CartDropdown = ({
   // Usar el subtotal del backend o el calculado
   const total = baseSubtotal > 0 ? baseSubtotal : calculatedTotal
   
-  // Debug: Log para verificar el cálculo
-  console.log(`🛒 [CART-DROPDOWN] Total cálculo:`, {
-    cartSubtotal: cartState?.subtotal,
-    calculatedSubtotal,
-    baseSubtotal,
-    totalQuantity,
-    extraAmount,
-    total,
-    items: cartState?.items?.map(item => ({
-      id: item.id,
-      item_total: (item as any).total,
-      unit_price: item.unit_price,
-      quantity: item.quantity,
-      calculated: (item as any).total || (item.unit_price ? item.unit_price * (item.quantity || 0) : 0)
-    }))
-  })
   
   const itemRef = useRef<number>(totalItems || 0)
 

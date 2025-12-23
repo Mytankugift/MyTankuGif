@@ -39,4 +39,10 @@ router.get('/products', productsController.listProductsSDK);
  */
 router.use('/product', productsRoutes);
 
+/**
+ * GET /store/wish-list/:customerId
+ * Obtener wish lists de un cliente
+ */
+router.get('/wish-list/:customerId', storeController.getWishLists);
+
 export default router;

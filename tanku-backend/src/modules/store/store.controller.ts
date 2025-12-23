@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { CategoriesService } from '../products/categories.service';
+import { prisma } from '../../config/database';
+import { env } from '../../config/env';
 
 /**
  * Controlador básico para endpoints de Store
@@ -91,27 +93,10 @@ export class StoreController {
    */
   getCategories = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log('\n📂 [STORE] ========== OBTENIENDO CATEGORÍAS ==========');
-      console.log(`📂 [STORE] Método: ${req.method}`);
-      console.log(`📂 [STORE] Path: ${req.path}`);
-      console.log(`📂 [STORE] URL: ${req.url}`);
-      console.log(`📂 [STORE] Original URL: ${req.originalUrl}`);
-      console.log(`📂 [STORE] Query:`, req.query);
-      console.log(`📂 [STORE] Headers:`, {
-        origin: req.headers.origin,
-      });
-      
       const categories = await this.categoriesService.listCategories();
-      console.log(`✅ [STORE] ${categories.length} categorías encontradas en BD`);
-      
-      if (categories.length > 0) {
-        console.log(`✅ [STORE] Primeras 3 categorías:`, categories.slice(0, 3).map(c => ({
-          id: c.id,
-          name: c.name,
-          slug: c.slug,
-        })));
-      } else {
-        console.log(`⚠️ [STORE] No hay categorías en la BD. Ejecuta: GET/POST /api/v1/dropi/sync-categories`);
+
+      if (categories.length === 0 && env.NODE_ENV === 'development') {
+        console.warn('⚠️ [STORE] No hay categorías en la BD');
       }
 
       const response = {
@@ -119,9 +104,6 @@ export class StoreController {
         count: categories.length,
         categories,
       };
-
-      console.log(`📂 [STORE] Enviando respuesta con ${categories.length} categorías`);
-      console.log('📂 [STORE] ==========================================\n');
 
       res.status(200).json(response);
     } catch (error) {
@@ -147,6 +129,71 @@ export class StoreController {
 
       res.status(200).json(response);
     } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /store/wish-list/:customerId
+   * Obtener wish lists de un cliente
+   * El frontend espera: { data: { result: [...] } }
+   */
+  getWishLists = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { customerId } = req.params;
+
+      if (!customerId) {
+        return res.status(400).json({
+          success: false,
+          error: 'customerId es requerido',
+        });
+      }
+
+      const wishLists = await prisma.wishList.findMany({
+        where: {
+          userId: customerId,
+        },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  title: true,
+                  handle: true,
+                  thumbnail: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      // Formatear respuesta según lo que espera el frontend
+      const formattedWishLists = wishLists.map((list) => ({
+        id: list.id,
+        title: list.name,
+        public: list.public,
+        createdAt: list.createdAt,
+        updatedAt: list.updatedAt,
+        products: list.items.map((item) => ({
+          id: item.product.id,
+          title: item.product.title,
+          handle: item.product.handle,
+          thumbnail: item.product.thumbnail,
+        })),
+      }));
+
+      res.status(200).json({
+        data: {
+          result: formattedWishLists,
+        },
+      });
+    } catch (error) {
+      console.error('❌ [STORE] Error obteniendo wish lists:', error);
       next(error);
     }
   };

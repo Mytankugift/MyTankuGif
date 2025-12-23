@@ -67,7 +67,12 @@ class SocketManager {
   private stalkerTypingListeners: ((data: { user_id: string; conversation_id: string; is_typing: boolean; user_name?: string }) => void)[] = []
 
   constructor() {
-    if (typeof window !== 'undefined') {
+    // Desactivar Socket.IO si no está configurado en el backend
+    // Verificar si Socket.IO está habilitado mediante variable de entorno
+    const socketEnabled = process.env.NEXT_PUBLIC_SOCKET_ENABLED !== 'false'
+    
+    if (typeof window !== 'undefined' && socketEnabled) {
+      // Intentar inicializar, pero no fallar si no está disponible
       this.initializeSocket()
     }
   }
@@ -104,30 +109,50 @@ class SocketManager {
     })
 
     this.socket.on('disconnect', (reason) => {
-      console.log('[SOCKET] Disconnected:', reason)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[SOCKET] Disconnected:', reason)
+      }
       this.notifyConnectionListeners(false)
+      
+      // No intentar reconectar si Socket.IO está deshabilitado o fue desconexión manual
+      if (reason === 'io client disconnect' || process.env.NEXT_PUBLIC_SOCKET_ENABLED === 'false') {
+        return
+      }
     })
 
     this.socket.on('connect_error', (error) => {
-      console.error('[SOCKET] Connection error:', error)
+      // Solo loggear en desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[SOCKET] Connection error:', error)
+      }
       
       // Si es un error de websocket, intentar con polling
       if (error.message?.includes('websocket') || (error as any).type === 'TransportError') {
-        console.log('[SOCKET] WebSocket failed, trying with polling only')
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[SOCKET] WebSocket failed, trying with polling only')
+        }
         if (this.socket) {
           this.socket.io.opts.transports = ['polling']
         }
       }
       
-      this.handleReconnection()
+      // No intentar reconectar si Socket.IO está deshabilitado
+      if (process.env.NEXT_PUBLIC_SOCKET_ENABLED !== 'false') {
+        this.handleReconnection()
+      }
     })
 
     this.socket.on('error', (error) => {
-      console.error('[SOCKET] Socket error:', error)
+      // Solo loggear en desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[SOCKET] Socket error:', error)
+      }
       
       // Manejar errores específicos
       if (error.message?.includes('websocket')) {
-        console.log('[SOCKET] WebSocket error detected, falling back to polling')
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[SOCKET] WebSocket error detected, falling back to polling')
+        }
         if (this.socket) {
           this.socket.io.opts.transports = ['polling']
         }
@@ -135,16 +160,17 @@ class SocketManager {
     })
 
     this.socket.on('authenticated', (data) => {
-      console.log('[SOCKET] Authenticated successfully:', data)
+      // Solo loggear en desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[SOCKET] Authenticated successfully')
+      }
     })
 
     this.socket.on('new-message', (data) => {
-      console.log('[SOCKET] New message received:', data)
       this.notifyMessageListeners(data.message)
     })
 
     this.socket.on('user-status-changed', (data) => {
-      console.log('[SOCKET] User status changed:', data)
       this.notifyUserStatusListeners({
         user_id: data.user_id,
         is_online: data.status === 'online',
@@ -153,41 +179,45 @@ class SocketManager {
     })
 
     this.socket.on('user-typing', (data) => {
-      console.log('[SOCKET] User typing:', data)
       this.notifyTypingListeners(data)
     })
 
     this.socket.on('conversation-updated', (data) => {
-      console.log('[SOCKET] Conversation updated:', data)
+      // Silenciar logs de conversación actualizada
     })
 
     // 🎯 StalkerGift chat events
     this.socket.on('stalker-chat-enabled', (data) => {
-      console.log('[SOCKET] StalkerGift chat enabled:', data)
       this.notifyStalkerChatEnabledListeners(data)
     })
 
     this.socket.on('stalker-new-message', (data) => {
-      console.log('[SOCKET] StalkerGift new message:', data)
       this.notifyStalkerMessageListeners(data.message)
     })
 
     this.socket.on('stalker-user-typing', (data) => {
-      console.log('[SOCKET] StalkerGift user typing:', data)
       this.notifyStalkerTypingListeners(data)
     })
 
     this.socket.on('stalker-conversation-updated', (data) => {
-      console.log('[SOCKET] StalkerGift conversation updated:', data)
+      // Silenciar logs de conversación actualizada
     })
   }
 
   private handleReconnection() {
+    // No reconectar si Socket.IO está deshabilitado
+    if (process.env.NEXT_PUBLIC_SOCKET_ENABLED === 'false') {
+      return
+    }
+    
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++
       const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
       
-      console.log(`[SOCKET] Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms`)
+      // Solo loggear en desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[SOCKET] Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms`)
+      }
       
       setTimeout(() => {
         // Verificar si el servidor está disponible antes de reconectar
@@ -195,23 +225,36 @@ class SocketManager {
           if (isAvailable) {
             this.connect()
           } else {
-            console.warn('[SOCKET] Server not available, will retry later')
+            // Silenciar warning en producción
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[SOCKET] Server not available, will retry later')
+            }
             this.handleReconnection()
           }
         })
       }, delay)
     } else {
-      console.error('[SOCKET] Max reconnection attempts reached')
-      console.info('[SOCKET] You can manually initialize Socket.IO by calling: curl -X POST http://localhost:9000/socket/initialize')
+      // Solo loggear en desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[SOCKET] Max reconnection attempts reached')
+      }
     }
   }
 
   private async checkServerStatus(): Promise<boolean> {
+    // Desactivar verificación de estado si Socket.IO no está habilitado
+    if (process.env.NEXT_PUBLIC_SOCKET_ENABLED === 'false') {
+      return false
+    }
+    
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'http://localhost:9000'}/socket/status`)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'http://localhost:9000'}/socket/status`, {
+        signal: AbortSignal.timeout(2000) // Timeout de 2 segundos
+      })
       const data = await response.json()
-      return data.success && data.data.socketServerInitialized
+      return data.success && data.data?.socketServerInitialized
     } catch (error) {
+      // Silenciar errores de Socket.IO si no está configurado
       return false
     }
   }

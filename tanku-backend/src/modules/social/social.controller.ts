@@ -27,11 +27,7 @@ export class SocialController {
         });
       }
 
-      console.log(`📱 [SOCIAL] Obteniendo feed de posters para usuario: ${customer_id}`);
-
       const posterFeed = await this.socialService.getFeedPoster(customer_id);
-
-      console.log(`✅ [SOCIAL] Feed obtenido: ${posterFeed.length} posters`);
 
       res.status(200).json({
         success: true,
@@ -50,9 +46,6 @@ export class SocialController {
    */
   createPoster = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log(`📱 [SOCIAL] ========== CREAR POSTER ==========`);
-      console.log(`📱 [SOCIAL] Body:`, req.body);
-      console.log(`📱 [SOCIAL] Files:`, req.files ? (Array.isArray(req.files) ? req.files.length : 1) : 0);
 
       const { customer_id, title, description } = req.body;
       const files = req.files as Express.Multer.File[] || [];

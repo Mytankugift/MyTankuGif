@@ -1,7 +1,8 @@
 import { HttpTypes } from "@medusajs/types"
 import { NextRequest, NextResponse } from "next/server"
 
-const BACKEND_URL = process.env.MEDUSA_BACKEND_URL
+// Usar NEXT_PUBLIC_MEDUSA_BACKEND_URL en lugar de MEDUSA_BACKEND_URL para que esté disponible en el cliente
+const BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || process.env.MEDUSA_BACKEND_URL
 const PUBLISHABLE_API_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
 const DEFAULT_REGION = process.env.NEXT_PUBLIC_DEFAULT_REGION || "us"
 
@@ -14,8 +15,12 @@ async function getRegionMap(cacheId: string) {
   const { regionMap, regionMapUpdated } = regionMapCache
 
   if (!BACKEND_URL) {
+    // En producción, no fallar si no hay URL, solo devolver región por defecto
+    if (process.env.NODE_ENV === 'production') {
+      return regionMap
+    }
     throw new Error(
-      "Middleware.ts: Error fetching regions. Did you set up regions in your Medusa Admin and define a MEDUSA_BACKEND_URL environment variable? Note that the variable is no longer named NEXT_PUBLIC_MEDUSA_BACKEND_URL."
+      "Middleware.ts: Error fetching regions. Did you set up regions and define NEXT_PUBLIC_MEDUSA_BACKEND_URL environment variable?"
     )
   }
 

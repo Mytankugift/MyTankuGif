@@ -25,8 +25,6 @@ export async function updateLineItemCustom({
   }
 
   try {
-    console.log(`🛒 [UPDATE-LINE-ITEM-CUSTOM] Actualizando item: lineId=${lineId}, quantity=${quantity}, cartId=${cartId}`)
-    
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/cart/update-item`,
       {
@@ -47,16 +45,12 @@ export async function updateLineItemCustom({
     const result = await response.json()
     
     if (!response.ok) {
-      console.error(`❌ [UPDATE-LINE-ITEM-CUSTOM] Error del servidor:`, result)
       throw new Error(result.message || `Error ${response.status}: ${response.statusText}`)
     }
 
     if (!result.success) {
-      console.error(`❌ [UPDATE-LINE-ITEM-CUSTOM] Error en respuesta:`, result)
       throw new Error(result.message || 'Error al actualizar item del carrito')
     }
-
-    console.log(`✅ [UPDATE-LINE-ITEM-CUSTOM] Item actualizado exitosamente`)
     
     // Revalidar cache
     const cartCacheTag = await getCacheTag("carts")
@@ -89,8 +83,6 @@ export async function deleteLineItemCustom(lineId: string) {
   }
 
   try {
-    console.log(`🛒 [DELETE-LINE-ITEM-CUSTOM] Eliminando item: lineId=${lineId}, cartId=${cartId}`)
-    
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/cart/delete-item`,
       {
@@ -110,16 +102,12 @@ export async function deleteLineItemCustom(lineId: string) {
     const result = await response.json()
     
     if (!response.ok) {
-      console.error(`❌ [DELETE-LINE-ITEM-CUSTOM] Error del servidor:`, result)
       throw new Error(result.message || `Error ${response.status}: ${response.statusText}`)
     }
 
     if (!result.success) {
-      console.error(`❌ [DELETE-LINE-ITEM-CUSTOM] Error en respuesta:`, result)
       throw new Error(result.message || 'Error al eliminar item del carrito')
     }
-
-    console.log(`✅ [DELETE-LINE-ITEM-CUSTOM] Item eliminado exitosamente`)
     
     // Revalidar cache
     const cartCacheTag = await getCacheTag("carts")
@@ -128,10 +116,14 @@ export async function deleteLineItemCustom(lineId: string) {
     const fulfillmentCacheTag = await getCacheTag("fulfillment")
     revalidateTag(fulfillmentCacheTag)
     
+    // Emitir evento para actualizar carrito inmediatamente
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cartUpdated'))
+    }
+    
     return result.data || result
 
   } catch (error: any) {
-    console.error(`❌ [DELETE-LINE-ITEM-CUSTOM] Error:`, error)
     throw error
   }
 }

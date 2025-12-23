@@ -13,16 +13,15 @@ import { AppError } from './shared/errors/AppError';
  */
 const app = express();
 
-// ⚠️ LOGGING ULTRA TEMPRANO - Capturar TODAS las peticiones (incluso antes de otros middlewares)
-app.use((req, res, next) => {
-  // Solo loggear si NO es OPTIONS para reducir ruido
-  if (req.method !== 'OPTIONS') {
-    console.log(`\n🔵 [EARLY LOG] ${req.method} ${req.originalUrl || req.url}`);
-    console.log(`🔵 [EARLY LOG] Path: ${req.path}`);
-    console.log(`🔵 [EARLY LOG] Origin: ${req.headers.origin || 'none'}`);
-  }
-  next();
-});
+// Logging mínimo - solo en desarrollo
+if (env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    if (req.method !== 'OPTIONS') {
+      console.log(`${req.method} ${req.path}`);
+    }
+    next();
+  });
+}
 
 /**
  * Middleware de seguridad
@@ -43,23 +42,9 @@ app.use(
   })
 );
 
-// Manejar OPTIONS explícitamente para debugging
+// Manejar OPTIONS explícitamente
 app.options('*', (req, res) => {
-  console.log(`🔵 [CORS PREFLIGHT] ${req.method} ${req.path}`);
   res.status(200).end();
-});
-
-// Logging TEMPRANO para capturar TODAS las peticiones (incluso antes de CORS)
-app.use((req, res, next) => {
-  // Solo loggear si NO es OPTIONS para reducir ruido
-  if (req.method !== 'OPTIONS') {
-    console.log(`🌐 [INCOMING] ${req.method} ${req.path}${req.url !== req.path ? ' | URL: ' + req.url : ''}`);
-    console.log(`🌐 [INCOMING] Origin: ${req.headers.origin || 'none'}`);
-    console.log(`🌐 [INCOMING] Headers:`, {
-      'content-type': req.headers['content-type'] || 'none',
-    });
-  }
-  next();
 });
 
 /**
@@ -68,35 +53,30 @@ app.use((req, res, next) => {
 app.use(compression());
 
 /**
- * Logging
- * Middleware personalizado para logging de todas las peticiones HTTP
+ * Logging - solo en desarrollo o para errores
  */
-app.use((req, res, next) => {
-  const start = Date.now();
-  const originalSend = res.send;
-  
-  res.send = function (body) {
-    const duration = Date.now() - start;
-    const statusCode = res.statusCode;
-    const method = req.method;
-    const path = req.path;
-    const query = Object.keys(req.query).length > 0 ? `?${new URLSearchParams(req.query as any).toString()}` : '';
-    const contentLength = res.get('content-length') || (typeof body === 'string' ? body.length : 0);
-    
-    // Formato similar a morgan pero más visible
-    console.log(`${method} ${path}${query} ${statusCode} ${duration}ms - ${contentLength}`);
-    
-    return originalSend.call(this, body);
-  };
-  
-  next();
-});
-
-// Morgan para formato adicional (solo en desarrollo)
 if (env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 } else {
-  app.use(morgan('combined'));
+  // En producción, solo loggear errores
+  app.use((req, res, next) => {
+    const start = Date.now();
+    const originalSend = res.send;
+    
+    res.send = function (body) {
+      const duration = Date.now() - start;
+      const statusCode = res.statusCode;
+      
+      // Solo loggear si hay error o es muy lento (>1s)
+      if (statusCode >= 400 || duration > 1000) {
+        console.log(`${req.method} ${req.path} ${statusCode} ${duration}ms`);
+      }
+      
+      return originalSend.call(this, body);
+    };
+    
+    next();
+  });
 }
 
 /**
@@ -154,11 +134,9 @@ app.use('/auth', authRoutes);
 // El frontend usa el SDK que espera /store/* directamente
 // IMPORTANTE: Montar ANTES de la ruta con prefijo para que coincida primero
 app.use('/store', storeRoutes);
-console.log(`✅ Store routes montadas en: /store`);
 
 // Store routes con prefijo API
 app.use(`${APP_CONSTANTS.API_PREFIX}/store`, storeRoutes);
-console.log(`✅ Store routes montadas en: ${APP_CONSTANTS.API_PREFIX}/store`);
 
 // Customers routes
 import customersRoutes from './modules/customers/customers.routes';
@@ -180,73 +158,57 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/personal-info`, usersRoutes);
 // Dropi routes
 import dropiRoutes from './modules/dropi/dropi.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/dropi`, dropiRoutes);
-console.log(`✅ Dropi routes montadas en: ${APP_CONSTANTS.API_PREFIX}/dropi`);
 
 // Dropi Raw routes
 import dropiRawRoutes from './modules/dropi-raw/dropi-raw.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/dropi`, dropiRawRoutes);
-console.log(`✅ Dropi Raw routes montadas en: ${APP_CONSTANTS.API_PREFIX}/dropi`);
 
 // Dropi Normalize routes
 import dropiNormalizeRoutes from './modules/dropi-normalize/dropi-normalize.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/dropi`, dropiNormalizeRoutes);
-console.log(`✅ Dropi Normalize routes montadas en: ${APP_CONSTANTS.API_PREFIX}/dropi`);
 
 // Dropi Enrich routes
 import dropiEnrichRoutes from './modules/dropi-enrich/dropi-enrich.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/dropi`, dropiEnrichRoutes);
-console.log(`✅ Dropi Enrich routes montadas en: ${APP_CONSTANTS.API_PREFIX}/dropi`);
 
 // Dropi Sync routes
 import dropiSyncRoutes from './modules/dropi-sync/dropi-sync.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/dropi`, dropiSyncRoutes);
-console.log(`✅ Dropi Sync routes montadas en: ${APP_CONSTANTS.API_PREFIX}/dropi`);
 
 // Dropi Categories routes
 import dropiCategoriesRoutes from './modules/dropi-categories/dropi-categories.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/dropi`, dropiCategoriesRoutes);
-console.log(`✅ Dropi Categories routes montadas en: ${APP_CONSTANTS.API_PREFIX}/dropi`);
 
 // Dropi Jobs routes
 import dropiJobsRoutes from './modules/dropi-jobs/dropi-jobs.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/dropi/jobs`, dropiJobsRoutes);
-console.log(`✅ Dropi Jobs routes montadas en: ${APP_CONSTANTS.API_PREFIX}/dropi/jobs`);
 
 // Social routes (posts, posters, etc.)
 import socialRoutes from './modules/social/social.routes';
 app.use('/social', socialRoutes);
 app.use(`${APP_CONSTANTS.API_PREFIX}/social`, socialRoutes);
-console.log(`✅ Social routes montadas en: /social y ${APP_CONSTANTS.API_PREFIX}/social`);
 
 // Orders routes
 import ordersRoutes from './modules/orders/orders.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/orders`, ordersRoutes);
 app.use('/store/orders', ordersRoutes); // Ruta para compatibilidad con frontend
 app.use('/store/order', ordersRoutes); // Ruta para endpoints individuales (ej: /store/order/:id/dropi-status)
-console.log(`✅ Orders routes montadas en: ${APP_CONSTANTS.API_PREFIX}/orders, /store/orders y /store/order`);
 
 // ePayco webhook routes
 import epaycoRoutes from './modules/orders/epayco.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/webhook/epayco`, epaycoRoutes);
-console.log(`✅ ePayco webhook routes montadas en: ${APP_CONSTANTS.API_PREFIX}/webhook/epayco`);
 
 // Checkout routes
 import checkoutRoutes from './modules/checkout/checkout.routes';
 app.use('/store/checkout', checkoutRoutes);
-console.log(`✅ Checkout routes montadas en: /store/checkout`);
 
 /**
  * Manejo de errores 404
  */
 app.use((req, res) => {
-  // Log de rutas no encontradas para debugging
-  if (req.path.includes('/store/product') || req.path.includes('/product')) {
-    console.log(`⚠️ [404] Ruta no encontrada pero parece ser de productos:`, {
-      method: req.method,
-      path: req.path,
-      url: req.url,
-      originalUrl: req.originalUrl,
-    });
+  // Solo loggear 404 en desarrollo
+  if (env.NODE_ENV === 'development') {
+    console.log(`⚠️ [404] ${req.method} ${req.path}`);
   }
   res.status(404).json({
     error: 'Ruta no encontrada',

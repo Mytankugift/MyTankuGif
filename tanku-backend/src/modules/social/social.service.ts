@@ -14,48 +14,13 @@ export class SocialService {
    */
   async getFeedPoster(customerId: string): Promise<any[]> {
     try {
-      console.log(`📱 [SOCIAL SERVICE] Obteniendo feed para usuario: ${customerId}`);
-      
       // Verificar que las tablas sociales existen (si no, devolver array vacío)
-      // Esto evita errores si las migraciones no se han ejecutado
       try {
-        // Verificar que el modelo existe haciendo una query simple
         await prisma.$queryRaw`SELECT 1 FROM posters LIMIT 1`.catch(() => {
           throw new Error('Tabla posters no existe');
         });
       } catch (tableError: any) {
-        console.warn(`⚠️ [SOCIAL SERVICE] Tablas sociales no creadas aún. Ejecuta: npx prisma migrate dev`);
         return [];
-      }
-      
-      // Verificar cuántos posters tiene el usuario (con y sin filtro isActive)
-      const totalPosters = await prisma.poster.count({
-        where: { customerId },
-      });
-      const activePosters = await prisma.poster.count({
-        where: { customerId, isActive: true },
-      });
-      const inactivePosters = await prisma.poster.count({
-        where: { customerId, isActive: false },
-      });
-      
-      console.log(`📱 [SOCIAL SERVICE] Total posters del usuario: ${totalPosters}`);
-      console.log(`📱 [SOCIAL SERVICE] Posters activos: ${activePosters}`);
-      console.log(`📱 [SOCIAL SERVICE] Posters inactivos: ${inactivePosters}`);
-      
-      // Si hay posters inactivos, mostrar algunos ejemplos
-      if (inactivePosters > 0) {
-        const inactiveExamples = await prisma.poster.findMany({
-          where: { customerId, isActive: false },
-          take: 3,
-          select: {
-            id: true,
-            title: true,
-            isActive: true,
-            createdAt: true,
-          },
-        });
-        console.log(`⚠️ [SOCIAL SERVICE] Ejemplos de posters inactivos:`, inactiveExamples);
       }
       
       // Obtener posts del usuario desde Prisma
@@ -80,7 +45,6 @@ export class SocialService {
         take: 20,
       });
 
-      console.log(`✅ [SOCIAL SERVICE] Encontrados ${posters.length} posters`);
 
       return posters.map((poster) => {
         const customerName = poster.customer

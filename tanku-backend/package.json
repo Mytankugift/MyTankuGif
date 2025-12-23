@@ -16,7 +16,9 @@
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
     "test:jobs": "tsx src/modules/dropi-jobs/test-jobs.ts",
-    "workers:start": "tsx src/modules/dropi-jobs/workers/start-workers.ts"
+    "workers:start": "tsx src/modules/dropi-jobs/workers/start-workers.ts",
+    "migrate:db": "tsx migrate-database.ts",
+    "check:migrations": "tsx check-migrations.ts"
   },
   "keywords": [
     "ecommerce",

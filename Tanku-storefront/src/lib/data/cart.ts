@@ -179,6 +179,11 @@ export async function addToCart({
 
   const fulfillmentCacheTag = await getCacheTag("fulfillment")
   revalidateTag(fulfillmentCacheTag)
+  
+  // Emitir evento para actualizar carrito inmediatamente en el cliente
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('cartUpdated'))
+  }
 
   // await sdk.store.cart
   //   .createLineItem(
@@ -265,8 +270,6 @@ export async function updateLineItem({
   }
 
   try {
-    console.log(`🛒 [UPDATE-LINE-ITEM] Actualizando item: lineId=${lineId}, quantity=${quantity}, cartId=${cartId}`)
-    
     // Usar directamente el endpoint personalizado (ya no usamos Medusa SDK)
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/cart/update-item`,
@@ -287,16 +290,12 @@ export async function updateLineItem({
     const result = await response.json()
     
     if (!response.ok) {
-      console.error(`❌ [UPDATE-LINE-ITEM] Error del servidor:`, result)
       throw new Error(result.message || `Error ${response.status}: ${response.statusText}`)
     }
 
     if (!result.success) {
-      console.error(`❌ [UPDATE-LINE-ITEM] Error en respuesta:`, result)
       throw new Error(result.message || 'Error al actualizar item del carrito')
     }
-
-    console.log(`✅ [UPDATE-LINE-ITEM] Item actualizado exitosamente`)
     
     // Revalidar cache
     const cartCacheTag = await getCacheTag("carts")
@@ -305,9 +304,13 @@ export async function updateLineItem({
     const fulfillmentCacheTag = await getCacheTag("fulfillment")
     revalidateTag(fulfillmentCacheTag)
     
+    // Emitir evento para actualizar carrito inmediatamente
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cartUpdated'))
+    }
+    
     return result.data || result.cart || result
   } catch (error: any) {
-    console.error(`❌ [UPDATE-LINE-ITEM] Error:`, error)
     throw error
   }
 }
