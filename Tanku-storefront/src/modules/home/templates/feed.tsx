@@ -1,8 +1,7 @@
 "use client"
 
-import React, { useState, useEffect, useRef, useCallback } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
 import {
   House,
   ShoppingBag,
@@ -454,8 +453,6 @@ const FilterSelector = () => {
 
 
 function HomeContent() {
-  const router = useRouter()
-  
   // Context for personal info
   const {
     personalInfo,
@@ -464,12 +461,6 @@ function HomeContent() {
     refreshPersonalInfo,
     clearPersonalInfo,
   } = usePersonalInfo()
-
-  const handleJoinClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    router.push('/account')
-  }, [router])
 
   const [userStories, setUserStories] = useState<Story[]>([])
   const [friendsStories, setFriendsStories] = useState<Story[]>([])
@@ -1741,12 +1732,12 @@ function HomeContent() {
 
         {/* Botón "Únete a Tanku" - Solo visible cuando no hay sesión */}
         {!personalInfo?.id && (
-          <button
-            onClick={handleJoinClick}
-            className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer"
+          <Link
+            href="/account"
+            className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
           >
             Únete a Tanku
-          </button>
+          </Link>
         )}
 
         <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center">

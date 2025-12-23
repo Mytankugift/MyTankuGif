@@ -4,6 +4,7 @@ import { Suspense, useState, useRef, useEffect } from "react"
 import { listRegions } from "@lib/data/regions"
 import { StoreRegion } from "@medusajs/types"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import Link from "next/link"
 import CartButton from "@modules/layout/components/cart-button"
 import SideMenu from "@modules/layout/components/side-menu"
 import CircularMenu from "@modules/layout/components/circular-menu"
@@ -34,7 +35,7 @@ const ServicesDropdown = ({
       <h3 className="mb-2 px-2" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 500 }}>Servicios</h3>
       <div className="flex flex-col gap-1">
         {/* StalkerGift */}
-        <LocalizedClientLink
+        <Link
           href="/stalkergift"
           className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10 text-left"
           style={{ fontFamily: 'Poppins, sans-serif' }}
@@ -56,7 +57,7 @@ const ServicesDropdown = ({
           >
             StalkerGift
           </span>
-        </LocalizedClientLink>
+        </Link>
 
         {/* MultiPay */}
         <LocalizedClientLink
@@ -412,7 +413,7 @@ function NavContent() {
             <h3 className="mb-2 px-2" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 500 }}>GivE-Commerce</h3>
             <div className="flex flex-col gap-1">
               {/* My TANKU */}
-              <LocalizedClientLink 
+              <Link 
                 href="/" 
                 className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
               >
@@ -429,11 +430,11 @@ function NavContent() {
                 >
                   My TANKU
                 </span>
-              </LocalizedClientLink>
+              </Link>
 
               {/* Mi Perfil */}
               {isAuthenticated ? (
-                <LocalizedClientLink 
+                <Link 
                   href="/profile" 
                   className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
                 >
@@ -450,7 +451,7 @@ function NavContent() {
                   >
                     Mi Perfil
                   </span>
-                </LocalizedClientLink>
+                </Link>
               ) : (
                 <div 
                   className="flex items-center gap-3 px-4 py-2 rounded-lg opacity-50 cursor-not-allowed"
@@ -474,7 +475,7 @@ function NavContent() {
 
               {/* Amigos */}
               {isAuthenticated ? (
-                <LocalizedClientLink 
+                <Link 
                   href="/friends" 
                   className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
                 >
@@ -490,7 +491,7 @@ function NavContent() {
                   >
                     Amigos
                   </span>
-                </LocalizedClientLink>
+                </Link>
               ) : (
                 <div 
                   className="flex items-center gap-3 px-4 py-2 rounded-lg opacity-50 cursor-not-allowed"
@@ -513,7 +514,7 @@ function NavContent() {
 
               {/* Wishlist */}
               {isAuthenticated ? (
-                <LocalizedClientLink 
+                <Link 
                   href="/wishlist" 
                   className="flex items-center gap-3 group hover:opacity-80 transition-opacity px-4 py-2 rounded-lg hover:bg-white/10"
                 >
@@ -530,7 +531,7 @@ function NavContent() {
                   >
                     Wishlist
                   </span>
-                </LocalizedClientLink>
+                </Link>
               ) : (
                 <div 
                   className="flex items-center gap-3 px-4 py-2 rounded-lg opacity-50 cursor-not-allowed"
