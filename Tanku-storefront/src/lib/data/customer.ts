@@ -187,25 +187,24 @@ export async function login(_currentState: unknown, formData: FormData) {
   const password = formData.get("password") as string
 
   try {
-    await sdk.auth
-      .login("customer", "emailpass", { email, password })
-      .then(async (token) => {
-        await setAuthToken(token as string)
-        const customerCacheTag = await getCacheTag("customers")
-        revalidateTag(customerCacheTag)
-        redirect(`/`)
-      })
-      
+    const token = await sdk.auth.login("customer", "emailpass", { email, password })
+    await setAuthToken(token as string)
+    const customerCacheTag = await getCacheTag("customers")
+    revalidateTag(customerCacheTag)
+    
+    // Transferir carrito después del login
+    try {
+      await transferCart()
+    } catch (error: any) {
+      console.error("Error transferiendo carrito:", error)
+      // No fallar el login si falla la transferencia del carrito
+    }
+    
+    // Retornar undefined para indicar éxito (el redirect se maneja en el componente cliente)
+    return undefined
   } catch (error: any) {
     return error.toString()
   }
-
-  try {
-    await transferCart()
-  } catch (error: any) {
-    return error.toString()
-  }
- 
 }
 
 type DecodedToken = {

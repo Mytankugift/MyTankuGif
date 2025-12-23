@@ -2,9 +2,8 @@
 
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react"
 import { XMark } from "@medusajs/icons"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useTransition } from "react"
 import { login } from "@lib/data/customer"
-import { useActionState } from "react"
 import { usePersonalInfoActions } from "@lib/context"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
@@ -18,7 +17,27 @@ interface LoginModalProps {
 }
 
 const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps) => {
-  const [message, formAction] = useActionState(login, null)
+  const [message, setMessage] = useState<string | null | undefined>(null)
+  const [isPending, startTransition] = useTransition()
+  
+  const formAction = async (formData: FormData) => {
+    setMessage(null) // Limpiar mensaje anterior
+    startTransition(async () => {
+      try {
+        const result = await login(null, formData)
+        // Si login retorna un string, es un error
+        if (typeof result === 'string') {
+          setMessage(result)
+        } else {
+          // Si no retorna nada o retorna undefined, fue exitoso
+          // El redirect se maneja en el useEffect cuando message es undefined
+          setMessage(undefined) // Usar undefined para indicar éxito
+        }
+      } catch (error: any) {
+        setMessage(error?.toString() || 'Error al iniciar sesión')
+      }
+    })
+  }
   const { onLoginSuccess: onLoginSuccessContext } = usePersonalInfoActions()
   const router = useRouter()
 
@@ -120,9 +139,13 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }: LoginModalProps) => {
                   <ErrorMessage error={message} />
                 )}
 
-                <SubmitButton className="w-full bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] hover:from-[#5accc9] hover:to-[#66e68f] text-black font-semibold py-3 rounded-lg transition-all duration-300 hover:scale-105">
-                  Iniciar sesión
-                </SubmitButton>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="w-full bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] hover:from-[#5accc9] hover:to-[#66e68f] text-black font-semibold py-3 rounded-lg transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isPending ? 'Iniciando sesión...' : 'Iniciar sesión'}
+                </button>
               </form>
 
               {/* Divider */}

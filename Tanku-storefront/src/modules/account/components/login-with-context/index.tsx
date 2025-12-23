@@ -4,7 +4,7 @@ import { login } from "@lib/data/customer"
 import { LOGIN_VIEW } from "@modules/account/templates/login-template"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { SubmitButton } from "@modules/checkout/components/submit-button"
-import { useActionState, useEffect } from "react"
+import { useState, useEffect, useTransition } from "react"
 import Image from "next/image"
 import { usePersonalInfoActions } from "@lib/context"
 import { useRouter } from "next/navigation"
@@ -14,7 +14,27 @@ type Props = {
 }
 
 const LoginWithContext = ({ setCurrentView }: Props) => {
-  const [message, formAction] = useActionState(login, null)
+  const [message, setMessage] = useState<string | null | undefined>(null)
+  const [isPending, startTransition] = useTransition()
+  
+  const formAction = async (formData: FormData) => {
+    setMessage(null) // Limpiar mensaje anterior
+    startTransition(async () => {
+      try {
+        const result = await login(null, formData)
+        // Si login retorna un string, es un error
+        if (typeof result === 'string') {
+          setMessage(result)
+        } else {
+          // Si no retorna nada o retorna undefined, fue exitoso
+          // El redirect se maneja en el useEffect cuando message es undefined
+          setMessage(undefined) // Usar undefined para indicar éxito
+        }
+      } catch (error: any) {
+        setMessage(error?.toString() || 'Error al iniciar sesión')
+      }
+    })
+  }
   const { onLoginSuccess } = usePersonalInfoActions()
   const router = useRouter()
 
@@ -149,9 +169,10 @@ const LoginWithContext = ({ setCurrentView }: Props) => {
                   <button
                     type="submit"
                     data-testid="sign-in-button"
-                    className="w-full mt-4 py-3 bg-gradient-to-r from-transparent to-[#73FFA2] text-white font-semibold rounded-lg hover:from-[#73FFA2]/20 hover:to-[#73FFA2] transition-all duration-300"
+                    disabled={isPending}
+                    className="w-full mt-4 py-3 bg-gradient-to-r from-transparent to-[#73FFA2] text-white font-semibold rounded-lg hover:from-[#73FFA2]/20 hover:to-[#73FFA2] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Iniciar Sesión
+                    {isPending ? 'Iniciando sesión...' : 'Iniciar Sesión'}
                   </button>
                 </form>
 
