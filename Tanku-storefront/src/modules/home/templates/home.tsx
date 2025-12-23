@@ -1,9 +1,18 @@
 "use client"
 
 import Image from "next/image"
-import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import { useRouter } from "next/navigation"
+import { useCallback } from "react"
 
 const HomePage = () => {
+  const router = useRouter()
+
+  const handleJoinClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    router.push('/account')
+  }, [router])
+
   return (
     <>
       <div className="h-full w-full bg-[#1E1E1E]  ">
@@ -23,12 +32,12 @@ const HomePage = () => {
 
           {/* Buttons - top right */}
           <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-            <LocalizedClientLink
-              href="/account"
-              className="text-center bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-3 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 lg:px-8 lg:py-4 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm md:text-base min-w-[120px] sm:min-w-[150px] md:min-w-[180px] lg:min-w-[200px]"
+            <button
+              onClick={handleJoinClick}
+              className="text-center bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-3 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 lg:px-8 lg:py-4 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm md:text-base min-w-[120px] sm:min-w-[150px] md:min-w-[180px] lg:min-w-[200px] cursor-pointer"
             >
               Únete a Tanku
-            </LocalizedClientLink>
+            </button>
           </div>
         </div>
 
@@ -341,12 +350,12 @@ const HomePage = () => {
             <p>¡Regístrate ahora y gana hasta <span className="text-[#73FFA2]">$100.000 COP</span> 
             para tu primer <span className="text-[#73FFA2]">TANKU</span>!</p>
             </div>
-            <LocalizedClientLink
-            href="/account"
-            className="text-center bg-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-sm sm:text-base md:text-lg min-w-[150px] sm:min-w-[180px] md:min-w-[200px] z-50 mb-12 sm:mb-16 md:mb-20"
-          >
-            Descubre el Poder de Tanku
-          </LocalizedClientLink>
+            <button
+              onClick={handleJoinClick}
+              className="text-center bg-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-sm sm:text-base md:text-lg min-w-[150px] sm:min-w-[180px] md:min-w-[200px] z-50 mb-12 sm:mb-16 md:mb-20 cursor-pointer"
+            >
+              Descubre el Poder de Tanku
+            </button>
           </div>
 
           <div>
@@ -645,12 +654,12 @@ const HomePage = () => {
             </p>
           </div>
 
-          <LocalizedClientLink
-            href="/account"
-            className="text-center bg-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-sm sm:text-base md:text-lg min-w-[150px] sm:min-w-[180px] md:min-w-[200px] z-50 mb-12 sm:mb-16 md:mb-20"
+          <button
+            onClick={handleJoinClick}
+            className="text-center bg-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-sm sm:text-base md:text-lg min-w-[150px] sm:min-w-[180px] md:min-w-[200px] z-50 mb-12 sm:mb-16 md:mb-20 cursor-pointer"
           >
             ¡Inicia Ya!
-          </LocalizedClientLink>
+          </button>
           </div>
 
           </div>

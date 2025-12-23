@@ -16,52 +16,123 @@ async function getRegionMap(cacheId: string) {
 
   if (!BACKEND_URL) {
     // En producción, no fallar si no hay URL, solo devolver región por defecto
-    if (process.env.NODE_ENV === 'production') {
-      return regionMap
+    console.warn("⚠️ [MIDDLEWARE] NEXT_PUBLIC_MEDUSA_BACKEND_URL no está definido, usando región por defecto")
+    // Agregar región por defecto (Colombia) si no hay ninguna
+    if (!regionMap.keys().next().value) {
+      const defaultRegion: HttpTypes.StoreRegion = {
+        id: 'reg_colombia',
+        name: 'Colombia',
+        currency_code: 'COP',
+        countries: [{
+          id: 'co',
+          iso_2: 'co',
+          iso_3: 'col',
+          num_code: '170',
+          name: 'Colombia',
+          display_name: 'Colombia',
+        }],
+      } as HttpTypes.StoreRegion
+      regionMapCache.regionMap.set('co', defaultRegion)
     }
-    throw new Error(
-      "Middleware.ts: Error fetching regions. Did you set up regions and define NEXT_PUBLIC_MEDUSA_BACKEND_URL environment variable?"
-    )
+    return regionMapCache.regionMap
+  }
+
+  // Validar que BACKEND_URL no sea localhost en producción
+  if (process.env.NODE_ENV === 'production' && BACKEND_URL.includes('localhost')) {
+    console.error("❌ [MIDDLEWARE] ERROR: NEXT_PUBLIC_MEDUSA_BACKEND_URL está configurado como localhost en producción!")
+    console.error("   Por favor, configura NEXT_PUBLIC_MEDUSA_BACKEND_URL con la URL de producción")
+    // Usar región por defecto en lugar de fallar
+    if (!regionMap.keys().next().value) {
+      const defaultRegion: HttpTypes.StoreRegion = {
+        id: 'reg_colombia',
+        name: 'Colombia',
+        currency_code: 'COP',
+        countries: [{
+          id: 'co',
+          iso_2: 'co',
+          iso_3: 'col',
+          num_code: '170',
+          name: 'Colombia',
+          display_name: 'Colombia',
+        }],
+      } as HttpTypes.StoreRegion
+      regionMapCache.regionMap.set('co', defaultRegion)
+    }
+    return regionMapCache.regionMap
   }
 
   if (
     !regionMap.keys().next().value ||
     regionMapUpdated < Date.now() - 3600 * 1000
   ) {
-    // Fetch regions from Medusa. We can't use the JS client here because middleware is running on Edge and the client needs a Node environment.
-    const { regions } = await fetch(`${BACKEND_URL}/store/regions`, {
-      headers: {
-        "x-publishable-api-key": PUBLISHABLE_API_KEY!,
-      },
-      next: {
-        revalidate: 3600,
-        tags: [`regions-${cacheId}`],
-      },
-      cache: "force-cache",
-    }).then(async (response) => {
-      const json = await response.json()
+    try {
+      // Fetch regions from Medusa. We can't use the JS client here because middleware is running on Edge and the client needs a Node environment.
+      const response = await fetch(`${BACKEND_URL}/store/regions`, {
+        headers: {
+          "x-publishable-api-key": PUBLISHABLE_API_KEY || "",
+        },
+        next: {
+          revalidate: 3600,
+          tags: [`regions-${cacheId}`],
+        },
+        cache: "force-cache",
+      })
 
       if (!response.ok) {
-        throw new Error(json.message)
+        throw new Error(`Failed to fetch regions: ${response.status} ${response.statusText}`)
       }
 
-      return json
-    })
+      const json = await response.json()
+      const { regions } = json
 
-    if (!regions?.length) {
-      throw new Error(
-        "No regions found. Please set up regions in your Medusa Admin."
-      )
-    }
+      if (!regions?.length) {
+        console.warn("⚠️ [MIDDLEWARE] No se encontraron regiones, usando región por defecto")
+        // Agregar región por defecto
+        const defaultRegion: HttpTypes.StoreRegion = {
+          id: 'reg_colombia',
+          name: 'Colombia',
+          currency_code: 'COP',
+          countries: [{
+            id: 'co',
+            iso_2: 'co',
+            iso_3: 'col',
+            num_code: '170',
+            name: 'Colombia',
+            display_name: 'Colombia',
+          }],
+        } as HttpTypes.StoreRegion
+        regionMapCache.regionMap.set('co', defaultRegion)
+        return regionMapCache.regionMap
+      }
 
-    // Create a map of country codes to regions.
-    regions.forEach((region: HttpTypes.StoreRegion) => {
-      region.countries?.forEach((c) => {
-        regionMapCache.regionMap.set(c.iso_2 ?? "", region)
+      // Create a map of country codes to regions.
+      regions.forEach((region: HttpTypes.StoreRegion) => {
+        region.countries?.forEach((c) => {
+          regionMapCache.regionMap.set(c.iso_2 ?? "", region)
+        })
       })
-    })
 
-    regionMapCache.regionMapUpdated = Date.now()
+      regionMapCache.regionMapUpdated = Date.now()
+    } catch (error: any) {
+      console.error("❌ [MIDDLEWARE] Error fetching regions:", error.message)
+      // En caso de error, usar región por defecto en lugar de fallar
+      if (!regionMap.keys().next().value) {
+        const defaultRegion: HttpTypes.StoreRegion = {
+          id: 'reg_colombia',
+          name: 'Colombia',
+          currency_code: 'COP',
+          countries: [{
+            id: 'co',
+            iso_2: 'co',
+            iso_3: 'col',
+            num_code: '170',
+            name: 'Colombia',
+            display_name: 'Colombia',
+          }],
+        } as HttpTypes.StoreRegion
+        regionMapCache.regionMap.set('co', defaultRegion)
+      }
+    }
   }
 
   return regionMapCache.regionMap
