@@ -2384,15 +2384,17 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
   const prevHidePostersRef = useRef<boolean>(hidePostersWhileLoading)
   const prevProductsLengthRef = useRef<number>(products?.length || 0)
   const prevPostersLengthRef = useRef<number>(posters?.length || 0)
+  
+  // No usar useMemo aquí para evitar loops infinitos
+  // Los IDs se calcularán dentro del useEffect cuando sea necesario
 
   // Combinar productos, posters y banner con frecuencia optimizada
   // Estrategia: Banner al inicio, luego 1 publicación cada 4-5 productos
   useEffect(() => {
-    // Calcular IDs solo si la longitud cambió (optimización)
     const currentProductsLength = products?.length || 0
     const currentPostersLength = posters?.length || 0
     
-    // Solo calcular IDs si la longitud cambió
+    // Calcular IDs solo cuando la longitud cambió (optimización)
     let currentProductsIds = prevProductsIdsRef.current
     if (currentProductsLength !== prevProductsLengthRef.current) {
       currentProductsIds = products?.map(p => p?.id).filter(Boolean).join(',') || ''
@@ -2414,7 +2416,7 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
       return
     }
     
-    // Actualizar referencias
+    // Actualizar referencias ANTES de ejecutar la lógica
     prevProductsIdsRef.current = currentProductsIds
     prevPostersIdsRef.current = currentPostersIds
     prevIsLoadingRef.current = isLoading
@@ -2598,9 +2600,11 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
       console.log(`📋 [UNIFIED FEED] Estableciendo solo banner (${combined.length} items)`);
       setFeedItems(() => combined)
     }
-    // Usar los arrays completos como dependencias para detectar cambios en el contenido, no solo en la longitud
+    // Usar useMemo para crear una versión estable de los IDs de productos y posters
+    // Usar las longitudes como dependencias principales para evitar loops infinitos
+    // Los IDs se calculan dentro del useEffect solo cuando es necesario
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [products, posters, isLoading, hidePostersWhileLoading, staticBannerData])
+  }, [products?.length, posters?.length, isLoading, hidePostersWhileLoading, staticBannerData])
 
   // Funciones para manejar los modales
   const openPosterModal = (poster: Poster) => {
