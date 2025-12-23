@@ -54,19 +54,12 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
   return (
     <div>
       <div className="flex flex-col gap-y-1 font-medium text-gray-300 text-sm">
-        {/* NOTA TEMPORAL */}
-        <div className="flex items-center justify-center mb-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-          <span className="text-xs text-yellow-400">
-            ⚠️ PRECIO: +15% + $10,000 por producto
-          </span>
-        </div>
-        
         <div className="flex items-start sm:items-center justify-between">
           <span className="flex gap-x-1 items-center max-w-[65%] sm:max-w-none">
-            Subtotal (sin envío e impuestos)
+            Subtotal
           </span>
           <span className="text-right" data-testid="cart-subtotal" data-value={adjustedSubtotal}>
-            {convertToLocale({ amount: adjustedSubtotal, currency_code })}
+            {convertToLocale({ amount: adjustedSubtotal, currency_code: currency_code || 'COP' })}
           </span>
         </div>
         {!!discount_total && (
@@ -78,17 +71,17 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
               data-value={discount_total || 0}
             >
               -{" "}
-              {convertToLocale({ amount: discount_total ?? 0, currency_code })}
+              {convertToLocale({ amount: discount_total ?? 0, currency_code: currency_code || 'COP' })}
             </span>
           </div>
         )}
         <div className="flex items-start sm:items-center justify-between">
-          <span className="max-w-[65%] sm:max-w-none">
-            {shipping_subtotal && shipping_subtotal > 0 ? "Envío" : "Envío (por definir)"}
+          <span className="max-w-[65%] sm:max-w-none font-semibold text-[#73FFA2]">
+            Envío gratuito
           </span>
-          <span className="text-right" data-testid="cart-shipping" data-value={shipping_subtotal || 0}>
+          <span className="text-right font-semibold text-[#73FFA2]" data-testid="cart-shipping" data-value={0}>
             {shipping_subtotal && shipping_subtotal > 0 
-              ? convertToLocale({ amount: shipping_subtotal ?? 0, currency_code })
+              ? convertToLocale({ amount: shipping_subtotal ?? 0, currency_code: currency_code || 'COP' })
               : ""
             }
           </span>
@@ -102,7 +95,7 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
               data-value={gift_card_total || 0}
             >
               -{" "}
-              {convertToLocale({ amount: gift_card_total ?? 0, currency_code })}
+              {convertToLocale({ amount: gift_card_total ?? 0, currency_code: currency_code || 'COP' })}
             </span>
           </div>
         )}
@@ -115,7 +108,7 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
           data-testid="cart-total"
           data-value={adjustedTotal}
         >
-          {convertToLocale({ amount: adjustedTotal, currency_code })}
+          {convertToLocale({ amount: adjustedTotal, currency_code: currency_code || 'COP' })}
         </span>
       </div>
       <div className="h-px w-full border-b border-gray-700 mt-2" />

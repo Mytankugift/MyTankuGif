@@ -331,7 +331,7 @@ const CartDropdownButton = ({ cart, cartItemsCount }: { cart: any, cartItemsCoun
                   <span className="text-sm sm:text-base font-semibold text-[#66DEDB]">
                     {convertToLocale({
                       amount: total,
-                      currency_code: cart.currency_code,
+                      currency_code: cart.currency_code || 'COP',
                     })}
                   </span>
                 </div>

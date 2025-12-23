@@ -87,8 +87,19 @@ export const retrieveCustomer =
 
       return medusaCustomer
     } catch (error: any) {
-      console.error("❌ Error fetching customer from API:", error)
-      console.error("Error details:", error.message, error.status)
+      // Si el error es ECONNREFUSED, el backend no está disponible
+      // No loggear en producción para evitar spam de logs
+      if (error?.code === 'ECONNREFUSED' || error?.message?.includes('fetch failed')) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn("⚠️ [RETRIEVE-CUSTOMER] Backend no disponible (ECONNREFUSED) - retornando null silenciosamente")
+        }
+        return null
+      }
+      // Solo loggear otros errores en desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        console.error("❌ Error fetching customer from API:", error)
+        console.error("Error details:", error.message, error.status)
+      }
       return null
     }
   }

@@ -3,7 +3,7 @@
 import { Popover, PopoverPanel, Transition } from "@headlessui/react"
 import { ArrowRightMini, XMark, ArrowRightOnRectangle } from "@medusajs/icons"
 import { Text, clx, useToggleState } from "@medusajs/ui"
-import { Fragment, useState, useEffect } from "react"
+import { Fragment, useState, useEffect, useRef } from "react"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import CountrySelect from "../country-select"
@@ -20,14 +20,18 @@ const SideMenuItems = {
 const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
   const toggleState = useToggleState()
   const [customer, setCustomer] = useState<any>(null)
+  const hasCheckedOnce = useRef(false)
 
   useEffect(() => {
+    if (hasCheckedOnce.current) return
+    hasCheckedOnce.current = true
+    
     const getCustomer = async () => {
       try {
         const customerData = await retrieveCustomer()
         setCustomer(customerData)
       } catch (error) {
-        // Usuario no logueado
+        // Usuario no logueado o backend no disponible - no hacer nada
         setCustomer(null)
       }
     }

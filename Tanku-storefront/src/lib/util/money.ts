@@ -15,12 +15,29 @@ export const convertToLocale = ({
   maximumFractionDigits,
   locale = "en-US",
 }: ConvertToLocaleParams) => {
-  return currency_code && !isEmpty(currency_code)
-    ? new Intl.NumberFormat(locale, {
-        style: "currency",
-        currency: currency_code,
-        minimumFractionDigits,
-        maximumFractionDigits,
-      }).format(amount)
-    : amount.toString()
+  // Asegurar que amount sea un número
+  const numAmount = typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0
+  
+  if (!currency_code || isEmpty(currency_code)) {
+    return numAmount.toString()
+  }
+
+  // Para COP (Peso Colombiano), formatear con separadores de miles (puntos) y símbolo $
+  // Comparación case-insensitive para mayor robustez
+  const normalizedCurrency = String(currency_code).toUpperCase().trim()
+  if (normalizedCurrency === 'COP') {
+    const formattedAmount = numAmount.toLocaleString('es-CO', {
+      minimumFractionDigits: minimumFractionDigits ?? 0,
+      maximumFractionDigits: maximumFractionDigits ?? 0,
+    })
+    return `$${formattedAmount}`
+  }
+
+  // Para otras monedas, usar el formato estándar
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: normalizedCurrency,
+    minimumFractionDigits: minimumFractionDigits ?? 0,
+    maximumFractionDigits: maximumFractionDigits ?? 0,
+  }).format(numAmount)
 }
