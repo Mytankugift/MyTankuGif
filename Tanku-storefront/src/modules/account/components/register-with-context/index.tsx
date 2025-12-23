@@ -1,6 +1,7 @@
 "use client"
 
-import { useActionState, useEffect } from "react"
+import { useEffect } from "react"
+import { useFormState as useActionState } from "react-dom"
 import { LOGIN_VIEW } from "@modules/account/templates/login-template"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"

@@ -2,7 +2,8 @@
 
 import { Plus } from "@medusajs/icons"
 import { Button, Heading } from "@medusajs/ui"
-import { useEffect, useState, useActionState } from "react"
+import { useEffect, useState } from "react"
+import { useFormState as useActionState } from "react-dom"
 
 import useToggleState from "@lib/hooks/use-toggle-state"
 import CountrySelect from "@modules/checkout/components/country-select"

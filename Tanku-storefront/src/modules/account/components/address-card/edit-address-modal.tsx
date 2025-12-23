@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useEffect, useState, useActionState } from "react"
+import React, { useEffect, useState } from "react"
+import { useFormState as useActionState } from "react-dom"
 import { PencilSquare as Edit, Trash } from "@medusajs/icons"
 import { Button, Heading, Text, clx } from "@medusajs/ui"
 

@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useEffect, useActionState } from "react"
+import React, { useEffect } from "react"
+import { useFormState as useActionState } from "react-dom"
 import Input from "@modules/common/components/input"
 import AccountInfo from "../account-info"
 import { HttpTypes } from "@medusajs/types"

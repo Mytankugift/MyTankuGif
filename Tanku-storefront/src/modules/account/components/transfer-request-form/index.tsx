@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useFormState as useActionState } from "react-dom"
 import { createTransferRequest } from "@lib/data/orders"
 import { Text, Heading, Input, Button, IconButton, Toaster } from "@medusajs/ui"
 import { SubmitButton } from "@modules/checkout/components/submit-button"
