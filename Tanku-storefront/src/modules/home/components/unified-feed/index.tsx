@@ -1437,9 +1437,9 @@ function useMasonryLayout(items: FeedItem[], containerRef: React.RefObject<HTMLD
           const newPositions: Array<{ top: number; left: number; width: number }> = []
 
           items.forEach((item, index) => {
-            if (!item || !item.type) {
-              newPositions.push({ top: 0, left: 0, width: columnWidth })
-              return
+            // Omitir banners completamente de los cálculos
+            if (!item || !item.type || item.type === 'banner') {
+              return // No agregar posición para banners
             }
 
             const itemKey = item.type === 'product' 
@@ -1452,21 +1452,8 @@ function useMasonryLayout(items: FeedItem[], containerRef: React.RefObject<HTMLD
             let itemColumns = 1
             let isWide = false
             
-            // Para banners: el primero ocupa todo el ancho, los demás ocupan 2 columnas
-            if (item.type === 'banner') {
-              const bannerData = item.data as { id: string, products: Product[] }
-              const isFirstBanner = bannerData.id === 'promo-banner-1'
-              
-              if (isFirstBanner) {
-                // El primer banner ocupa TODAS las columnas (ancho completo)
-                isWide = true
-                itemColumns = columns
-              } else {
-                // Los banners siguientes ocupan 2 columnas (como promociones)
-                isWide = columns >= 3
-                itemColumns = columns >= 3 ? 2 : columns
-              }
-            } else if (item.type === 'poster' && columns >= 3) {
+            // Banners están filtrados antes de llegar aquí, no procesar
+            if (item.type === 'poster' && columns >= 3) {
               // Para posters, decidir dinámicamente basándose en el contenido
               const poster = item.data as Poster
               let aspectRatio = 1 // Por defecto 1:1
@@ -1506,25 +1493,14 @@ function useMasonryLayout(items: FeedItem[], containerRef: React.RefObject<HTMLD
             }
             
             // Calcular el ancho del item
-            let itemWidth: number
-            if (item.type === 'banner') {
-              const bannerData = item.data as { id: string, products: Product[] }
-              const isFirstBanner = bannerData.id === 'promo-banner-1'
-              if (isFirstBanner) {
-                itemWidth = containerWidth // Primer banner: ancho completo
-              } else {
-                itemWidth = columns >= 3 
-                  ? (columnWidth * 2) + gap // Banners siguientes: 2 columnas
-                  : containerWidth // En móviles: ancho completo
-              }
-            } else {
-              itemWidth = isWide 
-                ? (columnWidth * itemColumns) + (gap * (itemColumns - 1))
-                : columnWidth
-            }
+            // Banners están filtrados, solo procesar productos y posters
+            const itemWidth = isWide 
+              ? (columnWidth * itemColumns) + (gap * (itemColumns - 1))
+              : columnWidth
 
             // Medir la altura real del elemento
-            let itemHeight = item.type === 'banner' ? 420 : item.type === 'poster' ? 500 : 400 // Altura estimada por defecto
+            // Banners están filtrados, solo procesar productos y posters
+            let itemHeight = item.type === 'poster' ? 500 : 400 // Altura estimada por defecto
             if (element) {
               // Guardar todos los estilos originales
               const originalStyles = {
@@ -2308,7 +2284,9 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
-  const { positions, itemRefs, columns, gap, isCalculating } = useMasonryLayout(feedItems, containerRef)
+  // Filtrar banners del array antes de calcular posiciones para que no ocupen espacio
+  const feedItemsWithoutBanners = feedItems.filter(item => item && item.type && item.type !== 'banner')
+  const { positions, itemRefs, columns, gap, isCalculating } = useMasonryLayout(feedItemsWithoutBanners, containerRef)
   
   // OPTIMIZACIÓN: Banner estático que no se recarga al cambiar categoría
   // Como en ML/Amazon, el banner permanece igual independientemente de la categoría
@@ -2437,11 +2415,11 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
     // Como en ML/Amazon, el banner permanece igual independientemente de la categoría
     const combined: FeedItem[] = []
     
-    // Agregar banner estático al inicio (no depende de productos)
-    combined.push({ 
-      type: 'banner', 
-      data: staticBannerData
-    })
+    // Banner oculto temporalmente
+    // combined.push({ 
+    //   type: 'banner', 
+    //   data: staticBannerData
+    // })
     
     // Si está cargando y debemos ocultar posters, no incluir posters
     const shouldShowPosters = !(hidePostersWhileLoading && isLoading)
@@ -2484,19 +2462,16 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
             productsSinceLastPoster++
             totalProductsAdded++
             
-            // Agregar banner cada X productos (después del primero que ya está al inicio)
-            // Solo agregar si no hay un banner justo antes (evitar duplicados)
-            if (totalProductsAdded > 0 && totalProductsAdded % PRODUCTS_PER_BANNER === 0) {
-              const lastItem = combined[combined.length - 1]
-              // Solo agregar si el último item no es un banner
-              if (lastItem && lastItem.type !== 'banner') {
-                // OPTIMIZACIÓN: Usar banner estático también para banners intermedios
-                combined.push({ 
-                  type: 'banner', 
-                  data: { id: `promo-banner-${Math.floor(totalProductsAdded / PRODUCTS_PER_BANNER) + 1}`, products: [] } 
-                })
-              }
-            }
+            // Banner oculto temporalmente
+            // if (totalProductsAdded > 0 && totalProductsAdded % PRODUCTS_PER_BANNER === 0) {
+            //   const lastItem = combined[combined.length - 1]
+            //   if (lastItem && lastItem.type !== 'banner') {
+            //     combined.push({ 
+            //       type: 'banner', 
+            //       data: { id: `promo-banner-${Math.floor(totalProductsAdded / PRODUCTS_PER_BANNER) + 1}`, products: [] } 
+            //     })
+            //   }
+            // }
           }
           productIndex++
         }
@@ -2536,17 +2511,16 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
             addedIds.add(productId)
             totalProductsAdded++
             
-            // Agregar banner cada X productos
-            if (totalProductsAdded > 0 && totalProductsAdded % PRODUCTS_PER_BANNER === 0) {
-              const lastItem = combined[combined.length - 1]
-              // Solo agregar si el último item no es un banner
-              if (lastItem && lastItem.type !== 'banner') {
-                combined.push({ 
-                  type: 'banner', 
-                  data: { id: `promo-banner-${Math.floor(totalProductsAdded / PRODUCTS_PER_BANNER) + 1}`, products: [] } 
-                })
-              }
-            }
+            // Banner oculto temporalmente
+            // if (totalProductsAdded > 0 && totalProductsAdded % PRODUCTS_PER_BANNER === 0) {
+            //   const lastItem = combined[combined.length - 1]
+            //   if (lastItem && lastItem.type !== 'banner') {
+            //     combined.push({ 
+            //       type: 'banner', 
+            //       data: { id: `promo-banner-${Math.floor(totalProductsAdded / PRODUCTS_PER_BANNER) + 1}`, products: [] } 
+            //     })
+            //   }
+            // }
           }
           productIndex++
         }
@@ -2580,7 +2554,7 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
       
       const productItems = validProductsForItems.map(p => ({ type: 'product' as const, data: p }))
       const finalItems = [
-        ...combined, // Banner ya está aquí
+        // ...combined, // Banner oculto temporalmente
         ...productItems
       ]
       console.log(`📋 [UNIFIED FEED] Creando ${productItems.length} items de feed, total: ${finalItems.length}`);
@@ -2590,15 +2564,15 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
       // Solo posters - banner ya está en combined (solo si no está cargando)
       const validPosters = posters.filter(p => p && p.id)
       const finalItems = [
-        ...combined, // Banner ya está aquí
+        // ...combined, // Banner oculto temporalmente
         ...validPosters.map(p => ({ type: 'poster' as const, data: p }))
       ]
       console.log(`📋 [UNIFIED FEED] Estableciendo ${finalItems.length} items (solo posters)`);
       setFeedItems(() => finalItems)
     } else {
-      // Incluso si no hay productos ni posters, mostrar banner vacío (ya está en combined)
-      console.log(`📋 [UNIFIED FEED] Estableciendo solo banner (${combined.length} items)`);
-      setFeedItems(() => combined)
+      // Banner oculto temporalmente - mostrar array vacío si no hay productos ni posters
+      console.log(`📋 [UNIFIED FEED] No hay productos ni posters, estableciendo array vacío`);
+      setFeedItems(() => [])
     }
     // Usar useMemo para crear una versión estable de los IDs de productos y posters
     // Usar las longitudes como dependencias principales para evitar loops infinitos
@@ -2745,25 +2719,22 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
           ref={containerRef} 
           className="masonry-container-unified" 
           style={{ 
-            minHeight: positions.length > 0 && !isCalculating && positions.length === feedItems.filter(item => item && item.type).length
+            minHeight: positions.length > 0 && !isCalculating && positions.length === feedItemsWithoutBanners.filter(item => item && item.type).length
               ? Math.max(...positions.map((p, i) => {
-                  const item = feedItems[i]
-                  if (!item || !p) return 0
+                  const item = feedItemsWithoutBanners[i]
+                  if (!item || !p || item.type === 'banner') return 0
                   const itemKey = item.type === 'product' 
                     ? `product-${(item.data as Product).id}-${i}`
-                    : item.type === 'poster'
-                    ? `poster-${(item.data as Poster).id}-${i}`
-                    : `banner-${(item.data as { id: string, products: Product[] }).id}-${i}`
+                    : `poster-${(item.data as Poster).id}-${i}`
                   const element = itemRefs.current.get(itemKey)
                   // Usar la altura medida o una estimación basada en el tipo
-                  // Altura estimada: banner tiene h-96 (384px) en desktop + márgenes
-                  const itemHeight = element?.offsetHeight || (item.type === 'poster' ? 500 : item.type === 'banner' ? 420 : 400)
+                  const itemHeight = element?.offsetHeight || (item.type === 'poster' ? 500 : 400)
                   return p.top + itemHeight
                 }).filter(h => h > 0)) + gap || 'auto'
               : 'auto'
           }}
         >
-          {feedItems.filter(item => item && item.type).map((item, index) => {
+          {feedItemsWithoutBanners.filter(item => item && item.type).map((item, index) => {
             if (!item || !item.type) return null
 
             const itemKey = item.type === 'product' 
@@ -2863,6 +2834,9 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
                 </div>
               )
             } else if (item.type === 'banner') {
+              // Banner oculto temporalmente - no renderizar
+              return null
+              /*
               const bannerData = item.data as { id: string, products: Product[] }
               return (
                 <div 
@@ -2888,6 +2862,7 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
                   <BlackFridayAd products={bannerData.products} />
                 </div>
               )
+              */
             }
             
             return null

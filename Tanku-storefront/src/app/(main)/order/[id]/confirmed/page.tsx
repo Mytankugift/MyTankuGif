@@ -1,22 +1,45 @@
 "use client"
 
-import { CheckCircleSolid, ShoppingBag, CreditCard } from "@medusajs/icons"
-import { useEffect, useState, use } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-
-import { retrieveOrder } from "@lib/data/orders"
-import { convertToLocale } from "@lib/util/money"
-import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import { useNavigateToOrders } from "@lib/hooks/use-navigate-to-orders"
-import { clearCartAfterPurchase } from "@lib/data/cart-cleanup"
 
 type Props = {
   params: Promise<{ id: string }>
 }
 
 export default function OrderConfirmedPage({ params }: Props) {
-  const resolvedParams = use(params)
   const router = useRouter()
+  
+  // Redirigir automáticamente a Mis compras en el perfil ya que esta página no está funcionando
+  useEffect(() => {
+    // Establecer la pestaña en localStorage antes de navegar
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tanku_profile_tab', 'MIS COMPRAS')
+    }
+    router.replace('/profile?tab=MIS_COMPRAS')
+  }, [router])
+  
+  // Mostrar un mensaje de carga mientras redirige
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#73FFA2] mb-4"></div>
+        <p className="text-white">Redirigiendo a Mis compras...</p>
+      </div>
+    </div>
+  )
+  
+  /* Código original comentado para referencia futura cuando se arregle la página
+  
+  import { CheckCircleSolid, ShoppingBag, CreditCard } from "@medusajs/icons"
+  import { useEffect, useState, use } from "react"
+  import { retrieveOrder } from "@lib/data/orders"
+  import { convertToLocale } from "@lib/util/money"
+  import LocalizedClientLink from "@modules/common/components/localized-client-link"
+  import { useNavigateToOrders } from "@lib/hooks/use-navigate-to-orders"
+  import { clearCartAfterPurchase } from "@lib/data/cart-cleanup"
+  
+  const resolvedParams = use(params)
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -462,4 +485,5 @@ export default function OrderConfirmedPage({ params }: Props) {
       </div>
     </div>
   )
+  */
 }

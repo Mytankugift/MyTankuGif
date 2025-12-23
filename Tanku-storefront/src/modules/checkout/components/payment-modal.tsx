@@ -159,7 +159,7 @@ export default function PaymentModal({
                         currency: "cop",
                         country: "co",
                         external: false,
-                        response: `${window.location.origin}/order/${paymentEpayco.id}/confirmed`,
+                        response: `${window.location.origin}/profile?tab=MIS_COMPRAS`,
                         confirmation: `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000"}/api/v1/webhook/epayco/${paymentEpayco.id}`,
                         name_billing: paymentEpayco.first_name,
                         mobilephone_billing: paymentEpayco.phone,

@@ -537,10 +537,9 @@ export async function placeOrder(cartId?: string) {
     .catch(medusaError)
 
   if (cartRes?.type === "order") {
-    const countryCode =
-      cartRes.order.shipping_address?.country_code?.toLowerCase()
     removeCartId()
-    redirect(`/${countryCode}/order/${cartRes?.order.id}/confirmed`)
+    // Redirigir a Mis compras en el perfil en lugar de la página de confirmación
+    redirect(`/profile?tab=MIS_COMPRAS`)
   }
 
   return cartRes.cart

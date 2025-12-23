@@ -634,8 +634,12 @@ const FormTanku = ({
           console.warn("⚠️ [CHECKOUT] Error limpiando carrito:", clearError)
         }
         
-        // Redirigir directamente a la página de confirmación para contra entrega
-        window.location.href = `/order/${response.order.id}/confirmed`
+        // Redirigir directamente a Mis compras en el perfil
+        // Establecer la pestaña en localStorage antes de navegar
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('tanku_profile_tab', 'MIS COMPRAS')
+        }
+        window.location.href = `/profile`
         return // No continuar con el flujo de ePayco
       }
       // Para ePayco, la orden en Dropi se creará después del pago exitoso (en webhook)

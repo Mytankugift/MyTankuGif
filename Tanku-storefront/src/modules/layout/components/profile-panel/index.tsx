@@ -278,6 +278,44 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ onClose, onPostersUpdate, h
     }
   }
 
+  // Establecer la pestaña activa desde query params o localStorage al montar
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    // Leer query params de la URL
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabParam = urlParams.get('tab')
+    const savedTab = localStorage.getItem('tanku_profile_tab')
+    
+    if (tabParam === 'MIS_COMPRAS' || savedTab === 'MIS COMPRAS') {
+      setActiveTab('MIS COMPRAS')
+      // Limpiar localStorage después de usarlo
+      localStorage.removeItem('tanku_profile_tab')
+      // Limpiar query param de la URL sin recargar
+      if (tabParam) {
+        urlParams.delete('tab')
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '')
+        window.history.replaceState({}, '', newUrl)
+      }
+    } else if (tabParam) {
+      // Mapear otros valores de tab si es necesario
+      const tabMap: Record<string, 'PUBLICACIONES' | 'MY TANKU' | 'MIS COMPRAS' | 'STALKER GIFTS'> = {
+        'PUBLICACIONES': 'PUBLICACIONES',
+        'MY_TANKU': 'MY TANKU',
+        'MIS_COMPRAS': 'MIS COMPRAS',
+        'STALKER_GIFTS': 'STALKER GIFTS'
+      }
+      const mappedTab = tabMap[tabParam.toUpperCase()]
+      if (mappedTab) {
+        setActiveTab(mappedTab)
+        // Limpiar query param de la URL
+        urlParams.delete('tab')
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '')
+        window.history.replaceState({}, '', newUrl)
+      }
+    }
+  }, [setActiveTab])
+
   // Cargar datos del customer y regiones al montar el componente
   useEffect(() => {
     const loadData = async () => {
