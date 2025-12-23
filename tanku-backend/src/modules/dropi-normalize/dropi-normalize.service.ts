@@ -81,7 +81,7 @@ export class DropiNormalizeService {
       normalized: normalizedTotal,
       errors: errors.length,
       error_details: errors.slice(0, 10),
-      next_offset: null, // null porque ya procesamos todos
+      next_offset: null, // null porque ya procesamos todos.
       remaining: 0,
       total_pending: pendingRaw.length,
     };
