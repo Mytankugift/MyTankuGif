@@ -522,18 +522,26 @@ function HomeContent() {
       try {
         const cartData = await retrieveCart().catch(() => null)
         setCart(cartData)
-        if (cartData?.items) {
+        // Actualizar contador siempre, incluso si no hay items (para mostrar 0)
+        if (cartData?.items && Array.isArray(cartData.items)) {
           const totalItems = cartData.items.reduce((acc: number, item: any) => acc + (item.quantity || 0), 0)
           setCartItemsCount(totalItems)
+        } else {
+          // Si no hay items o el carrito es null, el contador debe ser 0
+          setCartItemsCount(0)
         }
       } catch (error) {
         console.error("Error loading cart:", error)
+        // En caso de error, asegurar que el contador esté en 0
+        setCartItemsCount(0)
       }
     }
     loadCart()
     
     // Escuchar eventos de actualización del carrito (sin recargar toda la página)
+    // Funciona tanto con sesión como sin sesión
     const handleCartUpdate = () => {
+      console.log('🛒 [FEED] Evento cartUpdated recibido, actualizando carrito...')
       loadCart()
     }
     

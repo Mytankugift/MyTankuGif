@@ -254,6 +254,13 @@ const ProductCard = React.memo(({ product, onOpenModal, isAuthenticated, isLight
                       quantity: 1,
                       countryCode: region?.countries?.[0]?.iso_2 || "co",
                     })
+                    // Emitir evento para actualizar carrito inmediatamente después de que se complete
+                    // Usar setTimeout para asegurar que la actualización del servidor se haya procesado
+                    setTimeout(() => {
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('cartUpdated'))
+                      }
+                    }, 100)
                   } catch (error) {
                     console.error("Error agregando al carrito:", error)
                   } finally {
@@ -1991,6 +1998,13 @@ const ProductModal = ({ product, isOpen, onClose, isAuthenticated }: { product: 
         quantity: quantity,
         countryCode: region?.countries?.[0]?.iso_2 || "co",
       })
+      // Emitir evento para actualizar carrito inmediatamente después de que se complete
+      // Usar setTimeout para asegurar que la actualización del servidor se haya procesado
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('cartUpdated'))
+        }
+      }, 100)
       // Opcional: mostrar notificación de éxito
     } catch (error) {
       console.error("Error agregando al carrito:", error)
@@ -2256,6 +2270,13 @@ const ProductModal = ({ product, isOpen, onClose, isAuthenticated }: { product: 
                         quantity: 1,
                         countryCode: region?.countries?.[0]?.iso_2 || "co",
                       })
+                      // Emitir evento para actualizar carrito inmediatamente después de que se complete
+                      // Usar setTimeout para asegurar que la actualización del servidor se haya procesado
+                      setTimeout(() => {
+                        if (typeof window !== 'undefined') {
+                          window.dispatchEvent(new CustomEvent('cartUpdated'))
+                        }
+                      }, 100)
                       
                       // Redirigir al checkout
                       window.location.href = '/checkout'
@@ -2296,8 +2317,18 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
     products: [] // Banner no necesita productos específicos
   }), [])
   
+  // Refs para evitar llamadas recurrentes cuando no hay sesión
+  const hasCheckedAuthRef = useRef(false)
+  const hasFetchedPostersRef = useRef(false)
+  const lastCustomerIdRef = useRef<string | null>(null)
+  const lastRenderLogRef = useRef<string>('')
+  const lastFeedItemsCountRef = useRef<number>(0)
+  
   useEffect(() => {
     const checkAuth = async () => {
+      if (hasCheckedAuthRef.current) return
+      hasCheckedAuthRef.current = true
+      
       const customer = await retrieveCustomer().catch(() => null)
       setIsAuthenticated(!!customer)
     }
@@ -2306,30 +2337,43 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
   }, [])
 
   useEffect(() => {
-    if (customerId) {
-      setLoading(true)
-      fetchFeedPosts(customerId)
-        .then((data) => {
-          console.log(`📱 [UNIFIED FEED] Posters obtenidos: ${data.length}`);
-          setPosters(data)
-        })
-        .catch((error: any) => {
-          console.error("Error fetching posters:", {
-            message: error?.message,
-            stack: error?.stack,
-            customerId,
-            error
-          })
-          setPosters([]); // Asegurar que posters sea un array vacío
-        })
-        .finally(() => {
-          setLoading(false)
-        })
-    } else {
-      // Si no hay customerId, no cargar posters pero asegurar que loading sea false
-      setLoading(false);
-      setPosters([]);
+    // Si no hay customerId y ya procesamos este caso, no hacer nada
+    if (!customerId) {
+      if (!hasFetchedPostersRef.current) {
+        setLoading(false)
+        setPosters([])
+        hasFetchedPostersRef.current = true
+      }
+      return
     }
+    
+    // Si el customerId no cambió, no hacer nada
+    if (lastCustomerIdRef.current === customerId && hasFetchedPostersRef.current) {
+      return
+    }
+    
+    // Solo hacer fetch si hay customerId y cambió
+    lastCustomerIdRef.current = customerId
+    hasFetchedPostersRef.current = true
+    
+    setLoading(true)
+    fetchFeedPosts(customerId)
+      .then((data) => {
+        console.log(`📱 [UNIFIED FEED] Posters obtenidos: ${data.length}`);
+        setPosters(data)
+      })
+      .catch((error: any) => {
+        console.error("Error fetching posters:", {
+          message: error?.message,
+          stack: error?.stack,
+          customerId,
+          error
+        })
+        setPosters([]); // Asegurar que posters sea un array vacío
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }, [customerId])
 
 
@@ -2572,15 +2616,29 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
     setIsProductModalOpen(false)
   }
 
-  // Log del estado actual para debugging
-  console.log(`📊 [UNIFIED FEED] Estado actual:`, {
+  // Log del estado actual para debugging (solo cuando cambia)
+  const currentStateLog = JSON.stringify({
     loading,
     feedItemsCount: feedItems.length,
     productsCount: products?.length || 0,
     postersCount: posters?.length || 0,
     isLoading,
     hidePostersWhileLoading
-  });
+  })
+  
+  useEffect(() => {
+    if (currentStateLog !== lastRenderLogRef.current) {
+      console.log(`📊 [UNIFIED FEED] Estado actual:`, {
+        loading,
+        feedItemsCount: feedItems.length,
+        productsCount: products?.length || 0,
+        postersCount: posters?.length || 0,
+        isLoading,
+        hidePostersWhileLoading
+      })
+      lastRenderLogRef.current = currentStateLog
+    }
+  }, [currentStateLog, loading, feedItems.length, products?.length, posters?.length, isLoading, hidePostersWhileLoading])
 
   if (loading) {
     console.log(`⏳ [UNIFIED FEED] Mostrando loading...`);
@@ -2607,7 +2665,13 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
     )
   }
   
-  console.log(`✅ [UNIFIED FEED] Renderizando ${feedItems.length} items del feed`);
+  // Log de renderizado solo cuando cambia el número de items
+  useEffect(() => {
+    if (feedItems.length !== lastFeedItemsCountRef.current) {
+      console.log(`✅ [UNIFIED FEED] Renderizando ${feedItems.length} items del feed`)
+      lastFeedItemsCountRef.current = feedItems.length
+    }
+  }, [feedItems.length])
 
   return (
     <>
