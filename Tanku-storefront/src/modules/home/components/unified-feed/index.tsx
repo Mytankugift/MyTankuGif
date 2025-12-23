@@ -2637,6 +2637,7 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
     hidePostersWhileLoading
   })
   
+  // IMPORTANTE: Todos los hooks deben estar ANTES de cualquier return condicional
   useEffect(() => {
     if (currentStateLog !== lastRenderLogRef.current) {
       console.log(`📊 [UNIFIED FEED] Estado actual:`, {
@@ -2650,6 +2651,15 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
       lastRenderLogRef.current = currentStateLog
     }
   }, [currentStateLog, loading, feedItems.length, products?.length, posters?.length, isLoading, hidePostersWhileLoading])
+
+  // Log de renderizado solo cuando cambia el número de items
+  // DEBE estar antes de los returns condicionales para cumplir con las reglas de hooks
+  useEffect(() => {
+    if (feedItems.length !== lastFeedItemsCountRef.current) {
+      console.log(`✅ [UNIFIED FEED] Renderizando ${feedItems.length} items del feed`)
+      lastFeedItemsCountRef.current = feedItems.length
+    }
+  }, [feedItems.length])
 
   if (loading) {
     console.log(`⏳ [UNIFIED FEED] Mostrando loading...`);
@@ -2675,14 +2685,6 @@ export default function UnifiedFeed({ products, customerId, isFeatured = false, 
       </div>
     )
   }
-  
-  // Log de renderizado solo cuando cambia el número de items
-  useEffect(() => {
-    if (feedItems.length !== lastFeedItemsCountRef.current) {
-      console.log(`✅ [UNIFIED FEED] Renderizando ${feedItems.length} items del feed`)
-      lastFeedItemsCountRef.current = feedItems.length
-    }
-  }, [feedItems.length])
 
   return (
     <>
