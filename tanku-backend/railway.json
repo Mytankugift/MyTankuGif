@@ -1,6 +1,5 @@
 {
   "build": {
-    "builder": "metal",
     "rootDirectory": "/tanku-backend",
     "buildCommand": "npm run build",
     "startCommand": "npm run start:workers"
