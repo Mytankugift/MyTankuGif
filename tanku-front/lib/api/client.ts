@@ -32,10 +32,18 @@ export class ApiClient {
   }
 
   getToken(): string | null {
+    // Primero verificar token en memoria
     if (this.token) return this.token
+    
+    // Luego verificar localStorage
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('auth-token')
+      const storedToken = localStorage.getItem('auth-token')
+      if (storedToken) {
+        this.token = storedToken // Sincronizar con memoria
+        return storedToken
+      }
     }
+    
     return null
   }
 
@@ -44,6 +52,7 @@ export class ApiClient {
     options: RequestInit = {}
   ): Promise<{ success: boolean; data: T; error?: { code: string; message: string } }> {
     const url = `${this.baseURL}${endpoint}`
+    // Obtener token fresco en cada request para asegurar sincronización
     const token = this.getToken()
     
     // Logging en desarrollo
@@ -51,7 +60,8 @@ export class ApiClient {
       const cursorHeader = options.headers && 'X-Feed-Cursor' in options.headers 
         ? ` (Cursor: ${(options.headers['X-Feed-Cursor'] as string).substring(0, 20)}...)` 
         : ''
-      console.log(`[API] ${options.method || 'GET'} ${url}${cursorHeader}`)
+      const authHeader = token ? ' (Auth: ✓)' : ' (Auth: ✗)'
+      console.log(`[API] ${options.method || 'GET'} ${url}${authHeader}${cursorHeader}`)
     }
 
     const headers: HeadersInit = {

@@ -295,7 +295,8 @@ export default function CheckoutPage() {
               currency: 'cop',
               country: 'co',
               external: false,
-              response: `${window.location.origin}/checkout/success?cartId=${preparedData.cartId}`,
+              // Epayco añadirá automáticamente ref_payco como parámetro de query
+              response: `${window.location.origin}/checkout/success`,
               confirmation: webhookUrl,
               name_billing: selectedAddress.firstName || '',
               mobilephone_billing: selectedAddress.phone || '',

@@ -53,18 +53,31 @@ export const useCartStore = create<CartState>((set, get) => ({
       
       if (response.success && response.data) {
         const mappedCart = mapCartFromBackend(response.data)
-        set({ cart: mappedCart, isLoading: false })
+        set({ cart: mappedCart, isLoading: false, error: null })
       } else {
-        // Si no hay carrito, no es un error (el usuario puede no tener uno aún)
-        set({ cart: null, isLoading: false })
+        // Si hay error 401, el usuario no está autenticado
+        if (response.error?.code === 'UNAUTHORIZED' || response.error?.code === 'HTTP_ERROR') {
+          console.warn('[Cart Store] Usuario no autenticado - carrito no disponible')
+          set({ cart: null, isLoading: false, error: null })
+        } else {
+          // Si no hay carrito, no es un error (el usuario puede no tener uno aún)
+          set({ cart: null, isLoading: false, error: response.error?.message || null })
+        }
       }
     } catch (error: any) {
       console.error('[Cart Store] Error obteniendo carrito:', error)
-      set({ 
-        cart: null, 
-        isLoading: false,
-        error: error?.message || 'Error al obtener el carrito'
-      })
+      
+      // Si es error de autenticación, no es un error crítico
+      if (error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
+        console.warn('[Cart Store] Usuario no autenticado - carrito no disponible')
+        set({ cart: null, isLoading: false, error: null })
+      } else {
+        set({ 
+          cart: null, 
+          isLoading: false,
+          error: error?.message || 'Error al obtener el carrito'
+        })
+      }
     }
   },
 
