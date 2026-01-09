@@ -71,9 +71,9 @@ export class GoogleAuthController {
       // Autenticar o crear usuario
       const authResult = await this.googleAuthService.authenticateWithGoogle(userInfo);
 
-      // Redirigir al frontend con los tokens
-      // El frontend espera 'token' (no 'accessToken')
-      const redirectUrl = new URL(`${frontendUrl}/`);
+      // Redirigir al frontend con los tokens en el callback específico
+      // El frontend espera recibir los tokens en /auth/google/callback
+      const redirectUrl = new URL(`${frontendUrl}/auth/google/callback`);
       redirectUrl.searchParams.set('token', authResult.accessToken);
       redirectUrl.searchParams.set('userId', authResult.user.id);
 
