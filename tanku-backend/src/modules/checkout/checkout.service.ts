@@ -3,6 +3,7 @@ import { OrdersService, CreateOrderInput } from '../orders/orders.service';
 import { DropiOrdersService } from '../orders/dropi-orders.service';
 import { CartService } from '../cart/cart.service';
 import { BadRequestError, NotFoundError } from '../../shared/errors/AppError';
+import type { Prisma } from '@prisma/client';
 
 export interface CheckoutOrderRequest {
   shipping_address: {
@@ -54,6 +55,76 @@ export class CheckoutService {
     this.ordersService = new OrdersService();
     this.dropiOrdersService = new DropiOrdersService();
     this.cartService = new CartService();
+  }
+
+  /**
+   * Preparar datos para Epayco (NO crea orden, solo guarda datos temporalmente)
+   * 
+   * @param dataForm - Datos del formulario de checkout
+   * @param dataCart - Datos del carrito
+   * @param userId - ID del usuario (opcional, puede venir de auth)
+   * @returns Datos preparados para Epayco
+   */
+  async prepareEpaycoCheckout(
+    dataForm: CheckoutOrderRequest,
+    dataCart: DataCart,
+    userId?: string
+  ) {
+    console.log(`📝 [CHECKOUT] Preparando datos para Epayco...`);
+    console.log(`📝 [CHECKOUT] Payment method: ${dataForm.payment_method}`);
+    console.log(`📝 [CHECKOUT] Cart ID: ${dataCart.cart_id}`);
+
+    // Validar que el carrito existe
+    const cart = await this.cartService.getCartById(dataCart.cart_id);
+    if (!cart) {
+      throw new NotFoundError(`Carrito ${dataCart.cart_id} no encontrado`);
+    }
+
+    if (!cart.items || cart.items.length === 0) {
+      throw new BadRequestError('El carrito está vacío');
+    }
+
+    // Usar userId del parámetro o del dataCart
+    const finalUserId = userId || dataCart.customer_id;
+    if (!finalUserId) {
+      throw new BadRequestError('userId o customer_id es requerido');
+    }
+
+    // Calcular totales
+    const subtotal = cart.subtotal || cart.items.reduce(
+      (sum, item) => sum + (item.unit_price || 0) * item.quantity,
+      0
+    );
+    const shippingTotal = 0; // Se actualizará con la respuesta de Dropi
+    const total = subtotal + shippingTotal;
+
+    // Guardar datos del checkout en metadata del carrito para uso posterior en el webhook
+    await prisma.cart.update({
+      where: { id: dataCart.cart_id },
+      data: {
+        metadata: {
+          checkout_data: {
+            dataForm,
+            dataCart: {
+              ...dataCart,
+              customer_id: finalUserId,
+            },
+            userId: finalUserId,
+            total,
+            subtotal,
+            shippingTotal,
+            preparedAt: new Date().toISOString(),
+          },
+        } as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    return {
+      cartId: dataCart.cart_id,
+      total,
+      subtotal,
+      shippingTotal,
+    };
   }
 
   /**
@@ -174,12 +245,14 @@ export class CheckoutService {
     // Si es contra entrega, crear orden en Dropi inmediatamente
     if (dataForm.payment_method === 'cash_on_delivery') {
       console.log(`📦 [CHECKOUT] Creando orden en Dropi (contra entrega)...`);
+      let dropiSuccess = false;
       try {
         const dropiResult = await this.dropiOrdersService.createOrderInDropi(
           order.id
         );
 
         if (dropiResult.success && dropiResult.dropiOrderIds.length > 0) {
+          dropiSuccess = true;
           console.log(
             `✅ [CHECKOUT] Orden creada en Dropi: ${dropiResult.dropiOrderIds.join(', ')}`
           );
@@ -190,34 +263,36 @@ export class CheckoutService {
           );
         }
       } catch (dropiError: any) {
-        // No fallar la orden si Dropi falla, pero loguear el error
         console.error(
           `❌ [CHECKOUT] Error creando orden en Dropi:`,
           dropiError?.message
         );
       }
-    }
-    // Si es ePayco, la orden en Dropi se creará después del webhook
 
-    // Eliminar todos los items del carrito después de crear la orden
-    try {
-      console.log(`🧹 [CHECKOUT] Eliminando items del carrito: ${dataCart.cart_id}`);
-      const cart = await this.cartService.getCartById(dataCart.cart_id);
-      if (cart && cart.items.length > 0) {
-        // Eliminar cada item del carrito
-        for (const item of cart.items) {
-          try {
-            await this.cartService.deleteCartItem(dataCart.cart_id, item.id);
-          } catch (deleteError) {
-            console.warn(`⚠️ [CHECKOUT] Error eliminando item ${item.id}:`, deleteError);
+      // Vaciar carrito SOLO si Dropi fue exitoso
+      if (dropiSuccess) {
+        try {
+          console.log(`🧹 [CHECKOUT] Eliminando items del carrito: ${dataCart.cart_id}`);
+          const cart = await this.cartService.getCartById(dataCart.cart_id);
+          if (cart && cart.items.length > 0) {
+            for (const item of cart.items) {
+              try {
+                await this.cartService.deleteCartItem(dataCart.cart_id, item.id);
+              } catch (deleteError) {
+                console.warn(`⚠️ [CHECKOUT] Error eliminando item ${item.id}:`, deleteError);
+              }
+            }
+            console.log(`✅ [CHECKOUT] Carrito vaciado exitosamente`);
           }
+        } catch (cartError: any) {
+          console.warn(`⚠️ [CHECKOUT] Error limpiando carrito:`, cartError?.message);
         }
-        console.log(`✅ [CHECKOUT] Carrito vaciado exitosamente`);
+      } else {
+        console.warn(`⚠️ [CHECKOUT] NO se vació el carrito porque Dropi falló`);
       }
-    } catch (cartError: any) {
-      // No fallar la orden si falla la limpieza del carrito
-      console.warn(`⚠️ [CHECKOUT] Error limpiando carrito:`, cartError?.message);
     }
+    // Si es ePayco, NO vaciar el carrito aquí. El carrito se vaciará cuando Epayco confirme el pago.
+    // La orden en Dropi se creará después del webhook cuando el pago sea exitoso.
 
     return order;
   }

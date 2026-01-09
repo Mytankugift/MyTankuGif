@@ -1,12 +1,22 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 import mongoose from 'mongoose';
 import Redis from 'ioredis';
 import { env } from './env';
 
 /**
- * Prisma Client (PostgreSQL)
+ * Prisma Client (PostgreSQL) - Prisma 7
+ * Requiere un adapter para PostgreSQL
  */
+const pool = new Pool({
+  connectionString: env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+
 export const prisma = new PrismaClient({
+  adapter,
   log: env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
 });
 
@@ -87,6 +97,7 @@ export { redis };
 export async function closeConnections(): Promise<void> {
   await Promise.all([
     prisma.$disconnect(),
+    pool.end(), // Cerrar el pool de PostgreSQL
     mongoose.connection.readyState === 1 ? mongoose.connection.close() : Promise.resolve(),
     redis?.quit().catch(() => {}), // Ignorar errores al cerrar Redis
   ]);

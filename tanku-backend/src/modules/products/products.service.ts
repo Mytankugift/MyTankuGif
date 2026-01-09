@@ -1,8 +1,29 @@
 import { prisma } from '../../config/database';
 import { NotFoundError } from '../../shared/errors/AppError';
 import { env } from '../../config/env';
+import {
+  CategoryDTO,
+  ProductVariantDTO,
+  ProductDTO,
+  ProductListDTO,
+} from '../../shared/dto/products.dto';
+import { normalizePagination, createPaginatedResult } from '../../shared/pagination';
+import type { Product, ProductVariant, Category } from '@prisma/client';
 
 export interface ProductListQuery {
+  page?: number;
+  limit?: number;
+  category?: string;
+  priceMin?: number;
+  priceMax?: number;
+  active?: boolean;
+  search?: string;
+  sortBy?: 'price' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
+}
+
+// Mantener interfaces antiguas para compatibilidad temporal
+export interface ProductListQueryOld {
   limit?: number;
   offset?: number;
   category_id?: string;
@@ -24,7 +45,7 @@ export interface ProductResponse {
     id: string;
     sku: string;
     title: string;
-    price: number; // en centavos
+    price: number;
     stock: number;
     active: boolean;
   }>;
@@ -35,9 +56,170 @@ export interface ProductResponse {
 
 export class ProductsService {
   /**
-   * Listar productos con paginación y filtros
+   * Normalizar URL de imagen
    */
-  async listProducts(query: ProductListQuery): Promise<{
+  private normalizeImageUrl(imagePath: string): string {
+    const cdnBase = env.DROPI_CDN_BASE || 'https://d39ru7awumhhs2.cloudfront.net';
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+    return `${cdnBase}/${cleanPath}`;
+  }
+
+  /**
+   * Mapper: Category de Prisma a CategoryDTO
+   */
+  private mapCategoryToDTO(category: Category | null): CategoryDTO | null {
+    if (!category) return null;
+    return {
+      id: category.id,
+      name: category.name,
+      handle: category.handle,
+      parentId: category.parentId,
+    };
+  }
+
+  /**
+   * Mapper: ProductVariant de Prisma a ProductVariantDTO
+   */
+  private mapVariantToDTO(variant: ProductVariant & { warehouseVariants?: { stock: number }[] }): ProductVariantDTO {
+    const totalStock = variant.warehouseVariants?.reduce(
+      (sum, wv) => sum + (wv.stock || 0),
+      0
+    ) || 0;
+
+    return {
+      id: variant.id,
+      sku: variant.sku,
+      title: variant.title,
+      price: variant.price,
+      suggestedPrice: variant.suggestedPrice,
+      stock: totalStock,
+      active: variant.active,
+      attributes: variant.attributes as Record<string, any> | null,
+    };
+  }
+
+  /**
+   * Mapper: Product de Prisma a ProductDTO
+   */
+  private mapProductToDTO(
+    product: Product & {
+      category?: Category | null;
+      variants?: (ProductVariant & { warehouseVariants?: { stock: number }[] })[];
+    }
+  ): ProductDTO {
+    return {
+      id: product.id,
+      title: product.title,
+      handle: product.handle,
+      description: product.description,
+      images: product.images.map((img) => this.normalizeImageUrl(img)),
+      active: product.active,
+      category: this.mapCategoryToDTO(product.category || null),
+      variants: (product.variants || []).map((v) => this.mapVariantToDTO(v)),
+    };
+  }
+
+  /**
+   * Mapper: Product de Prisma a ProductListDTO (versión simplificada para listados)
+   */
+  private mapProductToListDTO(
+    product: Product & {
+      category?: Category | null;
+      variants?: ProductVariant[];
+    }
+  ): ProductListDTO {
+    const minPrice = product.variants && product.variants.length > 0
+      ? Math.min(...product.variants.map((v) => v.price))
+      : 0;
+
+    return {
+      id: product.id,
+      title: product.title,
+      handle: product.handle,
+      image: product.images.length > 0 ? this.normalizeImageUrl(product.images[0]) : null,
+      minPrice,
+      active: product.active,
+    };
+  }
+
+  /**
+   * Listar productos con paginación y filtros (NUEVO - Normalizado)
+   */
+  async listProductsNormalized(query: ProductListQuery) {
+    const { page, limit, skip } = normalizePagination(query, { page: 1, limit: 20 });
+
+    const where: any = {};
+
+    // Filtro por categoría
+    if (query.category) {
+      where.categoryId = query.category;
+    }
+
+    // Filtro por active
+    if (query.active !== undefined) {
+      where.active = query.active;
+    }
+
+    // Filtro por búsqueda
+    if (query.search) {
+      where.OR = [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { description: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Filtro por precio (aplicado a variantes)
+    const variantWhere: any = {};
+    if (query.priceMin !== undefined || query.priceMax !== undefined) {
+      variantWhere.price = {};
+      if (query.priceMin !== undefined) variantWhere.price.gte = query.priceMin;
+      if (query.priceMax !== undefined) variantWhere.price.lte = query.priceMax;
+    }
+
+    // Ordenamiento
+    const orderBy: any[] = [];
+    if (query.sortBy === 'price') {
+      orderBy.push({ variants: { _min: { price: query.sortOrder || 'asc' } } });
+    } else if (query.sortBy === 'createdAt') {
+      orderBy.push({ createdAt: query.sortOrder || 'desc' });
+    } else {
+      orderBy.push({ createdAt: 'desc' }); // Default
+    }
+
+    // Contar total
+    const total = await prisma.product.count({ where });
+
+    // Obtener productos
+    const products = await prisma.product.findMany({
+      where,
+      include: {
+        category: true,
+        variants: {
+          where: Object.keys(variantWhere).length > 0 ? variantWhere : undefined,
+          include: {
+            warehouseVariants: {
+              select: { stock: true },
+            },
+          },
+        },
+      },
+      orderBy,
+      skip,
+      take: limit,
+    });
+
+    const items = products.map((p) => this.mapProductToListDTO(p));
+
+    return createPaginatedResult(items, page, limit, total);
+  }
+
+  /**
+   * Listar productos con paginación y filtros (LEGACY - Mantener para compatibilidad)
+   */
+  async listProducts(query: ProductListQueryOld): Promise<{
     products: ProductResponse[];
     count: number;
     hasMore: boolean;
@@ -299,7 +481,34 @@ export class ProductsService {
   }
 
   /**
-   * Obtener producto por handle
+   * Obtener producto por handle (NUEVO - Normalizado con DTO)
+   */
+  async getProductByHandleNormalized(handle: string): Promise<ProductDTO> {
+    const product = await prisma.product.findUnique({
+      where: { handle },
+      include: {
+        category: true,
+        variants: {
+          where: { active: true },
+          orderBy: { price: 'asc' },
+          include: {
+            warehouseVariants: {
+              select: { stock: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundError('Producto no encontrado');
+    }
+
+    return this.mapProductToDTO(product);
+  }
+
+  /**
+   * Obtener producto por handle (LEGACY - Mantener para compatibilidad)
    */
   async getProductByHandle(handle: string): Promise<ProductResponse> {
     const product = await prisma.product.findUnique({

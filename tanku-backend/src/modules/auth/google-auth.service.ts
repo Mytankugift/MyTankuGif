@@ -2,6 +2,8 @@ import { env } from '../../config/env';
 import { prisma } from '../../config/database';
 import { AuthService } from './auth.service';
 import { BadRequestError } from '../../shared/errors/AppError';
+import { AuthResponseDTO } from '../../shared/dto/auth.dto';
+import type { User, UserProfile } from '@prisma/client';
 
 export interface GoogleUserInfo {
   email: string;
@@ -80,8 +82,9 @@ export class GoogleAuthService {
 
   /**
    * Autenticar o crear usuario con Google
+   * Devuelve AuthResponseDTO normalizado
    */
-  async authenticateWithGoogle(googleUserInfo: GoogleUserInfo) {
+  async authenticateWithGoogle(googleUserInfo: GoogleUserInfo): Promise<AuthResponseDTO> {
     const { email, name, picture, id: googleId } = googleUserInfo;
 
     // Buscar usuario existente por email
@@ -90,7 +93,6 @@ export class GoogleAuthService {
       include: {
         profile: true,
         personalInfo: true,
-        onboardingStatus: true,
       },
     });
 
@@ -114,11 +116,10 @@ export class GoogleAuthService {
         include: {
           profile: true,
           personalInfo: true,
-          onboardingStatus: true,
         },
       });
 
-      // Crear perfil, onboarding e información personal
+      // Crear perfil e información personal
       await Promise.all([
         prisma.userProfile.create({
           data: {
@@ -126,17 +127,24 @@ export class GoogleAuthService {
             avatar: picture || undefined,
           },
         }),
-        prisma.onboardingStatus.create({
-          data: { userId: user.id },
-        }),
         prisma.personalInformation.create({
           data: { userId: user.id },
         }),
       ]);
     }
 
+    // Obtener usuario con perfil actualizado para el mapper
+    const userWithProfile = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { profile: true },
+    });
+
+    if (!userWithProfile) {
+      throw new BadRequestError('Error al obtener usuario');
+    }
+
     // Generar tokens JWT
-    return this.authService.generateTokens(user);
+    return this.authService.generateTokens(userWithProfile);
   }
 
   /**

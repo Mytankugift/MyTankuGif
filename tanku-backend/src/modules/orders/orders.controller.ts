@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import { OrdersService, CreateOrderInput } from './orders.service';
 import { DropiOrdersService } from './dropi-orders.service';
 import { prisma } from '../../config/database';
+import { successResponse, errorResponse, ErrorCode } from '../../shared/response';
+import { BadRequestError } from '../../shared/errors/AppError';
+import { RequestWithUser } from '../../shared/types';
 
 export class OrdersController {
   private ordersService: OrdersService;
@@ -30,10 +33,7 @@ export class OrdersController {
     try {
       const userId = (req as any).user?.id || req.body.userId || req.body.customer_id;
       if (!userId || typeof userId !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'userId o customer_id es requerido',
-        });
+        throw new BadRequestError('userId o customer_id es requerido');
       }
 
       const {
@@ -50,10 +50,7 @@ export class OrdersController {
 
       // Validaciones
       if (!email || !paymentMethod || !total || !address || !items) {
-        return res.status(400).json({
-          success: false,
-          error: 'Faltan campos requeridos',
-        });
+        throw new BadRequestError('Faltan campos requeridos: email, paymentMethod, total, address, items');
       }
 
       const orderInput: CreateOrderInput = {
@@ -76,10 +73,7 @@ export class OrdersController {
 
       const order = await this.ordersService.createOrder(orderInput);
 
-      res.status(201).json({
-        success: true,
-        order,
-      });
+      res.status(201).json(successResponse(order));
     } catch (error: any) {
       console.error(`❌ [ORDERS] Error creando orden:`, error);
       next(error);
@@ -116,75 +110,46 @@ export class OrdersController {
         } : null,
       });
 
-      // Formatear respuesta compatible con Medusa SDK (para frontend)
-      const medusaCompatibleOrder = {
-        id: order.id,
-        email: order.email,
-        status: order.status,
-        payment_status: order.paymentStatus,
-        payment_method: order.paymentMethod,
-        total: order.total,
-        subtotal: order.subtotal,
-        shipping_total: order.shippingTotal,
-        created_at: order.createdAt,
-        updated_at: order.updatedAt,
-        metadata: {
-          dropi_order_ids: order.items?.map(item => item.dropiOrderId).filter(Boolean) || [],
-        },
-        shipping_address: order.address
-          ? {
-              first_name: order.address.firstName,
-              last_name: order.address.lastName,
-              phone: order.address.phone,
-              address_1: order.address.address1,
-              address_2: order.address.address2 || null,
-              city: order.address.city,
-              province: order.address.state,
-              postal_code: order.address.postalCode,
-              country_code: order.address.country,
-            }
-          : null,
-        items: order.items.map((item) => ({
-          id: item.id,
-          variant_id: item.variantId,
-          quantity: item.quantity,
-          finalPrice: item.finalPrice,
-          dropiOrderId: item.dropiOrderId,
-          dropiOrderNumber: item.dropiOrderNumber,
-          dropiShippingCost: item.dropiShippingCost,
-          dropiStatus: item.dropiStatus,
-          unit_price: item.price,
-          final_price: item.finalPrice || Math.round((item.price * 1.15) + 10000), // Precio con incremento (15% + $10,000)
-          total: (item.finalPrice || Math.round((item.price * 1.15) + 10000)) * item.quantity, // Total del item
-          title: item.variant.title,
-          product: {
-            id: item.product.id,
-            title: item.product.title,
-            handle: item.product.handle,
-          },
-          variant: {
-            id: item.variant.id,
-            sku: item.variant.sku,
-            title: item.variant.title,
-            price: item.variant.price,
-          },
-        })),
-      };
-
-      // Si es ruta /store/orders/:id, devolver formato Medusa
-      if (req.path.startsWith('/store/orders')) {
-        res.status(200).json({
-          order: medusaCompatibleOrder,
-        });
-      } else {
-        // Si es ruta /api/v1/orders/:id, devolver formato estándar
-        res.status(200).json({
-          success: true,
-          order,
-        });
-      }
+      // Devolver formato estándar normalizado
+      res.status(200).json(successResponse(order));
     } catch (error: any) {
       console.error(`❌ [ORDERS] Error obteniendo orden:`, error);
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/orders/transaction/:transactionId
+   * Obtener orden por transactionId (para ePayco)
+   */
+  getOrderByTransactionId = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { transactionId } = req.params;
+      const userId = (req as any).user?.id || req.query.userId || req.query.customer_id;
+
+      console.log(`📋 [ORDERS] Obteniendo orden por transactionId: ${transactionId}`);
+
+      const order = await this.ordersService.getOrderByTransactionId(
+        transactionId,
+        userId as string | undefined
+      );
+
+      if (!order) {
+        return res.status(404).json({
+          success: false,
+          error: 'Orden no encontrada',
+        });
+      }
+
+      console.log(`📋 [ORDERS] Orden obtenida por transactionId:`, {
+        id: order.id,
+        transactionId: order.transactionId,
+        paymentStatus: order.paymentStatus,
+      });
+
+      res.status(200).json(successResponse(order));
+    } catch (error: any) {
+      console.error(`❌ [ORDERS] Error obteniendo orden por transactionId:`, error);
       next(error);
     }
   };
@@ -200,23 +165,20 @@ export class OrdersController {
    */
   getOrders = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as any).user?.id || req.query.userId || req.query.customer_id;
-      if (!userId || typeof userId !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'userId o customer_id es requerido',
-        });
+      // El endpoint requiere autenticación, obtener userId del usuario autenticado
+      const requestWithUser = req as RequestWithUser;
+      
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'Usuario no autenticado'));
       }
 
+      const userId = requestWithUser.user.id;
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
 
       const result = await this.ordersService.getUserOrders(userId, limit, offset);
 
-      res.status(200).json({
-        success: true,
-        ...result,
-      });
+      res.status(200).json(successResponse(result));
     } catch (error: any) {
       console.error(`❌ [ORDERS] Error obteniendo órdenes:`, error);
       next(error);
@@ -235,11 +197,7 @@ export class OrdersController {
 
       const result = await this.dropiOrdersService.createOrderInDropi(id);
 
-      res.status(200).json({
-        success: result.success,
-        dropiOrderIds: result.dropiOrderIds,
-        errors: result.errors,
-      });
+      res.status(200).json(successResponse(result));
     } catch (error: any) {
       console.error(`❌ [ORDERS] Error creando orden en Dropi:`, error);
       next(error);
@@ -255,10 +213,7 @@ export class OrdersController {
       const { orderId } = req.params;
 
       if (!orderId) {
-        return res.status(400).json({
-          success: false,
-          error: 'orderId es requerido',
-        });
+        throw new BadRequestError('orderId es requerido');
       }
 
       console.log(`📋 [ORDERS] Obteniendo estado de Dropi para orden: ${orderId}`);
@@ -272,25 +227,16 @@ export class OrdersController {
         .filter((id): id is number => id !== null) || [];
       
       if (dropiOrderIds.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Esta orden no tiene IDs de Dropi asociados',
-        });
+        throw new BadRequestError('Esta orden no tiene IDs de Dropi asociados');
       }
 
       // Consultar estado en Dropi del primer orderId (o podríamos consultar todos)
       const dropiStatus = await this.dropiOrdersService.getDropiOrderStatus(dropiOrderIds[0]);
 
-      res.status(200).json({
-        success: true,
-        ...dropiStatus,
-      });
+      res.status(200).json(successResponse(dropiStatus));
     } catch (error: any) {
       console.error(`❌ [ORDERS] Error obteniendo estado de Dropi:`, error?.message);
-      res.status(500).json({
-        success: false,
-        error: error?.message || 'Error al obtener estado de Dropi',
-      });
+      next(error);
     }
   };
 
@@ -303,10 +249,7 @@ export class OrdersController {
       const { itemId } = req.params;
 
       if (!itemId) {
-        return res.status(400).json({
-          success: false,
-          error: 'itemId es requerido',
-        });
+        throw new BadRequestError('itemId es requerido');
       }
 
       console.log(`📋 [ORDERS] Obteniendo estado de Dropi para item: ${itemId}`);
@@ -320,25 +263,43 @@ export class OrdersController {
       });
 
       if (!item || !item.dropiOrderId) {
-        return res.status(404).json({
-          success: false,
-          error: 'Este item no tiene un ID de Dropi asociado',
-        });
+        throw new BadRequestError('Este item no tiene un ID de Dropi asociado');
       }
 
       // Consultar estado en Dropi
       const dropiStatus = await this.dropiOrdersService.getDropiOrderStatus(item.dropiOrderId);
 
-      res.status(200).json({
-        success: true,
-        ...dropiStatus,
-      });
+      res.status(200).json(successResponse(dropiStatus));
     } catch (error: any) {
       console.error(`❌ [ORDERS] Error obteniendo estado de Dropi por item:`, error?.message);
-      res.status(500).json({
-        success: false,
-        error: error?.message || 'Error al obtener estado de Dropi',
-      });
+      next(error);
+    }
+  };
+
+  /**
+   * DELETE /api/v1/orders/:id
+   * Eliminar una orden (usado cuando Epayco falla antes del pago)
+   */
+  deleteOrder = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        throw new BadRequestError('Usuario no autenticado');
+      }
+
+      // Verificar que la orden pertenece al usuario
+      const order = await this.ordersService.getOrderById(id);
+      if (order.userId !== userId) {
+        throw new BadRequestError('No tienes permiso para eliminar esta orden');
+      }
+
+      await this.ordersService.deleteOrder(id);
+
+      res.status(200).json(successResponse({ message: 'Orden eliminada exitosamente' }));
+    } catch (error: any) {
+      console.error(`❌ [ORDERS] Error eliminando orden:`, error);
       next(error);
     }
   };

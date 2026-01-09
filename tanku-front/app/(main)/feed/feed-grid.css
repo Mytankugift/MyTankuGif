@@ -1,0 +1,25 @@
+/* Estilos para react-masonry-css */
+.masonry-grid {
+  display: flex;
+  margin-left: -16px; /* gutter size offset */
+  width: auto;
+}
+
+.masonry-grid_column {
+  padding-left: 16px; /* gutter size */
+  background-clip: padding-box;
+}
+
+/* Asegurar que las cards tengan el mismo ancho */
+.masonry-grid_column > div {
+  width: 100% !important;
+  break-inside: avoid;
+  margin-bottom: 16px;
+}
+
+/* Forzar que todas las cards tengan el mismo ancho */
+.masonry-grid_column > div > div {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+

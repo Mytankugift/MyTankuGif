@@ -3,10 +3,13 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
+import { createServer } from 'http';
 import { env, getCorsOrigins } from './config/env';
 import { connectMongoDB, closeConnections } from './config/database';
 import { APP_CONSTANTS } from './config/constants';
 import { AppError } from './shared/errors/AppError';
+import { errorResponse, ErrorCode } from './shared/response';
+import { getSocketService } from './shared/realtime/socket.service';
 
 /**
  * Crear aplicación Express
@@ -36,7 +39,7 @@ app.use(
     origin: getCorsOrigins(),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'x-publishable-api-key'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'x-publishable-api-key', 'x-feed-cursor'],
     exposedHeaders: ['Content-Length', 'Content-Type'],
     maxAge: 86400, // 24 horas para preflight cache
   })
@@ -103,9 +106,9 @@ app.get('/test-routes', (_req, res) => {
   res.status(200).json({
     message: 'Rutas funcionando',
     routes: {
-      categories: '/store/categories',
-      products: '/store/product/',
-      productsSDK: '/store/products',
+      categories: '/api/v1/categories',
+      products: '/api/v1/products',
+      productsByHandle: '/api/v1/products/:handle',
     },
   });
 });
@@ -114,7 +117,6 @@ app.get('/test-routes', (_req, res) => {
  * API Routes
  */
 import authRoutes from './modules/auth/auth.routes';
-import storeRoutes from './modules/store/store.routes';
 
 app.get(`${APP_CONSTANTS.API_PREFIX}`, (_req, res) => {
   res.json({
@@ -123,37 +125,36 @@ app.get(`${APP_CONSTANTS.API_PREFIX}`, (_req, res) => {
   });
 });
 
-// Auth routes
+// Auth routes - SOLO con prefijo /api/v1
 app.use(`${APP_CONSTANTS.API_PREFIX}/auth`, authRoutes);
 
-// Auth routes sin prefijo (compatibilidad con frontend)
-// El frontend llama directamente a /auth/google
-app.use('/auth', authRoutes);
+// Regions routes
+import regionsRoutes from './modules/regions/regions.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/regions`, regionsRoutes);
 
-// Store routes sin prefijo (compatibilidad con SDK de Medusa)
-// El frontend usa el SDK que espera /store/* directamente
-// IMPORTANTE: Montar ANTES de la ruta con prefijo para que coincida primero
-app.use('/store', storeRoutes);
+// Wishlists routes
+import wishlistsRoutes from './modules/wishlists/wishlists.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/wishlists`, wishlistsRoutes);
 
-// Store routes con prefijo API
-app.use(`${APP_CONSTANTS.API_PREFIX}/store`, storeRoutes);
+// Products routes
+import productsRoutes from './modules/products/products.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/products`, productsRoutes);
 
-// Customers routes
-import customersRoutes from './modules/customers/customers.routes';
-app.use('/store/customers', customersRoutes);
-app.use(`${APP_CONSTANTS.API_PREFIX}/store/customers`, customersRoutes);
+// Categories routes 
+import categoriesRoutes from './modules/products/categories.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/categories`, categoriesRoutes);
+
+// Users routes
+import usersRoutes from './modules/users/users.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/users`, usersRoutes);
+
+// Feed routes
+import feedRoutes from './modules/feed/feed.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/feed`, feedRoutes);
 
 // Cart routes
 import cartRoutes from './modules/cart/cart.routes';
-app.use('/store/carts', cartRoutes);
-app.use('/store/cart', cartRoutes); // Rutas personalizadas del frontend
-app.use(`${APP_CONSTANTS.API_PREFIX}/store/carts`, cartRoutes);
-app.use(`${APP_CONSTANTS.API_PREFIX}/store/cart`, cartRoutes);
-
-// Users/Personal Info routes (compatibilidad con frontend)
-import usersRoutes from './modules/users/users.routes';
-app.use('/personal-info', usersRoutes);
-app.use(`${APP_CONSTANTS.API_PREFIX}/personal-info`, usersRoutes);
+app.use(`${APP_CONSTANTS.API_PREFIX}/cart`, cartRoutes);
 
 // Dropi routes
 import dropiRoutes from './modules/dropi/dropi.routes';
@@ -183,24 +184,41 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/dropi`, dropiCategoriesRoutes);
 import dropiJobsRoutes from './modules/dropi-jobs/dropi-jobs.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/dropi/jobs`, dropiJobsRoutes);
 
-// Social routes (posts, posters, etc.)
-import socialRoutes from './modules/social/social.routes';
-app.use('/social', socialRoutes);
-app.use(`${APP_CONSTANTS.API_PREFIX}/social`, socialRoutes);
+// Posters routes normalizadas
+import postersRoutes from './modules/posters/posters.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/posters`, postersRoutes);
 
-// Orders routes
+// Stories routes normalizadas
+import storiesRoutes from './modules/stories/stories.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/stories`, storiesRoutes);
+
+// Orders routes (solo /api/v1/orders)
 import ordersRoutes from './modules/orders/orders.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/orders`, ordersRoutes);
-app.use('/store/orders', ordersRoutes); // Ruta para compatibilidad con frontend
-app.use('/store/order', ordersRoutes); // Ruta para endpoints individuales (ej: /store/order/:id/dropi-status)
+
+// Friends routes
+import friendsRoutes from './modules/friends/friends.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/friends`, friendsRoutes);
+
+// Groups routes (Red Tanku)
+import groupsRoutes from './modules/groups/groups.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/groups`, groupsRoutes);
+
+// Notifications routes
+import notificationsRoutes from './modules/notifications/notifications.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/notifications`, notificationsRoutes);
 
 // ePayco webhook routes
 import epaycoRoutes from './modules/orders/epayco.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/webhook/epayco`, epaycoRoutes);
 
-// Checkout routes
+// Dropi webhook routes
+import dropiWebhookRoutes from './modules/orders/dropi-webhook.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/webhook/dropi`, dropiWebhookRoutes);
+
+// Checkout routes (mover a /api/v1/checkout)
 import checkoutRoutes from './modules/checkout/checkout.routes';
-app.use('/store/checkout', checkoutRoutes);
+app.use(`${APP_CONSTANTS.API_PREFIX}/checkout`, checkoutRoutes);
 
 /**
  * Manejo de errores 404
@@ -221,18 +239,20 @@ app.use((req, res) => {
  */
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
-      success: false,
-      error: err.message,
-    });
+    // Mapear códigos de estado HTTP a códigos de error
+    let errorCode = ErrorCode.INTERNAL_ERROR;
+    if (err.statusCode === 400) errorCode = ErrorCode.BAD_REQUEST;
+    else if (err.statusCode === 401) errorCode = ErrorCode.UNAUTHORIZED;
+    else if (err.statusCode === 403) errorCode = ErrorCode.FORBIDDEN;
+    else if (err.statusCode === 404) errorCode = ErrorCode.NOT_FOUND;
+    else if (err.statusCode === 409) errorCode = ErrorCode.CONFLICT;
+
+    return res.status(err.statusCode).json(errorResponse(errorCode, err.message));
   }
 
   console.error('Error no manejado:', err);
-  return res.status(500).json({
-    success: false,
-    error: env.NODE_ENV === 'production' ? 'Error interno del servidor' : err.message,
-    ...(env.NODE_ENV === 'development' && { stack: err.stack }),
-  });
+  const message = env.NODE_ENV === 'production' ? 'Error interno del servidor' : err.message;
+  return res.status(500).json(errorResponse(ErrorCode.INTERNAL_ERROR, message));
 });
 
 /**
@@ -243,20 +263,28 @@ async function startServer() {
     // Conectar a MongoDB
     await connectMongoDB();
 
+    // Crear servidor HTTP (necesario para Socket.IO)
+    const httpServer = createServer(app);
+
+    // Inicializar Socket.IO (infraestructura de realtime)
+    const socketService = getSocketService();
+    socketService.initialize(httpServer);
+
     // Iniciar servidor HTTP
-    const server = app.listen(APP_CONSTANTS.PORT, () => {
+    httpServer.listen(APP_CONSTANTS.PORT, () => {
       console.log(`
 🚀 Servidor Tanku Backend iniciado
 📍 Puerto: ${APP_CONSTANTS.PORT}
 🌍 Ambiente: ${APP_CONSTANTS.NODE_ENV}
 🔗 API: http://localhost:${APP_CONSTANTS.PORT}${APP_CONSTANTS.API_PREFIX}
+🔌 Socket.IO: Habilitado (realtime preparado)
       `);
     });
 
     // Manejo de cierre graceful
     process.on('SIGTERM', async () => {
       console.log('SIGTERM recibido, cerrando servidor...');
-      server.close(async () => {
+      httpServer.close(async () => {
         await closeConnections();
         process.exit(0);
       });
@@ -264,7 +292,7 @@ async function startServer() {
 
     process.on('SIGINT', async () => {
       console.log('SIGINT recibido, cerrando servidor...');
-      server.close(async () => {
+      httpServer.close(async () => {
         await closeConnections();
         process.exit(0);
       });

@@ -3,6 +3,7 @@ import { CartService } from './cart.service';
 import { BadRequestError } from '../../shared/errors/AppError';
 import { RequestWithUser } from '../../shared/types';
 import { prisma } from '../../config/database';
+import { successResponse, errorResponse, ErrorCode } from '../../shared/response';
 
 export class CartController {
   private cartService: CartService;
@@ -444,6 +445,172 @@ export class CartController {
         data: formattedCart,
         cart: formattedCart,
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ==================== NUEVOS MÉTODOS NORMALIZADOS ====================
+
+  /**
+   * GET /api/v1/cart
+   * Obtener carrito del usuario autenticado (NUEVO - Normalizado)
+   */
+  getCurrentUserCart = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+
+      if (!userId) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      let cart = await this.cartService.getUserCart(userId);
+
+      // Si no existe carrito, crear uno nuevo
+      if (!cart) {
+        cart = await this.cartService.createCartNormalized(userId);
+      }
+
+      res.status(200).json(successResponse(cart));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/cart
+   * Crear carrito nuevo (NUEVO - Normalizado)
+   */
+  createCartNormalized = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+
+      const cart = await this.cartService.createCartNormalized(userId);
+
+      res.status(201).json(successResponse(cart));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/cart/items
+   * Agregar item al carrito (NUEVO - Normalizado)
+   */
+  addItemNormalized = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+
+      const { variantId, quantity, cartId } = req.body;
+
+      if (!variantId) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'variantId es requerido'));
+      }
+
+      if (!quantity || quantity <= 0) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'quantity debe ser mayor a 0'));
+      }
+
+      // Si no hay cartId, obtener o crear carrito del usuario
+      let finalCartId = cartId;
+      if (!finalCartId && userId) {
+        let userCart = await this.cartService.getUserCart(userId);
+        if (!userCart) {
+          userCart = await this.cartService.createCartNormalized(userId);
+        }
+        finalCartId = userCart.id;
+      }
+
+      if (!finalCartId) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'cartId es requerido o debe estar autenticado'));
+      }
+
+      const cart = await this.cartService.addItemToCartNormalized(finalCartId, variantId, quantity, userId);
+
+      res.status(200).json(successResponse(cart));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * PUT /api/v1/cart/items/:itemId
+   * Actualizar cantidad de item (NUEVO - Normalizado)
+   */
+  updateItemNormalized = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+
+      const { itemId } = req.params;
+      const { quantity, cartId } = req.body;
+
+      if (!itemId) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'itemId es requerido'));
+      }
+
+      if (quantity === undefined || quantity < 0) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'quantity debe ser mayor o igual a 0'));
+      }
+
+      // Si no hay cartId, obtener carrito del usuario
+      let finalCartId = cartId;
+      if (!finalCartId && userId) {
+        const userCart = await this.cartService.getUserCart(userId);
+        if (!userCart) {
+          return res.status(404).json(errorResponse(ErrorCode.NOT_FOUND, 'Carrito no encontrado'));
+        }
+        finalCartId = userCart.id;
+      }
+
+      if (!finalCartId) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'cartId es requerido o debe estar autenticado'));
+      }
+
+      const cart = await this.cartService.updateCartItemNormalized(finalCartId, itemId, quantity, userId);
+
+      res.status(200).json(successResponse(cart));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * DELETE /api/v1/cart/items/:itemId
+   * Eliminar item del carrito (NUEVO - Normalizado)
+   */
+  deleteItemNormalized = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+
+      const { itemId } = req.params;
+      const { cartId } = req.body;
+
+      if (!itemId) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'itemId es requerido'));
+      }
+
+      // Si no hay cartId, obtener carrito del usuario
+      let finalCartId = cartId;
+      if (!finalCartId && userId) {
+        const userCart = await this.cartService.getUserCart(userId);
+        if (!userCart) {
+          return res.status(404).json(errorResponse(ErrorCode.NOT_FOUND, 'Carrito no encontrado'));
+        }
+        finalCartId = userCart.id;
+      }
+
+      if (!finalCartId) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'cartId es requerido o debe estar autenticado'));
+      }
+
+      const cart = await this.cartService.deleteCartItemNormalized(finalCartId, itemId);
+
+      res.status(200).json(successResponse(cart));
     } catch (error) {
       next(error);
     }

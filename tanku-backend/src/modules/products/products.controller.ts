@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { ProductsService, ProductListQuery } from './products.service';
+import { ProductsService, ProductListQuery, ProductListQueryOld } from './products.service';
 import { BadRequestError } from '../../shared/errors/AppError';
+import { successResponse } from '../../shared/response';
+import { PaginationQuery } from '../../shared/pagination';
 
 export class ProductsController {
   private productsService: ProductsService;
@@ -28,7 +30,7 @@ export class ProductsController {
       });
       console.log(`🔍 [PRODUCTS CONTROLLER] ========================================`);
 
-      const query: ProductListQuery = {
+      const query: ProductListQueryOld = {
         limit: req.query.limit ? parseInt(req.query.limit as string) : 12,
         offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
         category_id: req.query.category_id as string | undefined,
@@ -98,7 +100,7 @@ export class ProductsController {
    */
   listProductsSDK = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const query: ProductListQuery = {
+      const query: ProductListQueryOld = {
         limit: req.query.limit ? parseInt(req.query.limit as string) : 12,
         offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
         category_id: req.query.category_id as string | undefined,
@@ -134,6 +136,52 @@ export class ProductsController {
       res.status(200).json({
         product,
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/products
+   * Listar productos normalizado
+   */
+  listProductsNormalized = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const query: ProductListQuery = {
+        page: req.query.page ? parseInt(req.query.page as string) : undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+        category: req.query.category as string | undefined,
+        priceMin: req.query.priceMin ? parseInt(req.query.priceMin as string) : undefined,
+        priceMax: req.query.priceMax ? parseInt(req.query.priceMax as string) : undefined,
+        active: req.query.active === 'true' ? true : req.query.active === 'false' ? false : undefined,
+        search: req.query.search as string | undefined,
+        sortBy: (req.query.sortBy as 'price' | 'createdAt') || undefined,
+        sortOrder: (req.query.sortOrder as 'asc' | 'desc') || undefined,
+      };
+
+      const result = await this.productsService.listProductsNormalized(query);
+
+      res.status(200).json(successResponse(result.items, result.meta));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/products/:handle
+   * Obtener producto por handle normalizado
+   */
+  getProductByHandleNormalized = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { handle } = req.params;
+
+      if (!handle) {
+        throw new BadRequestError('Handle es requerido');
+      }
+
+      const product = await this.productsService.getProductByHandleNormalized(handle);
+
+      res.status(200).json(successResponse(product));
     } catch (error) {
       next(error);
     }

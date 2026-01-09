@@ -1,6 +1,10 @@
 import { prisma } from '../../config/database';
 import { NotFoundError, BadRequestError } from '../../shared/errors/AppError';
+import { CartDTO, CartItemDTO } from '../../shared/dto/cart.dto';
+import type { Cart, CartItem, ProductVariant, Product } from '@prisma/client';
+import { env } from '../../config/env';
 
+// Interfaz legacy para compatibilidad temporal (se eliminará)
 export interface CartResponse {
   id: string;
   userId?: string | null;
@@ -27,7 +31,7 @@ export interface CartResponse {
   }>;
   subtotal: number;
   total: number;
-  region?: any; // TODO: Implementar cuando tengamos regiones
+  region?: any;
   created_at: Date;
   updated_at: Date;
 }
@@ -44,7 +48,158 @@ export class CartService {
    */
 
   /**
-   * Obtener carrito por ID
+   * Normalizar URL de imagen
+   */
+  private normalizeImageUrl(imagePath: string | null | undefined): string | null {
+    if (!imagePath) return null;
+    const cdnBase = env.DROPI_CDN_BASE || 'https://d39ru7awumhhs2.cloudfront.net';
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+    return `${cdnBase}/${cleanPath}`;
+  }
+
+  /**
+   * Mapper: CartItem de Prisma a CartItemDTO
+   */
+  private mapCartItemToDTO(
+    item: CartItem & {
+      variant: ProductVariant & {
+        product: Product | null;
+        warehouseVariants: { stock: number }[];
+      };
+    }
+  ): CartItemDTO {
+    const totalStock = item.variant.warehouseVariants?.reduce(
+      (sum, wv) => sum + (wv.stock || 0),
+      0
+    ) || 0;
+
+    const basePrice = item.variant.suggestedPrice || item.variant.price || 0;
+    // Aplicar incremento: (precio * 1.15) + 10,000
+    const unitPrice = basePrice > 0 ? Math.round((basePrice * 1.15) + 10000) : 0;
+
+    return {
+      id: item.id,
+      variantId: item.variantId,
+      quantity: item.quantity,
+      unitPrice,
+      total: unitPrice * item.quantity,
+      createdAt: item.createdAt.toISOString(),
+      product: item.variant.product
+        ? {
+            id: item.variant.product.id,
+            title: item.variant.product.title,
+            handle: item.variant.product.handle,
+            images: (item.variant.product.images || []).map((img) => this.normalizeImageUrl(img) || ''),
+          }
+        : undefined,
+      variant: {
+        id: item.variant.id,
+        sku: item.variant.sku,
+        title: item.variant.title,
+        price: unitPrice,
+        suggestedPrice: item.variant.suggestedPrice || null,
+        stock: totalStock,
+      },
+    };
+  }
+
+  /**
+   * Mapper: Cart de Prisma a CartDTO
+   */
+  private mapCartToDTO(
+    cart: Cart & {
+      items: (CartItem & {
+        variant: ProductVariant & {
+          product: Product | null;
+          warehouseVariants: { stock: number }[];
+        };
+      })[];
+    }
+  ): CartDTO {
+    const items = cart.items.map((item) => this.mapCartItemToDTO(item));
+    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+
+    return {
+      id: cart.id,
+      userId: cart.userId,
+      items,
+      subtotal,
+      total: subtotal, // Por ahora total = subtotal (sin envío ni impuestos)
+      createdAt: cart.createdAt.toISOString(),
+      updatedAt: cart.updatedAt.toISOString(),
+    };
+  }
+
+  /**
+   * Obtener carrito por ID (NUEVO - Normalizado)
+   */
+  async getCartByIdNormalized(cartId: string): Promise<CartDTO | null> {
+    const cart = await prisma.cart.findUnique({
+      where: { id: cartId },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true,
+                warehouseVariants: {
+                  select: {
+                    stock: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!cart) {
+      return null;
+    }
+
+    return this.mapCartToDTO(cart);
+  }
+
+  /**
+   * Obtener carrito del usuario autenticado (NUEVO - Normalizado)
+   */
+  async getUserCart(userId: string): Promise<CartDTO | null> {
+    const cart = await prisma.cart.findFirst({
+      where: { userId },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true,
+                warehouseVariants: {
+                  select: {
+                    stock: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    if (!cart) {
+      return null;
+    }
+
+    return this.mapCartToDTO(cart);
+  }
+
+  /**
+   * Obtener carrito por ID (LEGACY - Mantener para compatibilidad)
    * @param fields - Campos opcionales para formatear respuesta (compatibilidad con SDK)
    */
   async getCartById(cartId: string, fields?: string): Promise<CartResponse | null> {
@@ -123,7 +278,36 @@ export class CartService {
   }
 
   /**
-   * Crear carrito nuevo
+   * Crear carrito nuevo (NUEVO - Normalizado)
+   */
+  async createCartNormalized(userId?: string): Promise<CartDTO> {
+    const cart = await prisma.cart.create({
+      data: {
+        userId: userId || null,
+      },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true,
+                warehouseVariants: {
+                  select: {
+                    stock: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return this.mapCartToDTO(cart);
+  }
+
+  /**
+   * Crear carrito nuevo (LEGACY - Mantener para compatibilidad)
    */
   async createCart(userId?: string): Promise<CartResponse> {
     const cart = await prisma.cart.create({
@@ -155,7 +339,53 @@ export class CartService {
   }
 
   /**
-   * Agregar item al carrito
+   * Agregar item al carrito (NUEVO - Normalizado)
+   * 
+   * REGLAS CRÍTICAS:
+   * 1. El backend SIEMPRE controla cart.id (nunca usar IDs del request)
+   * 2. Si el cart no existe, crear uno nuevo (sin ID manual)
+   * 3. Validar variant existe y está activa
+   * 4. Validar stock suficiente
+   * 5. Si el item ya existe, sumar quantity (usar update)
+   * 6. Si no existe, crear nuevo CartItem
+   */
+  async addItemToCartNormalized(
+    cartId: string,
+    variantId: string,
+    quantity: number,
+    userId?: string
+  ): Promise<CartDTO> {
+    // Reutilizar lógica existente pero retornar DTO
+    const cartResponse = await this.addItemToCart(cartId, variantId, quantity, userId);
+    const cart = await prisma.cart.findUnique({
+      where: { id: cartResponse.id },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true,
+                warehouseVariants: {
+                  select: {
+                    stock: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!cart) {
+      throw new Error('Error al obtener carrito actualizado');
+    }
+
+    return this.mapCartToDTO(cart);
+  }
+
+  /**
+   * Agregar item al carrito (LEGACY - Mantener para compatibilidad)
    * 
    * REGLAS CRÍTICAS:
    * 1. El backend SIEMPRE controla cart.id (nunca usar IDs del request)
@@ -275,7 +505,45 @@ export class CartService {
   }
 
   /**
-   * Actualizar cantidad de item en el carrito
+   * Actualizar cantidad de item en el carrito (NUEVO - Normalizado)
+   */
+  async updateCartItemNormalized(
+    cartId: string,
+    itemId: string,
+    quantity: number,
+    userId?: string
+  ): Promise<CartDTO> {
+    // Reutilizar lógica existente pero retornar DTO
+    const cartResponse = await this.updateCartItem(cartId, itemId, quantity, userId);
+    const cart = await prisma.cart.findUnique({
+      where: { id: cartResponse.id },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true,
+                warehouseVariants: {
+                  select: {
+                    stock: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!cart) {
+      throw new Error('Error al obtener carrito actualizado');
+    }
+
+    return this.mapCartToDTO(cart);
+  }
+
+  /**
+   * Actualizar cantidad de item en el carrito (LEGACY - Mantener para compatibilidad)
    */
   async updateCartItem(
     cartId: string,
@@ -359,7 +627,43 @@ export class CartService {
   }
 
   /**
-   * Eliminar item del carrito
+   * Eliminar item del carrito (NUEVO - Normalizado)
+   */
+  async deleteCartItemNormalized(
+    cartId: string,
+    itemId: string
+  ): Promise<CartDTO> {
+    // Reutilizar lógica existente pero retornar DTO
+    const cartResponse = await this.deleteCartItem(cartId, itemId);
+    const cart = await prisma.cart.findUnique({
+      where: { id: cartResponse.id },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true,
+                warehouseVariants: {
+                  select: {
+                    stock: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!cart) {
+      throw new Error('Error al obtener carrito actualizado');
+    }
+
+    return this.mapCartToDTO(cart);
+  }
+
+  /**
+   * Eliminar item del carrito (LEGACY - Mantener para compatibilidad)
    */
   async deleteCartItem(
     cartId: string,

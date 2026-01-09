@@ -4,6 +4,8 @@ import { env } from '../../config/env';
 import { prisma } from '../../config/database';
 import { BadRequestError, UnauthorizedError, ConflictError } from '../../shared/errors/AppError';
 import { JwtPayload } from '../../shared/types';
+import { UserPublicDTO, AuthResponseDTO } from '../../shared/dto/auth.dto';
+import type { User, UserProfile } from '@prisma/client';
 
 export interface RegisterInput {
   email: string;
@@ -18,22 +20,30 @@ export interface LoginInput {
   password: string;
 }
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  user: {
-    id: string;
-    email: string;
-    firstName?: string;
-    lastName?: string;
-  };
-}
-
 export class AuthService {
+  /**
+   * Mapper: Convierte User de Prisma a UserPublicDTO
+   */
+private mapUserToPublicDTO(user: User & { profile?: UserProfile | null }): UserPublicDTO {
+return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      profile: user.profile
+        ? {
+            avatar: user.profile.avatar,
+            banner: user.profile.banner,
+            bio: user.profile.bio,
+          }
+        : null,
+    };
+  }
   /**
    * Registrar nuevo usuario
    */
-  async register(input: RegisterInput): Promise<AuthTokens> {
+  async register(input: RegisterInput): Promise<AuthResponseDTO> {
     // Verificar si el usuario ya existe
     const existingUser = await prisma.user.findUnique({
       where: { email: input.email },
@@ -57,12 +67,9 @@ export class AuthService {
       },
     });
 
-    // Crear perfil y onboarding
+    // Crear perfil e información personal
     await Promise.all([
       prisma.userProfile.create({
-        data: { userId: user.id },
-      }),
-      prisma.onboardingStatus.create({
         data: { userId: user.id },
       }),
       prisma.personalInformation.create({
@@ -70,14 +77,24 @@ export class AuthService {
       }),
     ]);
 
+    // Obtener usuario con perfil para el mapper
+    const userWithProfile = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { profile: true },
+    });
+
+    if (!userWithProfile) {
+      throw new BadRequestError('Error al crear usuario');
+    }
+
     // Generar tokens
-    return this.generateTokens(user);
+    return this.generateTokens(userWithProfile);
   }
 
   /**
    * Iniciar sesión
    */
-  async login(input: LoginInput): Promise<AuthTokens> {
+  async login(input: LoginInput): Promise<AuthResponseDTO> {
     // Buscar usuario
     const user = await prisma.user.findUnique({
       where: { email: input.email },
@@ -93,14 +110,24 @@ export class AuthService {
       throw new UnauthorizedError('Credenciales inválidas');
     }
 
+    // Obtener usuario con perfil para el mapper
+    const userWithProfile = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { profile: true },
+    });
+
+    if (!userWithProfile) {
+      throw new UnauthorizedError('Usuario no encontrado');
+    }
+
     // Generar tokens
-    return this.generateTokens(user);
+    return this.generateTokens(userWithProfile);
   }
 
   /**
-   * Generar tokens JWT
+   * Generar tokens JWT y devolver AuthResponseDTO
    */
-  generateTokens(user: any): AuthTokens {
+  generateTokens(user: User & { profile?: UserProfile | null }): AuthResponseDTO {
     const payload: JwtPayload = {
       userId: user.id,
       email: user.email,
@@ -115,15 +142,26 @@ export class AuthService {
     } as SignOptions);
 
     return {
+      user: this.mapUserToPublicDTO(user),
       accessToken,
       refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName || undefined,
-        lastName: user.lastName || undefined,
-      },
     };
+  }
+
+  /**
+   * Obtener usuario actual por ID
+   */
+  async getCurrentUser(userId: string): Promise<UserPublicDTO> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedError('Usuario no encontrado');
+    }
+
+    return this.mapUserToPublicDTO(user);
   }
 
   /**

@@ -1,9 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { GoogleAuthService } from './google-auth.service';
 import { BadRequestError } from '../../shared/errors/AppError';
-import { ApiResponse } from '../../shared/types';
+import { successResponse, errorResponse, ErrorCode } from '../../shared/response';
 import { env } from '../../config/env';
 import { prisma } from '../../config/database';
+import { AuthService } from './auth.service';
 
 export class GoogleAuthController {
   private googleAuthService: GoogleAuthService;
@@ -23,8 +24,8 @@ export class GoogleAuthController {
       // Debug: Log la URL de callback que se está usando
       console.log('🔍 [GOOGLE OAUTH DEBUG]');
       console.log('  GOOGLE_CALLBACK_URL from env:', env.GOOGLE_CALLBACK_URL);
-      console.log('  Expected in Google Console:', 'http://localhost:9000/auth/google/callback');
-      console.log('  Match:', env.GOOGLE_CALLBACK_URL === 'http://localhost:9000/auth/google/callback');
+      console.log('  Expected in Google Console:', 'http://localhost:9000/api/v1/auth/google/callback');
+      console.log('  Match:', env.GOOGLE_CALLBACK_URL === 'http://localhost:9000/api/v1/auth/google/callback');
       
       const authUrl = this.googleAuthService.generateAuthUrl(state as string);
       
@@ -72,10 +73,9 @@ export class GoogleAuthController {
 
       // Redirigir al frontend con los tokens
       // El frontend espera 'token' (no 'accessToken')
-      const redirectUrl = new URL(callbackUrl);
+      const redirectUrl = new URL(`${frontendUrl}/`);
       redirectUrl.searchParams.set('token', authResult.accessToken);
-      // También enviar customer_id como fallback (el frontend lo usa)
-      redirectUrl.searchParams.set('customer_id', authResult.user.id);
+      redirectUrl.searchParams.set('userId', authResult.user.id);
 
       console.log('✅ [GOOGLE OAUTH] Autenticación exitosa, redirigiendo al frontend con token');
       res.redirect(redirectUrl.toString());
@@ -92,39 +92,41 @@ export class GoogleAuthController {
   /**
    * POST /api/v1/auth/google/complete
    * Completa la autenticación (para compatibilidad con el frontend existente)
+   * @deprecated Usar el callback GET /api/v1/auth/google/callback en su lugar
    */
   complete = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { customer_id } = req.body;
+      const { userId } = req.body;
 
-      if (!customer_id) {
-        throw new BadRequestError('customer_id es requerido');
+      if (!userId) {
+        throw new BadRequestError('userId es requerido');
       }
 
       // Buscar usuario
       const user = await prisma.user.findUnique({
-        where: { id: customer_id },
+        where: { id: userId },
       });
 
       if (!user) {
         throw new BadRequestError('Usuario no encontrado');
       }
 
-      // Generar token
-      const { AuthService } = await import('./auth.service');
+      // Obtener usuario con perfil para el mapper
+      const userWithProfile = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { profile: true },
+      });
+
+      if (!userWithProfile) {
+        throw new BadRequestError('Usuario no encontrado');
+      }
+
+      // Generar tokens usando el servicio normalizado
       const authService = new AuthService();
-      const tokens = authService.generateTokens(user);
+      const tokens = authService.generateTokens(userWithProfile);
 
-      const response: ApiResponse = {
-        success: true,
-        data: {
-          token: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          user: tokens.user,
-        },
-      };
-
-      res.status(200).json(response);
+      // Devolver formato normalizado AuthResponseDTO
+      res.status(200).json(successResponse(tokens));
     } catch (error) {
       next(error);
     }
@@ -155,17 +157,9 @@ export class GoogleAuthController {
       // Autenticar o crear usuario
       const authResult = await this.googleAuthService.authenticateWithGoogle(userInfo);
 
-      const response: ApiResponse = {
-        success: true,
-        data: {
-          token: authResult.accessToken,
-          refreshToken: authResult.refreshToken,
-          user: authResult.user,
-        },
-      };
-
+      // Devolver formato normalizado AuthResponseDTO
       console.log('✅ [GOOGLE OAUTH CUSTOMER] Autenticación exitosa, devolviendo token');
-      res.status(200).json(response);
+      res.status(200).json(successResponse(authResult));
     } catch (error) {
       console.error('❌ [GOOGLE OAUTH CUSTOMER] Error en callback:', error);
       next(error);

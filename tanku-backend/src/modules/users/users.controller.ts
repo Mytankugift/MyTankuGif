@@ -2,6 +2,15 @@ import { Request, Response, NextFunction } from 'express';
 import { UsersService } from './users.service';
 import { BadRequestError } from '../../shared/errors/AppError';
 import { RequestWithUser } from '../../shared/types';
+import { successResponse, errorResponse, ErrorCode } from '../../shared/response';
+import {
+  CreateAddressDTO,
+  UpdateAddressDTO,
+  UpdateUserDTO,
+  UpdateUserProfileDTO,
+  UpdatePersonalInformationDTO,
+  UpdateOnboardingDataDTO,
+} from '../../shared/dto/users.dto';
 
 export class UsersController {
   private usersService: UsersService;
@@ -166,6 +175,378 @@ export class UsersController {
           personal_info: personalInfo,
         },
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/users/me
+   * Obtener usuario actual con direcciones (NUEVO - Normalizado)
+   */
+  getCurrentUser = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const result = await this.usersService.getCurrentUserWithAddresses(requestWithUser.user.id);
+
+      res.status(200).json(successResponse(result));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * PUT /api/v1/users/me
+   * Actualizar información del usuario (NUEVO - Normalizado)
+   */
+  updateCurrentUser = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const updateData: UpdateUserDTO = {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        phone: req.body.phone,
+        email: req.body.email,
+      };
+
+      // Validar que al menos un campo esté presente
+      if (!updateData.firstName && !updateData.lastName && !updateData.phone && !updateData.email) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'Al menos un campo debe ser proporcionado para actualizar'));
+      }
+
+      const user = await this.usersService.updateUser(requestWithUser.user.id, updateData);
+
+      res.status(200).json(successResponse(user));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/users/me/addresses
+   * Obtener direcciones del usuario (NUEVO - Normalizado)
+   */
+  getUserAddresses = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const addresses = await this.usersService.getUserAddresses(requestWithUser.user.id);
+
+      res.status(200).json(successResponse(addresses));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/users/me/addresses
+   * Crear dirección para el usuario (NUEVO - Normalizado)
+   */
+  createUserAddress = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const addressData: CreateAddressDTO = {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        phone: req.body.phone,
+        address1: req.body.address1,
+        address2: req.body.address2,
+        city: req.body.city,
+        state: req.body.state,
+        postalCode: req.body.postalCode,
+        country: req.body.country || 'CO',
+        isDefaultShipping: req.body.isDefaultShipping,
+        metadata: req.body.metadata,
+      };
+
+      // Validar campos requeridos
+      if (!addressData.firstName || !addressData.lastName || !addressData.address1 || !addressData.city || !addressData.state || !addressData.postalCode) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'Campos requeridos: firstName, lastName, address1, city, state, postalCode'));
+      }
+
+      const address = await this.usersService.createUserAddress(requestWithUser.user.id, addressData);
+
+      res.status(201).json(successResponse(address));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * PUT /api/v1/users/me/addresses/:addressId
+   * Actualizar dirección del usuario (NUEVO - Normalizado)
+   */
+  updateUserAddress = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const { addressId } = req.params;
+      const addressData: UpdateAddressDTO = {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        phone: req.body.phone,
+        address1: req.body.address1,
+        address2: req.body.address2,
+        city: req.body.city,
+        state: req.body.state,
+        postalCode: req.body.postalCode,
+        country: req.body.country,
+        isDefaultShipping: req.body.isDefaultShipping,
+        metadata: req.body.metadata,
+      };
+
+      const address = await this.usersService.updateUserAddress(requestWithUser.user.id, addressId, addressData);
+
+      res.status(200).json(successResponse(address));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * DELETE /api/v1/users/me/addresses/:addressId
+   * Eliminar dirección del usuario (NUEVO - Normalizado)
+   */
+  deleteUserAddress = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const { addressId } = req.params;
+
+      await this.usersService.deleteUserAddress(requestWithUser.user.id, addressId);
+
+      res.status(200).json(successResponse({ message: 'Dirección eliminada exitosamente' }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ==================== USER PROFILE ENDPOINTS ====================
+
+  /**
+   * GET /api/v1/users/me/profile
+   * Obtener perfil del usuario autenticado
+   */
+  getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const profile = await this.usersService.getUserProfile(requestWithUser.user.id);
+
+      res.status(200).json(successResponse(profile));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * PUT /api/v1/users/me/profile
+   * Actualizar perfil del usuario autenticado (bio)
+   */
+  updateUserProfile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const updateData: UpdateUserProfileDTO = {
+        bio: req.body.bio,
+      };
+
+      const profile = await this.usersService.upsertUserProfile(requestWithUser.user.id, updateData);
+
+      res.status(200).json(successResponse(profile));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/users/me/profile/avatar
+   * Actualizar avatar del usuario autenticado (upload de archivo)
+   */
+  updateUserProfileAvatar = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'Se requiere una imagen de avatar'));
+      }
+
+      // Subir archivo a S3
+      const { S3Service } = await import('../../shared/services/s3.service');
+      const s3Service = new S3Service();
+      const avatarUrl = await s3Service.uploadFile(file, 'avatars');
+
+      // Actualizar en la base de datos
+      const profile = await this.usersService.updateUserProfileAvatar(requestWithUser.user.id, avatarUrl);
+
+      res.status(200).json(successResponse(profile));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/users/me/profile/banner
+   * Actualizar banner del usuario autenticado (upload de archivo)
+   */
+  updateUserProfileBanner = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'Se requiere una imagen de banner'));
+      }
+
+      // Subir archivo a S3
+      const { S3Service } = await import('../../shared/services/s3.service');
+      const s3Service = new S3Service();
+      const bannerUrl = await s3Service.uploadFile(file, 'banners');
+
+      // Actualizar en la base de datos
+      const profile = await this.usersService.updateUserProfileBanner(requestWithUser.user.id, bannerUrl);
+
+      res.status(200).json(successResponse(profile));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ==================== PERSONAL INFORMATION ENDPOINTS ====================
+
+  /**
+   * GET /api/v1/users/me/personal-info
+   * Obtener información personal del usuario autenticado
+   */
+  getPersonalInformation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const personalInfo = await this.usersService.getPersonalInformation(requestWithUser.user.id);
+
+      res.status(200).json(successResponse(personalInfo));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * PUT /api/v1/users/me/personal-info
+   * Actualizar información personal del usuario autenticado
+   */
+  updatePersonalInformation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const updateData: UpdatePersonalInformationDTO = {
+        pseudonym: req.body.pseudonym,
+        statusMessage: req.body.statusMessage,
+      };
+
+      const personalInfo = await this.usersService.upsertPersonalInformation(requestWithUser.user.id, updateData);
+
+      res.status(200).json(successResponse(personalInfo));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ==================== ONBOARDING STATUS ENDPOINTS ====================
+
+  /**
+   * GET /api/v1/users/me/onboarding-data
+   * Obtener datos de onboarding del usuario autenticado
+   */
+  getOnboardingData = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const onboardingData = await this.usersService.getOnboardingData(requestWithUser.user.id);
+
+      res.status(200).json(successResponse(onboardingData));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * PUT /api/v1/users/me/onboarding-data
+   * Actualizar datos de onboarding del usuario autenticado
+   */
+  updateOnboardingData = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const updateData: UpdateOnboardingDataDTO = req.body;
+
+      const onboardingData = await this.usersService.updateOnboardingData(
+        requestWithUser.user.id,
+        updateData
+      );
+
+      res.status(200).json(successResponse(onboardingData));
     } catch (error) {
       next(error);
     }

@@ -1,4 +1,6 @@
 import { prisma } from '../../config/database';
+import { CategoryDTO } from '../../shared/dto/products.dto';
+import type { Category } from '@prisma/client';
 
 export interface CategoryResponse {
   id: string;
@@ -10,7 +12,33 @@ export interface CategoryResponse {
 
 export class CategoriesService {
   /**
-   * Listar todas las categorías activas
+   * Mapper: Category de Prisma a CategoryDTO
+   */
+  private mapCategoryToDTO(category: Category): CategoryDTO {
+    return {
+      id: category.id,
+      name: category.name,
+      handle: category.handle,
+      parentId: category.parentId,
+    };
+  }
+
+  /**
+   * Listar todas las categorías normalizadas (NUEVO)
+   */
+  async listCategoriesNormalized(): Promise<CategoryDTO[]> {
+    const categories = await prisma.category.findMany({
+      orderBy: [
+        { parentId: 'asc' },
+        { name: 'asc' },
+      ],
+    });
+
+    return categories.map((c) => this.mapCategoryToDTO(c));
+  }
+
+  /**
+   * Listar todas las categorías activas (LEGACY - Mantener para compatibilidad)
    * Incluye relaciones padre/hijo para estructura jerárquica
    */
   async listCategories(): Promise<CategoryResponse[]> {

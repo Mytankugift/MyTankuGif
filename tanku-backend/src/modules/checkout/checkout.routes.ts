@@ -5,7 +5,7 @@ const router = Router();
 const checkoutController = new CheckoutController();
 
 /**
- * POST /store/checkout/add-order
+ * POST /api/v1/checkout/add-order
  * Crear orden desde checkout
  */
 router.post('/add-order', checkoutController.addOrder);

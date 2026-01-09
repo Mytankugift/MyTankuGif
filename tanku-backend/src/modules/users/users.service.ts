@@ -1,5 +1,20 @@
 import { prisma } from '../../config/database';
 import { NotFoundError, BadRequestError } from '../../shared/errors/AppError';
+import {
+  AddressDTO,
+  UserWithAddressesDTO,
+  UpdateUserDTO,
+  CreateAddressDTO,
+  UpdateAddressDTO,
+  UserProfileDTO,
+  UpdateUserProfileDTO,
+  PersonalInformationDTO,
+  UpdatePersonalInformationDTO,
+  OnboardingDataDTO,
+  UpdateOnboardingDataDTO,
+} from '../../shared/dto/users.dto';
+import { UserPublicDTO } from '../../shared/dto/auth.dto';
+import type { Address, UserProfile, PersonalInformation } from '@prisma/client';
 
 export interface PersonalInfoResponse {
   customer_id: string;
@@ -198,5 +213,541 @@ export class UsersService {
     }
 
     return this.getPersonalInfo(userId);
+  }
+
+  /**
+   * Mapper: Address de Prisma a AddressDTO
+   */
+  private mapAddressToDTO(address: Address): AddressDTO {
+    return {
+      id: address.id,
+      firstName: address.firstName,
+      lastName: address.lastName,
+      phone: address.phone,
+      address1: address.address1,
+      address2: address.detail,
+      city: address.city,
+      state: address.state,
+      postalCode: address.postalCode,
+      country: address.country,
+      isDefaultShipping: address.isDefaultShipping,
+      metadata: address.metadata as Record<string, any> | undefined,
+      createdAt: address.createdAt.toISOString(),
+      updatedAt: address.updatedAt.toISOString(),
+    };
+  }
+
+  /**
+   * Obtener usuario actual con direcciones (NUEVO - Normalizado)
+   */
+  async getCurrentUserWithAddresses(userId: string): Promise<UserWithAddressesDTO> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+        addresses: {
+          orderBy: [
+            { isDefaultShipping: 'desc' },
+            { createdAt: 'desc' },
+          ],
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundError('Usuario no encontrado');
+    }
+
+    const userDTO: UserPublicDTO = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      profile: user.profile
+        ? {
+            avatar: user.profile.avatar,
+            banner: user.profile.banner,
+            bio: user.profile.bio,
+          }
+        : null,
+    };
+
+    return {
+      user: userDTO,
+      addresses: user.addresses.map((addr) => this.mapAddressToDTO(addr)),
+    };
+  }
+
+  /**
+   * Obtener direcciones del usuario (NUEVO - Normalizado)
+   */
+  async getUserAddresses(userId: string): Promise<AddressDTO[]> {
+    const addresses = await prisma.address.findMany({
+      where: { userId },
+      orderBy: [
+        { isDefaultShipping: 'desc' },
+        { createdAt: 'desc' },
+      ],
+    });
+
+    return addresses.map((addr) => this.mapAddressToDTO(addr));
+  }
+
+  /**
+   * Crear dirección para el usuario (NUEVO - Normalizado)
+   */
+  async createUserAddress(userId: string, addressData: CreateAddressDTO): Promise<AddressDTO> {
+    // Si se marca como predeterminada, desmarcar las demás
+    if (addressData.isDefaultShipping) {
+      await prisma.address.updateMany({
+        where: { userId },
+        data: { isDefaultShipping: false },
+      });
+    }
+
+    const address = await prisma.address.create({
+      data: {
+        userId,
+        firstName: addressData.firstName,
+        lastName: addressData.lastName,
+        phone: addressData.phone || null,
+        address1: addressData.address1,
+        detail: addressData.address2 || null,
+        city: addressData.city,
+        state: addressData.state,
+        postalCode: addressData.postalCode,
+        country: addressData.country.toUpperCase() || 'CO',
+        isDefaultShipping: addressData.isDefaultShipping || false,
+        metadata: addressData.metadata || undefined,
+      },
+    });
+
+    return this.mapAddressToDTO(address);
+  }
+
+  /**
+   * Actualizar dirección del usuario (NUEVO - Normalizado)
+   */
+  async updateUserAddress(userId: string, addressId: string, addressData: UpdateAddressDTO): Promise<AddressDTO> {
+    // Verificar que la dirección pertenece al usuario
+    const existingAddress = await prisma.address.findFirst({
+      where: {
+        id: addressId,
+        userId,
+      },
+    });
+
+    if (!existingAddress) {
+      throw new NotFoundError('Dirección no encontrada');
+    }
+
+    // Si se marca como predeterminada, desmarcar las demás
+    if (addressData.isDefaultShipping) {
+      await prisma.address.updateMany({
+        where: {
+          userId,
+          id: { not: addressId },
+        },
+        data: { isDefaultShipping: false },
+      });
+    }
+
+    const updateData: any = {};
+    if (addressData.firstName !== undefined) updateData.firstName = addressData.firstName;
+    if (addressData.lastName !== undefined) updateData.lastName = addressData.lastName;
+    if (addressData.phone !== undefined) updateData.phone = addressData.phone || null;
+    if (addressData.address1 !== undefined) updateData.address1 = addressData.address1;
+    if (addressData.address2 !== undefined) updateData.detail = addressData.address2 || null;
+    if (addressData.city !== undefined) updateData.city = addressData.city;
+    if (addressData.state !== undefined) updateData.state = addressData.state;
+    if (addressData.postalCode !== undefined) updateData.postalCode = addressData.postalCode;
+    if (addressData.country !== undefined) updateData.country = addressData.country.toUpperCase();
+    if (addressData.isDefaultShipping !== undefined) updateData.isDefaultShipping = addressData.isDefaultShipping;
+    if (addressData.metadata !== undefined) updateData.metadata = addressData.metadata;
+
+    const address = await prisma.address.update({
+      where: { id: addressId },
+      data: updateData,
+    });
+
+    return this.mapAddressToDTO(address);
+  }
+
+  /**
+   * Eliminar dirección del usuario (NUEVO - Normalizado)
+   */
+  async deleteUserAddress(userId: string, addressId: string): Promise<void> {
+    // Verificar que la dirección pertenece al usuario
+    const existingAddress = await prisma.address.findFirst({
+      where: {
+        id: addressId,
+        userId,
+      },
+    });
+
+    if (!existingAddress) {
+      throw new NotFoundError('Dirección no encontrada');
+    }
+
+    await prisma.address.delete({
+      where: { id: addressId },
+    });
+  }
+
+  /**
+   * Actualizar información del usuario (NUEVO - Normalizado)
+   */
+  async updateUser(userId: string, updateData: UpdateUserDTO): Promise<UserPublicDTO> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+    });
+
+    if (!user) {
+      throw new NotFoundError('Usuario no encontrado');
+    }
+
+    const updateFields: any = {};
+    if (updateData.firstName !== undefined) updateFields.firstName = updateData.firstName;
+    if (updateData.lastName !== undefined) updateFields.lastName = updateData.lastName;
+    if (updateData.phone !== undefined) updateFields.phone = updateData.phone;
+    if (updateData.email !== undefined) updateFields.email = updateData.email;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateFields,
+      include: { profile: true },
+    });
+
+    return {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      phone: updatedUser.phone,
+      profile: updatedUser.profile
+        ? {
+            avatar: updatedUser.profile.avatar,
+            banner: updatedUser.profile.banner,
+            bio: updatedUser.profile.bio,
+          }
+        : null,
+    };
+  }
+
+  // ==================== USER PROFILE METHODS ====================
+
+  /**
+   * Mapper: UserProfile de Prisma a UserProfileDTO
+   */
+  private mapUserProfileToDTO(profile: UserProfile): UserProfileDTO {
+    return {
+      id: profile.id,
+      userId: profile.userId,
+      avatar: profile.avatar,
+      banner: profile.banner,
+      bio: profile.bio,
+      createdAt: profile.createdAt.toISOString(),
+      updatedAt: profile.updatedAt.toISOString(),
+    };
+  }
+
+  /**
+   * Obtener perfil del usuario
+   */
+  async getUserProfile(userId: string): Promise<UserProfileDTO | null> {
+    const profile = await prisma.userProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!profile) {
+      return null;
+    }
+
+    return this.mapUserProfileToDTO(profile);
+  }
+
+  /**
+   * Crear o actualizar perfil del usuario
+   */
+  async upsertUserProfile(userId: string, updateData: UpdateUserProfileDTO): Promise<UserProfileDTO> {
+    const profile = await prisma.userProfile.upsert({
+      where: { userId },
+      update: {
+        bio: updateData.bio,
+      },
+      create: {
+        userId,
+        bio: updateData.bio || null,
+      },
+    });
+
+    return this.mapUserProfileToDTO(profile);
+  }
+
+  /**
+   * Actualizar avatar del usuario
+   */
+  async updateUserProfileAvatar(userId: string, avatarUrl: string): Promise<UserProfileDTO> {
+    const profile = await prisma.userProfile.upsert({
+      where: { userId },
+      update: {
+        avatar: avatarUrl,
+      },
+      create: {
+        userId,
+        avatar: avatarUrl,
+      },
+    });
+
+    return this.mapUserProfileToDTO(profile);
+  }
+
+  /**
+   * Actualizar banner del usuario
+   */
+  async updateUserProfileBanner(userId: string, bannerUrl: string): Promise<UserProfileDTO> {
+    const profile = await prisma.userProfile.upsert({
+      where: { userId },
+      update: {
+        banner: bannerUrl,
+      },
+      create: {
+        userId,
+        banner: bannerUrl,
+      },
+    });
+
+    return this.mapUserProfileToDTO(profile);
+  }
+
+  // ==================== PERSONAL INFORMATION METHODS ====================
+
+  /**
+   * Mapper: PersonalInformation de Prisma a PersonalInformationDTO
+   */
+  private mapPersonalInformationToDTO(personalInfo: PersonalInformation): PersonalInformationDTO {
+    return {
+      id: personalInfo.id,
+      userId: personalInfo.userId,
+      pseudonym: personalInfo.pseudonym,
+      statusMessage: personalInfo.statusMessage,
+      createdAt: personalInfo.createdAt.toISOString(),
+      updatedAt: personalInfo.updatedAt.toISOString(),
+    };
+  }
+
+  /**
+   * Obtener información personal del usuario
+   */
+  async getPersonalInformation(userId: string): Promise<PersonalInformationDTO | null> {
+    const personalInfo = await prisma.personalInformation.findUnique({
+      where: { userId },
+    });
+
+    if (!personalInfo) {
+      return null;
+    }
+
+    return this.mapPersonalInformationToDTO(personalInfo);
+  }
+
+  /**
+   * Crear o actualizar información personal del usuario
+   */
+  async upsertPersonalInformation(userId: string, updateData: UpdatePersonalInformationDTO): Promise<PersonalInformationDTO> {
+    // Validar longitud del statusMessage
+    if (updateData.statusMessage !== undefined && updateData.statusMessage !== null && updateData.statusMessage.length > 200) {
+      throw new BadRequestError('El mensaje de estado no puede exceder 200 caracteres');
+    }
+
+    const personalInfo = await prisma.personalInformation.upsert({
+      where: { userId },
+      update: {
+        pseudonym: updateData.pseudonym,
+        statusMessage: updateData.statusMessage,
+      },
+      create: {
+        userId,
+        pseudonym: updateData.pseudonym || null,
+        statusMessage: updateData.statusMessage || null,
+      },
+    });
+
+    return this.mapPersonalInformationToDTO(personalInfo);
+  }
+
+  // ==================== ONBOARDING STATUS METHODS ====================
+
+  /**
+   * Obtener datos de onboarding desde PersonalInformation.metadata
+   */
+  async getOnboardingData(userId: string): Promise<OnboardingDataDTO | null> {
+    const personalInfo = await prisma.personalInformation.findUnique({
+      where: { userId },
+    });
+
+    if (!personalInfo) {
+      return null;
+    }
+
+    // Obtener categoryInterests desde User
+    const categoryInterests = await prisma.userCategoryInterest.findMany({
+      where: { userId },
+      select: { categoryId: true },
+    });
+
+    const metadata = (personalInfo.metadata as any) || {};
+    const onboardingMetadata = metadata.onboarding || {};
+
+    // Si hay birthDateString en metadata, usarlo; sino formatear desde birthDate
+    // Soporta formato "YYYY-MM-DD" (nuevo) o "MM-DD" (legacy)
+    let birthDateString = onboardingMetadata.birthDateString;
+    
+    if (!birthDateString && personalInfo.birthDate) {
+      const year = personalInfo.birthDate.getFullYear();
+      const month = String(personalInfo.birthDate.getMonth() + 1).padStart(2, '0');
+      const day = String(personalInfo.birthDate.getDate()).padStart(2, '0');
+      
+      // Si el año es 2000, probablemente es legacy (solo mes/día), usar formato "MM-DD"
+      // Si no, usar formato completo "YYYY-MM-DD"
+      birthDateString = year === 2000 
+        ? `${month}-${day}`
+        : `${year}-${month}-${day}`;
+    }
+
+    return {
+      birthDate: birthDateString,
+      categoryIds: categoryInterests.map((ci) => ci.categoryId),
+      activities: onboardingMetadata.activities || [],
+      completedSteps: onboardingMetadata.completedSteps || [],
+      lastCompletedAt: onboardingMetadata.lastCompletedAt || null,
+    };
+  }
+
+  /**
+   * Actualizar datos de onboarding en PersonalInformation
+   */
+  async updateOnboardingData(
+    userId: string,
+    updateData: UpdateOnboardingDataDTO
+  ): Promise<OnboardingDataDTO> {
+    // Obtener o crear PersonalInformation
+    let personalInfo = await prisma.personalInformation.findUnique({
+      where: { userId },
+    });
+
+    if (!personalInfo) {
+      personalInfo = await prisma.personalInformation.create({
+        data: { userId },
+      });
+    }
+
+    // Preparar metadata
+    const currentMetadata = (personalInfo.metadata as any) || {};
+    const onboardingMetadata = currentMetadata.onboarding || {};
+
+    // Preparar datos de actualización
+    const updatePayload: any = {};
+
+    // Actualizar birthDate si viene
+    // Acepta formato "YYYY-MM-DD" o "MM-DD" (legacy)
+    if (updateData.birthDate !== undefined) {
+      if (!updateData.birthDate) {
+        updatePayload.birthDate = null;
+      } else if (typeof updateData.birthDate === 'string') {
+        const parts = updateData.birthDate.split('-');
+        
+        if (parts.length === 3) {
+          // Formato "YYYY-MM-DD" - fecha completa
+          const [year, month, day] = parts.map(Number);
+          if (year && month && day && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            updatePayload.birthDate = new Date(year, month - 1, day);
+          } else {
+            updatePayload.birthDate = new Date(updateData.birthDate);
+          }
+        } else if (parts.length === 2) {
+          // Formato "MM-DD" (legacy) - usar año base 2000
+          const [month, day] = parts.map(Number);
+          if (month && day && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            updatePayload.birthDate = new Date(2000, month - 1, day);
+          } else {
+            updatePayload.birthDate = new Date(updateData.birthDate);
+          }
+        } else {
+          // Intentar parsear como fecha completa
+          updatePayload.birthDate = new Date(updateData.birthDate);
+        }
+      } else {
+        updatePayload.birthDate = new Date(updateData.birthDate);
+      }
+    }
+
+    // Actualizar metadata (actividades, pasos completados, fecha de nacimiento como string)
+    const updatedMetadata = {
+      ...currentMetadata,
+      onboarding: {
+        ...onboardingMetadata,
+        activities: updateData.activities ?? onboardingMetadata.activities ?? [],
+        completedSteps: updateData.completedSteps ?? onboardingMetadata.completedSteps ?? [],
+        lastCompletedAt: new Date().toISOString(),
+        // Guardar fecha de nacimiento como string en metadata (formato "YYYY-MM-DD" o "MM-DD")
+        birthDateString: updateData.birthDate && typeof updateData.birthDate === 'string' 
+          ? updateData.birthDate 
+          : onboardingMetadata.birthDateString,
+      },
+    };
+    updatePayload.metadata = updatedMetadata;
+
+    // Actualizar PersonalInformation
+    await prisma.personalInformation.update({
+      where: { userId },
+      data: updatePayload,
+    });
+
+    // Actualizar categorías de interés si vienen
+    if (updateData.categoryIds !== undefined) {
+      // Eliminar intereses actuales
+      await prisma.userCategoryInterest.deleteMany({
+        where: { userId },
+      });
+
+      // Crear nuevos intereses
+      if (updateData.categoryIds.length > 0) {
+        await prisma.userCategoryInterest.createMany({
+          data: updateData.categoryIds.map((categoryId) => ({
+            userId,
+            categoryId,
+          })),
+        });
+      }
+    }
+
+    // Retornar datos actualizados
+    const updated = await prisma.personalInformation.findUnique({
+      where: { userId },
+    });
+
+    if (!updated) {
+      throw new NotFoundError('PersonalInformation no encontrado después de actualizar');
+    }
+
+    // Obtener categoryInterests desde User
+    const categoryInterests = await prisma.userCategoryInterest.findMany({
+      where: { userId },
+      select: { categoryId: true },
+    });
+
+    const finalMetadata = (updated.metadata as any) || {};
+    const finalOnboardingMetadata = finalMetadata.onboarding || {};
+
+    return {
+      birthDate: updated.birthDate?.toISOString() || null,
+      categoryIds: categoryInterests.map((ci) => ci.categoryId),
+      activities: finalOnboardingMetadata.activities || [],
+      completedSteps: finalOnboardingMetadata.completedSteps || [],
+      lastCompletedAt: finalOnboardingMetadata.lastCompletedAt || null,
+    };
   }
 }

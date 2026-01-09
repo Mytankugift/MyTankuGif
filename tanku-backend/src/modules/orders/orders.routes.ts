@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { OrdersController } from './orders.controller';
 import { EpaycoController } from './epayco.controller';
+import { authenticate } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 const ordersController = new OrdersController();
@@ -14,9 +15,9 @@ router.post('/', ordersController.createOrder);
 
 /**
  * GET /api/v1/orders
- * Obtener historial de órdenes del usuario
+ * Obtener historial de órdenes del usuario autenticado
  */
-router.get('/', ordersController.getOrders);
+router.get('/', authenticate, ordersController.getOrders);
 
 /**
  * GET /store/order/item/:itemId/dropi-status
@@ -39,10 +40,23 @@ router.get('/:orderId/dropi-status', ordersController.getDropiOrderStatus);
 router.post('/:id/create-dropi', ordersController.createDropiOrder);
 
 /**
+ * GET /api/v1/orders/transaction/:transactionId
+ * Obtener orden por transactionId (para ePayco)
+ * IMPORTANTE: Esta ruta debe ir ANTES de /:id para evitar conflictos
+ */
+router.get('/transaction/:transactionId', ordersController.getOrderByTransactionId);
+
+/**
  * GET /api/v1/orders/:id
  * GET /store/orders/:id
  * Obtener orden por ID
  */
 router.get('/:id', ordersController.getOrder);
+
+/**
+ * DELETE /api/v1/orders/:id
+ * Eliminar una orden (usado cuando Epayco falla)
+ */
+router.delete('/:id', authenticate, ordersController.deleteOrder);
 
 export default router;

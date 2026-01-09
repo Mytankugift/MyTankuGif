@@ -1,5 +1,7 @@
 import { prisma } from '../../config/database';
 import { NotFoundError, BadRequestError } from '../../shared/errors/AppError';
+import { FeedService } from '../feed/feed.service';
+import { env } from '../../config/env';
 import type { Prisma } from '@prisma/client';
 
 export interface CreateOrderInput {
@@ -65,9 +67,10 @@ export interface OrderResponse {
     price: number;
     finalPrice?: number;
     dropiOrderId?: number | null;
-    dropiOrderNumber?: string | null;
-    dropiShippingCost?: number | null;
+    dropiShippingCost?: number | null; // discounted_amount
+    dropiDropshipperWin?: number | null; // dropshipper_amount_to_win
     dropiStatus?: string | null;
+    dropiWebhookData?: any | null; // Payload completo del webhook de Dropi
     product: {
       id: string;
       title: string;
@@ -83,6 +86,40 @@ export interface OrderResponse {
 }
 
 export class OrdersService {
+  /**
+   * Normalizar URL de imagen
+   */
+  private normalizeImageUrl(imagePath: string | null | undefined): string | null {
+    if (!imagePath) return null;
+    
+    // Si ya es una URL completa, usarla tal cual
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // Si es un path relativo, construir la URL completa
+    const cdnBase = env.DROPI_CDN_BASE || 'https://d39ru7awumhhs2.cloudfront.net';
+    const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+    return `${cdnBase}/${cleanPath}`;
+  }
+  /**
+   * Eliminar una orden (usado cuando Epayco falla)
+   */
+  async deleteOrder(orderId: string): Promise<void> {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundError(`Orden ${orderId} no encontrada`);
+    }
+
+    // Eliminar la orden (los items se eliminan en cascada)
+    await prisma.order.delete({
+      where: { id: orderId },
+    });
+  }
+
   /**
    * Crear una nueva orden
    */
@@ -163,6 +200,7 @@ export class OrdersService {
                 id: true,
                 title: true,
                 handle: true,
+                images: true,
               },
             },
             variant: {
@@ -245,6 +283,7 @@ export class OrdersService {
                 id: true,
                 title: true,
                 handle: true,
+                images: true,
               },
             },
             variant: {
@@ -262,7 +301,88 @@ export class OrdersService {
 
     console.log(`✅ [ORDERS] Orden creada: ${order.id}`);
 
+    // Actualizar métricas del feed para cada producto en la orden (con debouncing)
+    const feedService = new FeedService();
+    const productCounts = new Map<string, number>();
+    
+    // Agrupar cantidades por producto
+    // Filtrar solo OrderItem (excluir OrderAddress si existe en el tipo)
+    const orderItems = order.items.filter((item: any): item is any => 
+      'productId' in item && 'quantity' in item
+    );
+    
+    for (const item of orderItems) {
+      const currentCount = productCounts.get(item.productId) || 0;
+      productCounts.set(item.productId, currentCount + item.quantity);
+    }
+
+    // Actualizar métricas para cada producto (asíncrono, no bloquea)
+    for (const [productId, quantity] of productCounts.entries()) {
+      // Obtener métricas actuales
+      const currentMetrics = await prisma.itemMetric.findUnique({
+        where: {
+          itemId_itemType: {
+            itemId: productId,
+            itemType: 'product',
+          },
+        },
+      });
+
+      const newOrdersCount = (currentMetrics?.ordersCount || 0) + quantity;
+      
+      feedService.updateItemMetricsDebounced(productId, 'product', {
+        ordersCount: newOrdersCount,
+      }).catch((error) => {
+        console.error(`Error actualizando métricas del feed para producto ${productId}:`, error);
+      });
+    }
+
     return this.formatOrderResponse(orderWithAddress!);
+  }
+
+  /**
+   * Obtener orden por transactionId (para ePayco)
+   */
+  async getOrderByTransactionId(transactionId: string, userId?: string): Promise<OrderResponse | null> {
+    const order = await prisma.order.findFirst({
+      where: {
+        transactionId,
+        ...(userId && { userId }),
+      },
+      include: {
+        orderAddresses: {
+          include: {
+            address: true,
+          },
+        },
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                title: true,
+                handle: true,
+                images: true,
+              },
+            },
+            variant: {
+              select: {
+                id: true,
+                sku: true,
+                title: true,
+                price: true,
+              },
+            },
+          },
+        },
+      } as any,
+    });
+
+    if (!order) {
+      return null;
+    }
+
+    return this.formatOrderResponse(order);
   }
 
   /**
@@ -284,6 +404,7 @@ export class OrdersService {
                 id: true,
                 title: true,
                 handle: true,
+                images: true,
               },
             },
             variant: {
@@ -339,6 +460,7 @@ export class OrdersService {
                   id: true,
                   title: true,
                   handle: true,
+                  images: true,
                 },
               },
               variant: {
@@ -411,6 +533,7 @@ export class OrdersService {
                 id: true,
                 title: true,
                 handle: true,
+                images: true,
               },
             },
             variant: {
@@ -466,6 +589,7 @@ export class OrdersService {
                 id: true,
                 title: true,
                 handle: true,
+                images: true,
               },
             },
             variant: {
@@ -530,13 +654,15 @@ export class OrdersService {
         finalPrice: item.finalPrice || Math.round((item.price * 1.15) + 10000), // Precio con incremento (15% + $10,000)
         total: (item.finalPrice || Math.round((item.price * 1.15) + 10000)) * item.quantity, // Total del item
         dropiOrderId: item.dropiOrderId,
-        dropiOrderNumber: item.dropiOrderNumber,
         dropiShippingCost: item.dropiShippingCost,
+        dropiDropshipperWin: item.dropiDropshipperWin,
         dropiStatus: item.dropiStatus,
+        dropiWebhookData: item.dropiWebhookData,
         product: {
           id: item.product.id,
           title: item.product.title,
           handle: item.product.handle,
+          images: (item.product.images || []).map((img: string) => this.normalizeImageUrl(img) || '').filter(Boolean),
         },
         variant: {
           id: item.variant.id,

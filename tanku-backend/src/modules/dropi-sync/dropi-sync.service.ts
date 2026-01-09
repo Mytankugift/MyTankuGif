@@ -1,5 +1,7 @@
 import { prisma } from '../../config/database';
 import { env } from '../../config/env';
+import { FeedService } from '../feed/feed.service';
+import type { Product } from '@prisma/client';
 
 /**
  * Limpia HTML de una descripción, convirtiéndola a texto plano
@@ -225,7 +227,7 @@ export class DropiSyncService {
             where: { handle },
           });
 
-          let product;
+          let product: Product;
           if (existingProduct) {
             if (skipExisting) {
               console.log(`[SYNC TO BACKEND] ⏭️ Omitiendo producto existente: ${existingProduct.id}`);
@@ -243,6 +245,12 @@ export class DropiSyncService {
             });
             productsCreated++;
             console.log(`[SYNC TO BACKEND] ✅ Producto creado: ${product.id}`);
+
+            // Inicializar métricas del feed para el nuevo producto (asíncrono, no bloquea)
+            const feedService = new FeedService();
+            feedService.initializeItemMetrics(product.id, 'product').catch((error) => {
+              console.error(`Error inicializando métricas del feed para producto ${product.id}:`, error);
+            });
           }
 
           // Validar que el producto existe antes de continuar

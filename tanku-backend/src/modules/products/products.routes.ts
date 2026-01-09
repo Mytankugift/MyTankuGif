@@ -5,17 +5,17 @@ const router = Router();
 const productsController = new ProductsController();
 
 /**
- * GET /store/product/
- * GET /api/v1/store/product/
- * Listar productos (compatibilidad con frontend)
- * Query params: limit, offset, category_id
+ * GET /api/v1/products
+ * Listar productos con paginación, filtros y ordenamiento
+ * Query params: page, limit, category, priceMin, priceMax, active, search, sortBy, sortOrder
  */
-router.get('/', productsController.listProducts);
+router.get('/', productsController.listProductsNormalized);
 
 /**
- * GET /store/product/tanku/:handle
+ * GET /api/v1/products/:handle
  * Obtener producto por handle
  */
-router.get('/tanku/:handle', productsController.getProductByHandle);
+router.get('/:handle', productsController.getProductByHandleNormalized);
 
 export default router;
+

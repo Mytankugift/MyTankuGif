@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService, RegisterInput, LoginInput } from './auth.service';
 import { BadRequestError } from '../../shared/errors/AppError';
-import { ApiResponse } from '../../shared/types';
+import { successResponse, errorResponse, ErrorCode } from '../../shared/response';
+import { RequestWithUser } from '../../shared/types';
 
 export class AuthController {
   private authService: AuthService;
@@ -31,13 +32,7 @@ export class AuthController {
 
       const result = await this.authService.register(input);
 
-      const response: ApiResponse = {
-        success: true,
-        data: result,
-        message: 'Usuario registrado exitosamente',
-      };
-
-      res.status(201).json(response);
+      res.status(201).json(successResponse(result));
     } catch (error) {
       next(error);
     }
@@ -57,13 +52,7 @@ export class AuthController {
       const input: LoginInput = { email, password };
       const result = await this.authService.login(input);
 
-      const response: ApiResponse = {
-        success: true,
-        data: result,
-        message: 'Inicio de sesión exitoso',
-      };
-
-      res.status(200).json(response);
+      res.status(200).json(successResponse(result));
     } catch (error) {
       next(error);
     }
@@ -82,12 +71,27 @@ export class AuthController {
 
       const result = await this.authService.refreshToken(refreshToken);
 
-      const response: ApiResponse = {
-        success: true,
-        data: result,
-      };
+      res.status(200).json(successResponse(result));
+    } catch (error) {
+      next(error);
+    }
+  };
 
-      res.status(200).json(response);
+  /**
+   * GET /api/v1/auth/me
+   * Obtener usuario actual autenticado
+   */
+  me = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      
+      if (!requestWithUser.user) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autorizado'));
+      }
+
+      const user = await this.authService.getCurrentUser(requestWithUser.user.id);
+
+      res.status(200).json(successResponse(user));
     } catch (error) {
       next(error);
     }

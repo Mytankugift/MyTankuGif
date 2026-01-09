@@ -1,53 +1,39 @@
 import { Router } from 'express';
 import { CartController } from './cart.controller';
-import { optionalAuthenticate } from '../../shared/middleware/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 const cartController = new CartController();
 
 /**
- * IMPORTANTE: Orden de rutas crítico
- * Las rutas fijas SIEMPRE deben ir ANTES de las rutas dinámicas (/:id)
- * De lo contrario, Express capturará "/add-item" como "/:id" con id="add-item"
+ * GET /api/v1/cart
+ * Obtener carrito del usuario autenticado
  */
+router.get('/', authenticate, cartController.getCurrentUserCart);
 
 /**
- * POST /store/cart/add-item
- * Agregar item al carrito (ruta fija - debe ir ANTES de /:id)
- * Usa autenticación opcional para obtener userId si está disponible
+ * POST /api/v1/cart
+ * Crear carrito nuevo
  */
-router.post('/add-item', optionalAuthenticate, cartController.addItem);
+router.post('/', optionalAuthenticate, cartController.createCartNormalized);
 
 /**
- * POST /store/cart/update-item
- * Actualizar cantidad de item (ruta fija - debe ir ANTES de /:id)
- * Usa autenticación opcional para obtener userId si está disponible
+ * POST /api/v1/cart/items
+ * Agregar item al carrito
  */
-router.post('/update-item', optionalAuthenticate, cartController.updateItem);
+router.post('/items', optionalAuthenticate, cartController.addItemNormalized);
 
 /**
- * DELETE /store/cart/delete-item
- * Eliminar item del carrito (ruta fija - debe ir ANTES de /:id)
+ * PUT /api/v1/cart/items/:itemId
+ * Actualizar cantidad de item
  */
-router.delete('/delete-item', cartController.deleteItem);
+router.put('/items/:itemId', optionalAuthenticate, cartController.updateItemNormalized);
 
 /**
- * POST /store/carts
- * Crear carrito nuevo (ruta fija - debe ir ANTES de /:id)
- * Usa autenticación opcional para obtener userId si está disponible
+ * DELETE /api/v1/cart/items/:itemId
+ * Eliminar item del carrito
  */
-router.post('/', optionalAuthenticate, cartController.createCart);
-
-/**
- * GET /store/carts/:id
- * Obtener carrito por ID (ruta dinámica - debe ir DESPUÉS de las fijas)
- */
-router.get('/:id', cartController.getCart);
-
-/**
- * POST /store/carts/:id
- * Actualizar carrito (ruta dinámica - debe ir DESPUÉS de las fijas)
- */
-router.post('/:id', cartController.updateCart);
+router.delete('/items/:itemId', optionalAuthenticate, cartController.deleteItemNormalized);
 
 export default router;
+
