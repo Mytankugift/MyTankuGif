@@ -479,7 +479,7 @@ export class CartController {
       // Si no hay usuario (guest), crear un carrito guest (userId = null)
       // El carrito guest se guardará en localStorage del frontend
       // Cuando el usuario se registre, se puede asociar este carrito al usuario
-      const guestCart = await this.cartService.createCartNormalized(null);
+      const guestCart = await this.cartService.createCartNormalized(undefined);
       
       console.log(`📦 [CART] Carrito guest creado: ${guestCart.id}`);
       
@@ -537,7 +537,7 @@ export class CartController {
           finalCartId = userCart.id;
         } else {
           // Usuario guest: crear un carrito guest
-          const guestCart = await this.cartService.createCartNormalized(null);
+          const guestCart = await this.cartService.createCartNormalized(undefined);
           finalCartId = guestCart.id;
           console.log(`📦 [CART] Carrito guest creado para agregar item: ${finalCartId}`);
         }
