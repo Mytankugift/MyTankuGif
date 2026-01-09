@@ -49,10 +49,28 @@ export class FeedController {
       console.error(`❌ [FEED-CONTROLLER] Stack:`, error?.stack);
       console.error(`❌ [FEED-CONTROLLER] Name:`, error?.name);
       
+      // Si es error de tabla no existente (P2021), retornar feed vacío en lugar de error 500
+      if (error?.code === 'P2021' || error?.message?.includes('does not exist') || error?.message?.includes('global_ranking')) {
+        console.warn(`⚠️ [FEED-CONTROLLER] Tabla global_ranking no existe. Retornando feed vacío.`);
+        console.warn(`⚠️ [FEED-CONTROLLER] Para habilitar productos, ejecutar: npm run fix:feed:tables`);
+        // Retornar feed vacío para que el frontend no falle
+        return res.status(200).json(successResponse({
+          items: [],
+          nextCursorToken: null,
+          hasMore: false,
+        }));
+      }
+      
       // Si el error es relacionado con Prisma, agregar información adicional
-      if (error?.code === 'P2001' || error?.message?.includes('model') || error?.message?.includes('GlobalRanking')) {
+      if (error?.code?.startsWith('P') || error?.message?.includes('model') || error?.message?.includes('GlobalRanking')) {
         console.error(`❌ [FEED-CONTROLLER] Error de Prisma - Verificar que el modelo GlobalRanking exista`);
         console.error(`❌ [FEED-CONTROLLER] Ejecutar: npx prisma generate`);
+        // Retornar feed vacío en lugar de error 500
+        return res.status(200).json(successResponse({
+          items: [],
+          nextCursorToken: null,
+          hasMore: false,
+        }));
       }
       
       console.error(`❌ [FEED-CONTROLLER] ==========================================\n`);

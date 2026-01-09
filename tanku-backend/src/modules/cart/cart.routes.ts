@@ -7,9 +7,9 @@ const cartController = new CartController();
 
 /**
  * GET /api/v1/cart
- * Obtener carrito del usuario autenticado
+ * Obtener o crear carrito (funciona sin autenticación - carrito guest)
  */
-router.get('/', authenticate, cartController.getCurrentUserCart);
+router.get('/', optionalAuthenticate, cartController.getCurrentUserCart);
 
 /**
  * POST /api/v1/cart

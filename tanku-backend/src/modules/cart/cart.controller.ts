@@ -454,25 +454,36 @@ export class CartController {
 
   /**
    * GET /api/v1/cart
-   * Obtener carrito del usuario autenticado (NUEVO - Normalizado)
+   * Obtener o crear carrito (funciona sin autenticación - carrito guest)
+   * 
+   * Si hay usuario autenticado: retorna su carrito o crea uno nuevo
+   * Si no hay usuario (guest): crea un carrito guest (userId = null)
    */
   getCurrentUserCart = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const requestWithUser = req as RequestWithUser;
       const userId = requestWithUser.user?.id;
 
-      if (!userId) {
-        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      // Si hay usuario autenticado, obtener su carrito
+      if (userId) {
+        let cart = await this.cartService.getUserCart(userId);
+
+        // Si no existe carrito, crear uno nuevo
+        if (!cart) {
+          cart = await this.cartService.createCartNormalized(userId);
+        }
+
+        return res.status(200).json(successResponse(cart));
       }
 
-      let cart = await this.cartService.getUserCart(userId);
-
-      // Si no existe carrito, crear uno nuevo
-      if (!cart) {
-        cart = await this.cartService.createCartNormalized(userId);
-      }
-
-      res.status(200).json(successResponse(cart));
+      // Si no hay usuario (guest), crear un carrito guest (userId = null)
+      // El carrito guest se guardará en localStorage del frontend
+      // Cuando el usuario se registre, se puede asociar este carrito al usuario
+      const guestCart = await this.cartService.createCartNormalized(null);
+      
+      console.log(`📦 [CART] Carrito guest creado: ${guestCart.id}`);
+      
+      res.status(200).json(successResponse(guestCart));
     } catch (error) {
       next(error);
     }
@@ -514,18 +525,26 @@ export class CartController {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'quantity debe ser mayor a 0'));
       }
 
-      // Si no hay cartId, obtener o crear carrito del usuario
+      // Si no hay cartId, obtener o crear carrito
       let finalCartId = cartId;
-      if (!finalCartId && userId) {
-        let userCart = await this.cartService.getUserCart(userId);
-        if (!userCart) {
-          userCart = await this.cartService.createCartNormalized(userId);
+      if (!finalCartId) {
+        if (userId) {
+          // Usuario autenticado: obtener o crear su carrito
+          let userCart = await this.cartService.getUserCart(userId);
+          if (!userCart) {
+            userCart = await this.cartService.createCartNormalized(userId);
+          }
+          finalCartId = userCart.id;
+        } else {
+          // Usuario guest: crear un carrito guest
+          const guestCart = await this.cartService.createCartNormalized(null);
+          finalCartId = guestCart.id;
+          console.log(`📦 [CART] Carrito guest creado para agregar item: ${finalCartId}`);
         }
-        finalCartId = userCart.id;
       }
 
       if (!finalCartId) {
-        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'cartId es requerido o debe estar autenticado'));
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'No se pudo crear o obtener el carrito'));
       }
 
       const cart = await this.cartService.addItemToCartNormalized(finalCartId, variantId, quantity, userId);

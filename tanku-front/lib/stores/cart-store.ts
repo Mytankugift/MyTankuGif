@@ -44,32 +44,58 @@ export const useCartStore = create<CartState>((set, get) => ({
   error: null,
 
   /**
-   * Obtener carrito del usuario autenticado
+   * Obtener o crear carrito (funciona sin autenticación - carrito guest)
    */
   fetchCart: async () => {
     set({ isLoading: true, error: null })
     try {
       const response = await apiClient.get<Cart>(API_ENDPOINTS.CART.GET)
       
-      if (response.success && response.data) {
-        const mappedCart = mapCartFromBackend(response.data)
-        set({ cart: mappedCart, isLoading: false, error: null })
-      } else {
-        // Si hay error 401, el usuario no está autenticado
-        if (response.error?.code === 'UNAUTHORIZED' || response.error?.code === 'HTTP_ERROR') {
-          console.warn('[Cart Store] Usuario no autenticado - carrito no disponible')
-          set({ cart: null, isLoading: false, error: null })
+      if (response.success) {
+        // El backend ahora siempre retorna un carrito (guest si no hay usuario, user si está autenticado)
+        if (response.data) {
+          const mappedCart = mapCartFromBackend(response.data)
+          set({ cart: mappedCart, isLoading: false, error: null })
+          
+          // Guardar cartId en localStorage para persistir carrito guest
+          if (!mappedCart.userId && typeof window !== 'undefined') {
+            localStorage.setItem('guest-cart-id', mappedCart.id)
+          }
         } else {
-          // Si no hay carrito, no es un error (el usuario puede no tener uno aún)
+          // Si no hay data pero success es true, el backend puede haber retornado null
+          // En este caso, el carrito guest será creado cuando se agregue el primer item
+          set({ cart: null, isLoading: false, error: null })
+        }
+      } else {
+        // Si hay error 401, el endpoint debería funcionar sin auth ahora
+        // Pero si hay otro error, mostrarlo
+        if (response.error?.code === 'UNAUTHORIZED' || response.error?.code === 'HTTP_ERROR') {
+          console.warn('[Cart Store] Error obteniendo carrito:', response.error?.message)
+          // Intentar crear carrito guest mediante POST
+          try {
+            const createResponse = await apiClient.post<Cart>(API_ENDPOINTS.CART.CREATE, {})
+            if (createResponse.success && createResponse.data) {
+              const mappedCart = mapCartFromBackend(createResponse.data)
+              set({ cart: mappedCart, isLoading: false, error: null })
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('guest-cart-id', mappedCart.id)
+              }
+            } else {
+              set({ cart: null, isLoading: false, error: null })
+            }
+          } catch {
+            set({ cart: null, isLoading: false, error: null })
+          }
+        } else {
           set({ cart: null, isLoading: false, error: response.error?.message || null })
         }
       }
     } catch (error: any) {
       console.error('[Cart Store] Error obteniendo carrito:', error)
       
-      // Si es error de autenticación, no es un error crítico
-      if (error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
-        console.warn('[Cart Store] Usuario no autenticado - carrito no disponible')
+      // Si es error de autenticación o red, intentar crear carrito guest
+      if (error?.message?.includes('401') || error?.message?.includes('Unauthorized') || error?.message?.includes('Failed to fetch')) {
+        console.warn('[Cart Store] Error de conexión o autenticación. Se creará carrito guest al agregar primer item.')
         set({ cart: null, isLoading: false, error: null })
       } else {
         set({ 

@@ -105,10 +105,17 @@ export class FeedService {
         );
         console.log(`📰 [FEED-SERVICE] Productos obtenidos: ${products.length}`);
       } catch (productsError: any) {
-        console.error(`❌ [FEED-SERVICE] Error obteniendo productos:`, productsError?.message);
-        console.error(`❌ [FEED-SERVICE] Stack:`, productsError?.stack);
-        // Continuar con array vacío en lugar de fallar completamente
-        products = [];
+        // Si es error de tabla no existente, continuar solo con posts
+        if (productsError?.code === 'P2021' || productsError?.message?.includes('does not exist')) {
+          console.warn(`⚠️ [FEED-SERVICE] Tabla global_ranking no existe. Continuando solo con posts.`);
+          console.warn(`⚠️ [FEED-SERVICE] Para habilitar productos, ejecutar: npm run fix:feed:tables`);
+          products = [];
+        } else {
+          console.error(`❌ [FEED-SERVICE] Error obteniendo productos:`, productsError?.message);
+          console.error(`❌ [FEED-SERVICE] Stack:`, productsError?.stack);
+          // Continuar con array vacío en lugar de fallar completamente
+          products = [];
+        }
       }
 
       // Obtener posts por fecha (solo posts)
@@ -505,6 +512,22 @@ export class FeedService {
         take: limit,
       });
     } catch (error: any) {
+      // Verificar si es el error específico de tabla no existente (P2021)
+      if (error?.code === 'P2021' || error?.message?.includes('does not exist') || error?.meta?.modelName === 'GlobalRanking') {
+        console.error('[FEED-SERVICE] ❌ La tabla global_ranking no existe en la base de datos.');
+        console.error('[FEED-SERVICE] Ejecutar: npm run fix:feed:tables');
+        console.error('[FEED-SERVICE] Continuando con feed sin productos (solo posts)...');
+        // Retornar array vacío para que el feed funcione solo con posts
+        return [];
+      }
+      
+      // Otros errores de Prisma
+      if (error?.code?.startsWith('P')) {
+        console.error(`[FEED-SERVICE] Error de Prisma (${error.code}):`, error?.message);
+        console.error('[FEED-SERVICE] Continuando con feed sin productos...');
+        return [];
+      }
+      
       // Si el modelo no existe, intentar con cast (fallback para desarrollo)
       console.warn('[FEED-SERVICE] Error accediendo a globalRanking, intentando con cast:', error?.message);
       try {
