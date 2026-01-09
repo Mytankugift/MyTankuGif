@@ -38,7 +38,7 @@ yarn-error.log*
 Thumbs.db
 
 # Prisma
-prisma/migrations/
+#prisma/migrations/
 
 # Testing
 coverage/
