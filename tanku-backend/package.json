@@ -19,6 +19,7 @@
     "workers:start": "tsx src/modules/dropi-jobs/workers/start-workers.ts",
     "migrate:db": "tsx migrate-database.ts",
     "check:migrations": "tsx check-migrations.ts",
+    "fix:feed:tables": "tsx scripts/create-feed-tables.ts",
     "init:feed": "tsx scripts/init-feed-metrics.ts"
   },
   "keywords": [

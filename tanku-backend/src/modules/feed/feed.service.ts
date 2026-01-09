@@ -55,81 +55,151 @@ export class FeedService {
     userId?: string,
     categoryId?: string
   ): Promise<FeedResponseDTO> {
-    // Limpiar tokens expirados
-    this.cleanExpiredTokens();
+    console.log(`\n📰 [FEED-SERVICE] ========== INICIANDO GET FEED ==========`);
+    console.log(`📰 [FEED-SERVICE] Cursor Token: ${cursorToken || 'No proporcionado'}`);
+    console.log(`📰 [FEED-SERVICE] User ID: ${userId || 'No autenticado'}`);
+    console.log(`📰 [FEED-SERVICE] Category ID: ${categoryId || 'No especificado'}`);
 
-    // Obtener cursor del token si existe
-    const cursor = cursorToken ? this.getCursorFromToken(cursorToken) : undefined;
+    try {
+      // Limpiar tokens expirados
+      this.cleanExpiredTokens();
 
-    // Valores hardcodeados
-    const limit = this.DEFAULT_LIMIT;
-    const postsPerProducts = this.DEFAULT_POSTS_PER_PRODUCTS;
-    // Aplicar boost temporal si hay userId (onboarding)
-    const boostFactor = userId ? await this.getBoostFactor(userId) : 1.0;
+      // Obtener cursor del token si existe
+      const cursor = cursorToken ? this.getCursorFromToken(cursorToken) : undefined;
+      if (cursor) {
+        console.log(`📰 [FEED-SERVICE] Cursor extraído del token exitosamente`);
+      }
 
-    // Calcular cuántos productos y posts necesitamos
-    // Si limit=20 y postsPerProducts=5, necesitamos ~17 productos y ~3 posts
-    const estimatedProducts = Math.ceil((limit * postsPerProducts) / (postsPerProducts + 1));
-    const estimatedPosts = Math.ceil(limit / (postsPerProducts + 1));
-    
-    // Obtener productos por ranking (solo productos)
-    const products = await this.getProductsByRanking(
-      cursor,
-      estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
-      boostFactor,
-      categoryId
-    );
+      // Valores hardcodeados
+      const limit = this.DEFAULT_LIMIT;
+      const postsPerProducts = this.DEFAULT_POSTS_PER_PRODUCTS;
+      console.log(`📰 [FEED-SERVICE] Limit: ${limit}, Posts per Products: ${postsPerProducts}`);
+      
+      // Aplicar boost temporal si hay userId (onboarding)
+      let boostFactor = 1.0;
+      if (userId) {
+        try {
+          boostFactor = await this.getBoostFactor(userId);
+          console.log(`📰 [FEED-SERVICE] Boost factor obtenido: ${boostFactor}`);
+        } catch (boostError: any) {
+          console.warn(`⚠️ [FEED-SERVICE] Error obteniendo boost factor:`, boostError?.message);
+          boostFactor = 1.0; // Usar valor por defecto si falla
+        }
+      }
 
-    // Obtener posts por fecha (solo posts)
-    const posts = await this.getPostsByDate(
-      cursor,
-      estimatedPosts + 2 // Buffer extra
-    );
+      // Calcular cuántos productos y posts necesitamos
+      // Si limit=20 y postsPerProducts=5, necesitamos ~17 productos y ~3 posts
+      const estimatedProducts = Math.ceil((limit * postsPerProducts) / (postsPerProducts + 1));
+      const estimatedPosts = Math.ceil(limit / (postsPerProducts + 1));
+      console.log(`📰 [FEED-SERVICE] Productos estimados: ${estimatedProducts + 5}, Posts estimados: ${estimatedPosts + 2}`);
+      
+      // Obtener productos por ranking (solo productos)
+      let products: any[] = [];
+      try {
+        console.log(`📰 [FEED-SERVICE] Obteniendo productos por ranking...`);
+        products = await this.getProductsByRanking(
+          cursor,
+          estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
+          boostFactor,
+          categoryId
+        );
+        console.log(`📰 [FEED-SERVICE] Productos obtenidos: ${products.length}`);
+      } catch (productsError: any) {
+        console.error(`❌ [FEED-SERVICE] Error obteniendo productos:`, productsError?.message);
+        console.error(`❌ [FEED-SERVICE] Stack:`, productsError?.stack);
+        // Continuar con array vacío en lugar de fallar completamente
+        products = [];
+      }
 
-    // Intercalar productos y posts según la regla
-    const intercalated = this.intercalateItems(products, posts, limit, postsPerProducts);
+      // Obtener posts por fecha (solo posts)
+      let posts: any[] = [];
+      try {
+        console.log(`📰 [FEED-SERVICE] Obteniendo posts por fecha...`);
+        posts = await this.getPostsByDate(
+          cursor,
+          estimatedPosts + 2 // Buffer extra
+        );
+        console.log(`📰 [FEED-SERVICE] Posts obtenidos: ${posts.length}`);
+      } catch (postsError: any) {
+        console.error(`❌ [FEED-SERVICE] Error obteniendo posts:`, postsError?.message);
+        console.error(`❌ [FEED-SERVICE] Stack:`, postsError?.stack);
+        // Continuar con array vacío en lugar de fallar completamente
+        posts = [];
+      }
 
-    // Separar productos y posters para batch queries
-    const productIds = intercalated.items
-      .filter(item => item.itemType === 'product')
-      .map(item => item.itemId);
-    
-    const posterIds = intercalated.items
-      .filter(item => item.itemType === 'poster')
-      .map(item => item.itemId);
+      // Intercalar productos y posts según la regla
+      console.log(`📰 [FEED-SERVICE] Intercalando productos y posts...`);
+      const intercalated = this.intercalateItems(products, posts, limit, postsPerProducts);
+      console.log(`📰 [FEED-SERVICE] Items intercalados: ${intercalated.items.length}`);
 
-    // Batch query para productos (una sola query en lugar de N queries)
-    const productsData = productIds.length > 0 ? await prisma.product.findMany({
-      where: { id: { in: productIds } },
-      include: {
-        category: true,
-        variants: {
-          where: { active: true },
-          orderBy: { price: 'asc' },
-          take: 1,
-        },
-      },
-    }) : [];
+      // Separar productos y posters para batch queries
+      const productIds = intercalated.items
+        .filter(item => item.itemType === 'product')
+        .map(item => item.itemId);
+      
+      const posterIds = intercalated.items
+        .filter(item => item.itemType === 'poster')
+        .map(item => item.itemId);
 
-    // Batch query para posters (una sola query en lugar de N queries)
-    const postersData = posterIds.length > 0 ? await prisma.poster.findMany({
-      where: { id: { in: posterIds } },
-      include: {
-        customer: {
-          include: {
-            profile: true,
-          },
-        },
-      },
-    }) : [];
+      console.log(`📰 [FEED-SERVICE] Product IDs para batch query: ${productIds.length}`);
+      console.log(`📰 [FEED-SERVICE] Poster IDs para batch query: ${posterIds.length}`);
 
-    // Crear mapas para acceso rápido O(1)
-    const productMap = new Map(productsData.map(p => [p.id, p]));
-    const posterMap = new Map(postersData.map(p => [p.id, p]));
+      // Batch query para productos (una sola query en lugar de N queries)
+      let productsData: any[] = [];
+      try {
+        if (productIds.length > 0) {
+          console.log(`📰 [FEED-SERVICE] Ejecutando batch query para productos...`);
+          productsData = await prisma.product.findMany({
+            where: { id: { in: productIds } },
+            include: {
+              category: true,
+              variants: {
+                where: { active: true },
+                orderBy: { price: 'asc' },
+                take: 1,
+              },
+            },
+          });
+          console.log(`📰 [FEED-SERVICE] Productos obtenidos de BD: ${productsData.length}`);
+        }
+      } catch (productsDataError: any) {
+        console.error(`❌ [FEED-SERVICE] Error en batch query de productos:`, productsDataError?.message);
+        console.error(`❌ [FEED-SERVICE] Stack:`, productsDataError?.stack);
+        productsData = [];
+      }
 
-    // Mapear items en el orden correcto (mantener orden de intercalación)
-    const feedItems: FeedItemDTO[] = [];
-    for (const item of intercalated.items) {
+      // Batch query para posters (una sola query en lugar de N queries)
+      let postersData: any[] = [];
+      try {
+        if (posterIds.length > 0) {
+          console.log(`📰 [FEED-SERVICE] Ejecutando batch query para posters...`);
+          postersData = await prisma.poster.findMany({
+            where: { id: { in: posterIds } },
+            include: {
+              customer: {
+                include: {
+                  profile: true,
+                },
+              },
+            },
+          });
+          console.log(`📰 [FEED-SERVICE] Posters obtenidos de BD: ${postersData.length}`);
+        }
+      } catch (postersDataError: any) {
+        console.error(`❌ [FEED-SERVICE] Error en batch query de posters:`, postersDataError?.message);
+        console.error(`❌ [FEED-SERVICE] Stack:`, postersDataError?.stack);
+        postersData = [];
+      }
+
+      // Crear mapas para acceso rápido O(1)
+      const productMap = new Map(productsData.map(p => [p.id, p]));
+      const posterMap = new Map(postersData.map(p => [p.id, p]));
+
+      console.log(`📰 [FEED-SERVICE] Mapas creados: ${productMap.size} productos, ${posterMap.size} posters`);
+
+      // Mapear items en el orden correcto (mantener orden de intercalación)
+      const feedItems: FeedItemDTO[] = [];
+      for (const item of intercalated.items) {
       if (item.itemType === 'product') {
         const product = productMap.get(item.itemId);
         if (!product) continue; // Saltar si no se encontró el producto
@@ -179,25 +249,45 @@ export class FeedService {
           } : undefined,
         });
       }
+      }
+
+      console.log(`📰 [FEED-SERVICE] Feed items mapeados: ${feedItems.length}`);
+
+      // Crear cursor híbrido para siguiente página
+      console.log(`📰 [FEED-SERVICE] Creando cursor híbrido...`);
+      const nextCursor = this.createHybridCursor(
+        intercalated,
+        products,
+        posts,
+        cursor,
+        estimatedProducts + 5, // Límite solicitado para productos
+        estimatedPosts + 2     // Límite solicitado para posts
+      );
+
+      // Generar token para siguiente página si hay más items
+      const nextCursorToken = nextCursor ? this.generateCursorToken(nextCursor) : null;
+
+      console.log(`📰 [FEED-SERVICE] Cursor token generado: ${nextCursorToken ? 'Sí' : 'No'}`);
+      console.log(`📰 [FEED-SERVICE] ========== FEED OBTENIDO EXITOSAMENTE ==========\n`);
+
+      return {
+        items: feedItems,
+        nextCursorToken,
+      };
+    } catch (error: any) {
+      console.error(`\n❌ [FEED-SERVICE] ========== ERROR EN GET FEED ==========`);
+      console.error(`❌ [FEED-SERVICE] Error:`, error?.message);
+      console.error(`❌ [FEED-SERVICE] Stack:`, error?.stack);
+      console.error(`❌ [FEED-SERVICE] Name:`, error?.name);
+      console.error(`❌ [FEED-SERVICE] =========================================\n`);
+      
+      // Retornar feed vacío en lugar de fallar completamente
+      // Esto permite que el frontend siga funcionando aunque el feed no esté disponible
+      return {
+        items: [],
+        nextCursorToken: null,
+      };
     }
-
-    // Crear cursor híbrido para siguiente página
-    const nextCursor = this.createHybridCursor(
-      intercalated,
-      products,
-      posts,
-      cursor,
-      estimatedProducts + 5, // Límite solicitado para productos
-      estimatedPosts + 2     // Límite solicitado para posts
-    );
-
-    // Generar token para siguiente página si hay más items
-    const nextCursorToken = nextCursor ? this.generateCursorToken(nextCursor) : null;
-
-    return {
-      items: feedItems,
-      nextCursorToken,
-    };
   }
 
   /**
@@ -402,14 +492,37 @@ export class FeedService {
     }
 
     // Obtener productos del ranking
-    const rankingItems = await (prisma as any).globalRanking.findMany({
-      where,
-      orderBy: [
-        { globalScore: 'desc' },
-        { createdAt: 'desc' },
-      ],
-      take: limit,
-    });
+    // Verificar que el modelo GlobalRanking existe en Prisma
+    let rankingItems: any[] = [];
+    try {
+      // Acceso directo al modelo GlobalRanking (debe estar generado por prisma generate)
+      rankingItems = await prisma.globalRanking.findMany({
+        where,
+        orderBy: [
+          { globalScore: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        take: limit,
+      });
+    } catch (error: any) {
+      // Si el modelo no existe, intentar con cast (fallback para desarrollo)
+      console.warn('[FEED-SERVICE] Error accediendo a globalRanking, intentando con cast:', error?.message);
+      try {
+        rankingItems = await (prisma as any).globalRanking.findMany({
+          where,
+          orderBy: [
+            { globalScore: 'desc' },
+            { createdAt: 'desc' },
+          ],
+          take: limit,
+        });
+      } catch (fallbackError: any) {
+        console.error('[FEED-SERVICE] Error crítico accediendo a globalRanking:', fallbackError?.message);
+        console.error('[FEED-SERVICE] Verificar que el modelo GlobalRanking existe en Prisma schema y ejecutar: npx prisma generate');
+        // Retornar array vacío en lugar de fallar completamente
+        return [];
+      }
+    }
 
     // Aplicar boost temporal (solo para ordenamiento, no modifica BD)
     if (boostFactor !== 1.0) {

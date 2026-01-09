@@ -208,19 +208,27 @@ export class EpaycoController {
       // Crear orden en Dropi (ya sabemos que el pago fue exitoso)
       let dropiSuccess = false;
       try {
-        console.log(`📦 [EPAYCO-WEBHOOK] Creando orden en Dropi...`);
+        console.log(`\n📦 [EPAYCO-WEBHOOK] ========== CREANDO ORDEN EN DROPI ==========`);
+        console.log(`📦 [EPAYCO-WEBHOOK] Order ID: ${updatedOrder.id}`);
+        console.log(`📦 [EPAYCO-WEBHOOK] Payment Method: ${updatedOrder.paymentMethod}`);
+        console.log(`📦 [EPAYCO-WEBHOOK] Payment Status: ${updatedOrder.paymentStatus}`);
+        console.log(`📦 [EPAYCO-WEBHOOK] Transaction ID: ${updatedOrder.transactionId}`);
+        console.log(`📦 [EPAYCO-WEBHOOK] Iniciando creación en Dropi...`);
         const dropiResult = await this.dropiOrdersService.createOrderInDropi(updatedOrder.id);
+        console.log(`📦 [EPAYCO-WEBHOOK] Resultado de Dropi:`, JSON.stringify(dropiResult, null, 2));
 
         if (dropiResult.success && dropiResult.dropiOrderIds.length > 0) {
           dropiSuccess = true;
           console.log(
             `✅ [EPAYCO-WEBHOOK] Orden creada exitosamente en Dropi: ${dropiResult.dropiOrderIds.join(', ')}`
           );
+          console.log(`📦 [EPAYCO-WEBHOOK] ========== ORDEN EN DROPI CREADA EXITOSAMENTE ==========\n`);
         } else {
           console.warn(
             `⚠️ [EPAYCO-WEBHOOK] Error creando orden en Dropi:`,
             dropiResult.errors
           );
+          console.warn(`📦 [EPAYCO-WEBHOOK] ========== ERROR AL CREAR ORDEN EN DROPI ==========\n`);
         }
 
         // Vaciar carrito solo si Dropi fue exitoso

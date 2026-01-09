@@ -116,6 +116,8 @@ export class DropiOrdersService {
     dropiOrderIds: number[];
     errors: Array<{ item: string; error: string }>;
   }> {
+    console.log(`\n📦 [DROPI-ORDER] ========== INICIANDO CREACIÓN EN DROPI ==========`);
+    console.log(`📦 [DROPI-ORDER] Order ID: ${orderId}`);
 
     // Obtener orden local
     const order = await prisma.order.findUnique({
@@ -140,6 +142,13 @@ export class DropiOrdersService {
       throw new Error(`Orden ${orderId} no encontrada`);
     }
 
+    console.log(`📦 [DROPI-ORDER] Orden encontrada:`);
+    console.log(`📦 [DROPI-ORDER] - Payment Method: ${order.paymentMethod}`);
+    console.log(`📦 [DROPI-ORDER] - Payment Status: ${order.paymentStatus}`);
+    console.log(`📦 [DROPI-ORDER] - Total Items: ${order.items.length}`);
+    console.log(`📦 [DROPI-ORDER] - Total: ${order.total}`);
+    console.log(`📦 [DROPI-ORDER] - Subtotal: ${order.subtotal}`);
+    console.log(`📦 [DROPI-ORDER] - Shipping Total: ${order.shippingTotal}`);
 
     const orderAddress = order.orderAddresses && order.orderAddresses.length > 0 ? order.orderAddresses[0].address : null;
     if (!orderAddress) {
@@ -147,11 +156,20 @@ export class DropiOrdersService {
       throw new Error(`Orden ${orderId} no tiene dirección de envío`);
     }
 
+    console.log(`📦 [DROPI-ORDER] Dirección de envío encontrada:`);
+    console.log(`📦 [DROPI-ORDER] - Nombre: ${orderAddress.firstName} ${orderAddress.lastName}`);
+    console.log(`📦 [DROPI-ORDER] - Ciudad: ${orderAddress.city}`);
+    console.log(`📦 [DROPI-ORDER] - Estado: ${orderAddress.state}`);
+    console.log(`📦 [DROPI-ORDER] - Dirección: ${orderAddress.address1}`);
+
     // Obtener token de Dropi
     const token = env.DROPI_STATIC_TOKEN;
     if (!token) {
+      console.error(`❌ [DROPI-ORDER] Token de Dropi no configurado`);
       throw new Error('Token de Dropi no configurado');
     }
+
+    console.log(`📦 [DROPI-ORDER] Token de Dropi encontrado (${token.substring(0, 10)}...)`);
 
     // Mapear items a productos Dropi
     const dropiProducts: Array<{
@@ -161,21 +179,33 @@ export class DropiOrdersService {
       variation_id?: number | null;
     }> = [];
 
+    console.log(`📦 [DROPI-ORDER] Mapeando ${order.items.length} items a productos Dropi...`);
+
     for (let i = 0; i < order.items.length; i++) {
       const item = order.items[i];
+      console.log(`📦 [DROPI-ORDER] Procesando item ${i + 1}/${order.items.length}:`);
+      console.log(`📦 [DROPI-ORDER] - SKU: ${item.variant.sku}`);
+      console.log(`📦 [DROPI-ORDER] - Quantity: ${item.quantity}`);
+      console.log(`📦 [DROPI-ORDER] - Price: ${item.price}`);
+      console.log(`📦 [DROPI-ORDER] - Final Price: ${item.finalPrice || 'N/A'}`);
 
       // Extraer dropi_id del SKU
       const dropiId = extractDropiIdFromSku(item.variant.sku);
+      console.log(`📦 [DROPI-ORDER] - Dropi ID extraído: ${dropiId || 'NO ENCONTRADO'}`);
 
       if (!dropiId) {
+        console.warn(`⚠️ [DROPI-ORDER] No se pudo extraer Dropi ID del SKU: ${item.variant.sku}`);
         continue;
       }
 
       // Obtener información del producto
       const dropiProductInfo = await getDropiProductInfoFromLocal(dropiId);
       if (!dropiProductInfo) {
+        console.warn(`⚠️ [DROPI-ORDER] No se encontró información del producto Dropi ID: ${dropiId}`);
         continue;
       }
+
+      console.log(`📦 [DROPI-ORDER] - Producto Dropi encontrado: Tipo=${dropiProductInfo.type}`);
 
       // Determinar variation_id si es VARIABLE
       let variationId: number | null = null;
@@ -222,12 +252,22 @@ export class DropiOrdersService {
         orderItemId: item.id, // Guardar referencia al OrderItem
       };
 
+      console.log(`📦 [DROPI-ORDER] - Producto mapeado exitosamente:`, {
+        id: dropiProduct.id,
+        price: dropiProduct.price,
+        quantity: dropiProduct.quantity,
+        variation_id: dropiProduct.variation_id,
+      });
+
       dropiProducts.push(dropiProduct);
     }
 
+    console.log(`📦 [DROPI-ORDER] Total de productos mapeados: ${dropiProducts.length}/${order.items.length}`);
 
     if (dropiProducts.length === 0) {
       console.error(`❌ [DROPI-ORDER] No se pudieron mapear productos a Dropi`);
+      console.error(`❌ [DROPI-ORDER] Items en orden: ${order.items.length}`);
+      console.error(`❌ [DROPI-ORDER] SKUs de items:`, order.items.map(item => item.variant.sku));
       throw new Error('No se pudieron mapear productos a Dropi');
     }
 
@@ -236,6 +276,9 @@ export class DropiOrdersService {
     const rateType =
       order.paymentMethod === 'cash_on_delivery' ? 'CON RECAUDO' : 'SIN RECAUDO';
     
+    console.log(`📦 [DROPI-ORDER] Método de pago: ${order.paymentMethod}`);
+    console.log(`📦 [DROPI-ORDER] Rate Type para Dropi: ${rateType}`);
+    console.log(`📦 [DROPI-ORDER] Total de productos a procesar: ${dropiProducts.length}`);
 
     // Calcular shipping proporcional por producto
     const shippingTotal = order.shippingTotal || 0;
@@ -296,6 +339,11 @@ export class DropiOrdersService {
       };
 
       try {
+        console.log(`📦 [DROPI-ORDER] Creando orden ${i + 1}/${dropiProducts.length} en Dropi...`);
+        console.log(`📦 [DROPI-ORDER] Producto ID: ${product.id}`);
+        console.log(`📦 [DROPI-ORDER] Rate Type: ${rateType}`);
+        console.log(`📦 [DROPI-ORDER] Total Order: ${finalTotalOrder}`);
+        console.log(`📦 [DROPI-ORDER] Body enviado a Dropi:`, JSON.stringify(dropiOrderBody, null, 2));
 
         const response = await fetch(`${DROPI_BASE_URL}/integrations/orders/myorders`, {
           method: 'POST',
@@ -307,15 +355,21 @@ export class DropiOrdersService {
           signal: AbortSignal.timeout(30000), // 30 segundos timeout
         });
 
+        console.log(`📦 [DROPI-ORDER] Respuesta HTTP Status: ${response.status} ${response.statusText}`);
+
         if (!response.ok) {
           const errorText = await response.text();
+          console.error(`❌ [DROPI-ORDER] Error HTTP ${response.status}:`, errorText);
           throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
         const dropiResponse = await response.json() as any;
+        console.log(`📦 [DROPI-ORDER] Respuesta completa de Dropi:`, JSON.stringify(dropiResponse, null, 2));
 
         if (!dropiResponse.isSuccess || !dropiResponse.objects) {
           console.error(`❌ [DROPI-ORDER] Error en respuesta de Dropi:`, dropiResponse.message);
+          console.error(`❌ [DROPI-ORDER] isSuccess: ${dropiResponse.isSuccess}`);
+          console.error(`❌ [DROPI-ORDER] objects:`, dropiResponse.objects);
           throw new Error(dropiResponse.message || 'Dropi retornó isSuccess=false');
         }
 
@@ -328,6 +382,10 @@ export class DropiOrdersService {
           dropiOrderIds.push(dropiOrderId);
           // Acumular el discounted_amount (costo de envío)
           totalDiscountedAmount += Math.round(discountedAmount);
+          
+          console.log(`✅ [DROPI-ORDER] Orden Dropi ${dropiOrderId} creada exitosamente`);
+          console.log(`✅ [DROPI-ORDER] - Discounted Amount (envío): ${discountedAmount}`);
+          console.log(`✅ [DROPI-ORDER] - Dropshipper Win (ganancia): ${dropshipperAmountToWin}`);
           
           // Guardar información en OrderItem: ambos valores
           const orderItemId = (product as any).orderItemId;
@@ -342,6 +400,9 @@ export class DropiOrdersService {
                 finalPrice: product.price,
               },
             });
+            console.log(`✅ [DROPI-ORDER] OrderItem ${orderItemId} actualizado con Dropi Order ID`);
+          } else {
+            console.warn(`⚠️ [DROPI-ORDER] No se encontró orderItemId para actualizar`);
           }
           
           // Guardar respuesta completa en el array
@@ -351,17 +412,29 @@ export class DropiOrdersService {
             shippingTotal: Math.round(discountedAmount),
           });
           
-          console.log(`✅ [DROPI-ORDER] Orden ${dropiOrderId} creada en Dropi`);
+          console.log(`✅ [DROPI-ORDER] Orden ${dropiOrderId} procesada y guardada correctamente`);
         } else {
           throw new Error('Dropi no retornó order_id');
         }
       } catch (error: any) {
+        console.error(`❌ [DROPI-ORDER] Error creando orden ${i + 1}/${dropiProducts.length} en Dropi:`, error?.message);
+        console.error(`❌ [DROPI-ORDER] Stack trace:`, error?.stack);
         errors.push({
           item: `Producto ${i + 1} (Dropi ID: ${product.id})`,
           error: error?.message || 'Error desconocido',
         });
       }
     }
+
+    console.log(`📦 [DROPI-ORDER] ========== RESUMEN DE CREACIÓN EN DROPI ==========`);
+    console.log(`📦 [DROPI-ORDER] Total de productos procesados: ${dropiProducts.length}`);
+    console.log(`📦 [DROPI-ORDER] Órdenes creadas exitosamente: ${dropiOrderIds.length}`);
+    console.log(`📦 [DROPI-ORDER] Dropi Order IDs: ${dropiOrderIds.join(', ')}`);
+    console.log(`📦 [DROPI-ORDER] Errores: ${errors.length}`);
+    if (errors.length > 0) {
+      console.error(`❌ [DROPI-ORDER] Errores detallados:`, errors);
+    }
+    console.log(`📦 [DROPI-ORDER] =================================================\n`);
 
     // Actualizar orden local con shipping_total y total calculados desde Dropi
     if (dropiOrderIds.length > 0) {
