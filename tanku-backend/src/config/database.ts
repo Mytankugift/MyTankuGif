@@ -1,8 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import mongoose from 'mongoose';
-import Redis from 'ioredis';
+// BLOQUEADO: MongoDB y Redis deshabilitados temporalmente
+// import mongoose from 'mongoose';
+// import Redis from 'ioredis';
 import { env } from './env';
 
 /**
@@ -22,8 +23,14 @@ export const prisma = new PrismaClient({
 
 /**
  * MongoDB Connection (Opcional en desarrollo)
+ * DESHABILITADO TEMPORALMENTE - No disponible en Railway
  */
 export async function connectMongoDB(): Promise<void> {
+  // BLOQUEADO: MongoDB deshabilitado temporalmente
+  console.log('ℹ️  MongoDB deshabilitado temporalmente');
+  return;
+  
+  /* CÓDIGO COMENTADO - Reactivar cuando MongoDB esté disponible
   const shouldUseMongo = env.NODE_ENV === 'production' || env.MONGODB_ENABLED === true;
   const hasMongoUrl = env.MONGODB_URI && typeof env.MONGODB_URI === 'string' && env.MONGODB_URI.trim() !== '';
 
@@ -45,13 +52,21 @@ export async function connectMongoDB(): Promise<void> {
       throw error;
     }
   }
+  */
 }
 
 /**
  * Redis Client (Opcional en desarrollo)
+ * DESHABILITADO TEMPORALMENTE - No disponible en Railway
  */
-let redis: Redis | null = null;
+// BLOQUEADO: Tipo Redis comentado temporalmente
+// let redis: Redis | null = null;
+let redis: any | null = null;
 
+// BLOQUEADO: Redis deshabilitado temporalmente
+console.log('ℹ️  Redis deshabilitado temporalmente');
+
+/* CÓDIGO COMENTADO - Reactivar cuando Redis esté disponible
 const shouldUseRedis = env.NODE_ENV === 'production' || env.REDIS_ENABLED === true;
 const hasRedisUrl = env.REDIS_URL && typeof env.REDIS_URL === 'string' && env.REDIS_URL.trim() !== '';
 
@@ -88,6 +103,7 @@ if (shouldUseRedis && hasRedisUrl) {
     console.log('ℹ️  Redis deshabilitado (modo desarrollo)');
   }
 }
+*/
 
 export { redis };
 
@@ -98,8 +114,9 @@ export async function closeConnections(): Promise<void> {
   await Promise.all([
     prisma.$disconnect(),
     pool.end(), // Cerrar el pool de PostgreSQL
-    mongoose.connection.readyState === 1 ? mongoose.connection.close() : Promise.resolve(),
-    redis?.quit().catch(() => {}), // Ignorar errores al cerrar Redis
+    // BLOQUEADO: MongoDB y Redis deshabilitados temporalmente
+    // mongoose.connection.readyState === 1 ? mongoose.connection.close() : Promise.resolve(),
+    // redis?.quit().catch(() => {}), // Ignorar errores al cerrar Redis
   ]);
   console.log('✅ Todas las conexiones cerradas');
 }

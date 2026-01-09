@@ -260,8 +260,8 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
  */
 async function startServer() {
   try {
-    // Conectar a MongoDB
-    await connectMongoDB();
+    // BLOQUEADO: MongoDB deshabilitado temporalmente
+    // await connectMongoDB();
 
     // Crear servidor HTTP (necesario para Socket.IO)
     const httpServer = createServer(app);
