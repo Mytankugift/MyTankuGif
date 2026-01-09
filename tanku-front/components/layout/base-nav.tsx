@@ -71,26 +71,24 @@ export function BaseNav({
 
           {/* Right Icons */}
           <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center">
-            {/* Messages Icon */}
-            <Link
-              href="/messages"
-              className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
+            {/* Messages Icon - Deshabilitado temporalmente hasta implementar chat */}
+            <div
+              className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full opacity-50 cursor-not-allowed group"
+              title="Chat próximamente"
+              onClick={(e) => {
+                e.preventDefault()
+                console.log('Chat aún no disponible')
+              }}
             >
               <Image
                 src="/feed/Icons/Chat_Green.png"
-                alt="Mensajes"
+                alt="Mensajes (próximamente)"
                 width={24}
                 height={24}
-                className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
+                className="object-contain w-5 h-5 md:w-6 md:h-6"
+                unoptimized
               />
-              <Image
-                src="/feed/Icons/Chat_Blue.png"
-                alt="Mensajes"
-                width={24}
-                height={24}
-                className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
-              />
-            </Link>
+            </div>
 
             {/* Notifications */}
             <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10">
@@ -108,26 +106,24 @@ export function BaseNav({
       {/* Si no hay stories, mostrar solo los botones */}
       {!showStories && (
         <div className="p-2 sm:p-3 md:p-4 pb-2 flex justify-end items-center gap-2 lg:gap-3">
-          {/* Messages Icon */}
-          <Link
-            href="/messages"
-            className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
+          {/* Messages Icon - Deshabilitado temporalmente hasta implementar chat */}
+          <div
+            className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full opacity-50 cursor-not-allowed group"
+            title="Chat próximamente"
+            onClick={(e) => {
+              e.preventDefault()
+              console.log('Chat aún no disponible')
+            }}
           >
             <Image
               src="/feed/Icons/Chat_Green.png"
-              alt="Mensajes"
+              alt="Mensajes (próximamente)"
               width={24}
               height={24}
-              className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
+              className="object-contain w-5 h-5 md:w-6 md:h-6"
+              unoptimized
             />
-            <Image
-              src="/feed/Icons/Chat_Blue.png"
-              alt="Mensajes"
-              width={24}
-              height={24}
-              className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
-            />
-          </Link>
+          </div>
 
           {/* Notifications */}
           <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10">

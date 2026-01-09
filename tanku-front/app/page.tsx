@@ -14,16 +14,22 @@ function HomeContent() {
     const tokenParam = searchParams.get('token')
     const error = searchParams.get('error')
 
+    // Si hay error, redirigir al feed sin mostrar error (ya se maneja en el callback)
     if (error) {
-      console.error('Error en autenticación:', error)
+      console.error('⚠️ [HOME] Error en autenticación recibido:', error)
+      // Limpiar parámetros de la URL antes de redirigir
       router.replace('/feed')
       return
     }
 
+    // Si hay token en la URL, establecerlo y redirigir (por si acaso no pasó por el callback)
     if (tokenParam) {
+      console.log('✅ [HOME] Token encontrado en URL, estableciendo...')
       setToken(tokenParam)
+      // Limpiar parámetros de la URL antes de redirigir
       router.replace('/feed')
     } else {
+      // Si no hay token ni error, solo redirigir al feed
       router.replace('/feed')
     }
   }, [searchParams, router, setToken])

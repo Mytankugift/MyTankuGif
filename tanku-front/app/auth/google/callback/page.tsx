@@ -8,26 +8,73 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 function GoogleCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { setToken } = useAuthStore()
+  const { setToken, checkAuth } = useAuthStore()
 
   useEffect(() => {
+    // Obtener todos los parámetros de la URL
     const token = searchParams.get('token')
     const userId = searchParams.get('userId')
     const error = searchParams.get('error')
+    
+    // Obtener todos los parámetros para debug
+    const allParams = Array.from(searchParams.entries()).reduce((acc, [key, value]) => {
+      acc[key] = value
+      return acc
+    }, {} as Record<string, string>)
+
+    console.log('🔍 [GOOGLE CALLBACK] Callback recibido:', {
+      hasToken: !!token,
+      hasUserId: !!userId,
+      hasError: !!error,
+      tokenLength: token?.length,
+      userId,
+      error,
+      allParams,
+      currentUrl: typeof window !== 'undefined' ? window.location.href : 'SSR',
+    })
 
     if (error) {
-      console.error('Error en autenticación de Google:', error)
-      router.push('/?error=' + encodeURIComponent(error))
+      console.error('❌ [GOOGLE CALLBACK] Error en autenticación de Google:', error)
+      console.error('   URL completa:', typeof window !== 'undefined' ? window.location.href : 'SSR')
+      // Redirigir al feed sin mostrar el error en la URL (ya se loggeó)
+      router.push('/feed')
       return
     }
 
     if (token) {
-      setToken(token)
-      router.push('/')
+      console.log('✅ [GOOGLE CALLBACK] Token recibido, estableciendo token...')
+      console.log('   Token length:', token.length)
+      console.log('   Token preview:', token.substring(0, 20) + '...')
+      
+      try {
+        setToken(token)
+        console.log('✅ [GOOGLE CALLBACK] Token establecido, verificando autenticación...')
+        
+        // Verificar autenticación después de establecer el token
+        checkAuth()
+          .then(() => {
+            console.log('✅ [GOOGLE CALLBACK] Autenticación verificada, redirigiendo al feed...')
+            router.push('/feed')
+          })
+          .catch((err) => {
+            console.error('❌ [GOOGLE CALLBACK] Error verificando autenticación:', err)
+            console.error('   Error details:', err instanceof Error ? err.message : err)
+            // Aún así redirigir, el usuario puede estar autenticado
+            router.push('/feed')
+          })
+      } catch (setTokenError) {
+        console.error('❌ [GOOGLE CALLBACK] Error estableciendo token:', setTokenError)
+        router.push('/feed?error=token_set_failed')
+      }
     } else {
-      router.push('/?error=missing_token')
+      console.error('❌ [GOOGLE CALLBACK] No se recibió token en la URL')
+      console.error('   Parámetros recibidos:', { token, userId, error, allParams })
+      console.error('   URL completa:', typeof window !== 'undefined' ? window.location.href : 'SSR')
+      console.error('   Search params string:', typeof window !== 'undefined' ? window.location.search : 'SSR')
+      // Redirigir al feed sin mostrar el error en la URL
+      router.push('/feed')
     }
-  }, [searchParams, router, setToken])
+  }, [searchParams, router, setToken, checkAuth])
 
   return (
     <div className="min-h-screen flex items-center justify-center">
