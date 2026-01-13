@@ -424,38 +424,6 @@ export class OrdersService {
     }
 
     return this.formatOrderResponse(order);
-          include: {
-            address: true,
-          },
-        },
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                title: true,
-                handle: true,
-                images: true,
-              },
-            },
-            variant: {
-              select: {
-                id: true,
-                sku: true,
-                title: true,
-                price: true,
-              },
-            },
-          },
-        },
-      } as any,
-    });
-
-    if (!order) {
-      return null;
-    }
-
-    return this.formatOrderResponse(order);
   }
 
   /**
