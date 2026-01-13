@@ -47,6 +47,14 @@ router.post('/:id/create-dropi', ordersController.createDropiOrder);
 router.get('/transaction/:transactionId', ordersController.getOrderByTransactionId);
 
 /**
+ * GET /api/v1/orders/test/dropi-orders
+ * ⚠️ ENDPOINT TEMPORAL PARA TESTING
+ * Lista los dropiOrderId disponibles para probar el webhook de Dropi
+ * Query params: ?limit=10 (opcional, default: 10)
+ */
+router.get('/test/dropi-orders', ordersController.getDropiOrdersForTesting);
+
+/**
  * GET /api/v1/orders/:id
  * GET /store/orders/:id
  * Obtener orden por ID

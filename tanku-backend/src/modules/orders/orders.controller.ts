@@ -303,4 +303,114 @@ export class OrdersController {
       next(error);
     }
   };
+
+  /**
+   * GET /api/v1/orders/test/dropi-orders
+   * ⚠️ ENDPOINT TEMPORAL PARA TESTING
+   * Lista los dropiOrderId disponibles para probar el webhook de Dropi
+   */
+  getDropiOrdersForTesting = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      const orderItems = await prisma.orderItem.findMany({
+        where: {
+          dropiOrderId: { not: null },
+        },
+        select: {
+          id: true,
+          dropiOrderId: true,
+          dropiStatus: true,
+          quantity: true,
+          price: true,
+          order: {
+            select: {
+              id: true,
+              userId: true,
+              email: true,
+              status: true,
+              paymentStatus: true,
+              createdAt: true,
+            },
+          },
+          product: {
+            select: {
+              id: true,
+              title: true,
+              handle: true,
+            },
+          },
+          variant: {
+            select: {
+              id: true,
+              sku: true,
+              title: true,
+            },
+          },
+        },
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      const formatted = orderItems.map((item) => ({
+        orderItemId: item.id,
+        dropiOrderId: item.dropiOrderId,
+        currentStatus: item.dropiStatus || 'N/A',
+        quantity: item.quantity,
+        price: item.price,
+        order: {
+          id: item.order.id,
+          userId: item.order.userId,
+          email: item.order.email,
+          status: item.order.status,
+          paymentStatus: item.order.paymentStatus,
+          createdAt: item.order.createdAt,
+        },
+        product: {
+          id: item.product.id,
+          title: item.product.title,
+          handle: item.product.handle,
+        },
+        variant: {
+          id: item.variant.id,
+          sku: item.variant.sku,
+          title: item.variant.title,
+        },
+        // Ejemplo de payload para probar el webhook
+        webhookExample: {
+          id: item.dropiOrderId,
+          status: 'SHIPPED', // Cambiar según necesites probar
+        },
+      }));
+
+      res.status(200).json(
+        successResponse({
+          message: `Encontrados ${formatted.length} OrderItems con dropiOrderId`,
+          count: formatted.length,
+          orders: formatted,
+          // Estados válidos para probar
+          validStatuses: [
+            'PENDING',
+            'PROCESSING',
+            'SHIPPED',
+            'DELIVERED',
+            'CANCELLED',
+            'REJECTED',
+          ],
+          // Ejemplo de comando curl para probar
+          testExample: formatted.length > 0
+            ? `curl -X POST http://72.61.79.91/api/v1/webhook/dropi \\
+  -H "Content-Type: application/json" \\
+  -H "X-Proxy-Key: 8dc2217350ed5f2d42266c32331f339e6005dd70d4d7e196fcfa86391f652a1f" \\
+  -d '{"id": ${formatted[0].dropiOrderId}, "status": "SHIPPED"}'`
+            : 'No hay órdenes disponibles para probar',
+        })
+      );
+    } catch (error: any) {
+      console.error(`❌ [ORDERS] Error obteniendo dropiOrderIds:`, error);
+      next(error);
+    }
+  };
 }
