@@ -94,9 +94,38 @@ if (env.NODE_ENV === 'development') {
 
 /**
  * Body parsers
+ * ✅ IMPORTANTE: urlencoded debe ir ANTES de json para que ePayco funcione
+ * ePayco envía datos como application/x-www-form-urlencoded, no JSON
  */
-app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
+
+/**
+ * Manejo de errores de parsing de body
+ * Si falla el parsing de JSON pero el body ya fue parseado como urlencoded, continuar
+ */
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  // Type guard para errores de body-parser
+  const isBodyParserError = err instanceof SyntaxError && 
+                             (err as any).status === 400 && 
+                             'body' in err;
+  
+  if (isBodyParserError) {
+    // Error de parsing de JSON - pero el body ya fue parseado por urlencoded si es form-urlencoded
+    // Verificar si req.body tiene datos (fue parseado por urlencoded)
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log('✅ [BODY-PARSER] Body parseado como urlencoded, ignorando error de JSON');
+      return next();
+    }
+    // Si no hay body parseado, es un error real
+    console.error('❌ [BODY-PARSER] Error parseando body:', err.message);
+    return res.status(400).json({
+      error: 'Error parseando el cuerpo de la petición',
+      message: err.message,
+    });
+  }
+  return next(err);
+});
 
 /**
  * Health check
@@ -125,13 +154,16 @@ app.get('/test-routes', (_req, res) => {
 
 /**
  * Endpoint de prueba para webhooks (diagnóstico)
+ * Acepta tanto JSON como application/x-www-form-urlencoded
  */
-app.post(`${APP_CONSTANTS.API_PREFIX}/webhook/test`, express.json(), (req, res) => {
+app.post(`${APP_CONSTANTS.API_PREFIX}/webhook/test`, (req, res) => {
   console.log('✅ [WEBHOOK-TEST] Request recibido:', {
     method: req.method,
     path: req.path,
+    contentType: req.headers['content-type'],
     headers: req.headers,
     body: req.body,
+    query: req.query,
     timestamp: new Date().toISOString(),
   });
   
@@ -139,7 +171,9 @@ app.post(`${APP_CONSTANTS.API_PREFIX}/webhook/test`, express.json(), (req, res) 
     received: true,
     timestamp: new Date().toISOString(),
     message: 'Webhook test funcionando correctamente',
+    contentType: req.headers['content-type'],
     body: req.body,
+    query: req.query,
   });
 });
 
