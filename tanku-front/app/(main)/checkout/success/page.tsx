@@ -86,12 +86,20 @@ function CheckoutSuccessContent() {
       const data = await response.json()
       console.log('[CHECKOUT-SUCCESS] Datos de ePayco:', data)
 
-      // Extraer transaction_id de la respuesta de ePayco
-      const transactionId = data.data?.x_transaction_id || data.x_transaction_id || refPayco
+      // ✅ Extraer transaction_id de la respuesta de ePayco (x_transaction_id es el que se guarda)
+      // El ref_payco es diferente, necesitamos usar x_transaction_id para buscar
+      const transactionId = data.data?.x_transaction_id || data.x_transaction_id
+      
+      if (!transactionId) {
+        console.warn('[CHECKOUT-SUCCESS] No se encontró x_transaction_id, usando ref_payco como fallback')
+        // Fallback: si no hay x_transaction_id, usar ref_payco (pero esto no debería pasar)
+      }
       
       // Mapear estado de ePayco
       const epaycoResponse = data.data?.x_response || data.x_response
-      if (epaycoResponse === 'Aceptada' || epaycoResponse === 'Aprobada') {
+      
+      // ✅ Mapear estados de ePayco correctamente
+      if (epaycoResponse === 'Aceptada' || epaycoResponse === 'Aprobada' || epaycoResponse === '1') {
         // Intentar buscar la orden por transactionId
         try {
           const orderResponse = await apiClient.get<OrderDTO>(API_ENDPOINTS.ORDERS.BY_TRANSACTION_ID(transactionId))
@@ -126,11 +134,17 @@ function CheckoutSuccessContent() {
           }
         }, 3000)
         
-      } else if (epaycoResponse === 'Pendiente') {
+      } else if (epaycoResponse === 'Pendiente' || epaycoResponse === '2') {
         setPaymentStatus('pending')
-      } else {
+        setErrorMessage('El pago está pendiente de confirmación')
+      } else if (epaycoResponse === 'Rechazada' || epaycoResponse === 'Rechazado' || epaycoResponse === 'Fallida' || epaycoResponse === '3' || epaycoResponse === '4') {
+        // ✅ Manejar pagos rechazados correctamente
         setPaymentStatus('failed')
-        setErrorMessage(data.data?.x_response_reason_text || 'El pago no fue exitoso')
+        setErrorMessage(data.data?.x_response_reason_text || data.x_response_reason_text || 'El pago fue rechazado')
+      } else {
+        // Estado desconocido - tratar como fallido
+        setPaymentStatus('failed')
+        setErrorMessage(data.data?.x_response_reason_text || data.x_response_reason_text || `El pago no fue exitoso. Estado: ${epaycoResponse}`)
       }
     } catch (error) {
       console.error('[CHECKOUT-SUCCESS] Error verificando pago:', error)

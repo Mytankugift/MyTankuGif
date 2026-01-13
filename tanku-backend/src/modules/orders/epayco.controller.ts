@@ -45,7 +45,11 @@ export class EpaycoController {
     try {
       const { orderId: cartId } = req.params; // En Epayco, esto es el cartId
       
-      // Extraer todos los parámetros del webhook
+      // ✅ ePayco envía datos como query parameters O en el body
+      // Combinar ambos para soportar ambos formatos
+      const webhookData = { ...req.query, ...req.body };
+      
+      // Extraer todos los parámetros del webhook (de query o body)
       const {
         ref_payco,
         x_ref_payco,
@@ -64,20 +68,33 @@ export class EpaycoController {
         x_customer_name,
         x_extra1,
         x_extra2,
-      } = req.body;
+      } = webhookData;
 
-      const transactionId = x_transaction_id || req.body.transactionId;
-      const paymentStatus = x_response || req.body.paymentStatus || req.body.x_response || 'captured';
+      // ✅ Convertir valores de query params a string si vienen como array
+      // Express convierte query params duplicados en arrays
+      const xRefPaycoValue = Array.isArray(x_ref_payco) ? x_ref_payco[0] : (x_ref_payco || ref_payco);
+      const xTransactionIdValue = Array.isArray(x_transaction_id) ? x_transaction_id[0] : x_transaction_id;
+      const xAmountValue = Array.isArray(x_amount) ? x_amount[0] : x_amount;
+      const xCurrencyCodeValue = Array.isArray(x_currency_code) ? x_currency_code[0] : x_currency_code;
+      const xSignatureValue = Array.isArray(x_signature) ? x_signature[0] : x_signature;
+      const xResponseValue = Array.isArray(x_response) ? x_response[0] : x_response;
+      const xResponseReasonTextValue = Array.isArray(x_response_reason_text) ? x_response_reason_text[0] : x_response_reason_text;
+      const xTestRequestValue = Array.isArray(x_test_request) ? x_test_request[0] : x_test_request;
+
+      const transactionId = xTransactionIdValue || webhookData.transactionId;
+      const paymentStatus = xResponseValue || webhookData.paymentStatus || 'captured';
 
       // Log completo del webhook recibido
       console.log(`\n💰 [EPAYCO-WEBHOOK] ========== WEBHOOK RECIBIDO ==========`);
       console.log(`💰 [EPAYCO-WEBHOOK] Cart ID: ${cartId}`);
-      console.log(`💰 [EPAYCO-WEBHOOK] Ref Payco: ${ref_payco || x_ref_payco}`);
+      console.log(`💰 [EPAYCO-WEBHOOK] Ref Payco: ${xRefPaycoValue}`);
       console.log(`💰 [EPAYCO-WEBHOOK] Transaction ID: ${transactionId}`);
-      console.log(`💰 [EPAYCO-WEBHOOK] Response: ${x_response}`);
-      console.log(`💰 [EPAYCO-WEBHOOK] Amount: ${x_amount}`);
-      console.log(`💰 [EPAYCO-WEBHOOK] Currency: ${x_currency_code}`);
-      console.log(`💰 [EPAYCO-WEBHOOK] Body completo:`, JSON.stringify(req.body, null, 2));
+      console.log(`💰 [EPAYCO-WEBHOOK] Response: ${xResponseValue}`);
+      console.log(`💰 [EPAYCO-WEBHOOK] Amount: ${xAmountValue}`);
+      console.log(`💰 [EPAYCO-WEBHOOK] Currency: ${xCurrencyCodeValue}`);
+      console.log(`💰 [EPAYCO-WEBHOOK] Query params:`, JSON.stringify(req.query, null, 2));
+      console.log(`💰 [EPAYCO-WEBHOOK] Body:`, JSON.stringify(req.body, null, 2));
+      console.log(`💰 [EPAYCO-WEBHOOK] Datos combinados:`, JSON.stringify(webhookData, null, 2));
       console.log(`💰 [EPAYCO-WEBHOOK] ======================================\n`);
 
       // 1. VALIDAR FIRMA DE SEGURIDAD
@@ -87,7 +104,7 @@ export class EpaycoController {
       if (!p_cust_id_cliente || !p_key) {
         console.error('❌ [EPAYCO-WEBHOOK] EPAYCO_CUSTOMER_ID o EPAYCO_P_KEY no configurados');
         // En modo test, continuar sin validar firma
-        if (process.env.NODE_ENV === 'development' || x_test_request === 'true') {
+        if (process.env.NODE_ENV === 'development' || xTestRequestValue === 'true') {
           console.warn('⚠️ [EPAYCO-WEBHOOK] Modo test/desarrollo - continuando sin validar firma');
         } else {
           return res.status(500).json({
@@ -97,17 +114,17 @@ export class EpaycoController {
         }
       }
 
-      if (x_signature && p_cust_id_cliente && p_key) {
-        // Calcular la firma esperada
-        const signatureString = `${p_cust_id_cliente}^${p_key}^${x_ref_payco}^${x_transaction_id}^${x_amount}^${x_currency_code}`;
+      if (xSignatureValue && p_cust_id_cliente && p_key) {
+        // ✅ Calcular la firma esperada usando valores convertidos
+        const signatureString = `${p_cust_id_cliente}^${p_key}^${xRefPaycoValue}^${xTransactionIdValue}^${xAmountValue}^${xCurrencyCodeValue}`;
         const calculatedSignature = crypto
           .createHash('sha256')
           .update(signatureString)
           .digest('hex');
 
-        if (calculatedSignature !== x_signature) {
+        if (calculatedSignature !== xSignatureValue) {
           console.error('❌ [EPAYCO-WEBHOOK] Firma inválida - posible intento de fraude');
-          console.error(`❌ [EPAYCO-WEBHOOK] Firma recibida: ${x_signature}`);
+          console.error(`❌ [EPAYCO-WEBHOOK] Firma recibida: ${xSignatureValue}`);
           console.error(`❌ [EPAYCO-WEBHOOK] Firma calculada: ${calculatedSignature}`);
           console.error(`❌ [EPAYCO-WEBHOOK] String de firma: ${signatureString}`);
           return res.status(400).json({
@@ -117,7 +134,7 @@ export class EpaycoController {
         }
         console.log('✅ [EPAYCO-WEBHOOK] Firma validada correctamente');
       } else {
-        if (x_test_request === 'true' || process.env.NODE_ENV === 'development') {
+        if (xTestRequestValue === 'true' || process.env.NODE_ENV === 'development') {
           console.warn('⚠️ [EPAYCO-WEBHOOK] No se recibió firma de seguridad (modo test/desarrollo)');
         } else {
           console.warn('⚠️ [EPAYCO-WEBHOOK] No se recibió firma de seguridad');
@@ -133,38 +150,55 @@ export class EpaycoController {
       // }
 
       // 3. MAPEAR ESTADO DE EPAYCO
+      // ✅ ePayco puede enviar estados como strings ("Rechazada") o números ("3")
       let finalPaymentStatus: string;
-      switch (x_response) {
+      const xResponseStr = String(xResponseValue || '').trim();
+
+      switch (xResponseStr) {
         case 'Aceptada':
         case 'Aprobada':
+        case '1':  // ✅ Valor numérico para pago exitoso
           finalPaymentStatus = 'paid';
           break;
         case 'Rechazada':
+        case 'Rechazado':
+        case '3':  // ✅ Valor numérico para pago rechazado
           finalPaymentStatus = 'cancelled';
           break;
         case 'Pendiente':
+        case '2':  // ✅ Valor numérico para pago pendiente
           finalPaymentStatus = 'pending';
           break;
         case 'Fallida':
+        case '4':  // ✅ Valor numérico para pago fallido
           finalPaymentStatus = 'cancelled';
           break;
         default:
           // Fallback para otros formatos
-          switch (paymentStatus) {
+          const paymentStatusStr = String(paymentStatus || '').trim();
+          switch (paymentStatusStr) {
             case 'captured':
             case 'paid':
+            case '1':
               finalPaymentStatus = 'paid';
               break;
             case 'cancelled':
+            case '3':
+            case '4':
               finalPaymentStatus = 'cancelled';
               break;
             case 'pending':
+            case '2':
               finalPaymentStatus = 'pending';
               break;
             default:
-              finalPaymentStatus = 'awaiting';
+              // ✅ Si no reconoce el estado, loguear y usar cancelled por defecto (más seguro)
+              console.warn(`⚠️ [EPAYCO-WEBHOOK] Estado desconocido: "${xResponseStr}" (raw: ${xResponseValue}), usando 'cancelled'`);
+              finalPaymentStatus = 'cancelled';
           }
       }
+      
+      console.log(`💰 [EPAYCO-WEBHOOK] Estado mapeado: "${xResponseStr}" -> ${finalPaymentStatus}`);
 
       // Si el pago NO fue exitoso, no crear orden y retornar
       if (finalPaymentStatus !== 'paid') {
@@ -206,10 +240,21 @@ export class EpaycoController {
 
       // Actualizar estado de pago de la orden
       console.log(`📝 [EPAYCO-WEBHOOK] Actualizando estado de pago: ${order.id} -> ${finalPaymentStatus}`);
+      
+      // ✅ Guardar ambos IDs: transactionId (x_transaction_id) y refPayco (x_ref_payco)
+      // Usar valores convertidos
+      const refPaycoValue = xRefPaycoValue || ref_payco;
+      console.log(`📝 [EPAYCO-WEBHOOK] Guardando IDs - transactionId: ${transactionId}, refPayco: ${refPaycoValue}`);
+      
       const updatedOrder = await this.ordersService.updatePaymentStatus(
         order.id,
         finalPaymentStatus,
-        transactionId
+        transactionId,
+        {
+          refPayco: refPaycoValue,
+          x_transaction_id: xTransactionIdValue,
+          x_ref_payco: xRefPaycoValue,
+        }
       );
 
       console.log(`✅ [EPAYCO-WEBHOOK] Estado de pago actualizado exitosamente`);
@@ -276,7 +321,7 @@ export class EpaycoController {
           order: {
             id: updatedOrder.id,
             paymentStatus: updatedOrder.paymentStatus,
-            dropiOrderIds: updatedOrder.items?.map(item => item.dropiOrderId).filter(Boolean) || [],
+            dropiOrderIds: updatedOrder.items?.map((item: any) => item.dropiOrderId).filter(Boolean) || [],
           },
           dropiOrder: {
             success: dropiResult.success,

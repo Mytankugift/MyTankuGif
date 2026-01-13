@@ -344,13 +344,86 @@ export class OrdersService {
    * Obtener orden por transactionId (para ePayco)
    */
   async getOrderByTransactionId(transactionId: string, userId?: string): Promise<OrderResponse | null> {
-    const order = await prisma.order.findFirst({
+    // ✅ Buscar por transactionId primero, luego por refPayco en metadata
+    let order = await prisma.order.findFirst({
       where: {
         transactionId,
         ...(userId && { userId }),
       },
       include: {
         orderAddresses: {
+          include: {
+            address: true,
+          },
+        },
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                title: true,
+                handle: true,
+                images: true,
+              },
+            },
+            variant: {
+              select: {
+                id: true,
+                sku: true,
+                title: true,
+                price: true,
+              },
+            },
+          },
+        },
+      } as any,
+    });
+
+    // ✅ Si no encuentra por transactionId, buscar por refPayco en metadata
+    if (!order) {
+      order = await prisma.order.findFirst({
+        where: {
+          ...(userId && { userId }),
+          metadata: {
+            path: ['refPayco'],
+            equals: transactionId,
+          },
+        },
+        include: {
+          orderAddresses: {
+            include: {
+              address: true,
+            },
+          },
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  title: true,
+                  handle: true,
+                  images: true,
+                },
+              },
+              variant: {
+                select: {
+                  id: true,
+                  sku: true,
+                  title: true,
+                  price: true,
+                },
+              },
+            },
+          },
+        } as any,
+      });
+    }
+
+    if (!order) {
+      return null;
+    }
+
+    return this.formatOrderResponse(order);
           include: {
             address: true,
           },
@@ -494,7 +567,8 @@ export class OrdersService {
   async updatePaymentStatus(
     orderId: string,
     paymentStatus: string,
-    transactionId?: string
+    transactionId?: string,
+    metadata?: { refPayco?: string; x_transaction_id?: string; x_ref_payco?: string }
   ): Promise<OrderResponse> {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -502,6 +576,7 @@ export class OrdersService {
         id: true,
         status: true,
         transactionId: true,
+        metadata: true,
       },
     });
 
@@ -509,11 +584,21 @@ export class OrdersService {
       throw new NotFoundError(`Orden ${orderId} no encontrada`);
     }
 
+    // ✅ Actualizar metadata con refPayco si se proporciona
+    const currentMetadata = (order.metadata as Record<string, any>) || {};
+    const updatedMetadata = {
+      ...currentMetadata,
+      ...(metadata?.refPayco && { refPayco: metadata.refPayco }),
+      ...(metadata?.x_transaction_id && { x_transaction_id: metadata.x_transaction_id }),
+      ...(metadata?.x_ref_payco && { x_ref_payco: metadata.x_ref_payco }),
+    };
+
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
       data: {
         paymentStatus,
         transactionId: transactionId || order.transactionId,
+        metadata: updatedMetadata,
         // Si el pago es exitoso, actualizar status a CONFIRMED
         status:
           paymentStatus === 'captured' || paymentStatus === 'paid'
