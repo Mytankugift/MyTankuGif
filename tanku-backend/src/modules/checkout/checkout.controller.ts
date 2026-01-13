@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { CheckoutService, CheckoutOrderRequest, DataCart } from './checkout.service';
 import { successResponse, errorResponse, ErrorCode } from '../../shared/response';
 import { BadRequestError } from '../../shared/errors/AppError';
+import { env } from '../../config/env';
 
 export class CheckoutController {
   private checkoutService: CheckoutService;
@@ -9,6 +10,38 @@ export class CheckoutController {
   constructor() {
     this.checkoutService = new CheckoutService();
   }
+
+  /**
+   * GET /api/v1/checkout/webhook-url
+   * Obtener URL del webhook para ePayco
+   * 
+   * Query params:
+   * - cartId: ID del carrito
+   * 
+   * No requiere autenticación (solo genera URL)
+   */
+  getWebhookUrl = async (req: Request, res: Response) => {
+    try {
+      const { cartId } = req.query;
+
+      if (!cartId || typeof cartId !== 'string') {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'cartId es requerido'));
+      }
+
+      // Obtener URL base del webhook desde variables de entorno
+      // En producción: http://72.61.79.91 (proxy) o https://api.mytanku.com
+      // En desarrollo: puede ser ngrok o localhost
+      const webhookBaseUrl = env.WEBHOOK_BASE_URL || 'http://72.61.79.91';
+      const webhookUrl = `${webhookBaseUrl}/api/v1/webhook/epayco/${cartId}`;
+
+      console.log(`🔗 [CHECKOUT] URL de webhook generada: ${webhookUrl}`);
+
+      return res.status(200).json(successResponse({ webhookUrl }));
+    } catch (error: any) {
+      console.error('❌ [CHECKOUT] Error generando URL de webhook:', error);
+      return res.status(500).json(errorResponse(ErrorCode.INTERNAL_ERROR, 'Error generando URL de webhook'));
+    }
+  };
 
   /**
    * POST /api/v1/checkout/add-order
@@ -31,10 +64,17 @@ export class CheckoutController {
         throw new BadRequestError('dataForm y dataCart son requeridos');
       }
 
-      // Obtener userId del request (puede venir de auth middleware)
-      const userId = (req as any).user?.id;
+      // Obtener userId del request (debe venir de auth middleware)
+      const requestWithUser = req as any;
+      const userId = requestWithUser.user?.id;
+
+      // Verificar que el usuario esté autenticado (required por middleware, pero verificar por si acaso)
+      if (!userId) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'Debes iniciar sesión para completar el checkout'));
+      }
 
       console.log(`📝 [CHECKOUT] Recibida solicitud de creación de orden`);
+      console.log(`📝 [CHECKOUT] Usuario: ${userId}`);
       console.log(`📝 [CHECKOUT] Email: ${dataForm.email}`);
       console.log(`📝 [CHECKOUT] Payment method: ${dataForm.payment_method}`);
 

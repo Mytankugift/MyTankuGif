@@ -466,14 +466,25 @@ export class CartController {
 
       // Si hay usuario autenticado, obtener su carrito
       if (userId) {
-        let cart = await this.cartService.getUserCart(userId);
+        try {
+          let cart = await this.cartService.getUserCart(userId);
 
-        // Si no existe carrito, crear uno nuevo
-        if (!cart) {
-          cart = await this.cartService.createCartNormalized(userId);
+          // Si no existe carrito, crear uno nuevo
+          if (!cart) {
+            console.log(`📦 [CART] No hay carrito para usuario ${userId}, creando nuevo...`);
+            cart = await this.cartService.createCartNormalized(userId);
+          }
+
+          return res.status(200).json(successResponse(cart));
+        } catch (error: any) {
+          // Si hay error de foreign key, el usuario no existe
+          if (error?.code === 'P2003' || error?.message?.includes('Foreign key constraint') || error?.message?.includes('Usuario no encontrado')) {
+            console.error(`❌ [CART] Usuario ${userId} no existe en la base de datos. Token válido pero usuario eliminado.`);
+            console.error(`   Error:`, error?.message);
+            return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'Usuario no encontrado. Por favor, inicia sesión nuevamente.'));
+          }
+          throw error;
         }
-
-        return res.status(200).json(successResponse(cart));
       }
 
       // Si no hay usuario (guest), crear un carrito guest (userId = null)

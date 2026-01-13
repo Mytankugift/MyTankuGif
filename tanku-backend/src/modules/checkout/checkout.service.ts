@@ -75,7 +75,7 @@ export class CheckoutService {
     console.log(`📝 [CHECKOUT] Cart ID: ${dataCart.cart_id}`);
 
     // Validar que el carrito existe
-    const cart = await this.cartService.getCartById(dataCart.cart_id);
+    let cart = await this.cartService.getCartById(dataCart.cart_id);
     if (!cart) {
       throw new NotFoundError(`Carrito ${dataCart.cart_id} no encontrado`);
     }
@@ -84,10 +84,26 @@ export class CheckoutService {
       throw new BadRequestError('El carrito está vacío');
     }
 
-    // Usar userId del parámetro o del dataCart
-    const finalUserId = userId || dataCart.customer_id;
+    // Usar userId del parámetro (debe venir de auth middleware ahora)
+    const finalUserId = userId;
     if (!finalUserId) {
-      throw new BadRequestError('userId o customer_id es requerido');
+      throw new BadRequestError('userId es requerido. Debes estar autenticado para completar el checkout.');
+    }
+
+    // Si el carrito no tiene userId (carrito guest), asociarlo al usuario
+    if (!cart.userId && finalUserId) {
+      console.log(`🔄 [CHECKOUT] Asociando carrito guest ${cart.id} al usuario ${finalUserId} antes de preparar Epayco...`);
+      await prisma.cart.update({
+        where: { id: cart.id },
+        data: { userId: finalUserId },
+      });
+      console.log(`✅ [CHECKOUT] Carrito guest asociado exitosamente`);
+      
+      // Re-obtener el carrito actualizado
+      const updatedCart = await this.cartService.getCartById(cart.id);
+      if (updatedCart) {
+        cart = updatedCart;
+      }
     }
 
     // Calcular totales
@@ -145,7 +161,7 @@ export class CheckoutService {
     console.log(`📝 [CHECKOUT] Cart ID: ${dataCart.cart_id}`);
 
     // Validar que el carrito existe y obtener sus items
-    const cart = await this.cartService.getCartById(dataCart.cart_id);
+    let cart = await this.cartService.getCartById(dataCart.cart_id);
     if (!cart) {
       throw new NotFoundError(`Carrito ${dataCart.cart_id} no encontrado`);
     }
@@ -154,10 +170,26 @@ export class CheckoutService {
       throw new BadRequestError('El carrito está vacío');
     }
 
-    // Usar userId del parámetro o del dataCart
-    const finalUserId = userId || dataCart.customer_id;
+    // Usar userId del parámetro (debe venir de auth middleware ahora)
+    const finalUserId = userId;
     if (!finalUserId) {
-      throw new BadRequestError('userId o customer_id es requerido');
+      throw new BadRequestError('userId es requerido. Debes estar autenticado para completar el checkout.');
+    }
+
+    // Si el carrito no tiene userId (carrito guest), asociarlo al usuario
+    if (!cart.userId && finalUserId) {
+      console.log(`🔄 [CHECKOUT] Asociando carrito guest ${cart.id} al usuario ${finalUserId} antes de crear orden...`);
+      await prisma.cart.update({
+        where: { id: cart.id },
+        data: { userId: finalUserId },
+      });
+      console.log(`✅ [CHECKOUT] Carrito guest asociado exitosamente`);
+      
+      // Re-obtener el carrito actualizado
+      const updatedCart = await this.cartService.getCartById(cart.id);
+      if (updatedCart) {
+        cart = updatedCart;
+      }
     }
 
     // Mapear items del carrito a items de la orden

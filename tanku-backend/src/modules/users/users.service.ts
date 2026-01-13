@@ -90,12 +90,21 @@ export class UsersService {
         data: { pseudonym },
       });
     } else {
-      await prisma.personalInformation.create({
-        data: {
-          userId,
-          pseudonym,
-        },
-      });
+      try {
+        await prisma.personalInformation.create({
+          data: {
+            userId,
+            pseudonym,
+          },
+        });
+      } catch (error: any) {
+        // Si el error es de foreign key, el usuario no existe (aunque verificamos antes)
+        if (error?.code === 'P2003' || error?.message?.includes('Foreign key constraint')) {
+          console.error(`❌ [USERS] Error de foreign key al crear PersonalInformation para usuario ${userId}`);
+          throw new NotFoundError(`Usuario no encontrado: ${userId}`);
+        }
+        throw error;
+      }
     }
 
     return this.getPersonalInfo(userId);
@@ -125,12 +134,21 @@ export class UsersService {
         data: { statusMessage },
       });
     } else {
-      await prisma.personalInformation.create({
-        data: {
-          userId,
-          statusMessage,
-        },
-      });
+      try {
+        await prisma.personalInformation.create({
+          data: {
+            userId,
+            statusMessage,
+          },
+        });
+      } catch (error: any) {
+        // Si el error es de foreign key, el usuario no existe (aunque verificamos antes)
+        if (error?.code === 'P2003' || error?.message?.includes('Foreign key constraint')) {
+          console.error(`❌ [USERS] Error de foreign key al crear PersonalInformation para usuario ${userId}`);
+          throw new NotFoundError(`Usuario no encontrado: ${userId}`);
+        }
+        throw error;
+      }
     }
 
     return this.getPersonalInfo(userId);
@@ -633,15 +651,36 @@ export class UsersService {
     userId: string,
     updateData: UpdateOnboardingDataDTO
   ): Promise<OnboardingDataDTO> {
+    // Verificar que el usuario existe antes de crear PersonalInformation
+    const userExists = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!userExists) {
+      console.error(`❌ [USERS] Usuario ${userId} no existe en la base de datos`);
+      throw new NotFoundError(`Usuario no encontrado: ${userId}`);
+    }
+
     // Obtener o crear PersonalInformation
     let personalInfo = await prisma.personalInformation.findUnique({
       where: { userId },
     });
 
     if (!personalInfo) {
-      personalInfo = await prisma.personalInformation.create({
-        data: { userId },
-      });
+      try {
+        personalInfo = await prisma.personalInformation.create({
+          data: { userId },
+        });
+      } catch (error: any) {
+        // Si el error es de foreign key, el usuario no existe (aunque verificamos antes)
+        if (error?.code === 'P2003' || error?.message?.includes('Foreign key constraint')) {
+          console.error(`❌ [USERS] Error de foreign key al crear PersonalInformation para usuario ${userId}`);
+          console.error(`   Verificar que el usuario existe en la base de datos`);
+          throw new NotFoundError(`Usuario no encontrado: ${userId}`);
+        }
+        throw error;
+      }
     }
 
     // Preparar metadata

@@ -27,6 +27,21 @@ export class EpaycoController {
    * NOTA: orderId en realidad es cartId para Epayco
    */
   webhook = async (req: Request, res: Response, next: NextFunction) => {
+    // ✅ LOGGING DETALLADO AL INICIO - para diagnosticar 502
+    console.log(`\n🔍 [EPAYCO-WEBHOOK-DEBUG] ========== REQUEST RECIBIDO ==========`);
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] Timestamp: ${new Date().toISOString()}`);
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] Method: ${req.method}`);
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] Path: ${req.path}`);
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] URL completa: ${req.url}`);
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] Params:`, req.params);
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] Headers:`, JSON.stringify(req.headers, null, 2));
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] Body (raw):`, JSON.stringify(req.body, null, 2));
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] IP: ${req.ip}`);
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] X-Real-IP: ${req.headers['x-real-ip']}`);
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] X-Forwarded-For: ${req.headers['x-forwarded-for']}`);
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] X-Proxy-Key: ${req.headers['x-proxy-key'] || 'NO PRESENTE'}`);
+    console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] ======================================\n`);
+
     try {
       const { orderId: cartId } = req.params; // En Epayco, esto es el cartId
       

@@ -39,7 +39,17 @@ app.use(
     origin: getCorsOrigins(),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'x-publishable-api-key', 'x-feed-cursor'],
+    allowedHeaders: [
+      'Content-Type', 
+      'Authorization', 
+      'Cache-Control', 
+      'x-publishable-api-key', 
+      'x-feed-cursor',
+      'X-Proxy-Key',      // Header del proxy para validación
+      'X-Real-IP',         // IP real del cliente
+      'X-Forwarded-For',  // IPs del proxy chain
+      'X-Forwarded-Proto' // Protocolo original (http/https)
+    ],
     exposedHeaders: ['Content-Length', 'Content-Type'],
     maxAge: 86400, // 24 horas para preflight cache
   })
@@ -110,6 +120,26 @@ app.get('/test-routes', (_req, res) => {
       products: '/api/v1/products',
       productsByHandle: '/api/v1/products/:handle',
     },
+  });
+});
+
+/**
+ * Endpoint de prueba para webhooks (diagnóstico)
+ */
+app.post(`${APP_CONSTANTS.API_PREFIX}/webhook/test`, express.json(), (req, res) => {
+  console.log('✅ [WEBHOOK-TEST] Request recibido:', {
+    method: req.method,
+    path: req.path,
+    headers: req.headers,
+    body: req.body,
+    timestamp: new Date().toISOString(),
+  });
+  
+  res.status(200).json({ 
+    received: true,
+    timestamp: new Date().toISOString(),
+    message: 'Webhook test funcionando correctamente',
+    body: req.body,
   });
 });
 

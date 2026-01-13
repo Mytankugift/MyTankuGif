@@ -331,7 +331,7 @@ export class DropiOrdersService {
         type: 'FINAL_ORDER',
         total_order: finalTotalOrder, // Incluye producto + shipping (producto ya tiene incremento 15% + $10,000)
         text_to_show_order_rotulo: `Orden #${orderId} - ${product.id}`,
-        shop_order_id: `${orderId}-${i + 1}`,
+        // shop_order_id: `${orderId}-${i + 1}`, Esto se elimina
         products: [{
           ...product,
           price: product.price, // Ya incluye incremento (15% + $10,000)

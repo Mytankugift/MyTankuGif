@@ -93,9 +93,42 @@ export default function CheckoutPage() {
     }
   }, [cart, cartLoading, router])
 
+  // Redirigir al login si no hay usuario autenticado
+  useEffect(() => {
+    if (!cartLoading && cart && cart.items.length > 0 && !isAuthenticated) {
+      console.log('[CHECKOUT] Usuario no autenticado, redirigiendo al login...')
+      // Guardar el cartId en localStorage para recuperarlo después del login
+      if (cart?.id) {
+        localStorage.setItem('guest-cart-id', cart.id)
+      }
+      // Guardar redirección en sessionStorage para volver al checkout después del login
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('redirect-after-login', '/checkout')
+      }
+      // Redirigir al feed con mensaje (el botón de login está ahí)
+      router.push('/feed')
+    }
+  }, [cart, cartLoading, isAuthenticated, router])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setButtonTooltip(null)
+
+    // Verificar que el usuario esté autenticado
+    if (!isAuthenticated || !user) {
+      console.log('[CHECKOUT] Usuario no autenticado, redirigiendo al login...')
+      // Guardar el cartId en localStorage para recuperarlo después del login
+      if (cart?.id) {
+        localStorage.setItem('guest-cart-id', cart.id)
+      }
+      // Guardar redirección en sessionStorage para volver al checkout después del login
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('redirect-after-login', '/checkout')
+      }
+      // Redirigir al feed (el botón de login está ahí)
+      router.push('/feed')
+      return
+    }
 
     // Validaciones con tooltips
     if (!cart || cart.items.length === 0) {
@@ -190,9 +223,9 @@ export default function CheckoutPage() {
         cart_id: cart.id,
       }
 
-      // Preparar dataCart
+      // Preparar dataCart (userId viene del backend ahora que requiere autenticación)
       const dataCart: CheckoutDataCart = {
-        customer_id: user?.id || '',
+        customer_id: user?.id || '', // Ya no es crítico porque el backend usa userId del token
         cart_id: cart.id,
         producVariants: cart.items.map((item) => ({
           variant_id: item.variantId,
@@ -269,25 +302,20 @@ export default function CheckoutPage() {
 
             console.log('[EPAYCO] Handler configurado exitosamente')
 
-            // Función para obtener URL del webhook (soporta desarrollo con túnel)
-            const getWebhookUrl = () => {
-              // En desarrollo, usar variable de entorno o detectar automáticamente
-              if (process.env.NODE_ENV === 'development') {
-                // Si hay una URL de túnel configurada, usarla
-                const tunnelUrl = process.env.NEXT_PUBLIC_EPAYCO_WEBHOOK_URL
-                if (tunnelUrl) {
-                  return `${tunnelUrl}/api/v1/webhook/epayco/${preparedData.cartId}`
-                }
-                // Si no, intentar usar localhost (aunque ePayco no podrá alcanzarlo)
-                console.warn('[EPAYCO] ⚠️ Usando localhost para webhook - ePayco no podrá alcanzarlo. Configura NEXT_PUBLIC_EPAYCO_WEBHOOK_URL con ngrok')
-                return `http://localhost:9000/api/v1/webhook/epayco/${preparedData.cartId}`
-              }
-              // En producción, usar la URL configurada
-              return `${process.env.NEXT_PUBLIC_EPAYCO_WEBHOOK_URL || 'https://www.mytanku.com'}/api/v1/webhook/epayco/${preparedData.cartId}`
+            // ✅ Obtener URL del webhook desde el backend
+            // El backend genera la URL correcta según el entorno (proxy en producción, ngrok en desarrollo)
+            const webhookResponse = await apiClient.get<{ webhookUrl: string }>(
+              `/api/v1/checkout/webhook-url?cartId=${preparedData.cartId}`
+            )
+
+            if (!webhookResponse.success || !webhookResponse.data?.webhookUrl) {
+              throw new Error('No se pudo obtener la URL del webhook desde el backend')
             }
 
+            const webhookUrl = webhookResponse.data.webhookUrl
+            console.log('[EPAYCO] URL de webhook obtenida del backend:', webhookUrl)
+
             // Preparar opciones para Epayco (usar cartId en lugar de orderId)
-            const webhookUrl = getWebhookUrl()
             const epaycoOptions = {
               amount: preparedData.total,
               name: `Orden Tanku ${preparedData.cartId.slice(0, 8)}`,

@@ -67,6 +67,20 @@ export class DropiWebhookController {
    * }
    */
   webhook = async (req: Request, res: Response, next: NextFunction) => {
+    // ✅ LOGGING DETALLADO AL INICIO - para diagnosticar 502
+    console.log(`\n🔍 [DROPI-WEBHOOK-DEBUG] ========== REQUEST RECIBIDO ==========`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Timestamp: ${new Date().toISOString()}`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Method: ${req.method}`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Path: ${req.path}`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] URL completa: ${req.url}`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Headers:`, JSON.stringify(req.headers, null, 2));
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Body (raw):`, JSON.stringify(req.body, null, 2));
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] IP: ${req.ip}`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] X-Real-IP: ${req.headers['x-real-ip']}`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] X-Forwarded-For: ${req.headers['x-forwarded-for']}`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] X-Proxy-Key: ${req.headers['x-proxy-key'] || 'NO PRESENTE'}`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] ======================================\n`);
+
     try {
       const { id: dropiOrderId, status } = req.body;
 

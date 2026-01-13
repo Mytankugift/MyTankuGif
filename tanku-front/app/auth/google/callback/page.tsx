@@ -53,7 +53,19 @@ function GoogleCallbackContent() {
         // Verificar autenticación después de establecer el token
         checkAuth()
           .then(() => {
-            console.log('✅ [GOOGLE CALLBACK] Autenticación verificada, redirigiendo al feed...')
+            console.log('✅ [GOOGLE CALLBACK] Autenticación verificada, redirigiendo...')
+            
+            // Verificar si hay una redirección guardada (ej: /checkout)
+            if (typeof window !== 'undefined') {
+              const redirect = sessionStorage.getItem('redirect-after-login')
+              if (redirect) {
+                console.log(`🔄 [GOOGLE CALLBACK] Redirigiendo a ${redirect} después del login...`)
+                sessionStorage.removeItem('redirect-after-login')
+                router.push(redirect)
+                return
+              }
+            }
+            
             router.push('/feed')
           })
           .catch((err) => {

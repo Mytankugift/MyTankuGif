@@ -72,6 +72,10 @@ const envSchema = z.object({
   EPAYCO_CONFIRMATION_URL: z.string().url('EPAYCO_CONFIRMATION_URL debe ser una URL válida'),
   EPAYCO_PSE_CUSTOMER_ID: z.string().optional(),
 
+  // Webhooks
+  WEBHOOK_BASE_URL: z.string().url('WEBHOOK_BASE_URL debe ser una URL válida').optional(),
+  WEBHOOK_PROXY_KEY: z.string().optional(),
+
   // Socket.io
   SOCKET_CORS_ORIGINS: z.string().default('http://localhost:8000'),
 

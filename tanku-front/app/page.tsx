@@ -13,6 +13,7 @@ function HomeContent() {
   useEffect(() => {
     const tokenParam = searchParams.get('token')
     const error = searchParams.get('error')
+    const redirect = searchParams.get('redirect')
 
     // Si hay error, redirigir al feed sin mostrar error (ya se maneja en el callback)
     if (error) {
@@ -26,8 +27,14 @@ function HomeContent() {
     if (tokenParam) {
       console.log('✅ [HOME] Token encontrado en URL, estableciendo...')
       setToken(tokenParam)
-      // Limpiar parámetros de la URL antes de redirigir
-      router.replace('/feed')
+      
+      // Si hay una redirección especificada (ej: /checkout), redirigir ahí después del login
+      if (redirect) {
+        console.log(`🔄 [HOME] Redirigiendo a ${redirect} después del login...`)
+        router.replace(redirect)
+      } else {
+        router.replace('/feed')
+      }
     } else {
       // Si no hay token ni error, solo redirigir al feed
       router.replace('/feed')

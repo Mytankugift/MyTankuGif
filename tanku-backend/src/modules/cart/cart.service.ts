@@ -166,9 +166,11 @@ export class CartService {
 
   /**
    * Obtener carrito del usuario autenticado (NUEVO - Normalizado)
+   * Si no hay carrito del usuario, busca carritos guest y los asocia al usuario
    */
   async getUserCart(userId: string): Promise<CartDTO | null> {
-    const cart = await prisma.cart.findFirst({
+    // Primero buscar carrito del usuario
+    let cart = await prisma.cart.findFirst({
       where: { userId },
       include: {
         items: {
@@ -190,6 +192,66 @@ export class CartService {
         updatedAt: 'desc',
       },
     });
+
+    // Si no hay carrito del usuario, buscar carritos guest (sin userId) que tengan items
+    if (!cart) {
+      console.log(`📦 [CART] No hay carrito para usuario ${userId}, buscando carritos guest para asociar...`);
+      const guestCarts = await prisma.cart.findMany({
+        where: {
+          userId: null,
+          items: {
+            some: {},
+          },
+        },
+        include: {
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: true,
+                  warehouseVariants: {
+                    select: {
+                      stock: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          updatedAt: 'desc',
+        },
+        take: 1, // Solo tomar el más reciente
+      });
+
+      // Si hay un carrito guest, asociarlo al usuario
+      if (guestCarts.length > 0) {
+        const guestCart = guestCarts[0];
+        console.log(`🔄 [CART] Asociando carrito guest ${guestCart.id} al usuario ${userId}`);
+        cart = await prisma.cart.update({
+          where: { id: guestCart.id },
+          data: { userId },
+          include: {
+            items: {
+              include: {
+                variant: {
+                  include: {
+                    product: true,
+                    warehouseVariants: {
+                      select: {
+                        stock: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+        console.log(`✅ [CART] Carrito guest asociado exitosamente`);
+      }
+    }
 
     if (!cart) {
       return null;
@@ -281,6 +343,19 @@ export class CartService {
    * Crear carrito nuevo (NUEVO - Normalizado)
    */
   async createCartNormalized(userId?: string): Promise<CartDTO> {
+    // Si se proporciona userId, verificar que el usuario existe
+    if (userId) {
+      const userExists = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+
+      if (!userExists) {
+        console.error(`❌ [CART] Usuario ${userId} no existe en la base de datos`);
+        throw new BadRequestError(`Usuario no encontrado: ${userId}`);
+      }
+    }
+
     const cart = await prisma.cart.create({
       data: {
         userId: userId || null,

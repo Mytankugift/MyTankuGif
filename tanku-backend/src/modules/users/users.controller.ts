@@ -541,12 +541,24 @@ export class UsersController {
 
       const updateData: UpdateOnboardingDataDTO = req.body;
 
-      const onboardingData = await this.usersService.updateOnboardingData(
-        requestWithUser.user.id,
-        updateData
-      );
+      console.log(`🔄 [USERS] Actualizando datos de onboarding para usuario ${requestWithUser.user.id}`);
 
-      res.status(200).json(successResponse(onboardingData));
+      try {
+        const onboardingData = await this.usersService.updateOnboardingData(
+          requestWithUser.user.id,
+          updateData
+        );
+
+        res.status(200).json(successResponse(onboardingData));
+      } catch (error: any) {
+        // Si hay error de foreign key, el usuario no existe
+        if (error?.code === 'P2003' || error?.message?.includes('Foreign key constraint') || error?.message?.includes('Usuario no encontrado')) {
+          console.error(`❌ [USERS] Usuario ${requestWithUser.user.id} no existe en la base de datos. Token válido pero usuario eliminado.`);
+          console.error(`   Error:`, error?.message);
+          return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'Usuario no encontrado. Por favor, inicia sesión nuevamente.'));
+        }
+        throw error;
+      }
     } catch (error) {
       next(error);
     }

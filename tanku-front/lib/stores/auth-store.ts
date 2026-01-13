@@ -47,6 +47,11 @@ export const useAuthStore = create<AuthState>()(
               isLoading: false,
               isAuthenticated: true,
             })
+            
+            // Emitir evento para que el cart store recargue el carrito y asocie el carrito guest
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('userAuthenticated'))
+            }
           } else {
             set({ isLoading: false })
             throw new Error(response.error?.message || 'Error al iniciar sesión')
@@ -73,6 +78,9 @@ export const useAuthStore = create<AuthState>()(
               isLoading: false,
               isAuthenticated: true,
             })
+            
+            // El carrito guest se asociará automáticamente cuando se obtenga el carrito del usuario
+            // El backend en getUserCart ya maneja esto buscando carritos guest y asociándolos
           } else {
             set({ isLoading: false })
             throw new Error(response.error?.message || 'Error al registrarse')
@@ -104,11 +112,17 @@ export const useAuthStore = create<AuthState>()(
           const response = await apiClient.get<User>(API_ENDPOINTS.AUTH.ME)
           
           if (response.success && response.data) {
+            const wasNotAuthenticated = !get().isAuthenticated
             set({ 
               user: response.data, 
               token,
               isAuthenticated: true 
             })
+            
+            // Si el usuario no estaba autenticado antes, recargar el carrito para asociar carrito guest
+            if (wasNotAuthenticated && typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('userAuthenticated'))
+            }
           } else {
             set({ 
               user: null, 

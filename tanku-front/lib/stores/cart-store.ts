@@ -53,6 +53,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       
       if (response.success) {
         // El backend ahora siempre retorna un carrito (guest si no hay usuario, user si está autenticado)
+        // Si hay usuario autenticado, el backend automáticamente asocia carritos guest al usuario
         if (response.data) {
           const mappedCart = mapCartFromBackend(response.data)
           set({ cart: mappedCart, isLoading: false, error: null })
@@ -60,6 +61,10 @@ export const useCartStore = create<CartState>((set, get) => ({
           // Guardar cartId en localStorage para persistir carrito guest
           if (!mappedCart.userId && typeof window !== 'undefined') {
             localStorage.setItem('guest-cart-id', mappedCart.id)
+          } else if (mappedCart.userId && typeof window !== 'undefined') {
+            // Si el carrito tiene usuario, limpiar el guest-cart-id (ya está asociado)
+            localStorage.removeItem('guest-cart-id')
+            console.log('[CART] Carrito asociado al usuario, guest-cart-id limpiado')
           }
         } else {
           // Si no hay data pero success es true, el backend puede haber retornado null
@@ -255,4 +260,19 @@ export const useCartStore = create<CartState>((set, get) => ({
     return cart.items.reduce((total, item) => total + item.quantity, 0)
   },
 }))
+
+// Configurar listener para recargar carrito después de autenticación
+// Esto permite asociar el carrito guest al usuario automáticamente
+if (typeof window !== 'undefined') {
+  // Listener para el evento userAuthenticated
+  window.addEventListener('userAuthenticated', () => {
+    console.log('[CART] Usuario autenticado, recargando carrito para asociar carrito guest...')
+    // Esperar un momento para que el token esté disponible
+    setTimeout(() => {
+      useCartStore.getState().fetchCart().catch((error) => {
+        console.error('[CART] Error recargando carrito después de autenticación:', error)
+      })
+    }, 500)
+  })
+}
 
