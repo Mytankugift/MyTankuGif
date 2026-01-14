@@ -24,12 +24,16 @@ function CheckoutSuccessContent() {
     const urlParams = new URLSearchParams(window.location.search)
     const refPaycoParam = urlParams.get('ref_payco')
     const cartIdParam = urlParams.get('cartId')
+    const orderIdParam = urlParams.get('orderId')
 
     setRefPayco(refPaycoParam)
     setCartId(cartIdParam)
 
-    if (refPaycoParam) {
-      // Consultar el estado de la transacción usando ref_payco
+    if (orderIdParam) {
+      // ✅ Caso de contraentrega: buscar orden directamente por orderId
+      checkOrderByOrderId(orderIdParam)
+    } else if (refPaycoParam) {
+      // Consultar el estado de la transacción usando ref_payco (ePayco)
       verifyPaymentStatus(refPaycoParam, cartIdParam)
     } else if (cartIdParam) {
       // Si no hay ref_payco, verificar por cartId
@@ -155,6 +159,43 @@ function CheckoutSuccessContent() {
     }
   }
 
+  const checkOrderByOrderId = async (orderIdToCheck: string) => {
+    try {
+      console.log('[CHECKOUT-SUCCESS] Verificando orden por orderId:', orderIdToCheck)
+      
+      const orderResponse = await apiClient.get<OrderDTO>(API_ENDPOINTS.ORDERS.BY_ID(orderIdToCheck))
+      
+      if (orderResponse.success && orderResponse.data) {
+        const order = orderResponse.data as OrderDTO
+        setOrderId(order.id)
+        
+        // Para contraentrega, el pago siempre está pendiente
+        // Pero la orden fue creada exitosamente
+        if (order.paymentMethod === 'cash_on_delivery') {
+          setPaymentStatus('success') // Mostrar como éxito porque la orden se creó
+          setErrorMessage(null)
+        } else if (order.paymentStatus === 'paid') {
+          setPaymentStatus('success')
+        } else if (order.paymentStatus === 'pending') {
+          setPaymentStatus('pending')
+        } else {
+          setPaymentStatus('failed')
+        }
+        return
+      }
+
+      // Si no encontramos la orden
+      setPaymentStatus('failed')
+      setErrorMessage('No se encontró la orden')
+    } catch (error: any) {
+      console.error('[CHECKOUT-SUCCESS] Error verificando orden por orderId:', error)
+      setPaymentStatus('pending')
+      setErrorMessage('No se pudo verificar el estado de la orden. Por favor, verifica más tarde.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const checkOrderStatus = async (cartIdToCheck: string) => {
     try {
       console.log('[CHECKOUT-SUCCESS] Verificando orden por cartId:', cartIdToCheck)
@@ -252,10 +293,12 @@ function CheckoutSuccessContent() {
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-[#66DEDB] mb-2">
-              ¡Pago exitoso!
+              ¡Orden creada exitosamente!
             </h1>
             <p className="text-gray-300 mb-6">
-              Tu pago ha sido procesado correctamente. Tu orden está siendo procesada.
+              {orderId && !refPayco 
+                ? 'Tu orden ha sido creada correctamente. El pago se realizará al momento de la entrega (contraentrega).'
+                : 'Tu pago ha sido procesado correctamente. Tu orden está siendo procesada.'}
             </p>
             {refPayco && (
               <p className="text-sm text-gray-400 mb-2">

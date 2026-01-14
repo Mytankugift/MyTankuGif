@@ -358,9 +358,9 @@ export default function CheckoutPage() {
         } else {
           // Contra entrega - se creó la orden
           const order = response.data as OrderDTO
-          // Contra entrega - redirigir normalmente
+          // Contra entrega - redirigir a página de éxito con orderId
           setShowConfirmationModal(false)
-          router.push(`/orders/${order.id}`)
+          router.push(`/checkout/success?orderId=${order.id}`)
           
           // El carrito ya se limpió en el backend si Dropi fue exitoso
           // Solo actualizar el store del frontend

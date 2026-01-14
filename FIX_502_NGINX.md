@@ -42,7 +42,8 @@ location /api/v1/webhook/epayco/ {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto https;  # ← Cambiar a https
-    proxy_set_header Content-Type application/json;
+    # ⚠️ NO forzar Content-Type - ePayco envía application/x-www-form-urlencoded
+    # proxy_set_header Content-Type application/json;  ← ELIMINAR esta línea
     
     # ✅ AGREGAR estas líneas para SSL
     proxy_ssl_verify off;
@@ -81,6 +82,8 @@ server {
     client_max_body_size 10m;
 
     # Webhook de ePayco
+    # ⚠️ IMPORTANTE: ePayco envía datos como application/x-www-form-urlencoded
+    # NO forzar Content-Type, dejar que ePayco lo envíe
     location /api/v1/webhook/epayco/ {
         proxy_pass https://mytanku-production.up.railway.app/api/v1/webhook/epayco/;
         proxy_http_version 1.1;
@@ -89,7 +92,8 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header Content-Type application/json;
+        # ✅ NO forzar Content-Type - ePayco envía form-urlencoded
+        # proxy_set_header Content-Type application/json;  ← ELIMINAR
         proxy_set_header X-Proxy-Key "8dc2217350ed5f2d42266c32331f339e6005dd70d4d7e196fcfa86391f652a1f";
         
         # SSL settings
@@ -140,7 +144,8 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header Content-Type application/json;
+        # ✅ NO forzar Content-Type - permitir ambos formatos
+        # proxy_set_header Content-Type application/json;  ← ELIMINAR
         
         proxy_ssl_verify off;
         proxy_ssl_server_name on;
@@ -198,4 +203,56 @@ Y también:
 ```bash
 curl -v https://mytanku-production.up.railway.app/health
 ```
+
+## ⚠️ Problema crítico: Content-Type forzado
+
+### Error observado
+```
+SyntaxError: Unexpected token 'x', "x_cust_id_"... is not valid JSON
+```
+
+### Causa
+ePayco envía los datos del webhook como `application/x-www-form-urlencoded` (query string en el body), pero Nginx estaba forzando `Content-Type: application/json`, lo que causaba que Express intentara parsear el body como JSON y fallara.
+
+### Solución aplicada
+
+1. **Backend (`app.ts`):**
+   - Cambiar orden de body parsers: `urlencoded` antes de `json`
+   - Agregar manejo de errores para ignorar errores de JSON parsing si el body ya fue parseado como urlencoded
+
+2. **Nginx (VM):**
+   - **ELIMINAR** la línea `proxy_set_header Content-Type application/json;` de los webhooks
+   - Dejar que ePayco envíe su Content-Type original (`application/x-www-form-urlencoded`)
+
+### Configuración correcta para ePayco
+
+```nginx
+location /api/v1/webhook/epayco/ {
+    proxy_pass https://mytanku-production.up.railway.app/api/v1/webhook/epayco/;
+    proxy_http_version 1.1;
+    
+    proxy_set_header Host mytanku-production.up.railway.app;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    # ✅ NO incluir: proxy_set_header Content-Type application/json;
+    proxy_set_header X-Proxy-Key "8dc2217350ed5f2d42266c32331f339e6005dd70d4d7e196fcfa86391f652a1f";
+    
+    proxy_ssl_verify off;
+    proxy_ssl_server_name on;
+    
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 60s;
+    proxy_read_timeout 60s;
+    
+    proxy_buffering off;
+}
+```
+
+### Verificación
+
+Después de aplicar los cambios, el webhook debería funcionar correctamente. El backend ahora:
+- ✅ Parsea `application/x-www-form-urlencoded` correctamente
+- ✅ Maneja errores de parsing sin crashear
+- ✅ Combina `req.query` y `req.body` para obtener todos los datos de ePayco
 
