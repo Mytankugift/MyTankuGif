@@ -63,8 +63,8 @@ export interface Message {
 
 export function useChat() {
   const { user } = useAuthStore()
-  // ✅ Obtener lastReceivedMessage y getSocketMessages de useSocket
-  const { lastReceivedMessage, getMessages: getSocketMessages } = useSocket()
+  // ✅ Obtener lastReceivedMessage y socketMessages directamente de useSocket
+  const { lastReceivedMessage, socketMessages } = useSocket()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [messages, setMessages] = useState<Map<string, Message[]>>(new Map())
   const [activeConversation, setActiveConversation] = useState<string | null>(null)
@@ -349,8 +349,9 @@ export function useChat() {
     const apiMessages = messages.get(conversationId) || []
     
     // 2. Mensajes de Socket (del Map de useSocket) - convertir ChatMessage a Message
-    const socketMessagesRaw = getSocketMessages(conversationId)
-    const socketMessages: Message[] = socketMessagesRaw.map(msg => ({
+    // ✅ Usar socketMessages directamente para mejor reactividad
+    const socketMessagesRaw = socketMessages.get(conversationId) || []
+    const socketMessagesNormalized: Message[] = socketMessagesRaw.map((msg: ChatMessage) => ({
       id: msg.id,
       conversationId: msg.conversationId,
       senderId: msg.senderId,
@@ -395,13 +396,13 @@ export function useChat() {
     
     // ✅ Agregar en orden de prioridad: conversation primero, luego API, luego socket (socket tiene prioridad final)
     // Esto asegura que si un mensaje existe en múltiples fuentes, el de socket (más reciente) prevalece
-    ;[...conversationMessages, ...apiMessages, ...socketMessages].forEach(msg => {
+    ;[...conversationMessages, ...apiMessages, ...socketMessagesNormalized].forEach(msg => {
       // Si ya existe, solo reemplazar si el nuevo viene de socket (prioridad más alta)
       if (!allMessagesMap.has(msg.id)) {
         allMessagesMap.set(msg.id, msg)
       } else {
         // Si el mensaje nuevo es de socket y el existente no, reemplazar
-        const isNewFromSocket = socketMessages.some(m => m.id === msg.id)
+        const isNewFromSocket = socketMessagesNormalized.some(m => m.id === msg.id)
         if (isNewFromSocket) {
           allMessagesMap.set(msg.id, msg)
         }
@@ -412,7 +413,7 @@ export function useChat() {
     return Array.from(allMessagesMap.values()).sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
-  }, [conversations, messages, getSocketMessages])
+  }, [conversations, messages, socketMessages, lastReceivedMessage]) // ✅ Agregar socketMessages y lastReceivedMessage para reactividad
 
   /**
    * Obtener contador de mensajes no leídos para una conversación específica
@@ -424,6 +425,16 @@ export function useChat() {
       msg.senderId !== currentUserId && msg.status !== 'READ'
     ).length
   }, [getAllMessagesForConversation])
+
+  /**
+   * Obtener el total de mensajes no leídos de todas las conversaciones
+   * ✅ Para mostrar badge en el botón de mensajes
+   */
+  const getTotalUnreadCount = useCallback((currentUserId: string) => {
+    return conversations.reduce((total, conversation) => {
+      return total + getUnreadCountForConversation(conversation.id, currentUserId)
+    }, 0)
+  }, [conversations, getUnreadCountForConversation])
 
   /**
    * Obtener el otro participante de una conversación
@@ -524,6 +535,7 @@ export function useChat() {
     getAllMessagesForConversation, // ✅ Exponer función centralizada
     getOtherParticipant,
     getUnreadCountForConversation,
+    getTotalUnreadCount, // ✅ Exponer para badge en navegación
     fetchUnreadCount,
     lastReceivedMessage, // ✅ Exponer para forzar re-render en conversation-list
     user, // Exponer user para que ChatWindow pueda usarlo

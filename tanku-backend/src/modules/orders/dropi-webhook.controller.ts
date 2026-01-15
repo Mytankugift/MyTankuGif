@@ -11,35 +11,37 @@ export class DropiWebhookController {
 
   /**
    * Mapear estado de Dropi a mensaje amigable
+   * Según documentación de Dropi: PENDIENTE, GUIA_GENERADA, EN_TRANSITO, ENTREGADO, DEVUELTO, NOVEDAD
    */
   private getStatusMessage(status: string): { title: string; message: string } {
     const statusUpper = status.toUpperCase();
     
-    // Mapeo de estados conocidos (extensible)
+    // Mapeo de estados según documentación oficial de Dropi (en español)
     const statusMap: Record<string, { title: string; message: string }> = {
-      'PENDING': {
+      // Estados en español (documentación oficial de Dropi)
+      'PENDIENTE': {
         title: 'Orden pendiente',
         message: 'Tu orden está siendo procesada por el proveedor',
       },
-      'PROCESSING': {
-        title: 'Orden en proceso',
-        message: 'El proveedor está preparando tu pedido',
+      'GUIA_GENERADA': {
+        title: 'Guía generada',
+        message: 'La guía de envío ha sido generada exitosamente',
       },
-      'SHIPPED': {
-        title: 'Orden enviada',
-        message: 'Tu pedido ha sido enviado y está en camino',
+      'EN_TRANSITO': {
+        title: 'En tránsito',
+        message: 'Tu pedido está en camino',
       },
-      'DELIVERED': {
+      'ENTREGADO': {
         title: 'Orden entregada',
         message: 'Tu pedido ha sido entregado exitosamente',
       },
-      'CANCELLED': {
-        title: 'Orden cancelada',
-        message: 'Tu orden ha sido cancelada',
+      'DEVUELTO': {
+        title: 'Orden devuelta',
+        message: 'Tu pedido ha sido devuelto al remitente',
       },
-      'REJECTED': {
-        title: 'Orden rechazada',
-        message: 'El proveedor ha rechazado tu orden',
+      'NOVEDAD': {
+        title: 'Novedad en la orden',
+        message: 'Hay una incidencia con tu orden',
       },
     };
 
@@ -67,12 +69,15 @@ export class DropiWebhookController {
    * }
    */
   webhook = async (req: Request, res: Response, next: NextFunction) => {
-    // ✅ LOGGING DETALLADO AL INICIO - para diagnosticar 502
+    // ✅ LOGGING DETALLADO AL INICIO - para diagnosticar problemas
     console.log(`\n🔍 [DROPI-WEBHOOK-DEBUG] ========== REQUEST RECIBIDO ==========`);
     console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Timestamp: ${new Date().toISOString()}`);
     console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Method: ${req.method}`);
     console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Path: ${req.path}`);
     console.log(`🔍 [DROPI-WEBHOOK-DEBUG] URL completa: ${req.url}`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Content-Type: ${req.headers['content-type'] || 'NO PRESENTE'}`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Body type: ${typeof req.body}`);
+    console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Body keys: ${req.body ? Object.keys(req.body).join(', ') : 'null/undefined'}`);
     console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Headers:`, JSON.stringify(req.headers, null, 2));
     console.log(`🔍 [DROPI-WEBHOOK-DEBUG] Body (raw):`, JSON.stringify(req.body, null, 2));
     console.log(`🔍 [DROPI-WEBHOOK-DEBUG] IP: ${req.ip}`);
@@ -81,13 +86,25 @@ export class DropiWebhookController {
     console.log(`🔍 [DROPI-WEBHOOK-DEBUG] X-Proxy-Key: ${req.headers['x-proxy-key'] || 'NO PRESENTE'}`);
     console.log(`🔍 [DROPI-WEBHOOK-DEBUG] ======================================\n`);
 
+    // ✅ Validar que el body existe y está parseado correctamente
+    if (!req.body || typeof req.body !== 'object' || Object.keys(req.body).length === 0) {
+      console.warn(`⚠️ [DROPI-WEBHOOK] Body vacío o inválido`);
+      console.warn(`⚠️ [DROPI-WEBHOOK] Content-Type recibido: ${req.headers['content-type']}`);
+      // Responder 200 para que Dropi no reenvíe
+      return res.status(200).json({ 
+        success: false, 
+        message: 'Body vacío o inválido (revisar Content-Type)' 
+      });
+    }
+
     try {
       const { id: dropiOrderId, status } = req.body;
 
       // Validación mínima
       if (!dropiOrderId || !status) {
         console.warn(`⚠️ [DROPI-WEBHOOK] Payload inválido:`, req.body);
-        return res.status(400).json({ 
+        // Responder 200 en lugar de 400 para evitar reenvíos de Dropi
+        return res.status(200).json({ 
           success: false, 
           message: 'id y status son requeridos' 
         });

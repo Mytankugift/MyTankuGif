@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { CartButton } from '@/components/layout/cart-button'
 import { NotificationsButton } from '@/components/layout/notifications-button'
+import { useChat } from '@/lib/hooks/use-chat'
 
 interface BaseNavProps {
   /** Si se muestra la sección de stories */
@@ -35,7 +36,10 @@ export function BaseNav({
   additionalContent,
   className = '',
 }: BaseNavProps) {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
+  // ✅ Obtener total de mensajes no leídos para badge
+  const { getTotalUnreadCount, lastReceivedMessage } = useChat()
+  const totalUnread = user ? getTotalUnreadCount(user.id) : 0
 
   return (
     <div
@@ -71,24 +75,32 @@ export function BaseNav({
 
           {/* Right Icons */}
           <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center">
-            {/* Messages Icon - Deshabilitado temporalmente hasta implementar chat */}
-            <div
-              className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full opacity-50 cursor-not-allowed group"
-              title="Chat próximamente"
-              onClick={(e) => {
-                e.preventDefault()
-                console.log('Chat aún no disponible')
-              }}
+            {/* Messages Icon */}
+            <Link
+              href="/messages"
+              className="relative flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
             >
               <Image
                 src="/feed/Icons/Chat_Green.png"
-                alt="Mensajes (próximamente)"
+                alt="Mensajes"
                 width={24}
                 height={24}
-                className="object-contain w-5 h-5 md:w-6 md:h-6"
+                className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
                 unoptimized
               />
-            </div>
+              <Image
+                src="/feed/Icons/Chat_Blue.png"
+                alt="Mensajes"
+                width={24}
+                height={24}
+                className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
+                unoptimized
+              />
+              {/* Badge azul Tanku de mensajes no leídos */}
+              {totalUnread > 0 && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#66DEDB] rounded-full border-2 border-[#1E1E1E]"></div>
+              )}
+            </Link>
 
             {/* Notifications */}
             <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10">
@@ -106,24 +118,32 @@ export function BaseNav({
       {/* Si no hay stories, mostrar solo los botones */}
       {!showStories && (
         <div className="p-2 sm:p-3 md:p-4 pb-2 flex justify-end items-center gap-2 lg:gap-3">
-          {/* Messages Icon - Deshabilitado temporalmente hasta implementar chat */}
-          <div
-            className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full opacity-50 cursor-not-allowed group"
-            title="Chat próximamente"
-            onClick={(e) => {
-              e.preventDefault()
-              console.log('Chat aún no disponible')
-            }}
+          {/* Messages Icon */}
+          <Link
+            href="/messages"
+            className="relative flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
           >
             <Image
               src="/feed/Icons/Chat_Green.png"
-              alt="Mensajes (próximamente)"
+              alt="Mensajes"
               width={24}
               height={24}
-              className="object-contain w-5 h-5 md:w-6 md:h-6"
+              className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
               unoptimized
             />
-          </div>
+            <Image
+              src="/feed/Icons/Chat_Blue.png"
+              alt="Mensajes"
+              width={24}
+              height={24}
+              className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
+              unoptimized
+            />
+            {/* Badge azul Tanku de mensajes no leídos */}
+            {totalUnread > 0 && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#66DEDB] rounded-full border-2 border-[#1E1E1E]"></div>
+            )}
+          </Link>
 
           {/* Notifications */}
           <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10">

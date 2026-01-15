@@ -415,6 +415,7 @@ export function useSocket() {
     getMessages,
     getTypingUsers,
     lastReceivedMessage, // ✅ Exponer para que useChat reaccione
+    socketMessages: messages, // ✅ Exponer Map directamente para reactividad
   }
 }
 

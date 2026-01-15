@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { CartButton } from '@/components/layout/cart-button'
 import { NotificationsButton } from '@/components/layout/notifications-button'
+import { useChat } from '@/lib/hooks/use-chat'
 
 // Componente CategorySelector
 const CategorySelector = ({
@@ -293,6 +294,9 @@ export function FeedNav({
 }: FeedNavProps) {
   const { user, isAuthenticated } = useAuthStore()
   const [isLightMode, setIsLightMode] = useState(false)
+  // ✅ Obtener total de mensajes no leídos para badge
+  const { getTotalUnreadCount, lastReceivedMessage } = useChat()
+  const totalUnread = user ? getTotalUnreadCount(user.id) : 0
 
   return (
     <div
@@ -375,7 +379,7 @@ export function FeedNav({
           {/* Messages Icon */}
           <Link
             href="/messages"
-            className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
+            className="relative flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
           >
             <Image
               src="/feed/Icons/Chat_Green.png"
@@ -391,6 +395,10 @@ export function FeedNav({
               height={24}
               className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
             />
+            {/* Badge azul Tanku de mensajes no leídos */}
+            {totalUnread > 0 && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#66DEDB] rounded-full border-2 border-[#1E1E1E]"></div>
+            )}
           </Link>
 
           {/* Notifications */}
