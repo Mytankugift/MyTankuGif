@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { OrdersService, CreateOrderInput } from './orders.service';
 import { DropiOrdersService } from './dropi-orders.service';
 import { CheckoutService, CheckoutOrderRequest, DataCart } from '../checkout/checkout.service';
+import { StalkerGiftService } from '../stalker-gift/stalker-gift.service';
 import { prisma } from '../../config/database';
 import { NotFoundError } from '../../shared/errors/AppError';
 
@@ -221,6 +222,44 @@ export class EpaycoController {
       }
 
       const metadata = cart.metadata as any;
+
+      // Verificar si es un StalkerGift
+      if (metadata.isStalkerGift && metadata.stalkerGiftId) {
+        console.log(`🎁 [EPAYCO-WEBHOOK] Detectado StalkerGift: ${metadata.stalkerGiftId}`);
+
+        // Actualizar StalkerGift
+        const stalkerGiftService = new StalkerGiftService();
+
+        // Actualizar estado de pago
+        // paymentId es refPayco, transactionId es x_transaction_id
+        const updatedStalkerGift = await stalkerGiftService.updatePaymentStatus(
+          metadata.stalkerGiftId,
+          'paid',
+          xRefPaycoValue || ref_payco, // paymentId
+          transactionId // transactionId
+        );
+
+        // updatePaymentStatus ya cambia el estado a WAITING_ACCEPTANCE y genera link si es necesario
+        // Solo necesitamos verificar que el link se generó
+        let uniqueLink = updatedStalkerGift.uniqueLink;
+        
+        if (!uniqueLink) {
+          // Si no se generó automáticamente, generarlo manualmente
+          uniqueLink = await stalkerGiftService.generateUniqueLink(metadata.stalkerGiftId);
+        }
+
+        console.log(`✅ [EPAYCO-WEBHOOK] StalkerGift actualizado: ${metadata.stalkerGiftId}`);
+        console.log(`✅ [EPAYCO-WEBHOOK] Link único generado: ${uniqueLink}`);
+
+        return res.status(200).json({
+          success: true,
+          message: 'StalkerGift pagado exitosamente',
+          stalkerGiftId: metadata.stalkerGiftId,
+          paymentStatus: 'paid',
+        });
+      }
+
+      // Flujo normal de checkout (Order)
       const checkoutData = metadata.checkout_data;
 
       if (!checkoutData) {

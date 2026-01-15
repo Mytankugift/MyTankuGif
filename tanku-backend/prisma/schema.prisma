@@ -115,6 +115,7 @@ model Product {
   variants      ProductVariant[]
   category      Category?        @relation(fields: [categoryId], references: [id])
   wishListItems WishListItem[]
+  stalkerGifts  StalkerGift[]
 
   @@map("products")
 }
@@ -136,6 +137,7 @@ model ProductVariant {
   product           Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
   warehouseVariants WarehouseVariant[]
   wishListItems     WishListItem[]
+  stalkerGifts      StalkerGift[]
 
   @@map("product_variants")
 }
@@ -281,30 +283,50 @@ model WishListItem {
 
 model StalkerGift {
   id                  String   @id @default(cuid())
-  orderId             String?  @unique @map("order_id")
-  customerGiverId     String   @map("customer_giver_id")
-  customerRecipientId String?  @map("customer_recipient_id")
-  totalAmount         Int      @map("total_amount")
-  firstName           String   @map("first_name")
-  phone               String
-  email               String
-  alias               String
-  recipientName       String   @map("recipient_name")
-  contactMethods      Json     @map("contact_methods")
-  products            Json
-  message             String?
+  senderId            String   @map("sender_id")
+  receiverId          String?  @map("receiver_id") // Nullable si es externo
+  externalReceiverData Json?   @map("external_receiver_data") // { instagram, email, phone, name }
+  productId           String   @map("product_id")
+  variantId           String?  @map("variant_id")
+  quantity            Int      @default(1)
+  
+  estado              StalkerGiftStatus @default(CREATED)
+  paymentId           String?  @map("payment_id") // ePayco ref_payco
   paymentStatus       String   @default("pending") @map("payment_status")
   paymentMethod       String   @default("epayco") @map("payment_method")
   transactionId       String?  @map("transaction_id")
+  
+  // Datos del sender (anonimato)
+  senderAlias         String   @map("sender_alias")
+  senderMessage       String?  @map("sender_message")
+  
+  // Link único para receptor externo
+  uniqueLink          String?  @unique @map("unique_link")
+  linkToken           String?  @unique @map("link_token")
+  
+  // Orden Dropi (solo después de aceptación)
+  orderId             String?  @unique @map("order_id")
+  order               Order?   @relation("OrderStalkerGift", fields: [orderId], references: [id])
+  
+  // Chat
   chatEnabled         Boolean  @default(false) @map("chat_enabled")
   conversationId      String?  @unique @map("conversation_id")
+  conversation        Conversation? @relation(fields: [conversationId], references: [id])
+  
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
-  giver               User     @relation("Giver", fields: [customerGiverId], references: [id])
-  recipient           User?    @relation("Recipient", fields: [customerRecipientId], references: [id])
-  order               Order?   @relation("OrderStalkerGift", fields: [orderId], references: [id])
-  conversation        Conversation? @relation(fields: [conversationId], references: [id])
-
+  acceptedAt          DateTime? @map("accepted_at")
+  
+  sender              User     @relation("Giver", fields: [senderId], references: [id])
+  receiver            User?    @relation("Recipient", fields: [receiverId], references: [id])
+  product             Product  @relation(fields: [productId], references: [id])
+  variant             ProductVariant? @relation(fields: [variantId], references: [id])
+  
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([uniqueLink])
+  @@index([linkToken])
+  @@index([estado])
   @@map("stalker_gifts")
 }
 
@@ -517,6 +539,15 @@ enum OrderStatus {
   PROCESSING
   SHIPPED
   DELIVERED
+  CANCELLED
+}
+
+enum StalkerGiftStatus {
+  CREATED
+  PAID
+  WAITING_ACCEPTANCE
+  ACCEPTED
+  REJECTED
   CANCELLED
 }
 

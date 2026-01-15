@@ -82,11 +82,23 @@ export class WishListsService {
         items: {
           include: {
             product: {
-              select: {
-                id: true,
-                title: true,
-                handle: true,
-                images: true,
+              include: {
+                category: true,
+                variants: {
+                  where: {
+                    active: true,
+                  },
+                  include: {
+                    warehouseVariants: {
+                      select: {
+                        stock: true,
+                      },
+                    },
+                  },
+                  orderBy: {
+                    price: 'asc',
+                  },
+                },
               },
             },
             variant: {
@@ -94,6 +106,8 @@ export class WishListsService {
                 id: true,
                 title: true,
                 price: true,
+                suggestedPrice: true,
+                sku: true,
               },
             },
           },
@@ -104,7 +118,78 @@ export class WishListsService {
       },
     });
 
-    return wishLists.map((list) => this.mapWishListToDTO(list));
+    return wishLists.map((list) => this.mapWishListToDTOComplete(list));
+  }
+
+  /**
+   * Mapper: WishListItem con producto completo de Prisma a WishListItemDTO
+   */
+  private mapWishListItemToDTOComplete(
+    item: WishListItem & {
+      product: any; // Product con todas sus relaciones
+      variant?: { id: string; title: string; price: number; suggestedPrice: number | null; sku: string } | null;
+    }
+  ): WishListItemDTO {
+    // Mapear variantes del producto completo
+    const variants = item.product.variants?.map((v: any) => ({
+      id: v.id,
+      sku: v.sku,
+      title: v.title,
+      price: v.price,
+      suggestedPrice: v.suggestedPrice,
+      stock: v.warehouseVariants?.reduce((sum: number, wv: any) => sum + (wv.stock || 0), 0) || 0,
+      active: v.active,
+    })) || [];
+
+    // Normalizar imágenes
+    const images = Array.isArray(item.product.images) 
+      ? item.product.images.map((img: string) => this.normalizeImageUrl(img)).filter((img: string | null) => img !== null)
+      : [];
+
+    return {
+      id: item.id,
+      productId: item.productId,
+      variantId: item.variantId || null,
+      variant: item.variant
+        ? {
+            id: item.variant.id,
+            title: item.variant.title,
+            price: item.variant.price,
+          }
+        : null,
+      product: {
+        id: item.product.id,
+        title: item.product.title,
+        handle: item.product.handle,
+        thumbnail: this.normalizeImageUrl(item.product.images?.[0]),
+        // Agregar información completa del producto
+        images: images as string[],
+        variants: variants,
+        description: item.product.description || undefined,
+        category: item.product.category ? {
+          id: item.product.category.id,
+          name: item.product.category.name,
+          handle: item.product.category.handle,
+        } : undefined,
+        active: item.product.active !== false,
+      },
+      createdAt: item.createdAt.toISOString(),
+    };
+  }
+
+  /**
+   * Mapper: WishList con productos completos de Prisma a WishListDTO
+   */
+  private mapWishListToDTOComplete(wishList: WishList & { items: any[] }): WishListDTO {
+    return {
+      id: wishList.id,
+      userId: wishList.userId,
+      name: wishList.name,
+      public: wishList.public,
+      items: wishList.items.map((item) => this.mapWishListItemToDTOComplete(item)),
+      createdAt: wishList.createdAt.toISOString(),
+      updatedAt: wishList.updatedAt.toISOString(),
+    };
   }
 
   /**

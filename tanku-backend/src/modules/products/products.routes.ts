@@ -12,6 +12,13 @@ const productsController = new ProductsController();
 router.get('/', productsController.listProductsNormalized);
 
 /**
+ * GET /api/v1/products/top
+ * Obtener top productos para StalkerGift (usuarios externos)
+ * Query params: limit (default: 50)
+ */
+router.get('/top', productsController.getTopProducts);
+
+/**
  * GET /api/v1/products/:handle
  * Obtener producto por handle
  */

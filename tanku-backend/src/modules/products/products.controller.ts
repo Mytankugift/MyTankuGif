@@ -186,4 +186,26 @@ export class ProductsController {
       next(error);
     }
   };
+
+  /**
+   * GET /api/v1/products/top
+   * Obtener top productos para StalkerGift (usuarios externos)
+   * Query params: limit (default: 50)
+   */
+  getTopProducts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+
+      if (limit < 1 || limit > 100) {
+        throw new BadRequestError('El límite debe estar entre 1 y 100');
+      }
+
+      const products = await this.productsService.getTopProducts(limit);
+
+      res.status(200).json(successResponse(products));
+    } catch (error) {
+      console.error(`❌ [PRODUCTS] Error obteniendo top productos:`, error);
+      next(error);
+    }
+  };
 }

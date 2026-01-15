@@ -583,4 +583,146 @@ export class DropiOrdersService {
       throw error;
     }
   }
+
+  /**
+   * Crear orden en Dropi desde un StalkerGift aceptado
+   * 
+   * @param stalkerGiftId ID del StalkerGift
+   * @param addressId ID de la dirección del receptor
+   * @returns Orden creada en Dropi y Order local
+   */
+  async createOrderFromStalkerGift(
+    stalkerGiftId: string,
+    addressId: string
+  ): Promise<{
+    order: any;
+    dropiOrderIds: number[];
+  }> {
+    console.log(`\n🎁 [DROPI-STALKERGIFT] ========== CREANDO ORDEN DESDE STALKERGIFT ==========`);
+    console.log(`🎁 [DROPI-STALKERGIFT] StalkerGift ID: ${stalkerGiftId}`);
+    console.log(`🎁 [DROPI-STALKERGIFT] Address ID: ${addressId}`);
+
+    // Obtener StalkerGift con relaciones
+    const stalkerGift = await prisma.stalkerGift.findUnique({
+      where: { id: stalkerGiftId },
+      include: {
+        product: true,
+        variant: true,
+        sender: true,
+        receiver: true,
+      },
+    });
+
+    if (!stalkerGift) {
+      throw new Error(`StalkerGift ${stalkerGiftId} no encontrado`);
+    }
+
+    if (stalkerGift.estado !== 'ACCEPTED') {
+      throw new Error(`StalkerGift debe estar en estado ACCEPTED, actual: ${stalkerGift.estado}`);
+    }
+
+    // Obtener dirección del receptor
+    const address = await prisma.address.findUnique({
+      where: { id: addressId },
+    });
+
+    if (!address) {
+      throw new Error(`Dirección ${addressId} no encontrada`);
+    }
+
+    // Validar que la dirección pertenece al receptor
+    if (stalkerGift.receiverId && address.userId !== stalkerGift.receiverId) {
+      throw new Error('La dirección no pertenece al receptor del regalo');
+    }
+
+    // Obtener email del receptor (si ya tiene cuenta, debe tener email porque está logueado)
+    // Si no tiene cuenta aún, usar el email del sender como fallback
+    const receiverEmail = stalkerGift.receiver?.email || stalkerGift.sender.email;
+
+    // Calcular precios
+    let unitPrice = 0;
+    if (stalkerGift.variant) {
+      unitPrice = stalkerGift.variant.suggestedPrice || stalkerGift.variant.price;
+    } else {
+      // Si no hay variante, usar precio mínimo
+      const variants = await prisma.productVariant.findMany({
+        where: { productId: stalkerGift.productId, active: true },
+      });
+      if (variants.length > 0) {
+        const minVariant = variants.reduce((min, v) => {
+          const price = v.suggestedPrice || v.price;
+          const minPrice = min.suggestedPrice || min.price;
+          return price < minPrice ? v : min;
+        });
+        unitPrice = minVariant.suggestedPrice || minVariant.price;
+      }
+    }
+
+    // Calcular subtotal con incremento (15% + $10,000)
+    const baseSubtotal = unitPrice * stalkerGift.quantity;
+    const increment = Math.round(baseSubtotal * 0.15) + 10000;
+    const subtotal = baseSubtotal + increment;
+    const shippingTotal = 0; // Se calculará con Dropi
+    const total = subtotal + shippingTotal;
+
+    // Crear Order local usando OrdersService
+    const { OrdersService } = await import('./orders.service');
+    const ordersService = new OrdersService();
+
+    const orderInput = {
+      userId: stalkerGift.receiverId || stalkerGift.senderId, // Usar receiverId si existe, sino senderId
+      email: receiverEmail,
+      paymentMethod: 'epayco', // StalkerGift siempre usa ePayco
+      total,
+      subtotal,
+      shippingTotal,
+      address: {
+        firstName: address.firstName,
+        lastName: address.lastName,
+        phone: address.phone || '',
+        address1: address.address1,
+        detail: address.detail || undefined,
+        city: address.city,
+        state: address.state,
+        postalCode: address.postalCode,
+        country: address.country,
+      },
+      items: [{
+        productId: stalkerGift.productId,
+        variantId: stalkerGift.variantId || '',
+        quantity: stalkerGift.quantity,
+        price: unitPrice,
+      }],
+      isStalkerGift: true,
+      metadata: {
+        stalkerGiftId: stalkerGift.id,
+        senderAlias: stalkerGift.senderAlias,
+      },
+    };
+
+    const order = await ordersService.createOrder(orderInput);
+
+    console.log(`✅ [DROPI-STALKERGIFT] Order local creada: ${order.id}`);
+
+    // Crear orden en Dropi
+    const dropiResult = await this.createOrderInDropi(order.id);
+
+    console.log(`✅ [DROPI-STALKERGIFT] Orden Dropi creada: ${dropiResult.dropiOrderIds.join(', ')}`);
+
+    // Vincular Order con StalkerGift
+    await prisma.stalkerGift.update({
+      where: { id: stalkerGiftId },
+      data: {
+        orderId: order.id,
+      },
+    });
+
+    console.log(`✅ [DROPI-STALKERGIFT] StalkerGift vinculado con Order: ${order.id}`);
+    console.log(`🎁 [DROPI-STALKERGIFT] ========== FIN CREACIÓN DE ORDEN ==========\n`);
+
+    return {
+      order,
+      dropiOrderIds: dropiResult.dropiOrderIds,
+    };
+  }
 }

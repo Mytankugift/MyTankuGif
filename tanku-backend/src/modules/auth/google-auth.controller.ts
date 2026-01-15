@@ -16,10 +16,14 @@ export class GoogleAuthController {
   /**
    * GET /api/v1/auth/google
    * Inicia el flujo de autenticación con Google
+   * 
+   * Query params:
+   * - state: (opcional) Estado original para mantener contexto
+   * - return_url: (opcional) URL a la que redirigir después del login
    */
   initiate = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { state } = req.query;
+      const { state, return_url } = req.query;
       
       // Debug: Log la URL de callback que se está usando
       console.log('🔍 [GOOGLE OAUTH DEBUG]');
@@ -35,7 +39,20 @@ export class GoogleAuthController {
         console.warn('   Debería ser algo como: https://YOUR-BACKEND-URL.railway.app/api/v1/auth/google/callback');
       }
       
-      const authUrl = this.googleAuthService.generateAuthUrl(state as string);
+      // Si hay return_url, codificarlo en el state junto con el state original
+      let stateToEncode: string;
+      if (return_url) {
+        const stateData = {
+          originalState: state || null,
+          returnUrl: return_url as string,
+        };
+        stateToEncode = JSON.stringify(stateData);
+        console.log('📌 [GOOGLE OAUTH] return_url detectado, codificando en state:', return_url);
+      } else {
+        stateToEncode = (state as string) || '';
+      }
+      
+      const authUrl = this.googleAuthService.generateAuthUrl(stateToEncode);
       
       // Debug: Log la URL completa generada
       console.log('  Generated auth URL:', authUrl);
@@ -112,6 +129,21 @@ export class GoogleAuthController {
         return res.redirect(`${callbackUrl}?error=authentication_failed`);
       }
 
+      // Decodificar state para obtener return_url si existe
+      let returnUrl: string | null = null;
+      if (state) {
+        try {
+          const stateData = JSON.parse(state as string);
+          if (stateData.returnUrl) {
+            returnUrl = stateData.returnUrl;
+            console.log('📌 [GOOGLE OAUTH] return_url decodificado del state:', returnUrl);
+          }
+        } catch {
+          // State no es JSON, ignorar (es un state simple)
+          console.log('📌 [GOOGLE OAUTH] State no contiene return_url (state simple)');
+        }
+      }
+
       // Redirigir al frontend con los tokens en el callback específico
       // El frontend espera recibir los tokens en /auth/google/callback
       const redirectUrl = new URL(`${frontendUrl}/auth/google/callback`);
@@ -119,11 +151,18 @@ export class GoogleAuthController {
       if (authResult.user?.id) {
         redirectUrl.searchParams.set('userId', authResult.user.id);
       }
+      
+      // Agregar return_url si existe
+      if (returnUrl) {
+        redirectUrl.searchParams.set('return_url', returnUrl);
+        console.log('📌 [GOOGLE OAUTH] return_url agregado a la redirección:', returnUrl);
+      }
 
       console.log('✅ [GOOGLE OAUTH] Autenticación exitosa, redirigiendo al frontend');
       console.log('   URL de redirección:', redirectUrl.toString());
       console.log('   Token presente:', !!authResult.accessToken);
       console.log('   User ID:', authResult.user?.id);
+      console.log('   Return URL:', returnUrl || 'ninguno');
 
       res.redirect(redirectUrl.toString());
     } catch (error) {

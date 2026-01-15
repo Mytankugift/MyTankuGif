@@ -17,6 +17,24 @@ export type WishListItemDTO = {
     title: string;
     handle: string;
     thumbnail: string | null;
+    // Información completa del producto para StalkerGift
+    images?: string[];
+    variants?: Array<{
+      id: string;
+      sku: string;
+      title: string;
+      price: number;
+      suggestedPrice?: number | null;
+      stock: number;
+      active: boolean;
+    }>;
+    description?: string;
+    category?: {
+      id: string;
+      name: string;
+      handle: string;
+    };
+    active?: boolean;
   };
   createdAt: string;
 };

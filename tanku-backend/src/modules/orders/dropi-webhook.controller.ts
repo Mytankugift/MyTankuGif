@@ -2,6 +2,17 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/database';
 import { NotificationsService } from '../notifications/notifications.service';
 
+// Interfaz basada en el ejemplo oficial de Dropi
+interface DropiWebhook {
+  id: number;
+  status: string;
+  shop_order_id?: string;
+  shipping_guide?: string;
+  shipping_company?: string;
+  sticker?: string;
+  notes?: string;
+}
+
 export class DropiWebhookController {
   private notificationsService: NotificationsService;
 
@@ -58,14 +69,18 @@ export class DropiWebhookController {
   }
 
   /**
-   * POST /api/v1/webhook/dropi
+   * POST /api/v1/webhook/dropi (o /api/v1/webhook/dropi/)
    * Webhook de Dropi para actualizar estado de órdenes
    * 
-   * Payload esperado:
+   * Payload esperado (según documentación oficial de Dropi):
    * {
-   *   id: number,           // dropiOrderId
-   *   status: string,       // nuevo estado
-   *   orderdetails?: any[]  // productos (opcional)
+   *   id: number,                    // dropiOrderId (requerido)
+   *   status: string,                // nuevo estado (requerido)
+   *   shop_order_id?: string,        // tu ID interno de orden (opcional)
+   *   shipping_guide?: string,       // número de guía (opcional)
+   *   shipping_company?: string,     // empresa de envío (opcional)
+   *   sticker?: string,              // ID del sticker/guía (opcional)
+   *   notes?: string                 // notas/descripción (opcional)
    * }
    */
   webhook = async (req: Request, res: Response, next: NextFunction) => {
@@ -98,23 +113,42 @@ export class DropiWebhookController {
     }
 
     try {
-      const { id: dropiOrderId, status } = req.body;
+      // Extraer todos los campos según interfaz oficial de Dropi
+      const { 
+        id: dropiOrderId, 
+        status, 
+        shop_order_id, 
+        shipping_guide, 
+        shipping_company, 
+        sticker, 
+        notes 
+      } = req.body as DropiWebhook;
 
-      // Validación mínima
+      // Validación mínima (campos requeridos)
       if (!dropiOrderId || !status) {
-        console.warn(`⚠️ [DROPI-WEBHOOK] Payload inválido:`, req.body);
+        console.warn(`⚠️ [DROPI-WEBHOOK] Payload inválido: campos requeridos faltantes`);
+        console.warn(`⚠️ [DROPI-WEBHOOK] Body recibido:`, req.body);
         // Responder 200 en lugar de 400 para evitar reenvíos de Dropi
         return res.status(200).json({ 
           success: false, 
-          message: 'id y status son requeridos' 
+          message: 'Campos requeridos: id, status' 
         });
       }
 
-      console.log(`📦 [DROPI-WEBHOOK] Recibido: dropiOrderId=${dropiOrderId}, status=${status}`);
+      console.log(`📦 [DROPI-WEBHOOK] Orden #${dropiOrderId} → ${status}`);
+      if (shop_order_id) {
+        console.log(`📦 [DROPI-WEBHOOK] shop_order_id: ${shop_order_id}`);
+      }
 
-      // Buscar OrderItem por dropiOrderId (incluyendo Order para obtener userId)
+      // Buscar OrderItem por dropiOrderId O por shop_order_id (orderId)
+      // Según ejemplo oficial de Dropi, busca por ambos para mayor flexibilidad
       const orderItem = await prisma.orderItem.findFirst({
-        where: { dropiOrderId: Number(dropiOrderId) },
+        where: {
+          OR: [
+            { dropiOrderId: Number(dropiOrderId) },
+            ...(shop_order_id ? [{ orderId: shop_order_id }] : []),
+          ],
+        },
         include: {
           order: {
             select: {
@@ -127,7 +161,7 @@ export class DropiWebhookController {
 
       if (!orderItem) {
         // Orden no encontrada: puede ser orden no creada por nosotros
-        console.warn(`⚠️ [DROPI-WEBHOOK] OrderItem no encontrado para dropiOrderId: ${dropiOrderId}`);
+        console.warn(`⚠️ [DROPI-WEBHOOK] OrderItem no encontrado para dropiOrderId: ${dropiOrderId}${shop_order_id ? ` o shop_order_id: ${shop_order_id}` : ''}`);
         // Responder 200 para que Dropi no reenvíe
         return res.status(200).json({ 
           success: true, 
@@ -146,13 +180,25 @@ export class DropiWebhookController {
 
       const oldStatus = orderItem.dropiStatus;
 
-      // Guardar el payload completo del webhook
-      const webhookPayload = {
+      // Construir URL de guía si viene GUIA_GENERADA con sticker y shipping_company
+      let guideUrl: string | null = null;
+      if (status === 'GUIA_GENERADA' && sticker && shipping_company) {
+        guideUrl = `https://api.dropi.co/integrations/guias/${shipping_company}/${sticker}`;
+        console.log(`📦 [DROPI-WEBHOOK] URL de guía generada: ${guideUrl}`);
+      }
+
+      // Guardar el payload completo del webhook con información adicional
+      const webhookPayload: DropiWebhook & { 
+        receivedAt: string; 
+        guideUrl?: string | null;
+      } = {
         ...req.body,
         receivedAt: new Date().toISOString(),
+        ...(guideUrl ? { guideUrl } : {}),
       };
 
       // Actualizar dropiStatus y guardar el payload completo
+      // El payload incluye: shipping_guide, shipping_company, sticker, notes, guideUrl
       await prisma.orderItem.update({
         where: { id: orderItem.id },
         data: { 
@@ -161,7 +207,13 @@ export class DropiWebhookController {
         },
       });
 
-      console.log(`✅ [DROPI-WEBHOOK] Estado actualizado: ${oldStatus} → ${status}`);
+      console.log(`✅ [DROPI-WEBHOOK] Estado actualizado: ${oldStatus || 'null'} → ${status}`);
+      if (shipping_guide) {
+        console.log(`✅ [DROPI-WEBHOOK] Guía de envío: ${shipping_guide}`);
+      }
+      if (notes) {
+        console.log(`✅ [DROPI-WEBHOOK] Notas: ${notes}`);
+      }
 
       // Crear notificación para el usuario
       const statusInfo = this.getStatusMessage(status);
@@ -178,6 +230,9 @@ export class DropiWebhookController {
             dropiOrderId: dropiOrderId,
             oldStatus: oldStatus,
             newStatus: status,
+            ...(shipping_guide ? { shippingGuide: shipping_guide } : {}),
+            ...(guideUrl ? { guideUrl } : {}),
+            ...(notes ? { notes } : {}),
           },
         });
 
@@ -187,11 +242,12 @@ export class DropiWebhookController {
         console.error(`⚠️ [DROPI-WEBHOOK] Error creando notificación:`, notificationError?.message);
       }
 
-      // Responder 200 OK rápido (sin lógica pesada)
+      // Responder 200 OK (según ejemplo oficial de Dropi)
       res.status(200).json({ 
-        success: true, 
+        success: true,
         message: 'Estado actualizado',
         dropiOrderId,
+        orderItemId: orderItem.id,
         oldStatus,
         newStatus: status,
       });

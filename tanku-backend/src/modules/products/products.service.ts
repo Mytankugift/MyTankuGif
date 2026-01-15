@@ -650,4 +650,56 @@ export class ProductsService {
       updated_at: product.updatedAt,
     };
   }
+
+  /**
+   * Obtener top 50 productos para StalkerGift (usuarios externos)
+   * Ordenados por popularidad/ventas
+   */
+  async getTopProducts(limit: number = 50): Promise<ProductDTO[]> {
+    console.log(`📦 [PRODUCTS] Obteniendo top ${limit} productos para StalkerGift`);
+
+    // Obtener productos activos con más stock o mejor precio
+    // Por ahora, ordenados por fecha de creación (desc) y luego por precio
+    // TODO: Mejorar algoritmo con métricas de ventas/popularidad
+    const products = await prisma.product.findMany({
+      where: {
+        active: true,
+        variants: {
+          some: {
+            active: true,
+            stock: {
+              gt: 0, // Solo productos con stock
+            },
+          },
+        },
+      },
+      include: {
+        category: true,
+        variants: {
+          where: {
+            active: true,
+          },
+          include: {
+            warehouseVariants: {
+              select: {
+                stock: true,
+              },
+            },
+          },
+          orderBy: {
+            price: 'asc', // Ordenar variantes por precio
+          },
+        },
+      },
+      orderBy: [
+        { createdAt: 'desc' }, // Más recientes primero
+        { title: 'asc' }, // Luego alfabéticamente
+      ],
+      take: limit,
+    });
+
+    console.log(`✅ [PRODUCTS] Productos encontrados: ${products.length}`);
+
+    return products.map((product) => this.mapProductToDTO(product));
+  }
 }
