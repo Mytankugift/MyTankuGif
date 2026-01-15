@@ -15,6 +15,7 @@ export const API_ENDPOINTS = {
   // Products
   PRODUCTS: {
     LIST: '/api/v1/products',
+    TOP: '/api/v1/products/top',
     BY_HANDLE: (handle: string) => `/api/v1/products/${handle}`,
   },
   CATEGORIES: {
@@ -92,9 +93,18 @@ export const API_ENDPOINTS = {
   STALKER_GIFT: {
     CREATE: '/api/v1/stalker-gift',
     BY_ID: (id: string) => `/api/v1/stalker-gift/${id}`,
-    BY_USER: (userId: string) => `/api/v1/stalker-gift/user/${userId}`,
-    UPDATE_PAYMENT: (id: string) => `/api/v1/stalker-gift/${id}/payment-status`,
-    ENABLE_CHAT: (id: string) => `/api/v1/stalker-gift/${id}/enable-chat`,
+    BY_TOKEN: (token: string) => `/api/v1/stalker-gift/public/${token}`,
+    SENT: '/api/v1/stalker-gift/sent',
+    RECEIVED: '/api/v1/stalker-gift/received',
+    ACCEPT: (id: string) => `/api/v1/stalker-gift/${id}/accept`,
+    REJECT: (id: string) => `/api/v1/stalker-gift/${id}/reject`,
+    CANCEL: (id: string) => `/api/v1/stalker-gift/${id}/cancel`,
+    CAN_COMPLETE_ACCEPTANCE: (id: string) => `/api/v1/stalker-gift/${id}/can-complete-acceptance`,
+    CAN_VIEW_PROFILE: (id: string) => `/api/v1/stalker-gift/${id}/can-view-profile`,
+    PROFILE_VISIBILITY: (id: string) => `/api/v1/stalker-gift/${id}/profile-visibility`,
+    REVEAL_IDENTITY: (id: string) => `/api/v1/stalker-gift/${id}/reveal-identity`,
+    GENERATE_LINK: (id: string) => `/api/v1/stalker-gift/${id}/generate-link`,
+    CHECKOUT: '/api/v1/stalker-gift/checkout',
   },
   // Groups (Red Tanku)
   GROUPS: {

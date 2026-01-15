@@ -313,29 +313,39 @@ export interface WishListDTO {
 // StalkerGift
 export interface StalkerGiftDTO {
   id: string
-  orderId: string | null
-  customerGiverId: string
-  customerRecipientId: string | null
-  totalAmount: number
-  firstName: string
-  phone: string
-  email: string
-  alias: string
-  recipientName: string
-  contactMethods: Array<{ type: string; value: string }>
-  products: Array<{
-    id: string
-    title: string
-    quantity: number
-    price: number
-  }>
-  message: string | null
-  paymentStatus: 'pending' | 'success' | 'failed' | 'recibida'
+  senderId: string
+  receiverId: string | null
+  externalReceiverData: {
+    instagram?: string
+    email?: string
+    phone?: string
+    name?: string
+  } | null
+  productId: string
+  variantId: string | null
+  quantity: number
+  estado: 'CREATED' | 'PAID' | 'WAITING_ACCEPTANCE' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED'
+  paymentId: string | null
+  paymentStatus: string
   paymentMethod: string
   transactionId: string | null
+  senderAlias: string
+  senderMessage: string | null
+  uniqueLink: string | null
+  linkToken: string | null
+  orderId: string | null
   chatEnabled: boolean
+  conversationId: string | null
   createdAt: string
   updatedAt: string
+  acceptedAt: string | null
+  // Relaciones
+  sender?: User
+  receiver?: User | null
+  product?: ProductDTO
+  variant?: ProductVariantDTO | null
+  order?: OrderDTO | null
+  conversation?: any | null
 }
 
 // Onboarding

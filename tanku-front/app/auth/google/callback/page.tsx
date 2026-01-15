@@ -55,28 +55,47 @@ function GoogleCallbackContent() {
           .then(() => {
             console.log('✅ [GOOGLE CALLBACK] Autenticación verificada, redirigiendo...')
             
-            // Verificar si hay una redirección guardada (ej: /checkout)
+            // Prioridad de redirección:
+            // 1. return_url del query param (viene del backend)
+            // 2. redirect-after-login del sessionStorage (fallback)
+            // 3. /feed (default)
+            let redirectPath = '/feed'
+            
             if (typeof window !== 'undefined') {
-              const redirect = sessionStorage.getItem('redirect-after-login')
-              if (redirect) {
-                console.log(`🔄 [GOOGLE CALLBACK] Redirigiendo a ${redirect} después del login...`)
-                sessionStorage.removeItem('redirect-after-login')
-                router.push(redirect)
-                return
+              // Primero verificar return_url del query param
+              const returnUrl = searchParams.get('return_url')
+              if (returnUrl) {
+                console.log(`🔄 [GOOGLE CALLBACK] return_url detectado en query param: ${returnUrl}`)
+                redirectPath = returnUrl
+              } else {
+                // Fallback a sessionStorage
+                const redirect = sessionStorage.getItem('redirect-after-login')
+                if (redirect) {
+                  console.log(`🔄 [GOOGLE CALLBACK] Redirigiendo a ${redirect} desde sessionStorage...`)
+                  sessionStorage.removeItem('redirect-after-login')
+                  redirectPath = redirect
+                }
               }
             }
             
-            router.push('/feed')
+            console.log(`🔄 [GOOGLE CALLBACK] Redirigiendo a: ${redirectPath}`)
+            router.push(redirectPath)
           })
           .catch((err) => {
             console.error('❌ [GOOGLE CALLBACK] Error verificando autenticación:', err)
             console.error('   Error details:', err instanceof Error ? err.message : err)
+            
             // Aún así redirigir, el usuario puede estar autenticado
-            router.push('/feed')
+            // Usar return_url si existe, sino /feed
+            const returnUrl = searchParams.get('return_url')
+            const redirectPath = returnUrl || '/feed'
+            router.push(redirectPath)
           })
       } catch (setTokenError) {
         console.error('❌ [GOOGLE CALLBACK] Error estableciendo token:', setTokenError)
-        router.push('/feed?error=token_set_failed')
+        const returnUrl = searchParams.get('return_url')
+        const redirectPath = returnUrl || '/feed?error=token_set_failed'
+        router.push(redirectPath)
       }
     } else {
       console.error('❌ [GOOGLE CALLBACK] No se recibió token en la URL')
