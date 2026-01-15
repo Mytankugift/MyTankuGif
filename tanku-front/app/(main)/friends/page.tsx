@@ -5,8 +5,10 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useFriends } from '@/lib/hooks/use-friends'
+import { apiClient } from '@/lib/api/client'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { FriendsTabs } from '@/components/friends/friends-tabs'
 import { FriendsList } from '@/components/friends/friends-list'
 import { FriendRequestList } from '@/components/friends/friend-request-list'
@@ -14,6 +16,23 @@ import { SentRequestsList } from '@/components/friends/sent-requests-list'
 import { FriendSuggestions } from '@/components/friends/friend-suggestions'
 import { BlockedUsersList } from '@/components/friends/blocked-users-list'
 import { FriendsNav } from '@/components/layout/friends-nav'
+
+interface Group {
+  id: string
+  name: string
+  members: Array<{ 
+    id: string
+    userId: string
+    user?: {
+      id: string
+      email: string
+      firstName: string | null
+      lastName: string | null
+    }
+  }>
+}
+
+type FriendGroupMap = Record<string, Array<{ id: string; name: string }>>
 
 export default function FriendsPage() {
   const {
@@ -34,6 +53,33 @@ export default function FriendsPage() {
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'sent' | 'suggestions' | 'blocked'>(
     'friends'
   )
+
+  // ✅ Cargar grupos una sola vez por sesión
+  const [groups, setGroups] = useState<Group[]>([])
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true)
+
+  // ✅ Mapear grupos por friendId (una sola vez, optimizado con useMemo)
+  const groupByFriendId = useMemo<FriendGroupMap>(() => {
+    const map: FriendGroupMap = {}
+
+    groups.forEach(group => {
+      group.members?.forEach(member => {
+        // Obtener el friendId (puede ser userId directo o user.id)
+        const friendId = member.userId || member.user?.id
+        if (friendId) {
+          if (!map[friendId]) {
+            map[friendId] = []
+          }
+          map[friendId].push({
+            id: group.id,
+            name: group.name,
+          })
+        }
+      })
+    })
+
+    return map
+  }, [groups])
 
   // Handler para cambiar de tab - carga datos frescos cuando el usuario hace clic
   const handleTabChange = async (tab: 'friends' | 'requests' | 'sent' | 'suggestions' | 'blocked') => {
@@ -59,6 +105,25 @@ export default function FriendsPage() {
     }
   }
 
+  // ✅ Cargar grupos una sola vez al montar
+  useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        setIsLoadingGroups(true)
+        const response = await apiClient.get<Group[]>(API_ENDPOINTS.GROUPS.LIST)
+        if (response.success && response.data) {
+          setGroups(Array.isArray(response.data) ? response.data : [])
+        }
+      } catch (error) {
+        console.error('Error al cargar grupos:', error)
+      } finally {
+        setIsLoadingGroups(false)
+      }
+    }
+
+    loadGroups()
+  }, []) // Solo una vez al montar
+
   // Cargar datos iniciales solo cuando se monta el componente
   useEffect(() => {
     // Cargar el tab activo al montar (para recargar la página)
@@ -67,6 +132,7 @@ export default function FriendsPage() {
       await fetchRequests() // Para el badge de notificaciones
     }
     loadInitialData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Solo una vez al montar
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -149,7 +215,12 @@ export default function FriendsPage() {
           )}
 
           {activeTab === 'friends' && (
-            <FriendsList friends={searchQuery ? filteredFriends : friends} isLoading={isLoading} onRefresh={fetchFriends} />
+            <FriendsList 
+              friends={searchQuery ? filteredFriends : friends} 
+              isLoading={isLoading} 
+              onRefresh={fetchFriends}
+              groupByFriendId={groupByFriendId}
+            />
           )}
 
           {activeTab === 'requests' && (

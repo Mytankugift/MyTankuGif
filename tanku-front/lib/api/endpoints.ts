@@ -129,5 +129,15 @@ export const API_ENDPOINTS = {
     MARK_ALL_READ: '/api/v1/notifications/read-all',
     DELETE: (id: string) => `/api/v1/notifications/${id}`,
   },
+  // Chat
+  CHAT: {
+    CONVERSATIONS: '/api/v1/chat/conversations',
+    CONVERSATION_BY_ID: (id: string) => `/api/v1/chat/conversations/${id}`,
+    MESSAGES: (id: string) => `/api/v1/chat/conversations/${id}/messages`,
+    SEND_MESSAGE: (id: string) => `/api/v1/chat/conversations/${id}/messages`,
+    MARK_READ: (id: string) => `/api/v1/chat/conversations/${id}/read`,
+    CLOSE: (id: string) => `/api/v1/chat/conversations/${id}/close`,
+    UNREAD_COUNT: '/api/v1/chat/unread-count',
+  },
 } as const
 

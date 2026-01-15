@@ -2,9 +2,12 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import { SocketEvent, SocketUser, SocketEventType } from './socket.types';
 import { AuthService } from '../../modules/auth/auth.service';
+import { ChatService } from '../../modules/chat/chat.service';
+import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 
 const authService = new AuthService();
+const chatService = new ChatService();
 
 /**
  * Servicio genérico de Socket.IO
@@ -139,6 +142,9 @@ export class SocketService {
     } catch (error) {
       // Módulo no disponible aún, ignorar
     }
+
+    // Chat
+    this.registerChatHandlers();
   }
 
   /**
@@ -178,8 +184,18 @@ export class SocketService {
    * Emitir evento a un usuario específico
    */
   emitToUser(userId: string, event: SocketEvent) {
-    if (!this.io) return;
+    if (!this.io) {
+      console.warn(`⚠️ [SOCKET] No se puede emitir a usuario ${userId}: Socket.IO no inicializado`);
+      return;
+    }
 
+    const user = this.connectedUsers.get(userId);
+    if (!user) {
+      console.warn(`⚠️ [SOCKET] Usuario ${userId} no está conectado, no se puede emitir evento`);
+      return;
+    }
+
+    console.log(`📤 [SOCKET] Emitiendo evento '${event.type}' a usuario ${userId} (socket: ${user.socketId})`);
     this.io.to(`user:${userId}`).emit('event', {
       ...event,
       timestamp: event.timestamp || new Date().toISOString(),
@@ -297,6 +313,270 @@ export class SocketService {
       payload: {
         unreadCount: unreadCount,
       },
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Registrar handlers de chat
+   */
+  private registerChatHandlers() {
+    if (!this.io) return;
+
+    this.io.on('connection', (socket: Socket) => {
+      const userId = (socket as any).userId;
+      if (!userId) return;
+
+      // Unirse a conversaciones del usuario al conectar
+      this.joinUserConversations(userId, socket);
+
+      // Handler: Unirse a una conversación específica
+      socket.on('chat:join', async (conversationId: string) => {
+        try {
+          // Validar acceso directamente con Prisma
+          const participant = await prisma.conversationParticipant.findFirst({
+            where: {
+              conversationId,
+              userId,
+            },
+          });
+
+          if (!participant) {
+            throw new Error('No tienes acceso a esta conversación');
+          }
+          
+          // Unirse a la room de la conversación (para recibir mensajes)
+          socket.join(`conversation:${conversationId}`);
+          
+          // También mantener room de usuario (para notificaciones)
+          socket.join(`user:${userId}`);
+          
+          console.log(`✅ [SOCKET-CHAT] Usuario ${userId} unido a conversación ${conversationId}`);
+          
+          // Notificar al socket que se unió exitosamente
+          socket.emit('chat:joined', { conversationId });
+        } catch (error: any) {
+          console.error(`❌ [SOCKET-CHAT] Error uniendo a conversación:`, error.message);
+          socket.emit('chat:error', { 
+            conversationId,
+            message: error.message || 'Error al unirse a la conversación' 
+          });
+        }
+      });
+
+      // Handler: Salir de una conversación
+      socket.on('chat:leave', (conversationId: string) => {
+        socket.leave(`conversation:${conversationId}`);
+        console.log(`✅ [SOCKET-CHAT] Usuario ${userId} salió de conversación ${conversationId}`);
+      });
+
+      // Handler: Enviar mensaje (SOCKET ES EL CANAL PRINCIPAL)
+      socket.on('chat:send', async (data: { 
+        conversationId: string; 
+        content: string; 
+        type?: 'TEXT' | 'IMAGE' | 'FILE';
+        tempId?: string; // ID temporal del frontend para ACK
+      }, callback?: (response: { success: boolean; messageId?: string; error?: string }) => void) => {
+        try {
+          if (!data.conversationId || !data.content) {
+            throw new Error('conversationId y content son requeridos');
+          }
+
+          // Validar acceso a la conversación
+          const participant = await prisma.conversationParticipant.findFirst({
+            where: {
+              conversationId: data.conversationId,
+              userId,
+            },
+          });
+
+          if (!participant) {
+            throw new Error('No tienes acceso a esta conversación');
+          }
+
+          // Guardar mensaje en BD
+          const message = await chatService.sendMessage(
+            data.conversationId,
+            userId,
+            data.content,
+            data.type || 'TEXT'
+          );
+
+          // ACK al remitente (reemplaza mensaje optimista)
+          socket.emit('chat:sent', {
+            tempId: data.tempId,
+            message: {
+              id: message.id,
+              conversationId: message.conversationId,
+              senderId: message.senderId,
+              senderAlias: message.senderAlias,
+              content: message.content,
+              type: message.type,
+              status: message.status,
+              createdAt: message.createdAt.toISOString(),
+              sender: {
+                id: message.sender.id,
+                firstName: message.sender.firstName,
+                lastName: message.sender.lastName,
+                email: message.sender.email,
+                profile: message.sender.profile,
+              },
+            },
+          });
+
+          // Callback de confirmación
+          if (callback) {
+            callback({ success: true, messageId: message.id });
+          }
+
+          // Emitir a otros participantes usando room de conversación
+          // Esto es más eficiente que iterar manualmente
+          this.io!.to(`conversation:${data.conversationId}`).emit('chat:new', {
+            id: message.id,
+            conversationId: message.conversationId,
+            senderId: message.senderId,
+            senderAlias: message.senderAlias,
+            content: message.content,
+            type: message.type,
+            status: message.status,
+            createdAt: message.createdAt.toISOString(),
+            sender: {
+              id: message.sender.id,
+              firstName: message.sender.firstName,
+              lastName: message.sender.lastName,
+              email: message.sender.email,
+              profile: message.sender.profile,
+            },
+          });
+
+          console.log(`✅ [SOCKET-CHAT] Mensaje ${message.id} enviado a conversación ${data.conversationId}`);
+        } catch (error: any) {
+          console.error(`❌ [SOCKET-CHAT] Error enviando mensaje:`, error.message);
+          
+          // Error ACK al remitente
+          socket.emit('chat:error', {
+            tempId: data.tempId,
+            conversationId: data.conversationId,
+            error: error.message || 'Error al enviar mensaje',
+          });
+
+          // Callback de error
+          if (callback) {
+            callback({ success: false, error: error.message || 'Error al enviar mensaje' });
+          }
+        }
+      });
+
+      // Handler: Indicador de "escribiendo..."
+      socket.on('chat:typing', (data: { conversationId: string; isTyping: boolean }) => {
+        // Emitir a todos en la conversación excepto al que está escribiendo
+        socket.to(`conversation:${data.conversationId}`).emit('chat:typing', {
+          conversationId: data.conversationId,
+          userId,
+          isTyping: data.isTyping,
+        });
+      });
+
+      // Handler: Marcar mensajes como leídos
+      socket.on('chat:read', async (data: { conversationId: string }) => {
+        try {
+          await chatService.markAsRead(data.conversationId, userId);
+
+          // Obtener otros participantes para notificar
+          const conversation = await prisma.conversation.findUnique({
+            where: { id: data.conversationId },
+            include: {
+              participants: {
+                select: { userId: true },
+              },
+            },
+          });
+
+          const otherParticipants = conversation?.participants
+            .filter(p => p.userId !== userId)
+            .map(p => p.userId) || [];
+
+          // Emitir a la room de conversación
+          this.io!.to(`conversation:${data.conversationId}`).emit('chat:read', {
+            conversationId: data.conversationId,
+            readBy: userId,
+          });
+
+        } catch (error: any) {
+          console.error(`❌ [SOCKET-CHAT] Error marcando como leído:`, error.message);
+          socket.emit('chat:error', { 
+            conversationId: data.conversationId,
+            message: error.message || 'Error al marcar como leído' 
+          });
+        }
+      });
+
+      // Handler: Cerrar conversación
+      socket.on('chat:close', async (data: { conversationId: string }) => {
+        try {
+          await chatService.closeConversation(data.conversationId, userId);
+          
+          // Obtener otros participantes para notificar
+          const conversation = await prisma.conversation.findUnique({
+            where: { id: data.conversationId },
+            include: {
+              participants: {
+                select: { userId: true },
+              },
+            },
+          });
+
+          const otherParticipants = conversation?.participants
+            .filter(p => p.userId !== userId)
+            .map(p => p.userId) || [];
+
+          // Emitir a la room de conversación
+          this.io!.to(`conversation:${data.conversationId}`).emit('chat:closed', {
+            conversationId: data.conversationId,
+            closedBy: userId,
+          });
+
+          // Salir de la room
+          socket.leave(`conversation:${data.conversationId}`);
+        } catch (error: any) {
+          console.error(`❌ [SOCKET-CHAT] Error cerrando conversación:`, error.message);
+          socket.emit('chat:error', { 
+            conversationId: data.conversationId,
+            message: error.message || 'Error al cerrar la conversación' 
+          });
+        }
+      });
+    });
+  }
+
+  /**
+   * Unir usuario a todas sus conversaciones activas al conectar
+   */
+  private async joinUserConversations(userId: string, socket: Socket) {
+    try {
+      const conversations = await chatService.getConversations(userId);
+      
+      conversations.forEach(conversation => {
+        socket.join(`conversation:${conversation.id}`);
+      });
+
+      if (conversations.length > 0) {
+        console.log(`✅ [SOCKET-CHAT] Usuario ${userId} unido a ${conversations.length} conversaciones`);
+      }
+    } catch (error: any) {
+      console.error(`❌ [SOCKET-CHAT] Error uniendo a conversaciones:`, error.message);
+    }
+  }
+
+  /**
+   * Emitir mensaje de chat a una conversación
+   */
+  emitChatMessage(conversationId: string, message: any) {
+    if (!this.io) return;
+
+    this.io.to(`conversation:${conversationId}`).emit('chat:message', {
+      type: 'message',
+      payload: { message },
       timestamp: new Date().toISOString(),
     });
   }

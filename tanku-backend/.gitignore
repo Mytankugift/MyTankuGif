@@ -48,3 +48,6 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Documentos internos / evaluaciones
+*.md

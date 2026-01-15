@@ -201,3 +201,11 @@ export const useAuthStore = create<AuthState>()(
   )
 )
 
+/**
+ * ✅ Función centralizada para obtener token (convierte null a undefined)
+ * Separación de responsabilidades: el socket no sabe nada del store
+ */
+export function getAuthToken(): string | undefined {
+  return useAuthStore.getState().token ?? undefined
+}
+

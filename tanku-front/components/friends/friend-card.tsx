@@ -5,142 +5,24 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useFriends } from '@/lib/hooks/use-friends'
-import { apiClient } from '@/lib/api/client'
-import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { FriendDTO } from '@/types/api'
-
-interface Group {
-  id: string
-  name: string
-  members: Array<{ 
-    id: string
-    userId: string
-    user?: {
-      id: string
-      email: string
-      firstName: string | null
-      lastName: string | null
-    }
-  }>
-}
 
 interface FriendCardProps {
   friend: FriendDTO
   onRefresh: () => void
+  groups: Array<{ id: string; name: string }> // ✅ Grupos ya resueltos, sin fetch
 }
 
-export function FriendCard({ friend, onRefresh }: FriendCardProps) {
+export function FriendCard({ friend, onRefresh, groups }: FriendCardProps) {
   const { removeFriend, blockUser } = useFriends()
   const [isRemoving, setIsRemoving] = useState(false)
   const [isBlocking, setIsBlocking] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [groups, setGroups] = useState<Group[]>([])
-  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
-  const [isLoadingGroups, setIsLoadingGroups] = useState(true)
-
-  // Cargar grupos y determinar en cuáles está el amigo
-  useEffect(() => {
-    loadGroups()
-  }, [friend.friendId])
-
-  // Recargar grupos cuando la página se enfoca (para sincronizar después de cambios en Red Tanku)
-  useEffect(() => {
-    const handleFocus = () => {
-      loadGroups()
-    }
-    
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        loadGroups()
-      }
-    }
-
-    window.addEventListener('focus', handleFocus)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    
-    return () => {
-      window.removeEventListener('focus', handleFocus)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [friend.friendId])
-
-  const loadGroups = async () => {
-    try {
-      setIsLoadingGroups(true)
-      const response = await apiClient.get<Group[]>(API_ENDPOINTS.GROUPS.LIST)
-      if (response.success && response.data) {
-        const groupsList = Array.isArray(response.data) ? response.data : []
-        setGroups(groupsList)
-        
-        console.log('[FriendCard] Cargando grupos. friendId:', friend.friendId, 'Total grupos:', groupsList.length)
-        console.log('[FriendCard] Datos de grupos:', JSON.stringify(groupsList.map(g => ({
-          id: g.id,
-          name: g.name,
-          members: g.members?.map(m => ({ userId: m.userId, user: m.user?.id }))
-        })), null, 2))
-        
-        // Determinar en qué grupos está el amigo
-        const friendGroups = groupsList
-          .filter(group => {
-            // Verificar que el grupo tenga miembros y que el amigo esté en ellos
-            if (!group.members || !Array.isArray(group.members)) {
-              console.log('[FriendCard] Grupo sin miembros:', group.name, group.id)
-              return false
-            }
-            
-            // Comparar tanto userId directo como user.id si existe
-            // También comparar con friend.friend.id por si acaso
-            const isMember = group.members.some(m => {
-              if (!m) return false
-              
-              // Obtener todos los posibles IDs del miembro
-              const memberUserId = m.userId
-              const memberUserObjectId = m.user?.id
-              
-              // Comparar con friendId y también con friend.friend.id
-              const friendIdToCompare = friend.friendId
-              const friendObjectId = friend.friend?.id
-              
-              const matches = (
-                (memberUserId && String(memberUserId) === String(friendIdToCompare)) ||
-                (memberUserObjectId && String(memberUserObjectId) === String(friendIdToCompare)) ||
-                (memberUserId && friendObjectId && String(memberUserId) === String(friendObjectId)) ||
-                (memberUserObjectId && friendObjectId && String(memberUserObjectId) === String(friendObjectId))
-              )
-              
-              if (matches) {
-                console.log('[FriendCard] ✅ Amigo encontrado en grupo:', {
-                  groupName: group.name,
-                  groupId: group.id,
-                  friendId: friendIdToCompare,
-                  friendObjectId: friendObjectId,
-                  memberUserId: memberUserId,
-                  memberUserObjectId: memberUserObjectId
-                })
-              }
-              return matches
-            })
-            
-            return isMember
-          })
-          .map(group => group.id)
-        
-        console.log('[FriendCard] ✅ Grupos donde está el amigo:', friendGroups, 'de', groupsList.length, 'grupos totales')
-        console.log('[FriendCard] Estado de selectedGroups antes:', selectedGroups)
-        setSelectedGroups(friendGroups)
-        console.log('[FriendCard] Estado de selectedGroups después:', friendGroups)
-      } else {
-        console.error('[FriendCard] Error al cargar grupos - respuesta no exitosa:', response)
-      }
-    } catch (error) {
-      console.error('[FriendCard] Error al cargar grupos:', error)
-    } finally {
-      setIsLoadingGroups(false)
-    }
-  }
+  
+  // ✅ Sin fetch, sin listeners, sin efectos - Solo UI
 
 
   const handleRemove = async () => {
@@ -297,23 +179,19 @@ export function FriendCard({ friend, onRefresh }: FriendCardProps) {
 
           {/* Red TANKU - Mostrar grupos donde está el amigo, debajo de los botones */}
           <div className="mt-1">
-            {isLoadingGroups ? (
-              <div className="text-xs text-gray-400">Cargando grupos...</div>
-            ) : selectedGroups.length > 0 ? (
+            {groups.length > 0 ? (
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium text-[#66DEDB] whitespace-nowrap">Red TANKU:</span>
                 <div className="flex flex-wrap gap-2">
-                  {groups
-                    .filter(group => selectedGroups.includes(group.id))
-                    .map((group) => (
-                      <span
-                        key={group.id}
-                        className="px-2 py-1 text-xs rounded-lg bg-[#73FFA2] text-gray-900 font-medium"
-                        title={`Está en el grupo ${group.name}`}
-                      >
-                        {group.name}
-                      </span>
-                    ))}
+                  {groups.map((group) => (
+                    <span
+                      key={group.id}
+                      className="px-2 py-1 text-xs rounded-lg bg-[#73FFA2] text-gray-900 font-medium"
+                      title={`Está en el grupo ${group.name}`}
+                    >
+                      {group.name}
+                    </span>
+                  ))}
                 </div>
               </div>
             ) : (

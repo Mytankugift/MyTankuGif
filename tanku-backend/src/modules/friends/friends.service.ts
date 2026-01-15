@@ -271,6 +271,20 @@ export class FriendsService {
         },
       });
 
+      // Crear conversación automáticamente cuando se acepta la amistad
+      try {
+        const { ChatService } = await import('../chat/chat.service');
+        const chatService = new ChatService();
+        await chatService.createOrGetConversation(
+          request.userId,
+          userId,
+          'FRIENDS'
+        );
+      } catch (error) {
+        // Si falla la creación de conversación, no fallar la aceptación
+        console.error('Error creando conversación al aceptar amistad:', error);
+      }
+
       // Crear notificación para el usuario que envió la solicitud
       try {
         const acceptingUserName = acceptingUser?.firstName || 'Alguien';

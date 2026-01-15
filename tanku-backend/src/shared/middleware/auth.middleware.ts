@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../../modules/auth/auth.service';
 import { UnauthorizedError } from '../errors/AppError';
-import { RequestWithUser } from '../types';
 
 const authService = new AuthService();
 
@@ -24,7 +23,7 @@ export const authenticate = async (
     const payload = authService.verifyToken(token);
 
     // Agregar usuario al request
-    (req as RequestWithUser).user = {
+    req.user = {
       id: payload.userId,
       email: payload.email,
     };
@@ -52,7 +51,7 @@ export const optionalAuthenticate = async (
       try {
         const payload = authService.verifyToken(token);
         // Agregar usuario al request si el token es válido
-        (req as RequestWithUser).user = {
+        req.user = {
           id: payload.userId,
           email: payload.email,
         };

@@ -34,6 +34,8 @@ model User {
   notifications        Notification[]
   groups               Group[]                @relation("GroupOwner")
   groupMembers         GroupMember[]
+  conversationParticipants ConversationParticipant[]
+  messages             Message[]
 
   @@map("users")
 }
@@ -295,11 +297,13 @@ model StalkerGift {
   paymentMethod       String   @default("epayco") @map("payment_method")
   transactionId       String?  @map("transaction_id")
   chatEnabled         Boolean  @default(false) @map("chat_enabled")
+  conversationId      String?  @unique @map("conversation_id")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
   giver               User     @relation("Giver", fields: [customerGiverId], references: [id])
   recipient           User?    @relation("Recipient", fields: [customerRecipientId], references: [id])
   order               Order?   @relation("OrderStalkerGift", fields: [orderId], references: [id])
+  conversation        Conversation? @relation(fields: [conversationId], references: [id])
 
   @@map("stalker_gifts")
 }
@@ -516,6 +520,28 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum ConversationType {
+  FRIENDS
+  STALKERGIFT
+}
+
+enum ConversationStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
 model GlobalRanking {
   id          String   @id @default(cuid())
   itemId      String   @map("item_id")
@@ -608,4 +634,58 @@ model GroupMember {
   @@index([groupId])
   @@index([userId])
   @@map("group_members")
+}
+
+model Conversation {
+  id            String   @id @default(cuid())
+  type          ConversationType @default(FRIENDS)
+  status        ConversationStatus @default(ACTIVE)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  participants  ConversationParticipant[]
+  messages      Message[]
+  stalkerGift   StalkerGift?
+  
+  @@index([type, status])
+  @@index([status])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  userId         String   @map("user_id")
+  alias          String?  // Para anonimato en StalkerGift
+  isRevealed     Boolean  @default(false) @map("is_revealed")
+  createdAt      DateTime @default(now()) @map("created_at")
+  
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  senderId       String   @map("sender_id")
+  senderAlias    String?  @map("sender_alias") // Para anonimato
+  content        String   @db.Text
+  type           MessageType @default(TEXT)
+  status         MessageStatus @default(SENT)
+  readAt         DateTime? @map("read_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id])
+  
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@index([status])
+  @@map("messages")
 }

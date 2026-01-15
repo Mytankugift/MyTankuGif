@@ -272,6 +272,10 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/groups`, groupsRoutes);
 import notificationsRoutes from './modules/notifications/notifications.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/notifications`, notificationsRoutes);
 
+// Chat routes
+import chatRoutes from './modules/chat/chat.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/chat`, chatRoutes);
+
 // ePayco webhook routes
 import epaycoRoutes from './modules/orders/epayco.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/webhook/epayco`, epaycoRoutes);
