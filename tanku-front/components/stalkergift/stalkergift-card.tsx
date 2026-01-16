@@ -202,7 +202,8 @@ export function StalkerGiftCard({ gift, type, onUpdate }: StalkerGiftCardProps) 
           </Button>
         )}
 
-        {gift.chatEnabled && gift.conversationId && (
+        {/* Botón de chat: mostrar si está aceptado y tiene conversación */}
+        {gift.estado === 'ACCEPTED' && gift.chatEnabled && gift.conversationId && (
           <Button
             onClick={handleOpenChat}
             variant="secondary"
@@ -213,6 +214,7 @@ export function StalkerGiftCard({ gift, type, onUpdate }: StalkerGiftCardProps) 
           </Button>
         )}
 
+        {/* Botón para ver orden: solo si está aceptado y tiene orden */}
         {gift.estado === 'ACCEPTED' && gift.orderId && (
           <Button
             onClick={() => router.push(`/profile?tab=STALKER GIFTS&orderId=${gift.orderId}`)}

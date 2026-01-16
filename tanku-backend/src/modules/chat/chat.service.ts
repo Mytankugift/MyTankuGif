@@ -119,14 +119,16 @@ export class ChatService {
 
   /**
    * Obtener conversaciones de un usuario
+   * Incluye conversaciones tipo FRIENDS y STALKERGIFT
    * SOLO retorna conversaciones reales (NO temporales)
    * OPTIMIZADO: Reduce queries de N+1 a batch queries
    */
   async getConversations(userId: string): Promise<ConversationWithParticipants[]> {
     // Obtener conversaciones existentes con UNA query optimizada
+    // Incluir tanto FRIENDS como STALKERGIFT (chats anónimos)
     const conversations = await prisma.conversation.findMany({
       where: {
-        type: 'FRIENDS',
+        type: { in: ['FRIENDS', 'STALKERGIFT'] }, // Incluir ambos tipos
         status: 'ACTIVE',
         participants: {
           some: { userId },

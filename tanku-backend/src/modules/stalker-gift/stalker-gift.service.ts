@@ -365,8 +365,11 @@ export class StalkerGiftService {
 
     // Crear chat anónimo automáticamente cuando se acepta el regalo
     // Esto aplica para todos los escenarios (externo, interno, amigos)
+    let conversationId: string | null = null;
     try {
-      await this.createAnonymousChat(stalkerGiftId);
+      const conversation = await this.createAnonymousChat(stalkerGiftId);
+      conversationId = conversation.id;
+      console.log(`✅ [StalkerGift] Chat anónimo creado: ${conversation.id}`);
     } catch (error: any) {
       // Log error pero no fallar la aceptación
       console.error(`⚠️ [StalkerGift] Error creando chat anónimo: ${error.message}`);
@@ -390,29 +393,54 @@ export class StalkerGiftService {
       // Se puede reintentar más tarde
     }
 
+    // Re-obtener el StalkerGift con conversationId y chatEnabled actualizados
+    const finalStalkerGift = await prisma.stalkerGift.findUnique({
+      where: { id: stalkerGiftId },
+      include: {
+        product: true,
+        variant: true,
+        sender: {
+          include: {
+            profile: true,
+          },
+        },
+        receiver: {
+          include: {
+            profile: true,
+          },
+        },
+        conversation: true,
+        order: true,
+      },
+    });
+
+    if (!finalStalkerGift) {
+      throw new NotFoundError('Regalo no encontrado después de aceptar');
+    }
+
     // Notificar al sender que el regalo fue aceptado
     try {
       const { NotificationsService } = await import('../notifications/notifications.service');
       const notificationsService = new NotificationsService();
       
       await notificationsService.createNotification({
-        userId: updated.senderId,
+        userId: finalStalkerGift.senderId,
         type: 'stalker_gift_accepted',
         title: '¡Tu regalo fue aceptado!',
-        message: `${updated.receiver?.firstName || 'Alguien'} aceptó tu regalo. Ya puedes chatear con ${updated.receiver?.firstName || 'ellos'} de forma anónima.`,
+        message: `${finalStalkerGift.receiver?.firstName || 'Alguien'} aceptó tu regalo. Ya puedes chatear con ${finalStalkerGift.receiver?.firstName || 'ellos'} de forma anónima.`,
         data: {
           stalkerGiftId: stalkerGiftId,
-          conversationId: updated.conversationId,
+          conversationId: finalStalkerGift.conversationId,
         },
       });
       
-      console.log(`✅ [StalkerGift] Notificación enviada al sender: ${updated.senderId}`);
+      console.log(`✅ [StalkerGift] Notificación enviada al sender: ${finalStalkerGift.senderId}`);
     } catch (error: any) {
       // Log error pero no fallar la aceptación
       console.error(`⚠️ [StalkerGift] Error enviando notificación: ${error.message}`);
     }
 
-    return updated as StalkerGiftWithRelations;
+    return finalStalkerGift as StalkerGiftWithRelations;
   }
 
   /**
