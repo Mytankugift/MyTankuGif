@@ -142,6 +142,7 @@ export class DropiWebhookController {
 
       // Buscar OrderItem por dropiOrderId O por shop_order_id (orderId)
       // Según ejemplo oficial de Dropi, busca por ambos para mayor flexibilidad
+      // Incluir relación stalkerGift para detectar si es StalkerGift
       const orderItem = await prisma.orderItem.findFirst({
         where: {
           OR: [
@@ -151,9 +152,8 @@ export class DropiWebhookController {
         },
         include: {
           order: {
-            select: {
-              id: true,
-              userId: true,
+            include: {
+              stalkerGift: true,
             },
           },
         },
@@ -179,6 +179,14 @@ export class DropiWebhookController {
       }
 
       const oldStatus = orderItem.dropiStatus;
+
+      // Guardar referencias antes de actualizar (para evitar problemas de tipos)
+      // Usar 'as any' temporalmente para evitar errores de tipo en Prisma
+      const order = (orderItem as any).order;
+      const orderId = order.id;
+      const orderUserId = order.userId;
+      const isStalkerGift = order.isStalkerGift;
+      const stalkerGift = order.stalkerGift;
 
       // Construir URL de guía si viene GUIA_GENERADA con sticker y shipping_company
       let guideUrl: string | null = null;
@@ -218,28 +226,81 @@ export class DropiWebhookController {
       // Crear notificación para el usuario
       const statusInfo = this.getStatusMessage(status);
       
-      try {
-        await this.notificationsService.createNotification({
-          userId: orderItem.order.userId,
-          type: 'order_update',
-          title: statusInfo.title,
-          message: statusInfo.message,
-          data: {
-            orderId: orderItem.order.id,
-            orderItemId: orderItem.id,
-            dropiOrderId: dropiOrderId,
-            oldStatus: oldStatus,
-            newStatus: status,
-            ...(shipping_guide ? { shippingGuide: shipping_guide } : {}),
-            ...(guideUrl ? { guideUrl } : {}),
-            ...(notes ? { notes } : {}),
-          },
-        });
+      // Si es un StalkerGift, enviar notificación a ambos (sender y receiver)
+      if (isStalkerGift && stalkerGift) {
+        // Enviar notificación al receiver (quien recibió el regalo)
+        try {
+          await this.notificationsService.createNotification({
+            userId: orderUserId, // receiverId
+            type: 'stalkergift_order_update',
+            title: 'Actualización de tu regalo recibido',
+            message: `${statusInfo.message}`,
+            data: {
+              orderId: orderId,
+              orderItemId: orderItem.id,
+              stalkerGiftId: stalkerGift.id,
+              dropiOrderId: dropiOrderId,
+              oldStatus: oldStatus,
+              newStatus: status,
+              ...(shipping_guide ? { shippingGuide: shipping_guide } : {}),
+              ...(guideUrl ? { guideUrl } : {}),
+              ...(notes ? { notes } : {}),
+            },
+          });
+          console.log(`✅ [DROPI-WEBHOOK] Notificación creada para receiver: ${orderUserId}`);
+        } catch (notificationError: any) {
+          console.error(`⚠️ [DROPI-WEBHOOK] Error creando notificación para receiver:`, notificationError?.message);
+        }
 
-        console.log(`✅ [DROPI-WEBHOOK] Notificación creada para usuario: ${orderItem.order.userId}`);
-      } catch (notificationError: any) {
-        // No fallar el webhook si la notificación falla
-        console.error(`⚠️ [DROPI-WEBHOOK] Error creando notificación:`, notificationError?.message);
+        // Enviar notificación al sender (quien envió el regalo) si existe
+        if (stalkerGift.senderId) {
+          try {
+            await this.notificationsService.createNotification({
+              userId: stalkerGift.senderId,
+              type: 'stalkergift_order_update',
+              title: 'Actualización del regalo que enviaste',
+              message: `${statusInfo.message}`,
+              data: {
+                orderId: orderId,
+                orderItemId: orderItem.id,
+                stalkerGiftId: stalkerGift.id,
+                dropiOrderId: dropiOrderId,
+                oldStatus: oldStatus,
+                newStatus: status,
+                ...(shipping_guide ? { shippingGuide: shipping_guide } : {}),
+                ...(guideUrl ? { guideUrl } : {}),
+                ...(notes ? { notes } : {}),
+              },
+            });
+            console.log(`✅ [DROPI-WEBHOOK] Notificación creada para sender: ${stalkerGift.senderId}`);
+          } catch (notificationError: any) {
+            console.error(`⚠️ [DROPI-WEBHOOK] Error creando notificación para sender:`, notificationError?.message);
+          }
+        }
+      } else {
+        // Orden normal: solo notificar al usuario de la orden
+        try {
+          await this.notificationsService.createNotification({
+            userId: orderUserId,
+            type: 'order_update',
+            title: statusInfo.title,
+            message: statusInfo.message,
+            data: {
+              orderId: orderId,
+              orderItemId: orderItem.id,
+              dropiOrderId: dropiOrderId,
+              oldStatus: oldStatus,
+              newStatus: status,
+              ...(shipping_guide ? { shippingGuide: shipping_guide } : {}),
+              ...(guideUrl ? { guideUrl } : {}),
+              ...(notes ? { notes } : {}),
+            },
+          });
+          console.log(`✅ [DROPI-WEBHOOK] Notificación creada para usuario: ${orderUserId}`);
+        } catch (notificationError: any) {
+          // No fallar el webhook si la notificación falla
+          console.error(`⚠️ [DROPI-WEBHOOK] Error creando notificación:`, notificationError?.message);
+        }
       }
 
       // Responder 200 OK (según ejemplo oficial de Dropi)

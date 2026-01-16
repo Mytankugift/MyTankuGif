@@ -87,7 +87,8 @@ export function StalkerGiftCard({ gift, type, onUpdate }: StalkerGiftCardProps) 
 
   const handleOpenChat = () => {
     if (gift.conversationId) {
-      router.push(`/messages?conversation=${gift.conversationId}`)
+      // Redirigir a la pestaña de Chats de StalkerGift
+      router.push(`/stalkergift?tab=chats&conversation=${gift.conversationId}`)
     }
   }
 
@@ -214,7 +215,7 @@ export function StalkerGiftCard({ gift, type, onUpdate }: StalkerGiftCardProps) 
 
         {gift.estado === 'ACCEPTED' && gift.orderId && (
           <Button
-            onClick={() => router.push(`/orders/${gift.orderId}`)}
+            onClick={() => router.push(`/profile?tab=STALKER GIFTS&orderId=${gift.orderId}`)}
             variant="secondary"
             className="w-full"
           >

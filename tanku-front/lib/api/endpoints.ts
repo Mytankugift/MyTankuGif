@@ -36,6 +36,7 @@ export const API_ENDPOINTS = {
   ORDERS: {
     CREATE: '/api/v1/orders',
     LIST: '/api/v1/orders',
+    STALKER_GIFTS: '/api/v1/orders/stalker-gifts',
     BY_ID: (id: string) => `/api/v1/orders/${id}`,
     BY_TRANSACTION_ID: (transactionId: string) => `/api/v1/orders/transaction/${transactionId}`,
     DELETE: (id: string) => `/api/v1/orders/${id}`,

@@ -239,17 +239,26 @@ export class EpaycoController {
           transactionId // transactionId
         );
 
-        // updatePaymentStatus ya cambia el estado a WAITING_ACCEPTANCE y genera link si es necesario
-        // Solo necesitamos verificar que el link se generó
-        let uniqueLink = updatedStalkerGift.uniqueLink;
+        // updatePaymentStatus ya cambia el estado a WAITING_ACCEPTANCE
+        // - Si receiverId existe (usuario Tanku): envía notificación, NO genera link
+        // - Si receiverId es null (usuario externo): genera link único
+        const uniqueLink = updatedStalkerGift.uniqueLink;
         
-        if (!uniqueLink) {
-          // Si no se generó automáticamente, generarlo manualmente
-          uniqueLink = await stalkerGiftService.generateUniqueLink(metadata.stalkerGiftId);
+        if (updatedStalkerGift.receiverId) {
+          console.log(`✅ [EPAYCO-WEBHOOK] StalkerGift actualizado: ${metadata.stalkerGiftId}`);
+          console.log(`✅ [EPAYCO-WEBHOOK] Notificación enviada a usuario Tanku: ${updatedStalkerGift.receiverId}`);
+        } else {
+          // Usuario externo: verificar que se generó el link
+          if (!uniqueLink) {
+            // Si no se generó automáticamente, generarlo manualmente
+            const generatedLink = await stalkerGiftService.generateUniqueLink(metadata.stalkerGiftId);
+            console.log(`✅ [EPAYCO-WEBHOOK] StalkerGift actualizado: ${metadata.stalkerGiftId}`);
+            console.log(`✅ [EPAYCO-WEBHOOK] Link único generado: ${generatedLink}`);
+          } else {
+            console.log(`✅ [EPAYCO-WEBHOOK] StalkerGift actualizado: ${metadata.stalkerGiftId}`);
+            console.log(`✅ [EPAYCO-WEBHOOK] Link único ya existente: ${uniqueLink}`);
+          }
         }
-
-        console.log(`✅ [EPAYCO-WEBHOOK] StalkerGift actualizado: ${metadata.stalkerGiftId}`);
-        console.log(`✅ [EPAYCO-WEBHOOK] Link único generado: ${uniqueLink}`);
 
         return res.status(200).json({
           success: true,

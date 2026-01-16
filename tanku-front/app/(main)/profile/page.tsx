@@ -6,6 +6,7 @@ import { useProfileNavigation } from '@/lib/context/profile-navigation-context'
 import { ProfileNavigationProvider } from '@/lib/context/profile-navigation-context'
 import { OrdersTab } from '@/components/profile/orders-tab'
 import { RedTankuTab } from '@/components/profile/red-tanku-tab'
+import { StalkerGiftOrdersTab } from '@/components/profile/stalkergift-orders-tab'
 import { PersonalInfoSection } from '@/components/profile/settings/personal-info-section'
 import { OnboardingSection } from '@/components/profile/settings/onboarding-section'
 import { AddressesSection } from '@/components/profile/settings/addresses-section'
@@ -474,10 +475,8 @@ function ProfileContent() {
             )}
             
             {activeTab === 'STALKER GIFTS' && user?.id && (
-              <div className="flex flex-col items-center justify-center py-4 sm:py-6 md:py-12 text-center">
-                <div className="text-center text-gray-400">
-                  <p>Contenido de STALKER GIFTS se agregará próximamente</p>
-                </div>
+              <div className="w-full">
+                <StalkerGiftOrdersTab userId={user.id} initialOrderId={orderId} />
               </div>
             )}
           </>

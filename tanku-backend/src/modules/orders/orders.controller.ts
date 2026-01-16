@@ -186,6 +186,31 @@ export class OrdersController {
   };
 
   /**
+   * GET /api/v1/orders/stalker-gifts
+   * Obtener órdenes de StalkerGift del usuario (tanto enviadas como recibidas)
+   */
+  getStalkerGiftOrders = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'Usuario no autenticado'));
+      }
+
+      const userId = requestWithUser.user.id;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      const result = await this.ordersService.getUserStalkerGiftOrders(userId, limit, offset);
+
+      res.status(200).json(successResponse(result));
+    } catch (error: any) {
+      console.error(`❌ [ORDERS] Error obteniendo órdenes de StalkerGift:`, error);
+      next(error);
+    }
+  };
+
+  /**
    * POST /api/v1/orders/:id/create-dropi
    * Crear orden en Dropi (después de pago exitoso)
    */

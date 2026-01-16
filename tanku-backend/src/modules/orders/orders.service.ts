@@ -32,6 +32,14 @@ export interface CreateOrderInput {
   metadata?: Record<string, any>;
 }
 
+export interface StalkerGiftInfo {
+  id: string;
+  senderId: string;
+  receiverId: string | null;
+  senderAlias: string;
+  senderMessage: string | null;
+}
+
 export interface OrderResponse {
   id: string;
   userId: string;
@@ -44,6 +52,7 @@ export interface OrderResponse {
   shippingTotal: number;
   dropiOrderIds: number[]; // Array de IDs de Dropi (uno por OrderItem)
   isStalkerGift: boolean;
+  stalkerGift?: StalkerGiftInfo | null; // Información del StalkerGift si aplica
   transactionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -433,6 +442,15 @@ export class OrdersService {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
+        stalkerGift: {
+          select: {
+            id: true,
+            senderId: true,
+            receiverId: true,
+            senderAlias: true,
+            senderMessage: true,
+          },
+        },
         orderAddresses: {
           include: {
             address: true,
@@ -466,8 +484,20 @@ export class OrdersService {
     }
 
     // Verificar que el usuario tenga acceso a esta orden
-    if (userId && order.userId !== userId) {
-      throw new BadRequestError('No tienes permiso para ver esta orden');
+    // Para StalkerGift, permitir acceso si es sender o receiver
+    if (userId) {
+      if (order.isStalkerGift && order.stalkerGift) {
+        // Verificar si es sender o receiver
+        // Type assertion porque Prisma no infiere correctamente el tipo con select
+        const stalkerGift = order.stalkerGift as unknown as { senderId: string; receiverId: string | null };
+        const isSender = stalkerGift.senderId === userId;
+        const isReceiver = order.userId === userId;
+        if (!isSender && !isReceiver) {
+          throw new BadRequestError('No tienes permiso para ver esta orden');
+        }
+      } else if (order.userId !== userId) {
+        throw new BadRequestError('No tienes permiso para ver esta orden');
+      }
     }
 
     return this.formatOrderResponse(order);
@@ -485,9 +515,13 @@ export class OrdersService {
     total: number;
     hasMore: boolean;
   }> {
+    // EXCLUIR órdenes de StalkerGift - deben mostrarse en sección separada
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
-        where: { userId },
+        where: { 
+          userId,
+          isStalkerGift: false, // Solo órdenes normales
+        },
         include: {
           orderAddresses: {
             include: {
@@ -519,7 +553,105 @@ export class OrdersService {
         take: limit,
         skip: offset,
       }),
-      prisma.order.count({ where: { userId } }),
+      prisma.order.count({ 
+        where: { 
+          userId,
+          isStalkerGift: false, // Solo órdenes normales
+        } 
+      }),
+    ]);
+
+    return {
+      orders: orders.map((order) => this.formatOrderResponse(order)),
+      total,
+      hasMore: offset + limit < total,
+    };
+  }
+
+  /**
+   * Obtener órdenes de StalkerGift del usuario (tanto enviadas como recibidas)
+   * Incluye órdenes donde el usuario es sender O receiver
+   */
+  async getUserStalkerGiftOrders(
+    userId: string,
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<{
+    orders: OrderResponse[];
+    total: number;
+    hasMore: boolean;
+  }> {
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where: {
+          isStalkerGift: true,
+          OR: [
+            { userId }, // Órdenes donde el usuario es el receiver
+            {
+              stalkerGift: {
+                senderId: userId, // Órdenes donde el usuario es el sender
+              },
+            },
+          ],
+        },
+        include: {
+          stalkerGift: {
+            include: {
+              sender: {
+                include: {
+                  profile: true,
+                },
+              },
+              receiver: {
+                include: {
+                  profile: true,
+                },
+              },
+            },
+          },
+          orderAddresses: {
+            include: {
+              address: true,
+            },
+          },
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  title: true,
+                  handle: true,
+                  images: true,
+                },
+              },
+              variant: {
+                select: {
+                  id: true,
+                  sku: true,
+                  title: true,
+                  price: true,
+                },
+              },
+            },
+          },
+        } as any,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.order.count({
+        where: {
+          isStalkerGift: true,
+          OR: [
+            { userId },
+            {
+              stalkerGift: {
+                senderId: userId,
+              },
+            },
+          ],
+        },
+      }),
     ]);
 
     return {
@@ -669,6 +801,17 @@ export class OrdersService {
    * Formatear respuesta de orden
    */
   private formatOrderResponse(order: any): OrderResponse {
+    // Incluir información del StalkerGift si existe
+    const stalkerGiftInfo = order.stalkerGift
+      ? {
+          id: order.stalkerGift.id,
+          senderId: order.stalkerGift.senderId,
+          receiverId: order.stalkerGift.receiverId,
+          senderAlias: order.stalkerGift.senderAlias,
+          senderMessage: order.stalkerGift.senderMessage,
+        }
+      : null;
+
     return {
       id: order.id,
       userId: order.userId,
@@ -681,9 +824,10 @@ export class OrdersService {
       shippingTotal: order.shippingTotal,
       dropiOrderIds: order.items?.map((item: any) => item.dropiOrderId).filter(Boolean) || [],
       isStalkerGift: order.isStalkerGift,
+      stalkerGift: stalkerGiftInfo, // Incluir información del StalkerGift
       transactionId: order.transactionId,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
+      createdAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : order.createdAt,
+      updatedAt: order.updatedAt instanceof Date ? order.updatedAt.toISOString() : order.updatedAt,
       address: order.orderAddresses && order.orderAddresses.length > 0 && order.orderAddresses[0].address
         ? {
             id: order.orderAddresses[0].address.id,

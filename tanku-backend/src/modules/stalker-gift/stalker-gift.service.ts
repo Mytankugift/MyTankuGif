@@ -556,8 +556,11 @@ export class StalkerGiftService {
 
     if (paymentStatus === 'approved' || paymentStatus === 'success' || paymentStatus === 'paid') {
       newEstado = 'WAITING_ACCEPTANCE';
-      // Generar link único automáticamente si no existe
-      if (!stalkerGift.uniqueLink || !stalkerGift.linkToken) {
+      
+      // Solo generar link si es usuario externo (receiverId es null)
+      // Si es usuario Tanku (receiverId existe), NO generar link - enviar notificación directa
+      if (!stalkerGift.receiverId && (!stalkerGift.uniqueLink || !stalkerGift.linkToken)) {
+        // Usuario externo: generar link único
         await this.generateUniqueLink(stalkerGiftId);
       }
     } else if (paymentStatus === 'rejected' || paymentStatus === 'failed') {
@@ -588,6 +591,32 @@ export class StalkerGiftService {
         },
       },
     });
+
+    // Si es usuario Tanku (receiverId existe) y el pago fue exitoso, enviar notificación
+    if ((paymentStatus === 'approved' || paymentStatus === 'success' || paymentStatus === 'paid') && updated.receiverId) {
+      try {
+        const { NotificationsService } = await import('../notifications/notifications.service');
+        const notificationsService = new NotificationsService();
+
+        await notificationsService.createNotification({
+          userId: updated.receiverId,
+          type: 'stalkergift_received',
+          title: '¡Tienes un nuevo regalo!',
+          message: `${updated.senderAlias} te ha enviado un regalo`,
+          data: {
+            stalkerGiftId: updated.id,
+            senderAlias: updated.senderAlias,
+            productId: updated.productId,
+            productTitle: updated.product.title,
+          },
+        });
+
+        console.log(`✅ [StalkerGift] Notificación enviada a usuario Tanku: ${updated.receiverId}`);
+      } catch (notificationError: any) {
+        // Log error pero no fallar el proceso
+        console.error(`⚠️ [StalkerGift] Error enviando notificación:`, notificationError?.message);
+      }
+    }
 
     return updated as StalkerGiftWithRelations;
   }

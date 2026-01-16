@@ -14,8 +14,15 @@ const epaycoController = new EpaycoController();
 router.post('/', ordersController.createOrder);
 
 /**
+ * GET /api/v1/orders/stalker-gifts
+ * Obtener órdenes de StalkerGift del usuario (tanto enviadas como recibidas)
+ * IMPORTANTE: Esta ruta debe ir ANTES de / para evitar conflictos
+ */
+router.get('/stalker-gifts', authenticate, ordersController.getStalkerGiftOrders);
+
+/**
  * GET /api/v1/orders
- * Obtener historial de órdenes del usuario autenticado
+ * Obtener historial de órdenes del usuario autenticado (solo órdenes normales, excluye StalkerGift)
  */
 router.get('/', authenticate, ordersController.getOrders);
 

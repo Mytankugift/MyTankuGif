@@ -40,6 +40,14 @@ export type OrderAddressDTO = {
   country: string;
 };
 
+export type StalkerGiftInfoDTO = {
+  id: string;
+  senderId: string;
+  receiverId: string | null;
+  senderAlias: string;
+  senderMessage: string | null;
+};
+
 export type OrderDTO = {
   id: string;
   userId: string;
@@ -52,6 +60,7 @@ export type OrderDTO = {
   shippingTotal: number;
   dropiOrderIds: number[];
   isStalkerGift: boolean;
+  stalkerGift?: StalkerGiftInfoDTO | null; // Información del StalkerGift si aplica (senderId, receiverId, etc.)
   transactionId: string | null;
   createdAt: string;
   updatedAt: string;

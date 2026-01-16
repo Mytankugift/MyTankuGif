@@ -155,8 +155,17 @@ export interface Cart {
 }
 
 // Orders
+export interface StalkerGiftInfoDTO {
+  id: string
+  senderId: string
+  receiverId: string | null
+  senderAlias: string
+  senderMessage: string | null
+}
+
 export interface OrderDTO {
   id: string
+  userId: string // ID del usuario que recibió la orden (receiver en StalkerGift)
   email: string
   status: string
   paymentStatus: string
@@ -164,6 +173,8 @@ export interface OrderDTO {
   total: number
   subtotal: number
   shippingTotal: number
+  isStalkerGift?: boolean
+  stalkerGift?: StalkerGiftInfoDTO | null // Información del StalkerGift si aplica
   items: Array<{
     id: string
     productId: string

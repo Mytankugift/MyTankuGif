@@ -120,13 +120,25 @@ export default function StalkerGiftAcceptPage() {
       return
     }
 
-    // Si está autenticado pero no tiene dirección, mostrar formulario
-    if (!canComplete) {
+    // Si está autenticado pero no tiene dirección, mostrar formulario para crear
+    if (addresses.length === 0) {
+      setEditingAddress(null) // Asegurar que es creación
       setIsAddressModalOpen(true)
       return
     }
 
-    // Si tiene dirección, proceder con aceptación
+    // Si tiene direcciones pero ninguna seleccionada, seleccionar la primera o por defecto
+    if (!selectedAddress && addresses.length > 0) {
+      const defaultAddress = addresses.find(addr => addr.isDefaultShipping) || addresses[0]
+      setSelectedAddress(defaultAddress)
+      // Después de seleccionar, continuar con aceptación
+      if (defaultAddress) {
+        handleAcceptGift(defaultAddress.id)
+      }
+      return
+    }
+
+    // Si tiene dirección seleccionada, proceder directamente con aceptación
     if (selectedAddress) {
       handleAcceptGift(selectedAddress.id)
     }
