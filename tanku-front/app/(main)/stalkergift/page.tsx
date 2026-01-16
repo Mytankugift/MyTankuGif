@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useChat } from '@/lib/hooks/use-chat'
@@ -17,7 +17,7 @@ import { GiftIcon } from '@heroicons/react/24/outline'
 
 type StalkerGiftTab = 'received' | 'sent' | 'chats'
 
-export default function StalkerGiftPage() {
+function StalkerGiftPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, isAuthenticated } = useAuthStore()
@@ -328,6 +328,23 @@ export default function StalkerGiftPage() {
         />
       )}
     </div>
+  )
+}
+
+export default function StalkerGiftPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 md:pt-28" style={{ backgroundColor: '#1E1E1E' }}>
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
+            <p className="text-gray-400">Cargando...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <StalkerGiftPageContent />
+    </Suspense>
   )
 }
 
