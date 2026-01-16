@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useChat, type Conversation } from '@/lib/hooks/use-chat'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { ChatBubbleLeftRightIcon, GiftIcon } from '@heroicons/react/24/outline'
-import Image from 'next/image'
 
 interface StalkerGiftChatListProps {
   onSelectChat?: (conversationId: string) => void
@@ -45,15 +44,19 @@ export function StalkerGiftChatList({ onSelectChat }: StalkerGiftChatListProps) 
   }
 
   const getParticipantAvatar = (conversation: Conversation) => {
+    // ✅ Para StalkerGift, NUNCA mostrar avatar (siempre anónimo)
+    if (conversation.type === 'STALKERGIFT') {
+      return null
+    }
+
     const otherParticipant = getOtherParticipant(conversation)
     if (!otherParticipant) return null
 
-    // Si está revelado, mostrar avatar real
+    // Solo para FRIENDS mostrar avatar
     if (otherParticipant.isRevealed || conversation.type === 'FRIENDS') {
       return otherParticipant.user.profile?.avatar
     }
 
-    // Si no está revelado, no mostrar avatar o mostrar uno por defecto
     return null
   }
 
@@ -88,7 +91,8 @@ export function StalkerGiftChatList({ onSelectChat }: StalkerGiftChatListProps) 
     if (onSelectChat) {
       onSelectChat(conversationId)
     } else {
-      router.push(`/messages?conversation=${conversationId}`)
+      // ✅ Redirigir a /stalkergift, NO a /messages
+      router.push(`/stalkergift?tab=chats&conversation=${conversationId}`)
     }
   }
 
@@ -129,21 +133,12 @@ export function StalkerGiftChatList({ onSelectChat }: StalkerGiftChatListProps) 
             className="w-full text-left p-4 bg-gray-800/50 hover:bg-gray-800 rounded-lg transition-colors border border-gray-700 hover:border-[#66DEDB]/50"
           >
             <div className="flex items-start gap-3">
-              {/* Avatar */}
+              {/* Avatar - NUNCA mostrar imagen real para StalkerGift (siempre anónimo) */}
               <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-700">
-                {participantAvatar ? (
-                  <Image
-                    src={participantAvatar}
-                    alt={participantName}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-[#66DEDB]/20">
-                    <ChatBubbleLeftRightIcon className="w-6 h-6 text-[#66DEDB]" />
-                  </div>
-                )}
+                {/* Siempre mostrar icono genérico para StalkerGift (nunca avatar) */}
+                <div className="w-full h-full flex items-center justify-center bg-[#66DEDB]/20">
+                  <ChatBubbleLeftRightIcon className="w-6 h-6 text-[#66DEDB]" />
+                </div>
                 {!isRevealed && (
                   <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                     <span className="text-xs text-white font-semibold">?</span>

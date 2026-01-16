@@ -736,7 +736,8 @@ export class StalkerGiftService {
       throw new BadRequestError('El regalo debe tener un receptor para crear chat');
     }
 
-    // Verificar si ya existe un chat para este StalkerGift
+    // Verificar si ya existe un chat para este StalkerGift específico
+    // Si existe y está vinculado a este regalo, retornarlo
     if (stalkerGift.conversationId) {
       const existingConversation = await prisma.conversation.findUnique({
         where: { id: stalkerGift.conversationId },
@@ -746,20 +747,40 @@ export class StalkerGiftService {
       }
     }
 
-    const chatService = new ChatService();
-
-    // Crear conversación anónima con alias
-    // El sender usa su alias configurado, el receiver usa un alias genérico por ahora
-    // (puede personalizarse después)
-    const conversation = await chatService.createOrGetConversation(
-      stalkerGift.senderId,
-      stalkerGift.receiverId,
-      'STALKERGIFT',
-      {
-        userId: stalkerGift.senderAlias, // Alias del sender
-        participantId: 'Anónimo', // Alias genérico para el receiver (puede personalizarse)
-      }
-    );
+    // ✅ IMPORTANTE: Siempre crear una NUEVA conversación por cada regalo
+    // NO reutilizar conversaciones existentes entre los mismos usuarios
+    // Cada regalo debe tener su propio chat único
+    const conversation = await prisma.conversation.create({
+      data: {
+        type: 'STALKERGIFT',
+        status: 'ACTIVE',
+        participants: {
+          create: [
+            {
+              userId: stalkerGift.senderId,
+              alias: stalkerGift.senderAlias, // Alias del sender
+              isRevealed: false, // Anónimo por defecto
+            },
+            {
+              userId: stalkerGift.receiverId,
+              alias: 'Anónimo', // Alias genérico para el receiver
+              isRevealed: false, // Anónimo por defecto
+            },
+          ],
+        },
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              include: {
+                profile: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     // Vincular conversación al StalkerGift
     await prisma.stalkerGift.update({
@@ -769,6 +790,8 @@ export class StalkerGiftService {
         chatEnabled: true,
       },
     });
+
+    console.log(`✅ [StalkerGift] Chat único creado para regalo ${stalkerGiftId}: ${conversation.id}`);
 
     return conversation;
   }

@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { useChat } from '@/lib/hooks/use-chat'
 import { StalkerGiftTabs } from '@/components/stalkergift/stalkergift-tabs'
 import { StalkerGiftCard } from '@/components/stalkergift/stalkergift-card'
 import { StalkerGiftModal } from '@/components/stalkergift/stalkergift-modal'
 import { StalkerGiftChatList } from '@/components/stalkergift/stalkergift-chat-list'
+import { StalkerGiftChatWindow } from '@/components/stalkergift/stalkergift-chat-window'
 import { Button } from '@/components/ui/button'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
@@ -17,8 +19,11 @@ type StalkerGiftTab = 'received' | 'sent' | 'chats'
 
 export default function StalkerGiftPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, isAuthenticated } = useAuthStore()
+  const { conversations, setActiveConversation, fetchConversations } = useChat()
   const [activeTab, setActiveTab] = useState<StalkerGiftTab>('chats')
+  const [activeChatConversationId, setActiveChatConversationId] = useState<string | null>(null)
   const [receivedGifts, setReceivedGifts] = useState<StalkerGiftDTO[]>([])
   const [sentGifts, setSentGifts] = useState<StalkerGiftDTO[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -79,8 +84,13 @@ export default function StalkerGiftPage() {
     if (isAuthenticated && user?.id) {
       loadReceivedGifts()
       loadSentGifts()
+      fetchConversations() // Cargar conversaciones para el tab de chats
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.id])
+
+  // Obtener conversationId de la URL para el tab de chats
+  const conversationIdParam = searchParams.get('conversation')
 
   // Cargar datos según tab activo
   useEffect(() => {
@@ -93,6 +103,25 @@ export default function StalkerGiftPage() {
     }
     // Chats no necesita carga adicional por ahora
   }, [activeTab])
+
+  // Activar conversación si viene en la URL
+  useEffect(() => {
+    if (conversationIdParam && activeTab === 'chats') {
+      setActiveChatConversationId(conversationIdParam)
+      setActiveConversation(conversationIdParam)
+      // NO limpiar URL - mantenerla para navegación
+    } else if (!conversationIdParam && activeTab === 'chats') {
+      // Si cambia de tab a chats sin conversationId, limpiar conversación activa
+      setActiveChatConversationId(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationIdParam, activeTab])
+
+  // Obtener conversación activa (solo STALKERGIFT)
+  const conversationId = conversationIdParam || activeChatConversationId
+  const selectedConversation = conversations.find(c => 
+    c.type === 'STALKERGIFT' && c.id === conversationId
+  ) || null
 
   // Filtrar regalos recibidos
   const filteredReceivedGifts = receivedGifts.filter((gift) => {
@@ -243,8 +272,43 @@ export default function StalkerGiftPage() {
               )}
 
               {activeTab === 'chats' && (
-                <div>
-                  <StalkerGiftChatList />
+                <div className="flex h-[calc(100vh-20rem)] border-t border-gray-700">
+                  {/* Lista de conversaciones */}
+                  <div className="w-full md:w-80 border-r border-gray-700 bg-gray-900/50 flex flex-col">
+                    <div className="p-4 border-b border-gray-700">
+                      <h2 className="text-lg font-semibold text-[#73FFA2]">Chats Anónimos</h2>
+                      <p className="text-xs text-gray-400 mt-1">Conversaciones de tus regalos</p>
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <StalkerGiftChatList 
+                        onSelectChat={(conversationId) => {
+                          setActiveChatConversationId(conversationId)
+                          setActiveConversation(conversationId)
+                          const newUrl = new URL(window.location.href)
+                          newUrl.searchParams.set('conversation', conversationId)
+                          router.replace(newUrl.pathname + newUrl.search, { scroll: false })
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Ventana de chat */}
+                  <div className="flex-1 flex flex-col bg-gray-900/30">
+                    {conversationId && selectedConversation ? (
+                      <StalkerGiftChatWindow
+                        conversationId={conversationId}
+                        conversation={selectedConversation}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-400">
+                        <div className="text-center">
+                          <GiftIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                          <p className="text-lg mb-2">Selecciona una conversación</p>
+                          <p className="text-sm">O envía un regalo para comenzar un chat</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </>
