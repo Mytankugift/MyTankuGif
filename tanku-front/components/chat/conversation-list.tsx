@@ -15,10 +15,14 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
   const { conversations, isLoading, getOtherParticipant, unreadCount, getAllMessagesForConversation, getUnreadCountForConversation, lastReceivedMessage } = useChat()
   const { user } = useAuthStore()
 
+  // ✅ Filtrar solo conversaciones tipo FRIENDS (excluir STALKERGIFT)
+  // Los chats de StalkerGift deben mostrarse solo en /stalkergift, no en /messages
+  const friendsConversations = conversations.filter(c => c.type === 'FRIENDS')
+
   // ✅ Memoizar datos de cada conversación para actualizar cuando llega mensaje nuevo
   // lastReceivedMessage fuerza re-render cuando cambia
   const conversationsData = useMemo(() => {
-    return conversations.map(conversation => {
+    return friendsConversations.map(conversation => {
       const allMessages = getAllMessagesForConversation(conversation.id)
       return {
         conversation,
@@ -29,7 +33,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
           : getUnreadCountForConversation(conversation.id, user?.id || ''),
       }
     })
-  }, [conversations, getAllMessagesForConversation, getUnreadCountForConversation, selectedConversationId, user?.id, lastReceivedMessage]) // ✅ lastReceivedMessage fuerza recálculo
+  }, [friendsConversations, getAllMessagesForConversation, getUnreadCountForConversation, selectedConversationId, user?.id, lastReceivedMessage]) // ✅ lastReceivedMessage fuerza recálculo
 
 
   const formatTime = (dateString: string) => {
@@ -55,7 +59,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
     )
   }
 
-  if (conversations.length === 0) {
+  if (friendsConversations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-gray-400">
         <p>No tienes conversaciones</p>
