@@ -658,7 +658,7 @@ export class ProductsService {
   async getTopProducts(limit: number = 50): Promise<ProductDTO[]> {
     console.log(`📦 [PRODUCTS] Obteniendo top ${limit} productos para StalkerGift`);
 
-    // Obtener productos activos con más stock o mejor precio
+    // Obtener productos activos (similar al feed, sin filtrar por stock)
     // Por ahora, ordenados por fecha de creación (desc) y luego por precio
     // TODO: Mejorar algoritmo con métricas de ventas/popularidad
     const products = await prisma.product.findMany({
@@ -667,9 +667,8 @@ export class ProductsService {
         variants: {
           some: {
             active: true,
-            stock: {
-              gt: 0, // Solo productos con stock
-            },
+            // No filtrar por stock aquí - el stock se valida después en el checkout
+            // Permitir todos los productos activos, similar al feed
           },
         },
       },

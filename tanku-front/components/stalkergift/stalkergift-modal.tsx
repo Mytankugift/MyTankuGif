@@ -217,7 +217,15 @@ export function StalkerGiftModal({ isOpen, onClose, onSuccess }: StalkerGiftModa
             ? giftData.receiver.user.phone
             : giftData.receiver.externalData?.phone || ''
 
+          // Obtener URL base del frontend (usar variable de entorno si existe, sino usar window.location.origin)
+          // Usar NEXT_PUBLIC_FRONTEND_URL para producción, o window.location.origin como fallback
+          const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 
+                              (typeof window !== 'undefined' ? window.location.origin : 'https://www.mytanku.com')
+          
           // Preparar opciones para Epayco
+          // Agregar stalkerGiftId y cartId como query params para facilitar la búsqueda en la página de éxito
+          const responseUrl = `${frontendUrl}/stalkergift/success?stalkerGiftId=${preparedData.stalkerGiftId}&cartId=${preparedData.cartId}`
+          
           const epaycoOptions = {
             amount: preparedData.total,
             name: `StalkerGift ${preparedData.stalkerGiftId.slice(0, 8)}`,
@@ -225,11 +233,13 @@ export function StalkerGiftModal({ isOpen, onClose, onSuccess }: StalkerGiftModa
             currency: 'cop',
             country: 'co',
             external: false,
-            response: `${window.location.origin}/stalkergift/success`,
+            response: responseUrl,
             confirmation: webhookUrl,
             name_billing: receiverName,
             mobilephone_billing: receiverPhone,
           }
+          
+          console.log('[EPAYCO-STALKERGIFT] URL de respuesta configurada:', responseUrl)
 
           console.log('[EPAYCO-STALKERGIFT] Abriendo pasarela de pago...', epaycoOptions)
 

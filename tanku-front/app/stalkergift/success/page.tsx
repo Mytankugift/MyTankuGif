@@ -26,11 +26,15 @@ function StalkerGiftSuccessContent() {
     const urlParams = new URLSearchParams(window.location.search)
     const refPaycoParam = urlParams.get('ref_payco')
     const cartIdParam = urlParams.get('cartId')
+    const stalkerGiftIdParam = urlParams.get('stalkerGiftId')
 
     setRefPayco(refPaycoParam)
     setCartId(cartIdParam)
 
-    if (refPaycoParam) {
+    // Si tenemos stalkerGiftId directamente, cargarlo primero
+    if (stalkerGiftIdParam) {
+      loadStalkerGiftById(stalkerGiftIdParam)
+    } else if (refPaycoParam) {
       // Consultar el estado de la transacción usando ref_payco (ePayco)
       verifyPaymentStatus(refPaycoParam, cartIdParam)
     } else if (cartIdParam) {
@@ -74,11 +78,19 @@ function StalkerGiftSuccessContent() {
       const epaycoResponse = data.data?.x_response || data.x_response
       
       if (epaycoResponse === 'Aceptada' || epaycoResponse === 'Aprobada' || epaycoResponse === '1') {
-        // Pago exitoso
+        // Pago exitoso - el webhook debería haber actualizado el StalkerGift
         setPaymentStatus('success')
         
         // Si no tenemos el StalkerGift aún, esperar un poco y reintentar
-        if (!stalkerGift && cartId) {
+        // Primero intentar por stalkerGiftId si está en la URL
+        const urlParams = new URLSearchParams(window.location.search)
+        const stalkerGiftIdParam = urlParams.get('stalkerGiftId')
+        
+        if (!stalkerGift && stalkerGiftIdParam) {
+          setTimeout(async () => {
+            await loadStalkerGiftById(stalkerGiftIdParam)
+          }, 2000)
+        } else if (!stalkerGift && cartId) {
           setTimeout(async () => {
             await loadStalkerGiftByCartId(cartId)
           }, 3000)
@@ -111,6 +123,39 @@ function StalkerGiftSuccessContent() {
       setPaymentStatus('pending')
       setErrorMessage('No se pudo verificar el estado del regalo. Por favor, verifica más tarde.')
     } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadStalkerGiftById = async (stalkerGiftId: string) => {
+    try {
+      console.log('[STALKERGIFT-SUCCESS] Cargando StalkerGift por ID:', stalkerGiftId)
+      const response = await apiClient.get<StalkerGiftDTO>(API_ENDPOINTS.STALKER_GIFT.BY_ID(stalkerGiftId))
+
+      if (response.success && response.data) {
+        const gift = response.data as StalkerGiftDTO
+        setStalkerGift(gift)
+        
+        // Actualizar estado según el estado del StalkerGift
+        if (gift.estado === 'WAITING_ACCEPTANCE' || gift.estado === 'PAID') {
+          setPaymentStatus('success')
+        } else if (gift.estado === 'CREATED') {
+          setPaymentStatus('pending')
+          setErrorMessage('El pago está siendo procesado...')
+        } else {
+          setPaymentStatus('failed')
+          setErrorMessage('El regalo no se pudo crear correctamente')
+        }
+        setIsLoading(false)
+      } else {
+        setPaymentStatus('pending')
+        setErrorMessage('No se pudo cargar el regalo. Por favor, espera un momento...')
+        setIsLoading(false)
+      }
+    } catch (error: any) {
+      console.error('[STALKERGIFT-SUCCESS] Error cargando StalkerGift por ID:', error)
+      setPaymentStatus('pending')
+      setErrorMessage('No se pudo cargar el regalo. El pago está siendo procesado...')
       setIsLoading(false)
     }
   }
