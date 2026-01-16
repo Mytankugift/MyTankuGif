@@ -69,7 +69,7 @@ export class DropiWebhookController {
   }
 
   /**
-   * POST /api/v1/webhook/dropi (o /api/v1/webhook/dropi/)
+   * POST /api/v1/webhook/dropi (o /api/v1/webhook/dropi)
    * Webhook de Dropi para actualizar estado de órdenes
    * 
    * Payload esperado (según documentación oficial de Dropi):

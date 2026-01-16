@@ -49,16 +49,19 @@ export class FeedService {
    * @param cursorToken Token del cursor (opcional, para paginación)
    * @param userId ID del usuario (para boost de onboarding)
    * @param categoryId ID de categoría para filtrar (opcional)
+   * @param search Query de búsqueda para filtrar productos (opcional)
    */
   async getFeed(
     cursorToken?: string,
     userId?: string,
-    categoryId?: string
+    categoryId?: string,
+    search?: string
   ): Promise<FeedResponseDTO> {
     console.log(`\n📰 [FEED-SERVICE] ========== INICIANDO GET FEED ==========`);
     console.log(`📰 [FEED-SERVICE] Cursor Token: ${cursorToken || 'No proporcionado'}`);
     console.log(`📰 [FEED-SERVICE] User ID: ${userId || 'No autenticado'}`);
     console.log(`📰 [FEED-SERVICE] Category ID: ${categoryId || 'No especificado'}`);
+    console.log(`📰 [FEED-SERVICE] Search: ${search || 'No especificado'}`);
 
     try {
       // Limpiar tokens expirados
@@ -93,16 +96,27 @@ export class FeedService {
       const estimatedPosts = Math.ceil(limit / (postsPerProducts + 1));
       console.log(`📰 [FEED-SERVICE] Productos estimados: ${estimatedProducts + 5}, Posts estimados: ${estimatedPosts + 2}`);
       
-      // Obtener productos por ranking (solo productos)
+      // Obtener productos por ranking o búsqueda (solo productos)
       let products: any[] = [];
       try {
-        console.log(`📰 [FEED-SERVICE] Obteniendo productos por ranking...`);
-        products = await this.getProductsByRanking(
-          cursor,
-          estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
-          boostFactor,
-          categoryId
-        );
+        // Si hay búsqueda, usar método de búsqueda que busca en todos los productos
+        if (search && search.trim()) {
+          console.log(`📰 [FEED-SERVICE] Obteniendo productos por búsqueda: "${search.trim()}"...`);
+          products = await this.getProductsBySearch(
+            search.trim(),
+            cursor,
+            estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
+            categoryId
+          );
+        } else {
+          console.log(`📰 [FEED-SERVICE] Obteniendo productos por ranking...`);
+          products = await this.getProductsByRanking(
+            cursor,
+            estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
+            boostFactor,
+            categoryId
+          );
+        }
         console.log(`📰 [FEED-SERVICE] Productos obtenidos: ${products.length}`);
       } catch (productsError: any) {
         // Si es error de tabla no existente, continuar solo con posts
@@ -564,6 +578,104 @@ export class FeedService {
     }
 
     return rankingItems;
+  }
+
+  /**
+   * Obtener productos por búsqueda (cuando hay search query)
+   * Busca directamente en la tabla de productos usando el servicio de productos
+   * 
+   * @param searchQuery Query de búsqueda
+   * @param cursor Cursor para paginación (opcional)
+   * @param limit Límite de productos a retornar
+   * @param categoryId ID de categoría para filtrar (opcional)
+   */
+  private async getProductsBySearch(
+    searchQuery: string,
+    cursor: FeedCursorDTO | undefined,
+    limit: number,
+    categoryId?: string
+  ) {
+    console.log(`🔍 [FEED-SERVICE] Buscando productos con query: "${searchQuery}"`);
+    
+    // Construir la query de búsqueda directamente en Prisma
+    // para tener mejor control sobre la paginación con cursor
+    const where: any = {};
+    
+    // Condiciones de búsqueda: buscar en título, descripción y variantes
+    const searchConditions = {
+      OR: [
+        { title: { contains: searchQuery, mode: 'insensitive' } },
+        { description: { contains: searchQuery, mode: 'insensitive' } },
+        { 
+          variants: {
+            some: {
+              OR: [
+                { sku: { contains: searchQuery, mode: 'insensitive' } },
+                { title: { contains: searchQuery, mode: 'insensitive' } },
+              ]
+            }
+          }
+        },
+      ],
+    };
+    
+    // Construir condiciones de where
+    const conditions: any[] = [searchConditions];
+    
+    // Filtro por categoría si se especifica
+    if (categoryId) {
+      conditions.push({ categoryId });
+    }
+    
+    // Aplicar cursor si existe (paginación basada en fecha e ID)
+    if (cursor?.lastProductCreatedAt && cursor?.lastProductId) {
+      conditions.push({
+        OR: [
+          { createdAt: { lt: new Date(cursor.lastProductCreatedAt) } },
+          {
+            AND: [
+              { createdAt: new Date(cursor.lastProductCreatedAt) },
+              { id: { not: cursor.lastProductId } },
+            ],
+          },
+        ],
+      });
+    }
+    
+    // Combinar todas las condiciones
+    if (conditions.length === 1) {
+      Object.assign(where, searchConditions);
+      if (categoryId) {
+        where.categoryId = categoryId;
+      }
+    } else {
+      where.AND = conditions;
+    }
+    
+    // Obtener productos con búsqueda y paginación
+    const products = await prisma.product.findMany({
+      where,
+      select: {
+        id: true,
+        createdAt: true,
+      },
+      orderBy: [
+        { createdAt: 'desc' }, // Más recientes primero
+      ],
+      take: limit,
+    });
+    
+    console.log(`🔍 [FEED-SERVICE] Productos encontrados en búsqueda: ${products.length}`);
+    
+    // Convertir productos a formato compatible con ranking items
+    const productsWithDates = products.map((product) => ({
+      itemId: product.id,
+      itemType: 'product' as const,
+      globalScore: 0, // No usado para búsqueda, pero necesario para compatibilidad
+      createdAt: product.createdAt,
+    }));
+    
+    return productsWithDates;
   }
 
   /**
