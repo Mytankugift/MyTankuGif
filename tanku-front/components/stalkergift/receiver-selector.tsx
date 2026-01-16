@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useFriends } from '@/lib/hooks/use-friends'
-import type { User } from '@/types/api'
+import type { User, FriendUserDTO } from '@/types/api'
 
 type ReceiverType = 'tanku' | 'external'
 
@@ -59,10 +59,15 @@ export function ReceiverSelector({ receiver, onSelect }: ReceiverSelectorProps) 
     return fullName.includes(searchQuery.toLowerCase())
   })
 
-  const handleSelectUser = (user: User) => {
+  const handleSelectUser = (user: User | FriendUserDTO) => {
+    // Convertir FriendUserDTO a User agregando phone si falta
+    const fullUser: User = {
+      ...user,
+      phone: 'phone' in user ? user.phone : null,
+    }
     onSelect({
       type: 'tanku',
-      user,
+      user: fullUser,
     })
   }
 

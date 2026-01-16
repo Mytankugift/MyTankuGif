@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { StalkerGiftTabs } from '@/components/stalkergift/stalkergift-tabs'
 import { StalkerGiftCard } from '@/components/stalkergift/stalkergift-card'
 import { StalkerGiftModal } from '@/components/stalkergift/stalkergift-modal'
+import { StalkerGiftChatList } from '@/components/stalkergift/stalkergift-chat-list'
 import { Button } from '@/components/ui/button'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
@@ -242,14 +243,8 @@ export default function StalkerGiftPage() {
               )}
 
               {activeTab === 'chats' && (
-                <div className="text-center py-12">
-                  <p className="text-gray-400">Los chats de StalkerGift aparecerán aquí</p>
-                  <Button
-                    onClick={() => router.push('/messages?type=stalkergift')}
-                    className="mt-4 bg-[#66DEDB] hover:bg-[#5accc9] text-black"
-                  >
-                    Ver todos los chats
-                  </Button>
+                <div>
+                  <StalkerGiftChatList />
                 </div>
               )}
             </>

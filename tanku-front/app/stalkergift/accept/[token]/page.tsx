@@ -9,7 +9,7 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { AddressFormModal } from '@/components/addresses/address-form-modal'
 import { AddressSelector } from '@/components/addresses/address-selector'
 import { Button } from '@/components/ui/button'
-import type { StalkerGiftDTO, AddressDTO, CreateAddressDTO } from '@/types/api'
+import type { StalkerGiftDTO, AddressDTO, CreateAddressDTO, UpdateAddressDTO } from '@/types/api'
 import { GiftIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 
 export default function StalkerGiftAcceptPage() {
@@ -196,9 +196,28 @@ export default function StalkerGiftAcceptPage() {
   }
 
   // Crear dirección
-  const handleCreateAddress = async (data: CreateAddressDTO) => {
+  const handleCreateAddress = async (data: CreateAddressDTO | UpdateAddressDTO) => {
+    // Validar que sea CreateAddressDTO (todos los campos requeridos)
+    if (!data.firstName || !data.lastName || !data.address1 || !data.city || !data.state || !data.postalCode) {
+      throw new Error('Todos los campos requeridos deben estar completos')
+    }
+
+    const createData: CreateAddressDTO = {
+      firstName: data.firstName!,
+      lastName: data.lastName!,
+      phone: data.phone,
+      address1: data.address1!,
+      address2: data.address2,
+      city: data.city!,
+      state: data.state!,
+      postalCode: data.postalCode!,
+      country: data.country || 'CO',
+      isDefaultShipping: data.isDefaultShipping || false,
+      metadata: data.metadata,
+    }
+
     try {
-      const newAddress = await createAddress(data)
+      const newAddress = await createAddress(createData)
       setSelectedAddress(newAddress)
       setIsAddressModalOpen(false)
       await checkCanComplete()
@@ -208,11 +227,11 @@ export default function StalkerGiftAcceptPage() {
   }
 
   // Actualizar dirección
-  const handleUpdateAddress = async (data: CreateAddressDTO) => {
+  const handleUpdateAddress = async (data: CreateAddressDTO | UpdateAddressDTO) => {
     if (!editingAddress) return
 
     try {
-      await updateAddress(editingAddress.id, data)
+      await updateAddress(editingAddress.id, data as UpdateAddressDTO)
       setIsAddressModalOpen(false)
       setEditingAddress(null)
       await fetchAddresses()

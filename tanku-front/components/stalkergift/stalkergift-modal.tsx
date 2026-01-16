@@ -213,8 +213,8 @@ export function StalkerGiftModal({ isOpen, onClose, onSuccess }: StalkerGiftModa
             ? `${giftData.receiver.user.firstName || ''} ${giftData.receiver.user.lastName || ''}`.trim() || giftData.receiver.user.email?.split('@')[0] || 'Receptor'
             : giftData.receiver.externalData?.name || giftData.receiver.externalData?.instagram || 'Receptor'
 
-          const receiverPhone = giftData.receiver.type === 'tanku' && giftData.receiver.user?.profile?.phone
-            ? giftData.receiver.user.profile.phone
+          const receiverPhone = giftData.receiver.type === 'tanku' && giftData.receiver.user?.phone
+            ? giftData.receiver.user.phone
             : giftData.receiver.externalData?.phone || ''
 
           // Preparar opciones para Epayco
