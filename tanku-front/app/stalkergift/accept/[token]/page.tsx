@@ -29,11 +29,11 @@ export default function StalkerGiftAcceptPage() {
   const [isAccepting, setIsAccepting] = useState(false)
   const [isAccepted, setIsAccepted] = useState(false)
 
-  // Cargar regalo por token (público)
+  // Cargar regalo por token o ID
   useEffect(() => {
     const loadStalkerGift = async () => {
       if (!token) {
-        setError('Token no válido')
+        setError('Token o ID no válido')
         setIsLoading(false)
         return
       }
@@ -42,9 +42,33 @@ export default function StalkerGiftAcceptPage() {
         setIsLoading(true)
         setError(null)
 
-        const response = await apiClient.get<StalkerGiftDTO>(
+        // Intentar primero como token (para usuarios externos con link único)
+        let response = await apiClient.get<StalkerGiftDTO>(
           API_ENDPOINTS.STALKER_GIFT.BY_TOKEN(token)
         )
+
+        // Si falla como token, intentar como ID (para usuarios Tanku autenticados)
+        if (!response.success) {
+          // Esperar a que el usuario esté autenticado si no lo está
+          if (!isAuthenticated || !user?.id) {
+            // Si no está autenticado, mostrar el error del token
+            setError(response.error?.message || 'Regalo no encontrado')
+            setIsLoading(false)
+            return
+          }
+
+          // Si está autenticado, intentar como ID
+          try {
+            response = await apiClient.get<StalkerGiftDTO>(
+              API_ENDPOINTS.STALKER_GIFT.BY_ID(token)
+            )
+          } catch (idError: any) {
+            // Si también falla como ID, usar el error
+            setError(response.error?.message || idError?.message || 'Regalo no encontrado')
+            setIsLoading(false)
+            return
+          }
+        }
 
         if (response.success && response.data) {
           setStalkerGift(response.data)
@@ -52,14 +76,30 @@ export default function StalkerGiftAcceptPage() {
           setError(response.error?.message || 'Regalo no encontrado')
         }
       } catch (err: any) {
-        setError(err.message || 'Error al cargar el regalo')
+        // Si falla el token y el usuario está autenticado, intentar como ID
+        if (isAuthenticated && user?.id) {
+          try {
+            const response = await apiClient.get<StalkerGiftDTO>(
+              API_ENDPOINTS.STALKER_GIFT.BY_ID(token)
+            )
+            if (response.success && response.data) {
+              setStalkerGift(response.data)
+            } else {
+              setError(response.error?.message || 'Regalo no encontrado')
+            }
+          } catch (idError: any) {
+            setError(err.message || idError?.message || 'Error al cargar el regalo')
+          }
+        } else {
+          setError(err.message || 'Error al cargar el regalo')
+        }
       } finally {
         setIsLoading(false)
       }
     }
 
     loadStalkerGift()
-  }, [token])
+  }, [token, isAuthenticated, user?.id])
 
   // Verificar si puede completar aceptación
   const checkCanComplete = useCallback(async () => {
