@@ -7,6 +7,7 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useFriends } from '@/lib/hooks/use-friends'
 import type { FriendDTO } from '@/types/api'
 
@@ -17,6 +18,7 @@ interface FriendCardProps {
 }
 
 export function FriendCard({ friend, onRefresh, groups }: FriendCardProps) {
+  const router = useRouter()
   const { removeFriend, blockUser } = useFriends()
   const [isRemoving, setIsRemoving] = useState(false)
   const [isBlocking, setIsBlocking] = useState(false)
@@ -117,8 +119,11 @@ export function FriendCard({ friend, onRefresh, groups }: FriendCardProps) {
       </div>
 
       <div className="flex gap-3">
-        {/* Avatar cuadrado con bordes redondeados */}
-        <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-lg overflow-hidden flex-shrink-0 border border-[#66DEDB] bg-gray-700 flex items-center justify-center">
+        {/* Avatar cuadrado con bordes redondeados - clickeable */}
+        <button
+          onClick={() => router.push(friend.friend.username ? `/profile/${friend.friend.username}` : `/profile/${friend.friendId}`)}
+          className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-lg overflow-hidden flex-shrink-0 border border-[#66DEDB] bg-gray-700 flex items-center justify-center hover:border-[#73FFA2] transition-colors cursor-pointer"
+        >
           {imgSrc ? (
             <Image
               src={imgSrc}
@@ -126,7 +131,11 @@ export function FriendCard({ friend, onRefresh, groups }: FriendCardProps) {
               width={128}
               height={128}
               className="object-cover w-full h-full"
-              onError={() => setImgSrc('')}
+              onError={(e) => {
+                setImgSrc('')
+                const target = e.target as HTMLImageElement
+                target.style.display = 'none'
+              }}
               referrerPolicy="no-referrer"
               unoptimized={imgSrc.startsWith('http')}
             />
@@ -135,14 +144,30 @@ export function FriendCard({ friend, onRefresh, groups }: FriendCardProps) {
               {(friend.friend.firstName?.[0] || friend.friend.email?.[0] || 'U').toUpperCase()}
             </span>
           )}
-        </div>
+        </button>
 
         {/* Contenido principal */}
         <div className="flex-1 min-w-0 flex flex-col gap-2.5">
-          {/* Nombre */}
-          <div>
-            <h3 className="text-lg font-semibold text-[#73FFA2] truncate">{fullName}</h3>
-          </div>
+          {/* Username primero (sin @), luego nombre - clickeable */}
+          <button
+            onClick={() => router.push(friend.friend.username ? `/profile/${friend.friend.username}` : `/profile/${friend.friendId}`)}
+            className="text-left"
+          >
+            {friend.friend.username ? (
+              <>
+                <h3 className="text-lg font-semibold text-[#73FFA2] truncate hover:text-[#66DEDB] transition-colors">
+                  {friend.friend.username}
+                </h3>
+                {fullName && fullName !== 'Sin nombre' && (
+                  <p className="text-sm text-gray-400 truncate">{fullName}</p>
+                )}
+              </>
+            ) : (
+              <h3 className="text-lg font-semibold text-[#73FFA2] truncate hover:text-[#66DEDB] transition-colors">
+                {fullName}
+              </h3>
+            )}
+          </button>
           
           {/* Botones distribuidos uniformemente */}
           <div className="flex items-center justify-between gap-2">

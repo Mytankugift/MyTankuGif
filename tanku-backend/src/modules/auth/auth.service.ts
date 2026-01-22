@@ -24,18 +24,32 @@ export class AuthService {
   /**
    * Mapper: Convierte User de Prisma a UserPublicDTO
    */
-private mapUserToPublicDTO(user: User & { profile?: UserProfile | null }): UserPublicDTO {
-return {
+  private mapUserToPublicDTO(user: User & { profile?: UserProfile | null }): UserPublicDTO {
+    // Parsear socialLinks desde JSON si existe
+    let socialLinks: { platform: string; url: string }[] | undefined = undefined;
+    if (user.profile?.socialLinks) {
+      try {
+        const parsed = typeof user.profile.socialLinks === 'string' 
+          ? JSON.parse(user.profile.socialLinks) 
+          : user.profile.socialLinks;
+        socialLinks = Array.isArray(parsed) ? parsed : undefined;
+      } catch (error) {
+        console.error('Error parsing socialLinks:', error);
+      }
+    }
+    return {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      username: user.username,
       phone: user.phone,
       profile: user.profile
         ? {
             avatar: user.profile.avatar,
             banner: user.profile.banner,
             bio: user.profile.bio,
+            socialLinks,
           }
         : null,
     };

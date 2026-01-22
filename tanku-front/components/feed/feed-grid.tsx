@@ -8,9 +8,10 @@ import type { FeedItem } from '@/lib/types/feed.types'
 
 interface FeedGridProps {
   items: FeedItem[]
+  onPosterClick?: (poster: FeedItem) => void
 }
 
-export function FeedGrid({ items }: FeedGridProps) {
+export function FeedGrid({ items, onPosterClick }: FeedGridProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Configuración de breakpoints para masonry
@@ -72,8 +73,10 @@ export function FeedGrid({ items }: FeedGridProps) {
                     likesCount: item.likesCount || 0,
                     commentsCount: item.commentsCount || 0,
                     createdAt: item.createdAt,
+                    isLiked: item.isLiked,
                     author: item.author,
                   }}
+                  onOpenModal={onPosterClick}
                   isLightMode={false}
                 />
               </div>

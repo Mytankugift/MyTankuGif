@@ -4,7 +4,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
@@ -106,42 +106,82 @@ export function SavedWishlistsViewer() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchSavedWishlists()
-    }
-  }, [isAuthenticated])
-
-  const fetchSavedWishlists = async () => {
+  const fetchSavedWishlists = useCallback(async () => {
     if (!isAuthenticated || !user?.id) return
 
     setIsLoading(true)
     try {
-      // TODO: Implementar endpoint para obtener wishlists guardadas
-      // Por ahora usamos un placeholder
-      // const response = await apiClient.get<SavedWishlist[]>(API_ENDPOINTS.WISHLISTS.SAVED)
-      // if (response.success && response.data) {
-      //   setSavedWishlists(response.data)
-      // }
-      
-      // Placeholder - por ahora mostrar mensaje
-      setSavedWishlists([])
+      const response = await apiClient.get<any[]>(API_ENDPOINTS.WISHLISTS.SAVED)
+      if (response.success && response.data) {
+        // Transformar los datos del backend: owner -> user y asegurar userId
+        const transformed = response.data.map((w: any) => ({
+          ...w,
+          userId: w.userId || w.owner?.id || w.user?.id,
+          user: w.user || w.owner || {
+            id: w.userId || w.owner?.id,
+            firstName: null,
+            lastName: null,
+            email: '',
+            profile: null,
+          },
+        }))
+        setSavedWishlists(transformed)
+      }
     } catch (error) {
       console.error('Error obteniendo wishlists guardadas:', error)
+      setSavedWishlists([])
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [isAuthenticated, user?.id])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchSavedWishlists()
+    }
+  }, [isAuthenticated, fetchSavedWishlists])
+  
+  // Escuchar evento cuando se guarda una wishlist desde otra página
+  useEffect(() => {
+    if (!isAuthenticated) return
+    
+    const handleWishlistSaved = () => {
+      // Pequeño delay para asegurar que el backend haya procesado el guardado
+      setTimeout(() => {
+        fetchSavedWishlists()
+      }, 300)
+    }
+    
+    window.addEventListener('wishlist-saved', handleWishlistSaved)
+    
+    return () => {
+      window.removeEventListener('wishlist-saved', handleWishlistSaved)
+    }
+  }, [isAuthenticated, fetchSavedWishlists])
+  
+  // También refrescar cuando el componente se monta y está en el tab "saved"
+  useEffect(() => {
+    if (isAuthenticated && typeof window !== 'undefined') {
+      // Verificar si estamos en la página de wishlists con el tab saved activo
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('saved') === 'true') {
+        // Pequeño delay para asegurar que la navegación se complete
+        setTimeout(() => {
+          fetchSavedWishlists()
+        }, 500)
+      }
+    }
+  }, [isAuthenticated, fetchSavedWishlists])
 
   const handleUnsave = async (wishlistId: string) => {
     if (!confirm('¿Dejar de ver esta wishlist?')) return
 
     try {
-      // TODO: Implementar endpoint para dejar de guardar wishlist
-      // await apiClient.delete(API_ENDPOINTS.WISHLISTS.UNSAVE(wishlistId))
+      await apiClient.delete(API_ENDPOINTS.WISHLISTS.UNSAVE(wishlistId))
       setSavedWishlists((prev) => prev.filter((w) => w.id !== wishlistId))
     } catch (error) {
       console.error('Error dejando de ver wishlist:', error)
+      alert('Error al desguardar la wishlist')
     }
   }
 
@@ -188,6 +228,12 @@ export function SavedWishlistsViewer() {
       {/* Lista de usuarios con avatares */}
       <div className="flex flex-wrap gap-4 mb-8">
         {Object.entries(wishlistsByUser).map(([userId, userData]) => {
+          // Validar que userData.user existe
+          if (!userData?.user) {
+            console.warn('User data missing for userId:', userId)
+            return null
+          }
+          
           const isSelected = selectedUserId === userId
           const fullName = `${userData.user.firstName || ''} ${userData.user.lastName || ''}`.trim() || 'Sin nombre'
           const avatarUrl =

@@ -23,9 +23,10 @@ export interface ChatMessage {
   createdAt: string
   sender: {
     id: string
+    email: string
     firstName: string | null
     lastName: string | null
-    email: string
+    username: string | null
     profile: {
       avatar: string | null
       banner: string | null

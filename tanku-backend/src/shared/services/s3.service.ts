@@ -20,6 +20,14 @@ export class S3Service {
   }
 
   /**
+   * Obtener prefijo según el ambiente (dev/prod)
+   * Permite separar archivos de desarrollo y producción para facilitar la limpieza
+   */
+  private getEnvironmentPrefix(): string {
+    return env.NODE_ENV === 'production' ? 'prod' : 'dev';
+  }
+
+  /**
    * Subir archivo a S3
    */
   async uploadFile(
@@ -27,16 +35,17 @@ export class S3Service {
     folder: string = 'uploads'
   ): Promise<string> {
     try {
-      // Generar nombre único para el archivo
+      // Generar nombre único para el archivo con prefijo de ambiente
       const fileExtension = path.extname(file.originalname);
-      const fileName = `${folder}/${randomUUID()}${fileExtension}`;
+      const envPrefix = this.getEnvironmentPrefix();
+      const fileName = `${envPrefix}/${folder}/${randomUUID()}${fileExtension}`;
 
       const params: AWS.S3.PutObjectRequest = {
         Bucket: env.S3_BUCKET,
         Key: fileName,
         Body: file.buffer,
         ContentType: file.mimetype,
-        ACL: 'public-read', // Hacer el archivo público
+        // ACL removido - el acceso público se controla mediante la política del bucket
       };
 
       const result = await this.s3.upload(params).promise();

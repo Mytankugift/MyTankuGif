@@ -1,41 +1,65 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CheckIcon } from '@heroicons/react/24/outline'
+import { useAuthStore } from '@/lib/stores/auth-store'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { apiClient } from '@/lib/api/client'
 
 interface PrivacySectionProps {
   onUpdate?: () => void
 }
 
 export function PrivacySection({ onUpdate }: PrivacySectionProps) {
-  const [privacySettings, setPrivacySettings] = useState({
-    profilePublic: true,
-    showEmail: false,
-    showPhone: false,
-    allowFriendRequests: true,
-    showActivity: true,
-  })
+  const { user, checkAuth } = useAuthStore()
+  const [profilePublic, setProfilePublic] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
+  // Cargar configuración actual del perfil
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user?.id) return
+      setIsLoading(true)
+      try {
+        const response = await apiClient.get<import('@/types/api-responses').UserProfileResponse>(API_ENDPOINTS.USERS.PROFILE)
+        if (response.success && response.data) {
+          setProfilePublic(response.data.isPublic ?? true)
+        }
+      } catch (error) {
+        console.error('Error cargando perfil:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadProfile()
+  }, [user?.id])
+
   const handleSave = async () => {
+    if (!user?.id) return
     setIsSaving(true)
     setError(null)
     setSuccess(false)
 
     try {
-      // TODO: Implementar endpoint de privacidad en el backend
-      // Por ahora solo simulamos el guardado
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      setSuccess(true)
-      if (onUpdate) {
-        onUpdate()
+      const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE, {
+        isPublic: profilePublic,
+      })
+
+      if (response.success) {
+        setSuccess(true)
+        // Actualizar el estado del usuario
+        await checkAuth()
+        if (onUpdate) {
+          onUpdate()
+        }
+        // Ocultar mensaje de éxito después de 3 segundos
+        setTimeout(() => setSuccess(false), 3000)
+      } else {
+        setError('Error al guardar configuración de privacidad')
       }
-      
-      // Ocultar mensaje de éxito después de 3 segundos
-      setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
       setError(err.message || 'Error al guardar configuración de privacidad')
     } finally {
@@ -59,121 +83,59 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
         </div>
       )}
 
-      {/* Perfil público */}
-      <div className="flex items-center justify-between py-2 border-b border-gray-700">
-        <div>
-          <label className="text-sm font-medium text-white">Perfil Público</label>
-          <p className="text-xs text-gray-400">Permitir que otros usuarios vean tu perfil</p>
+      {isLoading ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
+          <p className="text-gray-400">Cargando configuración...</p>
         </div>
-        <button
-          onClick={() => setPrivacySettings(prev => ({ ...prev, profilePublic: !prev.profilePublic }))}
-          disabled={isSaving}
-          className={`relative w-12 h-6 rounded-full transition-colors ${
-            privacySettings.profilePublic ? 'bg-[#73FFA2]' : 'bg-gray-600'
-          } disabled:opacity-50`}
-        >
-          <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-            privacySettings.profilePublic ? 'translate-x-6' : 'translate-x-0'
-          }`} />
-        </button>
-      </div>
+      ) : (
+        <>
+          {/* Perfil público */}
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <label className="text-sm font-medium text-white">Perfil Público</label>
+              <p className="text-xs text-gray-400">Permitir que otros usuarios vean tu perfil</p>
+            </div>
+            <button
+              onClick={async () => {
+                const newValue = !profilePublic
+                setProfilePublic(newValue)
+                // Guardar automáticamente
+                setIsSaving(true)
+                setError(null)
+                try {
+                  const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE, {
+                    isPublic: newValue,
+                  })
+                  if (response.success) {
+                    await checkAuth()
+                    if (onUpdate) {
+                      onUpdate()
+                    }
+                  } else {
+                    setError('Error al guardar configuración')
+                    setProfilePublic(profilePublic) // Revertir
+                  }
+                } catch (err: any) {
+                  setError(err.message || 'Error al guardar configuración')
+                  setProfilePublic(profilePublic) // Revertir
+                } finally {
+                  setIsSaving(false)
+                }
+              }}
+              disabled={isSaving}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                profilePublic ? 'bg-[#73FFA2]' : 'bg-gray-600'
+              } disabled:opacity-50`}
+            >
+              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                profilePublic ? 'translate-x-6' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+        </>
+      )}
 
-      {/* Mostrar email */}
-      <div className="flex items-center justify-between py-2 border-b border-gray-700">
-        <div>
-          <label className="text-sm font-medium text-white">Mostrar Email</label>
-          <p className="text-xs text-gray-400">Permitir que otros usuarios vean tu email</p>
-        </div>
-        <button
-          onClick={() => setPrivacySettings(prev => ({ ...prev, showEmail: !prev.showEmail }))}
-          disabled={isSaving}
-          className={`relative w-12 h-6 rounded-full transition-colors ${
-            privacySettings.showEmail ? 'bg-[#73FFA2]' : 'bg-gray-600'
-          } disabled:opacity-50`}
-        >
-          <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-            privacySettings.showEmail ? 'translate-x-6' : 'translate-x-0'
-          }`} />
-        </button>
-      </div>
-
-      {/* Mostrar teléfono */}
-      <div className="flex items-center justify-between py-2 border-b border-gray-700">
-        <div>
-          <label className="text-sm font-medium text-white">Mostrar Teléfono</label>
-          <p className="text-xs text-gray-400">Permitir que otros usuarios vean tu teléfono</p>
-        </div>
-        <button
-          onClick={() => setPrivacySettings(prev => ({ ...prev, showPhone: !prev.showPhone }))}
-          disabled={isSaving}
-          className={`relative w-12 h-6 rounded-full transition-colors ${
-            privacySettings.showPhone ? 'bg-[#73FFA2]' : 'bg-gray-600'
-          } disabled:opacity-50`}
-        >
-          <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-            privacySettings.showPhone ? 'translate-x-6' : 'translate-x-0'
-          }`} />
-        </button>
-      </div>
-
-      {/* Permitir solicitudes de amistad */}
-      <div className="flex items-center justify-between py-2 border-b border-gray-700">
-        <div>
-          <label className="text-sm font-medium text-white">Permitir Solicitudes de Amistad</label>
-          <p className="text-xs text-gray-400">Permitir que otros usuarios te envíen solicitudes de amistad</p>
-        </div>
-        <button
-          onClick={() => setPrivacySettings(prev => ({ ...prev, allowFriendRequests: !prev.allowFriendRequests }))}
-          disabled={isSaving}
-          className={`relative w-12 h-6 rounded-full transition-colors ${
-            privacySettings.allowFriendRequests ? 'bg-[#73FFA2]' : 'bg-gray-600'
-          } disabled:opacity-50`}
-        >
-          <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-            privacySettings.allowFriendRequests ? 'translate-x-6' : 'translate-x-0'
-          }`} />
-        </button>
-      </div>
-
-      {/* Mostrar actividad */}
-      <div className="flex items-center justify-between py-2">
-        <div>
-          <label className="text-sm font-medium text-white">Mostrar Actividad</label>
-          <p className="text-xs text-gray-400">Permitir que otros usuarios vean tu actividad</p>
-        </div>
-        <button
-          onClick={() => setPrivacySettings(prev => ({ ...prev, showActivity: !prev.showActivity }))}
-          disabled={isSaving}
-          className={`relative w-12 h-6 rounded-full transition-colors ${
-            privacySettings.showActivity ? 'bg-[#73FFA2]' : 'bg-gray-600'
-          } disabled:opacity-50`}
-        >
-          <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-            privacySettings.showActivity ? 'translate-x-6' : 'translate-x-0'
-          }`} />
-        </button>
-      </div>
-
-      {/* Botón guardar */}
-      <div className="flex justify-end pt-4 border-t border-gray-700">
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-gray-900 px-6 py-2 rounded-lg font-medium hover:from-[#73FFA2] hover:to-[#66DEDB] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving ? (
-            <>
-              <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-              Guardando...
-            </>
-          ) : (
-            <>
-              <CheckIcon className="w-5 h-5" />
-              Guardar Cambios
-            </>
-          )}
-        </button>
-      </div>
     </div>
   )
 }

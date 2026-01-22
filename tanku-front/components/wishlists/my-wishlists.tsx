@@ -10,6 +10,7 @@ import { useWishLists } from '@/lib/hooks/use-wishlists'
 import { useCartStore } from '@/lib/stores/cart-store'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { WishlistProductsModal } from './wishlist-products-modal'
+import { ShareWishlistModal } from './share-wishlist-modal'
 import type { WishListDTO } from '@/types/api'
 
 export function MyWishlists() {
@@ -17,6 +18,7 @@ export function MyWishlists() {
     useWishLists()
   const { addItem } = useCartStore()
   const [selectedWishlist, setSelectedWishlist] = useState<WishListDTO | null>(null)
+  const [shareWishlist, setShareWishlist] = useState<WishListDTO | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [editingWishlist, setEditingWishlist] = useState<WishListDTO | null>(null)
   const [newName, setNewName] = useState('')
@@ -62,6 +64,11 @@ export function MyWishlists() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(price)
+  
+  // Calcular precio final: (precio * 1.15) + 10,000
+  const calculateFinalPrice = (basePrice: number): number => {
+    return Math.round((basePrice * 1.15) + 10000)
+  }
 
   const handleAddToCartFromWishlistItem = async (item: WishListDTO['items'][0]) => {
     // Si ya tenemos variantId guardada, agregamos directo
@@ -85,41 +92,20 @@ export function MyWishlists() {
     setSelectedWishlist((prev) => prev || null)
   }
 
+  // ensurePrice ya no es necesario porque tankuPrice viene del backend
+  // Mantenemos la función por compatibilidad pero no hace nada
   const ensurePrice = async (item: WishListDTO['items'][0]) => {
-    const key = `${item.product.id}:${item.variantId || 'default'}`
-    if (item.variant?.price !== undefined && item.variant?.price !== null) {
-      setPriceCache((prev) => ({ ...prev, [key]: item.variant!.price as number }))
-      return
-    }
-    if (priceCache[key] !== undefined || inFlightKeysRef.current.has(key)) return
-    inFlightKeysRef.current.add(key)
-    try {
-      const handle = item.product.handle
-      if (!handle) return
-      const full = await fetchProductByHandle(handle)
-      const variants = full?.variants || []
-      let price = 0
-      if (item.variantId) {
-        const v = variants.find((x: any) => x.id === item.variantId)
-        price = v?.price || 0
-      } else if (variants.length === 1) {
-        price = variants[0].price
-      } else if (variants.length > 1) {
-        // Tomar la variante con precio mínimo como fallback
-        price = variants.reduce((min: number, v: any) => (min === 0 ? v.price : Math.min(min, v.price)), 0)
-      }
-      if (price) {
-        setPriceCache((prev) => ({ ...prev, [key]: price }))
-      }
-    } finally {
-      inFlightKeysRef.current.delete(key)
-    }
+    // No hacer nada, tankuPrice ya viene del backend
   }
 
   const getDisplayPrice = (item: WishListDTO['items'][0]) => {
-    const key = `${item.product.id}:${item.variantId || 'default'}`
-    const val = item.variant?.price ?? priceCache[key]
-    return typeof val === 'number' && val > 0 ? formatPrice(val) : '—'
+    // Usar tankuPrice directamente (ya calculado en sync)
+    const finalPrice = item.variant?.tankuPrice || 0
+    
+    if (finalPrice > 0) {
+      return formatPrice(finalPrice)
+    }
+    return '—'
     }
 
   const startEdit = (wishlist: WishListDTO) => {
@@ -272,6 +258,13 @@ export function MyWishlists() {
                         {wishlist.items.length} producto{wishlist.items.length !== 1 ? 's' : ''}
                       </span>
                       <button
+                        onClick={() => setShareWishlist(wishlist)}
+                        className="text-sm text-[#73FFA2] hover:text-[#66DEDB] transition-colors"
+                        title="Compartir wishlist"
+                      >
+                        Compartir
+                      </button>
+                      <button
                         onClick={() => handleDelete(wishlist.id)}
                         className="text-sm text-red-400 hover:text-red-300 transition-colors"
                       >
@@ -320,7 +313,7 @@ export function MyWishlists() {
                         <div className="text-xs font-semibold text-[#3B9BC3] mt-1">
                           {(() => {
                             // Llamada perezosa para asegurar precio si falta
-                            if (!item.variant?.price) {
+                            if (!item.variant?.tankuPrice) {
                               // No await: dispara cálculo y luego re-renderiza por setState
                               ensurePrice(item)
                             }
@@ -450,6 +443,15 @@ export function MyWishlists() {
           isOpen={!!selectedWishlist}
           onClose={() => setSelectedWishlist(null)}
           onRemoveItem={handleRemoveItem}
+        />
+      )}
+      
+      {/* Modal de compartir wishlist */}
+      {shareWishlist && (
+        <ShareWishlistModal
+          wishlist={shareWishlist}
+          isOpen={!!shareWishlist}
+          onClose={() => setShareWishlist(null)}
         />
       )}
     </div>

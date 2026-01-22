@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { FeedNav } from '@/components/feed/feed-nav'
 import { FeedGrid } from '@/components/feed/feed-grid'
 import { FeedInfiniteScroll } from '@/components/feed/feed-infinite-scroll'
+import { PosterDetailModal } from '@/components/posters/poster-detail-modal'
 import { useFeed } from '@/lib/hooks/use-feed'
 import { useInfiniteScroll } from '@/lib/hooks/use-infinite-scroll'
 import { apiClient } from '@/lib/api/client'
@@ -15,6 +16,8 @@ export default function FeedPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
+  const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
 
   // Cargar categorías
   useEffect(() => {
@@ -43,6 +46,8 @@ export default function FeedPage() {
     hasMore,
     nextCursorToken,
     loadMore,
+    updateItem,
+    removeItem,
   } = useFeed({
     categoryId: selectedCategoryId,
     searchQuery,
@@ -129,7 +134,13 @@ export default function FeedPage() {
           </div>
         ) : (
           <>
-            <FeedGrid items={items} />
+            <FeedGrid 
+              items={items}
+              onPosterClick={(poster) => {
+                setSelectedPosterId(poster.id)
+                setIsPosterModalOpen(true)
+              }}
+            />
             <FeedInfiniteScroll
               hasMore={hasMore && !!nextCursorToken}
               isLoadingMore={isLoadingMore}
@@ -138,6 +149,25 @@ export default function FeedPage() {
           </>
         )}
       </div>
+
+      {/* Modal de detalle de post */}
+      <PosterDetailModal
+        isOpen={isPosterModalOpen}
+        posterId={selectedPosterId}
+        initialPosterData={selectedPosterId ? items.find(item => item.id === selectedPosterId && item.type === 'poster') as any : null}
+        onClose={() => {
+          setIsPosterModalOpen(false)
+          setSelectedPosterId(null)
+        }}
+        onPostDeleted={(posterId) => {
+          // Remover el post del feed sin recargar
+          removeItem(posterId)
+        }}
+        onPostUpdated={(posterId, updates) => {
+          // Actualizar solo ese item en el feed (sin recargar)
+          updateItem(posterId, updates)
+        }}
+      />
     </div>
   )
 }

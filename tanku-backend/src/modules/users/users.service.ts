@@ -12,6 +12,7 @@ import {
   UpdatePersonalInformationDTO,
   OnboardingDataDTO,
   UpdateOnboardingDataDTO,
+  SocialLink,
 } from '../../shared/dto/users.dto';
 import { UserPublicDTO } from '../../shared/dto/auth.dto';
 import type { Address, UserProfile, PersonalInformation } from '@prisma/client';
@@ -68,6 +69,150 @@ export class UsersService {
     };
 
     return response;
+  }
+
+  /**
+   * Buscar usuarios por nombre o email (para autocompletado de menciones)
+   * Si query está vacío, retorna usuarios recientes
+   */
+  async searchUsers(query: string, limit: number = 10): Promise<Array<{
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    avatar: string | null;
+  }>> {
+    let users;
+
+    if (!query || query.trim().length < 1) {
+      // Si no hay query, retornar usuarios recientes (últimos creados)
+      users = await prisma.user.findMany({
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: limit,
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          username: true,
+          profile: {
+            select: {
+              avatar: true,
+            },
+          },
+        },
+      });
+    } else {
+      const searchTerm = query.trim().toLowerCase();
+
+      users = await prisma.user.findMany({
+        where: {
+          OR: [
+            { firstName: { contains: searchTerm, mode: 'insensitive' } },
+            { lastName: { contains: searchTerm, mode: 'insensitive' } },
+            { email: { contains: searchTerm, mode: 'insensitive' } },
+            { username: { contains: searchTerm, mode: 'insensitive' } },
+          ],
+        },
+        take: limit,
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          username: true,
+          profile: {
+            select: {
+              avatar: true,
+            },
+          },
+        },
+      });
+    }
+
+    return users.map(user => ({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      username: user.username || null,
+      avatar: user.profile?.avatar || null,
+    }));
+  }
+
+  /**
+   * Obtener usuarios por IDs (para menciones en comentarios)
+   */
+  async getUsersByIds(userIds: string[]): Promise<Array<{
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    username: string | null;
+    avatar: string | null;
+  }>> {
+    if (!userIds || userIds.length === 0) {
+      return [];
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        id: {
+          in: userIds,
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        username: true,
+        profile: {
+          select: {
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    return users.map(user => ({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      username: user.username,
+      avatar: user.profile?.avatar || null,
+    }));
+  }
+
+  /**
+   * Buscar usuarios por IDs (para procesar menciones) - DEPRECATED, usar getUsersByIds
+   */
+  async findUsersByIds(userIds: string[]): Promise<Array<{
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+  }>> {
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: userIds },
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    return users;
   }
 
   /**
@@ -281,6 +426,7 @@ export class UsersService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      username: user.username,
       phone: user.phone,
       profile: user.profile
         ? {
@@ -426,11 +572,26 @@ export class UsersService {
       throw new NotFoundError('Usuario no encontrado');
     }
 
+    // Validar que el username sea único si se está actualizando
+    if (updateData.username !== undefined && updateData.username !== null && updateData.username !== user.username) {
+      const existingUser = await prisma.user.findUnique({
+        where: { username: updateData.username },
+      });
+
+      if (existingUser && existingUser.id !== userId) {
+        throw new BadRequestError('Este username ya está en uso');
+      }
+    }
+
     const updateFields: any = {};
     if (updateData.firstName !== undefined) updateFields.firstName = updateData.firstName;
     if (updateData.lastName !== undefined) updateFields.lastName = updateData.lastName;
     if (updateData.phone !== undefined) updateFields.phone = updateData.phone;
     if (updateData.email !== undefined) updateFields.email = updateData.email;
+    if (updateData.username !== undefined) {
+      // Permitir establecer username a null o a un valor
+      updateFields.username = updateData.username === '' ? null : updateData.username;
+    }
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -443,6 +604,7 @@ export class UsersService {
       email: updatedUser.email,
       firstName: updatedUser.firstName,
       lastName: updatedUser.lastName,
+      username: updatedUser.username,
       phone: updatedUser.phone,
       profile: updatedUser.profile
         ? {
@@ -460,12 +622,27 @@ export class UsersService {
    * Mapper: UserProfile de Prisma a UserProfileDTO
    */
   private mapUserProfileToDTO(profile: UserProfile): UserProfileDTO {
+    // Parsear socialLinks desde JSON si existe
+    let socialLinks: SocialLink[] | undefined = undefined;
+    if (profile.socialLinks) {
+      try {
+        const parsed = typeof profile.socialLinks === 'string' 
+          ? JSON.parse(profile.socialLinks) 
+          : profile.socialLinks;
+        socialLinks = Array.isArray(parsed) ? parsed : undefined;
+      } catch (error) {
+        console.error('Error parsing socialLinks:', error);
+      }
+    }
+
     return {
       id: profile.id,
       userId: profile.userId,
       avatar: profile.avatar,
       banner: profile.banner,
       bio: profile.bio,
+      isPublic: profile.isPublic ?? true,
+      socialLinks,
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),
     };
@@ -490,16 +667,41 @@ export class UsersService {
    * Crear o actualizar perfil del usuario
    */
   async upsertUserProfile(userId: string, updateData: UpdateUserProfileDTO): Promise<UserProfileDTO> {
+    console.log('🔄 [USERS] upsertUserProfile - updateData:', JSON.stringify(updateData, null, 2));
+    
+    const updatePayload: any = {};
+    
+    if (updateData.bio !== undefined) {
+      updatePayload.bio = updateData.bio;
+    }
+    if (updateData.isPublic !== undefined) {
+      updatePayload.isPublic = updateData.isPublic;
+    }
+    if (updateData.socialLinks !== undefined) {
+      updatePayload.socialLinks = updateData.socialLinks;
+      console.log('📝 [USERS] Guardando socialLinks:', JSON.stringify(updateData.socialLinks, null, 2));
+    }
+
+    const createPayload: any = {
+      userId,
+      bio: updateData.bio || null,
+      isPublic: updateData.isPublic !== undefined ? updateData.isPublic : true,
+    };
+    
+    if (updateData.socialLinks !== undefined) {
+      createPayload.socialLinks = updateData.socialLinks;
+    }
+
+    console.log('📦 [USERS] updatePayload:', JSON.stringify(updatePayload, null, 2));
+    console.log('📦 [USERS] createPayload:', JSON.stringify(createPayload, null, 2));
+
     const profile = await prisma.userProfile.upsert({
       where: { userId },
-      update: {
-        bio: updateData.bio,
-      },
-      create: {
-        userId,
-        bio: updateData.bio || null,
-      },
+      update: updatePayload,
+      create: createPayload,
     });
+
+    console.log('✅ [USERS] Perfil guardado - socialLinks en DB:', profile.socialLinks);
 
     return this.mapUserProfileToDTO(profile);
   }
@@ -787,6 +989,179 @@ export class UsersService {
       activities: finalOnboardingMetadata.activities || [],
       completedSteps: finalOnboardingMetadata.completedSteps || [],
       lastCompletedAt: finalOnboardingMetadata.lastCompletedAt || null,
+    };
+  }
+
+  /**
+   * Obtener información de usuario por ID considerando privacidad
+   */
+  /**
+   * Obtener usuario por username (para rutas amigables)
+   */
+  async getUserByUsername(username: string, viewerUserId?: string): Promise<{
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email?: string;
+    username: string | null;
+    profile: {
+      avatar: string | null;
+      banner: string | null;
+      bio: string | null;
+      isPublic: boolean;
+    } | null;
+    isOwnProfile: boolean;
+    canViewProfile: boolean;
+    areFriends: boolean;
+    friendsCount?: number;
+  }> {
+    const user = await prisma.user.findUnique({
+      where: { username },
+      include: {
+        profile: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundError('Usuario no encontrado');
+    }
+
+    // Usar el método existente getUserById con el ID encontrado
+    return this.getUserById(user.id, viewerUserId);
+  }
+
+  async getUserById(userId: string, viewerUserId?: string): Promise<{
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email?: string;
+    username: string | null;
+    profile: {
+      avatar: string | null;
+      banner: string | null;
+      bio: string | null;
+      isPublic: boolean;
+    } | null;
+    isOwnProfile: boolean;
+    canViewProfile: boolean;
+    areFriends: boolean;
+    friendsCount?: number;
+  }> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundError('Usuario no encontrado');
+    }
+
+    const isOwnProfile = viewerUserId === userId;
+
+    // Si es el propio perfil, devolver toda la información
+    if (isOwnProfile) {
+      // Contar amigos del usuario
+      const friendsCount = await prisma.friend.count({
+        where: {
+          OR: [
+            { userId: userId, status: 'accepted' },
+            { friendId: userId, status: 'accepted' },
+          ],
+        },
+      });
+
+      return {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        username: user.username,
+        profile: user.profile
+          ? ({
+              avatar: user.profile.avatar,
+              banner: user.profile.banner,
+              bio: user.profile.bio,
+              isPublic: user.profile.isPublic ?? true,
+            } as any)
+          : null,
+        isOwnProfile: true,
+        canViewProfile: true,
+        areFriends: false,
+        friendsCount,
+      };
+    }
+
+    // Si no hay viewer, solo mostrar si el perfil es público
+    if (!viewerUserId) {
+      const isPublic = user.profile?.isPublic ?? true;
+      
+      // Contar amigos del usuario
+      const friendsCount = await prisma.friend.count({
+        where: {
+          OR: [
+            { userId: userId, status: 'accepted' },
+            { friendId: userId, status: 'accepted' },
+          ],
+        },
+      });
+
+      return {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        profile: user.profile && isPublic
+          ? ({
+              avatar: user.profile.avatar,
+              banner: user.profile.banner,
+              bio: user.profile.bio,
+              isPublic: true,
+            } as any)
+          : null,
+        isOwnProfile: false,
+        canViewProfile: isPublic,
+        areFriends: false,
+        friendsCount,
+      };
+    }
+
+    // Verificar si son amigos
+    const { FriendsService } = await import('../friends/friends.service');
+    const friendsService = new FriendsService();
+    const areFriends = await friendsService.areFriends(viewerUserId, userId);
+
+    // Contar amigos del usuario
+    const friendsCount = await prisma.friend.count({
+      where: {
+        OR: [
+          { userId: userId, status: 'accepted' },
+          { friendId: userId, status: 'accepted' },
+        ],
+      },
+    });
+
+    const isPublic = user.profile?.isPublic ?? true;
+    const canViewProfile = isPublic || areFriends;
+
+    return {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      username: user.username,
+      profile: user.profile && canViewProfile
+        ? {
+            avatar: user.profile.avatar,
+            banner: user.profile.banner,
+            bio: user.profile.bio,
+            isPublic,
+          }
+        : null,
+      isOwnProfile: false,
+      canViewProfile,
+      areFriends,
+      friendsCount,
     };
   }
 }

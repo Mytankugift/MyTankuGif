@@ -27,6 +27,8 @@ export function WishlistProductCard({ item, onAddToCart }: WishlistProductCardPr
       maximumFractionDigits: 0,
     }).format(price)
   }
+  
+  // tankuPrice ya viene calculado del backend
 
   const handleAddToCart = async () => {
     setIsAdding(true)
@@ -39,7 +41,7 @@ export function WishlistProductCard({ item, onAddToCart }: WishlistProductCardPr
     }
   }
 
-  const displayPrice = item.variant?.price || item.product.thumbnail ? null : null // Necesitaríamos el precio del producto
+  const displayPrice = item.variant?.tankuPrice || item.product.thumbnail ? null : null // Necesitaríamos el precio del producto
 
   return (
     <div className="bg-gray-800/50 rounded-lg p-2 border border-gray-700/30 hover:border-[#73FFA2]/30 transition-all group">
@@ -70,9 +72,9 @@ export function WishlistProductCard({ item, onAddToCart }: WishlistProductCardPr
           )}
         </h4>
 
-        {item.variant && (
+        {item.variant && item.variant.tankuPrice && (
           <p className="text-xs font-semibold text-[#3B9BC3]">
-            {formatPrice(item.variant.price)}
+            {formatPrice(item.variant.tankuPrice)}
           </p>
         )}
 

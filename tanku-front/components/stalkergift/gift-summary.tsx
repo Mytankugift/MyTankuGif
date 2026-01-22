@@ -37,15 +37,16 @@ export function GiftSummary({ giftData, onSubmit, isSubmitting }: GiftSummaryPro
     (v) => v.id === giftData.variantId
   )
 
-  // Precio base (sin incremento)
-  const baseUnitPrice = selectedVariant
-    ? selectedVariant.suggestedPrice || selectedVariant.price
+  // Usar tankuPrice directamente (ya es el precio final con incremento)
+  const finalUnitPrice = selectedVariant
+    ? selectedVariant.tankuPrice || 0
     : giftData.product?.variants && giftData.product.variants.length > 0
-    ? giftData.product.variants[0].suggestedPrice || giftData.product.variants[0].price
+    ? giftData.product.variants[0].tankuPrice || 0
     : 0
-
-  // Aplicar incremento: (precio * 1.15) + 10,000 por unidad
-  const finalUnitPrice = baseUnitPrice > 0 ? Math.round((baseUnitPrice * 1.15) + 10000) : 0
+  
+  // tankuPrice ya incluye el incremento, así que el precio base es el mismo
+  const baseUnitPrice = finalUnitPrice
+  
   const subtotal = finalUnitPrice * giftData.quantity
 
   const formatPrice = (price: number) => {

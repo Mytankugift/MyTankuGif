@@ -115,6 +115,9 @@ export class CheckoutService {
     const total = subtotal + shippingTotal;
 
     // Guardar datos del checkout en metadata del carrito para uso posterior en el webhook
+    // Incluir variantIds seleccionados para poder eliminar solo esos items después
+    const selectedVariantIds = dataCart.producVariants?.map((pv: any) => pv.variant_id) || [];
+    
     await prisma.cart.update({
       where: { id: dataCart.cart_id },
       data: {
@@ -126,6 +129,7 @@ export class CheckoutService {
               customer_id: finalUserId,
             },
             userId: finalUserId,
+            selectedVariantIds, // Guardar variantIds seleccionados
             total,
             subtotal,
             shippingTotal,
@@ -200,15 +204,15 @@ export class CheckoutService {
         );
       }
 
-      // Obtener el precio BASE (sin incremento) desde el variant
-      // El unit_price del cart ya tiene el incremento, pero necesitamos el precio base
-      const basePrice = item.variant.suggestedPrice || item.variant.price || 0;
+      // Usar unit_price del cart (precio final ya calculado)
+      // El unit_price del cart es el precio final (tankuPrice)
+      const finalPrice = item.unit_price || 0;
 
       return {
         productId: item.product.id,
         variantId: item.variant.id,
         quantity: item.quantity,
-        price: Math.round(basePrice), // Precio base sin incremento
+        price: Math.round(finalPrice), // Precio final (tankuPrice) ya calculado
       };
     });
 
@@ -301,20 +305,29 @@ export class CheckoutService {
         );
       }
 
-      // Vaciar carrito SOLO si Dropi fue exitoso
+      // Vaciar carrito SOLO si Dropi fue exitoso y solo los items seleccionados
       if (dropiSuccess) {
         try {
-          console.log(`🧹 [CHECKOUT] Eliminando items del carrito: ${dataCart.cart_id}`);
+          console.log(`🧹 [CHECKOUT] Eliminando items seleccionados del carrito: ${dataCart.cart_id}`);
           const cart = await this.cartService.getCartById(dataCart.cart_id);
-          if (cart && cart.items.length > 0) {
-            for (const item of cart.items) {
+          
+          // Obtener variantIds de los items seleccionados
+          const selectedVariantIds = dataCart.producVariants?.map((pv: any) => pv.variant_id) || [];
+          
+          if (cart && cart.items.length > 0 && selectedVariantIds.length > 0) {
+            // Filtrar items que coincidan con los variantIds seleccionados
+            const itemsToDelete = cart.items.filter(item => 
+              selectedVariantIds.includes(item.variant_id)
+            );
+            
+            for (const item of itemsToDelete) {
               try {
                 await this.cartService.deleteCartItem(dataCart.cart_id, item.id);
               } catch (deleteError) {
                 console.warn(`⚠️ [CHECKOUT] Error eliminando item ${item.id}:`, deleteError);
               }
             }
-            console.log(`✅ [CHECKOUT] Carrito vaciado exitosamente`);
+            console.log(`✅ [CHECKOUT] ${itemsToDelete.length} items seleccionados eliminados del carrito`);
           }
         } catch (cartError: any) {
           console.warn(`⚠️ [CHECKOUT] Error limpiando carrito:`, cartError?.message);
@@ -322,6 +335,18 @@ export class CheckoutService {
       } else {
         console.warn(`⚠️ [CHECKOUT] NO se vació el carrito porque Dropi falló`);
       }
+      
+      // Obtener la orden actualizada para verificar dropiOrderIds
+      const updatedOrder = await this.ordersService.getOrderById(order.id);
+      // OrderResponse no tiene metadata, pero podemos obtener dropiOrderIds directamente del objeto
+      const dropiOrderIds = (updatedOrder as any).metadata?.dropi_order_ids || updatedOrder.dropiOrderIds || [];
+      
+      // Retornar orden con información de Dropi
+      return {
+        ...order,
+        dropiSuccess,
+        dropiOrderIds,
+      } as any;
     }
     // Si es ePayco, NO vaciar el carrito aquí. El carrito se vaciará cuando Epayco confirme el pago.
     // La orden en Dropi se creará después del webhook cuando el pago sea exitoso.

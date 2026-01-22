@@ -76,9 +76,8 @@ export class CartService {
       0
     ) || 0;
 
-    const basePrice = item.variant.suggestedPrice || item.variant.price || 0;
-    // Aplicar incremento: (precio * 1.15) + 10,000
-    const unitPrice = basePrice > 0 ? Math.round((basePrice * 1.15) + 10000) : 0;
+    // Usar tankuPrice directamente (ya calculado en sync)
+    const unitPrice = item.variant.tankuPrice || 0;
 
     return {
       id: item.id,
@@ -99,8 +98,7 @@ export class CartService {
         id: item.variant.id,
         sku: item.variant.sku,
         title: item.variant.title,
-        price: unitPrice,
-        suggestedPrice: item.variant.suggestedPrice || null,
+        tankuPrice: unitPrice, // Precio final (tankuPrice)
         stock: totalStock,
       },
     };
@@ -296,9 +294,8 @@ export class CartService {
         0
       ) || 0;
 
-      const basePrice = item.variant.suggestedPrice || item.variant.price || 0;
-      // Aplicar incremento: (precio * 1.15) + 10,000
-      const unitPrice = basePrice > 0 ? Math.round((basePrice * 1.15) + 10000) : 0;
+      // Usar tankuPrice directamente (ya calculado en sync)
+      const unitPrice = item.variant.tankuPrice || 0;
       
       return {
         id: item.id,

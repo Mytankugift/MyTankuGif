@@ -1079,26 +1079,26 @@ export class StalkerGiftService {
     // Obtener precio de la variante o producto
     let unitPrice = 0;
     if (stalkerGift.variant) {
-      // Usar suggestedPrice si existe, sino price
-      unitPrice = stalkerGift.variant.suggestedPrice || stalkerGift.variant.price;
+      // Usar tankuPrice directamente (ya calculado en sync)
+      unitPrice = stalkerGift.variant.tankuPrice || 0;
     } else if (stalkerGift.product) {
-      // Si no hay variante, usar el precio mínimo de las variantes
+      // Si no hay variante, usar el precio mínimo de las variantes (tankuPrice)
       const variants = await prisma.productVariant.findMany({
         where: { productId: stalkerGift.productId, active: true },
+        select: { tankuPrice: true },
       });
       if (variants.length > 0) {
         const minVariant = variants.reduce((min, v) => {
-          const price = v.suggestedPrice || v.price;
-          const minPrice = min.suggestedPrice || min.price;
-          return price < minPrice ? v : min;
+          const price = v.tankuPrice || 0;
+          const minPrice = min.tankuPrice || 0;
+          return price < minPrice && price > 0 ? v : min;
         });
-        unitPrice = minVariant.suggestedPrice || minVariant.price;
+        unitPrice = minVariant.tankuPrice || 0;
       }
     }
 
-    // Calcular totales (aplicar incremento del 15% + $10,000 por unidad como en checkout normal)
-    // Fórmula: (precio * 1.15) + 10,000 por cada unidad
-    const finalUnitPrice = Math.round((unitPrice * 1.15) + 10000);
+    // Usar tankuPrice directamente (ya calculado)
+    const finalUnitPrice = unitPrice;
     const subtotal = finalUnitPrice * stalkerGift.quantity;
     const shippingTotal = 0; // Se actualizará con Dropi después de aceptación
     const total = subtotal + shippingTotal;

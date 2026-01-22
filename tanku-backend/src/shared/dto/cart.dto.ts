@@ -20,8 +20,7 @@ export type CartItemDTO = {
     id: string;
     sku: string;
     title: string;
-    price: number;
-    suggestedPrice?: number | null;
+    tankuPrice: number; // Precio final calculado (único precio expuesto al frontend)
     stock: number;
   };
 };

@@ -105,33 +105,76 @@ export function OnboardingSection({ onUpdate }: OnboardingSectionProps) {
     }
   }, [onboardingData, allCategories])
 
-  const handleAddCategory = (categoryId: string) => {
+  const saveOnboardingData = async (newCategoryIds?: string[], newActivitySlugs?: string[]) => {
+    setIsSaving(true)
+    setError(null)
+    try {
+      let birthDate: string | null = null
+      if (year && month && day) {
+        birthDate = new Date(year, month - 1, day).toISOString()
+      }
+
+      const updateData: UpdateOnboardingDataDTO = {
+        birthDate,
+        categoryIds: (newCategoryIds ?? selectedCategoryIds).length > 0 ? (newCategoryIds ?? selectedCategoryIds) : undefined,
+        activities: (newActivitySlugs ?? selectedActivitySlugs).length > 0 ? (newActivitySlugs ?? selectedActivitySlugs) : undefined,
+      }
+
+      await updateOnboardingData(updateData)
+      if (onUpdate) {
+        onUpdate()
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al actualizar datos')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleAddCategory = async (categoryId: string) => {
     if (!selectedCategoryIds.includes(categoryId)) {
       const category = allCategories.find((c) => c.id === categoryId)
       if (category) {
-        setSelectedCategoryIds([...selectedCategoryIds, categoryId])
-        setSelectedCategoryNames(new Map(selectedCategoryNames).set(categoryId, category.name))
+        const newCategoryIds = [...selectedCategoryIds, categoryId]
+        setSelectedCategoryIds(newCategoryIds)
+        const newNames = new Map(selectedCategoryNames).set(categoryId, category.name)
+        setSelectedCategoryNames(newNames)
+        setShowCategorySelector(false)
+        // Guardar automáticamente
+        await saveOnboardingData(newCategoryIds, undefined)
       }
+    } else {
+      setShowCategorySelector(false)
     }
-    setShowCategorySelector(false)
   }
 
-  const handleRemoveCategory = (categoryId: string) => {
-    setSelectedCategoryIds(selectedCategoryIds.filter((id) => id !== categoryId))
+  const handleRemoveCategory = async (categoryId: string) => {
+    const newCategoryIds = selectedCategoryIds.filter((id) => id !== categoryId)
+    setSelectedCategoryIds(newCategoryIds)
     const newNames = new Map(selectedCategoryNames)
     newNames.delete(categoryId)
     setSelectedCategoryNames(newNames)
+    // Guardar automáticamente
+    await saveOnboardingData(newCategoryIds, undefined)
   }
 
-  const handleAddActivity = (activitySlug: string) => {
+  const handleAddActivity = async (activitySlug: string) => {
     if (!selectedActivitySlugs.includes(activitySlug)) {
-      setSelectedActivitySlugs([...selectedActivitySlugs, activitySlug])
+      const newActivitySlugs = [...selectedActivitySlugs, activitySlug]
+      setSelectedActivitySlugs(newActivitySlugs)
+      setShowActivitySelector(false)
+      // Guardar automáticamente
+      await saveOnboardingData(undefined, newActivitySlugs)
+    } else {
+      setShowActivitySelector(false)
     }
-    setShowActivitySelector(false)
   }
 
-  const handleRemoveActivity = (activitySlug: string) => {
-    setSelectedActivitySlugs(selectedActivitySlugs.filter((slug) => slug !== activitySlug))
+  const handleRemoveActivity = async (activitySlug: string) => {
+    const newActivitySlugs = selectedActivitySlugs.filter((slug) => slug !== activitySlug)
+    setSelectedActivitySlugs(newActivitySlugs)
+    // Guardar automáticamente
+    await saveOnboardingData(undefined, newActivitySlugs)
   }
 
   const handleSave = async () => {
@@ -204,7 +247,13 @@ export function OnboardingSection({ onUpdate }: OnboardingSectionProps) {
         <div className="flex gap-2">
           <select
             value={day || ''}
-            onChange={(e) => setDay(e.target.value ? parseInt(e.target.value) : null)}
+            onChange={async (e) => {
+              const newDay = e.target.value ? parseInt(e.target.value) : null
+              setDay(newDay)
+              if (newDay && month && year) {
+                await saveOnboardingData()
+              }
+            }}
             className="bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-[#73FFA2]"
             disabled={isSaving}
           >
@@ -215,7 +264,13 @@ export function OnboardingSection({ onUpdate }: OnboardingSectionProps) {
           </select>
           <select
             value={month || ''}
-            onChange={(e) => setMonth(e.target.value ? parseInt(e.target.value) : null)}
+            onChange={async (e) => {
+              const newMonth = e.target.value ? parseInt(e.target.value) : null
+              setMonth(newMonth)
+              if (day && newMonth && year) {
+                await saveOnboardingData()
+              }
+            }}
             className="bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-[#73FFA2]"
             disabled={isSaving}
           >
@@ -228,7 +283,13 @@ export function OnboardingSection({ onUpdate }: OnboardingSectionProps) {
           </select>
           <select
             value={year || ''}
-            onChange={(e) => setYear(e.target.value ? parseInt(e.target.value) : null)}
+            onChange={async (e) => {
+              const newYear = e.target.value ? parseInt(e.target.value) : null
+              setYear(newYear)
+              if (day && month && newYear) {
+                await saveOnboardingData()
+              }
+            }}
             className="bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-[#73FFA2]"
             disabled={isSaving}
           >
@@ -350,26 +411,6 @@ export function OnboardingSection({ onUpdate }: OnboardingSectionProps) {
         )}
       </div>
 
-      {/* Botón guardar */}
-      <div className="flex justify-end pt-4 border-t border-gray-700">
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-gray-900 px-6 py-2 rounded-lg font-medium hover:from-[#73FFA2] hover:to-[#66DEDB] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving ? (
-            <>
-              <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-              Guardando...
-            </>
-          ) : (
-            <>
-              <CheckIcon className="w-5 h-5" />
-              Guardar Cambios
-            </>
-          )}
-        </button>
-      </div>
     </div>
   )
 }

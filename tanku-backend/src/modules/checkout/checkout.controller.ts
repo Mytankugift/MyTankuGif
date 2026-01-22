@@ -105,6 +105,7 @@ export class CheckoutController {
       );
 
       // Formatear respuesta compatible con el frontend
+      const orderWithDropi = order as any;
       const orderResponse = {
         id: order.id,
         email: order.email,
@@ -117,7 +118,9 @@ export class CheckoutController {
         shipping_total: order.shippingTotal,
         created_at: order.createdAt,
         updated_at: order.updatedAt,
-        items: order.items.map((item) => ({
+        dropiSuccess: orderWithDropi.dropiSuccess || false,
+        dropiOrderIds: orderWithDropi.dropiOrderIds || [],
+        items: order.items.map((item: any) => ({
           id: item.id,
           variant_id: item.variantId,
           quantity: item.quantity,

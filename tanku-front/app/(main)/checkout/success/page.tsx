@@ -49,30 +49,8 @@ function CheckoutSuccessContent() {
     try {
       console.log('[CHECKOUT-SUCCESS] Verificando pago con ref_payco:', refPayco)
       
-      // PRIMERO: Intentar buscar la orden directamente por transactionId (ref_payco)
-      // El ref_payco de ePayco es el mismo que x_transaction_id que se guarda en transactionId
-      try {
-        const orderResponse = await apiClient.get<OrderDTO>(API_ENDPOINTS.ORDERS.BY_TRANSACTION_ID(refPayco))
-        if (orderResponse.success && orderResponse.data) {
-          const order = orderResponse.data as OrderDTO
-          console.log('[CHECKOUT-SUCCESS] Orden encontrada por transactionId:', order.id)
-          setOrderId(order.id)
-          
-          if (order.paymentStatus === 'paid') {
-            setPaymentStatus('success')
-            setIsLoading(false)
-            return
-          } else if (order.paymentStatus === 'pending') {
-            setPaymentStatus('pending')
-            setIsLoading(false)
-            return
-          }
-        }
-      } catch (orderError) {
-        console.log('[CHECKOUT-SUCCESS] No se encontró orden por transactionId, consultando ePayco...')
-      }
-      
-      // SEGUNDO: Si no encontramos la orden, consultar estado en ePayco
+      // PASO 1: Verificar primero que el pago de Epayco fue exitoso
+      console.log('[CHECKOUT-SUCCESS] PASO 1: Verificando estado del pago en Epayco...')
       const response = await fetch(
         `https://secure.epayco.co/validation/v1/reference/${refPayco}`,
         {
@@ -90,71 +68,112 @@ function CheckoutSuccessContent() {
       const data = await response.json()
       console.log('[CHECKOUT-SUCCESS] Datos de ePayco:', data)
 
-      // ✅ Extraer transaction_id de la respuesta de ePayco (x_transaction_id es el que se guarda)
-      // El ref_payco es diferente, necesitamos usar x_transaction_id para buscar
+      // Extraer transaction_id de la respuesta de ePayco
       const transactionId = data.data?.x_transaction_id || data.x_transaction_id
-      
-      if (!transactionId) {
-        console.warn('[CHECKOUT-SUCCESS] No se encontró x_transaction_id, usando ref_payco como fallback')
-        // Fallback: si no hay x_transaction_id, usar ref_payco (pero esto no debería pasar)
-      }
-      
-      // Mapear estado de ePayco
       const epaycoResponse = data.data?.x_response || data.x_response
       
-      // ✅ Mapear estados de ePayco correctamente
-      if (epaycoResponse === 'Aceptada' || epaycoResponse === 'Aprobada' || epaycoResponse === '1') {
-        // Intentar buscar la orden por transactionId
+      // Verificar que el pago de Epayco fue exitoso
+      const isEpaycoSuccess = epaycoResponse === 'Aceptada' || epaycoResponse === 'Aprobada' || epaycoResponse === '1'
+      
+      if (!isEpaycoSuccess) {
+        // El pago de Epayco NO fue exitoso
+        if (epaycoResponse === 'Pendiente' || epaycoResponse === '2') {
+          setPaymentStatus('pending')
+          setErrorMessage('El pago está pendiente de confirmación en Epayco')
+        } else if (epaycoResponse === 'Rechazada' || epaycoResponse === 'Rechazado' || epaycoResponse === 'Fallida' || epaycoResponse === '3' || epaycoResponse === '4') {
+          setPaymentStatus('failed')
+          setErrorMessage(data.data?.x_response_reason_text || data.x_response_reason_text || 'El pago fue rechazado en Epayco')
+        } else {
+          setPaymentStatus('failed')
+          setErrorMessage(data.data?.x_response_reason_text || data.x_response_reason_text || `El pago no fue exitoso en Epayco. Estado: ${epaycoResponse}`)
+        }
+        setIsLoading(false)
+        return
+      }
+      
+      // ✅ PASO 1 COMPLETADO: El pago de Epayco fue exitoso
+      console.log('[CHECKOUT-SUCCESS] ✅ PASO 1 COMPLETADO: Pago de Epayco exitoso')
+      
+      // PASO 2: Verificar que la orden existe y que Dropi fue exitoso
+      console.log('[CHECKOUT-SUCCESS] PASO 2: Verificando orden y estado de Dropi...')
+      
+      const verifyDropiStatus = async (txId: string, retryCount = 0): Promise<void> => {
         try {
-          const orderResponse = await apiClient.get<OrderDTO>(API_ENDPOINTS.ORDERS.BY_TRANSACTION_ID(transactionId))
+          const orderResponse = await apiClient.get<OrderDTO>(API_ENDPOINTS.ORDERS.BY_TRANSACTION_ID(txId))
+          
           if (orderResponse.success && orderResponse.data) {
             const order = orderResponse.data as OrderDTO
+            console.log('[CHECKOUT-SUCCESS] Orden encontrada:', order.id)
             setOrderId(order.id)
-            setPaymentStatus('success')
-            setIsLoading(false)
-            return
-          }
-        } catch (orderError) {
-          console.log('[CHECKOUT-SUCCESS] Orden aún no creada, esperando webhook...')
-        }
-        
-        // Si no encontramos la orden, puede que el webhook aún no haya procesado
-        // Esperar un poco y reintentar
-        setPaymentStatus('pending')
-        setErrorMessage('El pago fue exitoso. La orden está siendo procesada...')
-        
-        // Reintentar después de 3 segundos
-        setTimeout(async () => {
-          try {
-            const orderResponse = await apiClient.get<OrderDTO>(API_ENDPOINTS.ORDERS.BY_TRANSACTION_ID(transactionId))
-            if (orderResponse.success && orderResponse.data) {
-              const order = orderResponse.data as OrderDTO
-              setOrderId(order.id)
+            
+            // Verificar que Dropi fue exitoso
+            const metadata = order.metadata || {}
+            const dropiOrderIds = metadata.dropi_order_ids || []
+            
+            if (dropiOrderIds.length > 0) {
+              // ✅ PASO 2 COMPLETADO: Dropi también fue exitoso
+              console.log('[CHECKOUT-SUCCESS] ✅ PASO 2 COMPLETADO: Dropi exitoso, dropiOrderIds:', dropiOrderIds)
               setPaymentStatus('success')
               setErrorMessage(null)
+              setIsLoading(false)
+            } else {
+              // Pago de Epayco exitoso pero Dropi pendiente
+              console.log('[CHECKOUT-SUCCESS] ⏳ Dropi pendiente, reintentando... (intento', retryCount + 1, ')')
+              setPaymentStatus('pending')
+              setErrorMessage('El pago fue exitoso en Epayco. La orden está siendo procesada en Dropi...')
+              
+              // Reintentar después de 3 segundos (máximo 10 intentos)
+              if (retryCount < 10) {
+                setTimeout(() => {
+                  verifyDropiStatus(txId, retryCount + 1)
+                }, 3000)
+              } else {
+                setErrorMessage('El pago fue exitoso en Epayco, pero la orden en Dropi está tardando más de lo esperado. Por favor, verifica más tarde.')
+                setIsLoading(false)
+              }
             }
-          } catch (error) {
-            console.log('[CHECKOUT-SUCCESS] Orden aún no disponible')
+          } else {
+            // Orden aún no creada, esperar un poco
+            if (retryCount < 10) {
+              console.log('[CHECKOUT-SUCCESS] ⏳ Orden aún no creada, esperando webhook... (intento', retryCount + 1, ')')
+              setPaymentStatus('pending')
+              setErrorMessage('El pago fue exitoso en Epayco. La orden está siendo procesada...')
+              
+              setTimeout(() => {
+                verifyDropiStatus(txId, retryCount + 1)
+              }, 3000)
+            } else {
+              setErrorMessage('El pago fue exitoso en Epayco, pero la orden está tardando en crearse. Por favor, verifica más tarde.')
+              setIsLoading(false)
+            }
           }
-        }, 3000)
-        
-      } else if (epaycoResponse === 'Pendiente' || epaycoResponse === '2') {
-        setPaymentStatus('pending')
-        setErrorMessage('El pago está pendiente de confirmación')
-      } else if (epaycoResponse === 'Rechazada' || epaycoResponse === 'Rechazado' || epaycoResponse === 'Fallida' || epaycoResponse === '3' || epaycoResponse === '4') {
-        // ✅ Manejar pagos rechazados correctamente
-        setPaymentStatus('failed')
-        setErrorMessage(data.data?.x_response_reason_text || data.x_response_reason_text || 'El pago fue rechazado')
-      } else {
-        // Estado desconocido - tratar como fallido
-        setPaymentStatus('failed')
-        setErrorMessage(data.data?.x_response_reason_text || data.x_response_reason_text || `El pago no fue exitoso. Estado: ${epaycoResponse}`)
+        } catch (orderError: any) {
+          console.log('[CHECKOUT-SUCCESS] Error buscando orden:', orderError?.message)
+          
+          if (retryCount < 10) {
+            setTimeout(() => {
+              verifyDropiStatus(txId, retryCount + 1)
+            }, 3000)
+          } else {
+            setErrorMessage('El pago fue exitoso en Epayco, pero no se pudo verificar la orden. Por favor, verifica más tarde.')
+            setIsLoading(false)
+          }
+        }
       }
+      
+      // Iniciar verificación de Dropi
+      if (transactionId) {
+        await verifyDropiStatus(transactionId)
+      } else {
+        // Si no hay transactionId, intentar con refPayco como fallback
+        console.warn('[CHECKOUT-SUCCESS] No se encontró x_transaction_id, usando ref_payco como fallback')
+        await verifyDropiStatus(refPayco)
+      }
+      
     } catch (error) {
       console.error('[CHECKOUT-SUCCESS] Error verificando pago:', error)
       setPaymentStatus('pending')
       setErrorMessage('No se pudo verificar el estado del pago. Por favor, verifica más tarde.')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -169,13 +188,46 @@ function CheckoutSuccessContent() {
         const order = orderResponse.data as OrderDTO
         setOrderId(order.id)
         
-        // Para contraentrega, el pago siempre está pendiente
-        // Pero la orden fue creada exitosamente
+        // Verificar si es contra entrega y tiene dropiOrderIds
         if (order.paymentMethod === 'cash_on_delivery') {
-          setPaymentStatus('success') // Mostrar como éxito porque la orden se creó
-          setErrorMessage(null)
-        } else if (order.paymentStatus === 'paid') {
-          setPaymentStatus('success')
+          const metadata = order.metadata as Record<string, any> || {}
+          const dropiOrderIds = metadata.dropi_order_ids || []
+          
+          if (dropiOrderIds.length > 0) {
+            // Dropi exitoso - mostrar success
+            setPaymentStatus('success')
+            setErrorMessage(null)
+          } else {
+            // Dropi pendiente o falló - mostrar pending y reintentar
+            setPaymentStatus('pending')
+            setErrorMessage('La orden está siendo procesada en Dropi. Te notificaremos cuando esté lista.')
+            
+            // Reintentar después de 3 segundos
+            setTimeout(() => {
+              checkOrderByOrderId(orderIdToCheck)
+            }, 3000)
+          }
+          return
+        }
+        
+        // Para otros métodos de pago (Epayco)
+        if (order.paymentStatus === 'paid') {
+          // Verificar también que Dropi fue exitoso
+          const metadata = order.metadata as Record<string, any> || {}
+          const dropiOrderIds = metadata.dropi_order_ids || []
+          
+          if (dropiOrderIds.length > 0) {
+            setPaymentStatus('success')
+          } else {
+            // Pago exitoso pero Dropi pendiente
+            setPaymentStatus('pending')
+            setErrorMessage('El pago fue exitoso. La orden está siendo procesada en Dropi...')
+            
+            // Reintentar después de 3 segundos
+            setTimeout(() => {
+              checkOrderByOrderId(orderIdToCheck)
+            }, 3000)
+          }
         } else if (order.paymentStatus === 'pending') {
           setPaymentStatus('pending')
         } else {

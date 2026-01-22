@@ -8,10 +8,12 @@
 import { useState, useEffect } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
+import { OnboardingStepUsername } from './onboarding-step-username'
 import { OnboardingStepBirthday } from './onboarding-step-birthday'
 import { OnboardingStepCategories } from './onboarding-step-categories'
 import { OnboardingStepActivities } from './onboarding-step-activities'
 import { useOnboarding } from '@/lib/hooks/use-onboarding'
+import { useAuthStore } from '@/lib/stores/auth-store'
 import { ONBOARDING_CATEGORIES, ONBOARDING_ACTIVITIES } from '@/lib/constants/onboarding'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
@@ -24,7 +26,9 @@ interface OnboardingModalProps {
 
 export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModalProps) {
   const { updateOnboardingData, isLoading } = useOnboarding()
-  const [currentStep, setCurrentStep] = useState(1)
+  const { user } = useAuthStore()
+  const [currentStep, setCurrentStep] = useState(0) // Empezar en 0 para username
+  const [username, setUsername] = useState<string>('')
   const [year, setYear] = useState<number | null>(null)
   const [month, setMonth] = useState<number | null>(null)
   const [day, setDay] = useState<number | null>(null)
@@ -69,18 +73,21 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
   // Resetear estado cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
-      setCurrentStep(1)
+      setCurrentStep(0) // Empezar con username
+      setUsername(user?.username || '')
       setYear(null)
       setMonth(null)
       setDay(null)
       setSelectedCategorySlugs([])
       setSelectedActivitySlugs([])
     }
-  }, [isOpen])
+  }, [isOpen, user?.username])
 
   // Validar si se puede avanzar al siguiente paso
   const canProceed = () => {
     switch (currentStep) {
+      case 0:
+        return username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)
       case 1:
         return year !== null && month !== null && day !== null
       case 2:
@@ -94,7 +101,10 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
 
   // Guardar datos incrementales después de cada paso
   const handleNext = async () => {
-    if (currentStep < 3) {
+    if (currentStep === 0) {
+      // El username ya se guardó en OnboardingStepUsername
+      setCurrentStep(1)
+    } else if (currentStep < 4) {
       // Guardar datos del paso actual antes de avanzar
       await saveCurrentStep()
       setCurrentStep(currentStep + 1)
@@ -104,8 +114,13 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
     }
   }
 
+  const handleUsernameNext = (newUsername: string) => {
+    setUsername(newUsername)
+    setCurrentStep(1)
+  }
+
   const handleBack = () => {
-    if (currentStep > 1) {
+    if (currentStep > 0) {
       setCurrentStep(currentStep - 1)
     }
   }
@@ -164,7 +179,8 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
 
   if (!isOpen) return null
 
-  const progress = (currentStep / 3) * 100
+  const totalSteps = 4 // username, birthday, categories, activities
+  const progress = ((currentStep + 1) / totalSteps) * 100
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
@@ -173,7 +189,7 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         <div className="flex items-center justify-between p-3 border-b border-gray-700">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold text-[#66DEDB]">Bienvenido</h1>
-            <span className="text-xs text-gray-400">Paso {currentStep}/3</span>
+            <span className="text-xs text-gray-400">Paso {currentStep + 1}/4</span>
           </div>
           <button
             onClick={onClose}
@@ -196,6 +212,13 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
 
         {/* Contenido */}
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          {currentStep === 0 && (
+            <OnboardingStepUsername
+              onNext={handleUsernameNext}
+              initialUsername={user?.username || null}
+            />
+          )}
+
           {currentStep === 1 && (
             <OnboardingStepBirthday
               year={year}
@@ -227,19 +250,24 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
           <Button
             variant="secondary"
             onClick={handleBack}
-            disabled={currentStep === 1 || isLoading}
+            disabled={currentStep === 0 || isLoading}
             className="border-gray-600 text-gray-300 hover:bg-gray-700 text-sm px-4 py-2 h-8"
           >
             Atrás
           </Button>
 
-          <Button
-            onClick={handleNext}
-            disabled={!canProceed() || isLoading}
-            className="bg-[#73FFA2] hover:bg-[#66DEDB] text-gray-900 font-semibold px-6 py-2 h-8 text-sm"
-          >
-            {isLoading ? 'Guardando...' : currentStep === 3 ? 'Listo' : 'Continuar'}
-          </Button>
+          {currentStep === 0 ? (
+            // El botón de continuar está dentro de OnboardingStepUsername
+            <div />
+          ) : (
+            <Button
+              onClick={handleNext}
+              disabled={!canProceed() || isLoading}
+              className="bg-[#73FFA2] hover:bg-[#66DEDB] text-gray-900 font-semibold px-6 py-2 h-8 text-sm"
+            >
+              {isLoading ? 'Guardando...' : currentStep === 3 ? 'Listo' : 'Continuar'}
+            </Button>
+          )}
         </div>
       </div>
     </div>

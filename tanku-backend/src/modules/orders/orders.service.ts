@@ -140,12 +140,11 @@ export class OrdersService {
       throw new BadRequestError('La orden debe tener al menos un item');
     }
 
-    // Calcular subtotal usando finalPrice (precio * 1.15 + $10,000)
+    // Calcular subtotal usando price directamente (ya es tankuPrice)
+    // El price que viene del input ya es el precio final calculado
     const calculatedSubtotal = input.items.reduce(
       (sum, item) => {
-        // Fórmula: (precio * 1.15) + 10,000
-        const finalPrice = Math.round((item.price * 1.15) + 10000);
-        return sum + (finalPrice * item.quantity);
+        return sum + (item.price * item.quantity);
       },
       0
     );
@@ -183,15 +182,15 @@ export class OrdersService {
       
         items: {
           create: input.items.map((item) => {
-            // Fórmula: (precio * 1.15) + 10,000
-            const finalPrice = Math.round((item.price * 1.15) + 10000);
+            // El price que viene del input ya es el precio final (tankuPrice)
+            const finalPrice = item.price;
             
             return {
               productId: item.productId,
               variantId: item.variantId,
               quantity: item.quantity,
-              price: item.price, // Precio base
-              finalPrice: finalPrice, // Precio con incremento (15% + $10,000)
+              price: item.price, // Precio base (para referencia histórica)
+              finalPrice: finalPrice // Precio final (tankuPrice), // Precio con incremento (15% + $10,000)
             };
           }),
         },
@@ -848,8 +847,8 @@ export class OrdersService {
         variantId: item.variantId,
         quantity: item.quantity,
         price: item.price,
-        finalPrice: item.finalPrice || Math.round((item.price * 1.15) + 10000), // Precio con incremento (15% + $10,000)
-        total: (item.finalPrice || Math.round((item.price * 1.15) + 10000)) * item.quantity, // Total del item
+        finalPrice: item.finalPrice || item.price, // Precio final (tankuPrice)
+        total: (item.finalPrice || item.price) * item.quantity, // Total del item
         dropiOrderId: item.dropiOrderId,
         dropiShippingCost: item.dropiShippingCost,
         dropiDropshipperWin: item.dropiDropshipperWin,

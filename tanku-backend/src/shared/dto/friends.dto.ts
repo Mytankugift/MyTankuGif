@@ -9,6 +9,7 @@ export type FriendUserDTO = {
   id: string;
   firstName: string | null;
   lastName: string | null;
+  username: string | null;
   email: string;
   profile: {
     avatar: string | null;

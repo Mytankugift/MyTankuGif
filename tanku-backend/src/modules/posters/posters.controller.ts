@@ -64,14 +64,39 @@ export class PostersController {
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { posterId } = req.params;
+      const requestWithUser = req as RequestWithUser;
+      const includeComments = req.query.comments === 'true';
 
       if (!posterId) {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'posterId es requerido'));
       }
 
-      const poster = await this.postersService.getPosterById(posterId);
+      const currentUserId = requestWithUser.user?.id;
+      const poster = await this.postersService.getPosterById(posterId, currentUserId, includeComments);
 
       res.status(200).json(successResponse(poster));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/posters/:posterId/comments
+   * Obtener comentarios de un poster (paginados)
+   */
+  getComments = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { posterId } = req.params;
+      const page = parseInt(req.query.page as string) || 0;
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      if (!posterId) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'posterId es requerido'));
+      }
+
+      const result = await this.postersService.getPosterComments(posterId, page, limit);
+
+      res.status(200).json(successResponse(result));
     } catch (error) {
       next(error);
     }
@@ -191,6 +216,57 @@ export class PostersController {
       );
 
       res.status(201).json(successResponse(comment));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/posters/:posterId/comments/:commentId/like
+   * Dar like/unlike a un comentario
+   */
+  toggleCommentLike = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const { commentId } = req.params;
+
+      if (!commentId) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'commentId es requerido'));
+      }
+
+      const result = await this.postersService.toggleCommentLike(
+        commentId,
+        requestWithUser.user.id
+      );
+
+      res.status(200).json(successResponse(result));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * DELETE /api/v1/posters/:posterId
+   * Eliminar un poster (solo el dueño)
+   */
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const { posterId } = req.params;
+
+      await this.postersService.deletePoster(posterId, requestWithUser.user.id);
+
+      res.status(200).json(successResponse({ message: 'Poster eliminado correctamente' }));
     } catch (error) {
       next(error);
     }

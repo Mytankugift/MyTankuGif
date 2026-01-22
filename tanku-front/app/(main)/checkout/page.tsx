@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCartStore } from '@/lib/stores/cart-store'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useAddresses } from '@/lib/hooks/use-addresses'
@@ -41,15 +41,22 @@ declare global {
   }
 }
 
-export default function CheckoutPage() {
+// Componente interno que usa useSearchParams
+function CheckoutContent() {
   const router = useRouter()
-  const { cart, fetchCart, isLoading: cartLoading } = useCartStore()
+  const searchParams = useSearchParams()
+  const { cart, fetchCart, isLoading: cartLoading, removeItems } = useCartStore()
   const { user, isAuthenticated } = useAuthStore()
   const { addresses, createAddress, updateAddress, deleteAddress, fetchAddresses } = useAddresses()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [buttonTooltip, setButtonTooltip] = useState<string | null>(null)
   const [showConfirmationModal, setShowConfirmationModal] = useState(false)
   const [epaycoReady, setEpaycoReady] = useState(false)
+  
+  // Obtener items seleccionados de la URL
+  const selectedItemIds = new Set(
+    searchParams.get('items')?.split(',').filter(Boolean) || []
+  )
 
   // Dirección seleccionada
   const [selectedAddress, setSelectedAddress] = useState<AddressDTO | null>(null)
@@ -86,12 +93,17 @@ export default function CheckoutPage() {
     }
   }, [addresses, selectedAddress])
 
-  // Redirigir si no hay carrito o está vacío
+  // Filtrar items seleccionados
+  const selectedItems = cart && selectedItemIds.size > 0
+    ? cart.items.filter(item => selectedItemIds.has(item.id))
+    : cart?.items || []
+
+  // Redirigir si no hay carrito o no hay items seleccionados
   useEffect(() => {
-    if (!cartLoading && (!cart || cart.items.length === 0)) {
+    if (!cartLoading && (!cart || selectedItems.length === 0)) {
       router.push('/cart')
     }
-  }, [cart, cartLoading, router])
+  }, [cart, cartLoading, router, selectedItems.length])
 
   // Redirigir al login si no hay usuario autenticado
   useEffect(() => {
@@ -131,8 +143,8 @@ export default function CheckoutPage() {
     }
 
     // Validaciones con tooltips
-    if (!cart || cart.items.length === 0) {
-      setButtonTooltip('El carrito está vacío')
+    if (!cart || selectedItems.length === 0) {
+      setButtonTooltip('No hay productos seleccionados')
       return
     }
 
@@ -227,7 +239,7 @@ export default function CheckoutPage() {
       const dataCart: CheckoutDataCart = {
         customer_id: user?.id || '', // Ya no es crítico porque el backend usa userId del token
         cart_id: cart.id,
-        producVariants: cart.items.map((item) => ({
+        producVariants: selectedItems.map((item) => ({
           variant_id: item.variantId,
           quantity: item.quantity,
           original_total: item.total,
@@ -263,6 +275,11 @@ export default function CheckoutPage() {
 
           const preparedData = response.data
           console.log('[CHECKOUT] Datos preparados para Epayco:', preparedData)
+          
+          // Guardar items seleccionados para el webhook
+          if (typeof window !== 'undefined' && selectedItemIds.size > 0) {
+            localStorage.setItem('epayco-selected-items', JSON.stringify(Array.from(selectedItemIds)))
+          }
           
           try {
             // Cerrar modal de confirmación
@@ -319,7 +336,7 @@ export default function CheckoutPage() {
             const epaycoOptions = {
               amount: preparedData.total,
               name: `Orden Tanku ${preparedData.cartId.slice(0, 8)}`,
-              description: `Pedido Tanku - ${cart.items.length} producto(s)`,
+              description: `Pedido Tanku - ${selectedItems.length} producto(s)`,
               currency: 'cop',
               country: 'co',
               external: false,
@@ -357,15 +374,32 @@ export default function CheckoutPage() {
           }
         } else {
           // Contra entrega - se creó la orden
-          const order = response.data as OrderDTO
-          // Contra entrega - redirigir a página de éxito con orderId
+          const order = response.data as OrderDTO & { 
+            dropiSuccess?: boolean
+            dropiOrderIds?: number[]
+          }
+          
+          // Verificar si Dropi fue exitoso antes de redirigir
+          if (!order.dropiSuccess) {
+            setButtonTooltip('Error al crear orden en Dropi. Por favor, intenta nuevamente.')
+            setShowConfirmationModal(false)
+            setIsSubmitting(false)
+            return
+          }
+          
+          // Dropi exitoso - redirigir a página de éxito
           setShowConfirmationModal(false)
           router.push(`/checkout/success?orderId=${order.id}`)
           
-          // El carrito ya se limpió en el backend si Dropi fue exitoso
-          // Solo actualizar el store del frontend
+          // Limpiar selección guardada
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('cart-selected-items')
+          }
+          
+          // El backend ya eliminó solo los items seleccionados
+          // Solo recargar el carrito para actualizar UI
           setTimeout(() => {
-            useCartStore.getState().clearCart()
+            fetchCart()
           }, 100)
         }
       } else {
@@ -391,7 +425,7 @@ export default function CheckoutPage() {
     )
   }
 
-  if (!cart || cart.items.length === 0) {
+  if (!cart || selectedItems.length === 0) {
     return null // El useEffect redirigirá
   }
 
@@ -476,7 +510,7 @@ export default function CheckoutPage() {
           {/* Columna derecha: Resumen y Método de pago */}
           <div className="lg:col-span-1">
             <div className="sticky top-8 space-y-6">
-              <CheckoutSummary cart={cart} />
+              <CheckoutSummary cart={{ ...cart, items: selectedItems }} />
               
               {/* Método de pago */}
               <div className="bg-gray-800/50 rounded-lg p-6">
@@ -593,6 +627,19 @@ export default function CheckoutPage() {
         }}
       />
     </div>
+  )
+}
+
+// Componente principal con Suspense boundary
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-12">
+        <div className="text-center text-gray-400">Cargando...</div>
+      </div>
+    }>
+      <CheckoutContent />
+    </Suspense>
   )
 }
 

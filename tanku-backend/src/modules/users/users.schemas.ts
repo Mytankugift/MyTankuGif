@@ -9,6 +9,12 @@ export const updateUserSchema = z.object({
     firstName: z.string().optional(),
     lastName: z.string().optional(),
     email: z.string().email('Email inválido').optional(),
+    username: z.string()
+      .min(3, 'El username debe tener al menos 3 caracteres')
+      .max(30, 'El username no puede exceder 30 caracteres')
+      .regex(/^[a-zA-Z0-9_]+$/, 'El username solo puede contener letras, números y guiones bajos')
+      .optional()
+      .nullable(),
   }),
 });
 
@@ -45,11 +51,18 @@ export const updateAddressSchema = z.object({
   }),
 });
 
+const socialLinkSchema = z.object({
+  platform: z.string().min(1, 'La plataforma es requerida'),
+  url: z.string().url('La URL debe ser válida'),
+});
+
 export const updateUserProfileSchema = z.object({
   body: z.object({
     avatar: z.string().url('avatar debe ser una URL válida').optional(),
     banner: z.string().url('banner debe ser una URL válida').optional(),
     bio: z.string().optional(),
+    isPublic: z.boolean().optional(),
+    socialLinks: z.array(socialLinkSchema).optional(),
   }),
 });
 

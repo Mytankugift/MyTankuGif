@@ -7,9 +7,10 @@ import type { Cart } from '@/types/api'
 
 interface CartSummaryProps {
   cart: Cart
+  selectedItems?: Set<string>
 }
 
-export function CartSummary({ cart }: CartSummaryProps) {
+export function CartSummary({ cart, selectedItems }: CartSummaryProps) {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -19,10 +20,18 @@ export function CartSummary({ cart }: CartSummaryProps) {
     }).format(price)
   }
 
-  const subtotal = cart.subtotal || 0
+  // Calcular subtotal solo de items seleccionados
+  const selectedItemsList = selectedItems 
+    ? cart.items.filter(item => selectedItems.has(item.id))
+    : cart.items
+  
+  const subtotal = selectedItemsList.reduce((sum, item) => {
+    return sum + (item.total || (item.unitPrice || item.price || 0) * item.quantity)
+  }, 0)
+  
   const shipping = 0 // Por ahora sin envío
   const tax = 0 // Por ahora sin impuestos
-  const total = cart.total || subtotal
+  const total = subtotal
 
   return (
     <div className="flex flex-col gap-4 bg-gray-800/50 rounded-lg p-4 sm:p-6">
@@ -60,9 +69,12 @@ export function CartSummary({ cart }: CartSummaryProps) {
       </div>
 
       {/* Botón de checkout */}
-      <Link href="/checkout" className="mt-4">
-        <Button className="w-full bg-[#66DEDB] hover:bg-[#5accc9] text-black font-semibold py-3 text-base">
-          Ir a pagar
+      <Link href={selectedItems && selectedItems.size > 0 ? `/checkout?items=${Array.from(selectedItems).join(',')}` : '/checkout'} className="mt-4">
+        <Button 
+          disabled={selectedItems ? selectedItems.size === 0 : false}
+          className="w-full bg-[#66DEDB] hover:bg-[#5accc9] text-black font-semibold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Ir a pagar {selectedItems && selectedItems.size > 0 ? `(${selectedItems.size})` : ''}
         </Button>
       </Link>
 

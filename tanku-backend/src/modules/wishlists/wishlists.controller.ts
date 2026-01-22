@@ -33,7 +33,7 @@ export class WishListsController {
 
   /**
    * GET /api/v1/wishlists/:userId
-   * Obtener wish lists de un usuario específico (para wishlists públicas)
+   * Obtener wish lists de un usuario específico (considerando privacidad y amistad)
    */
   getWishListsByUserId = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -43,17 +43,15 @@ export class WishListsController {
         throw new BadRequestError('userId es requerido');
       }
 
-      const wishLists = await this.wishListsService.getUserWishLists(userId);
-
-      // Filtrar solo wishlists públicas si no es el mismo usuario
       const requestWithUser = req as RequestWithUser;
-      const isOwnWishLists = requestWithUser.user?.id === userId;
+      const viewerUserId = requestWithUser.user?.id;
 
-      const filteredWishLists = isOwnWishLists
-        ? wishLists
-        : wishLists.filter((list) => list.public);
+      const result = await this.wishListsService.getUserWishListsWithPrivacy(
+        userId,
+        viewerUserId
+      );
 
-      res.status(200).json(successResponse(filteredWishLists));
+      res.status(200).json(successResponse(result));
     } catch (error) {
       next(error);
     }
@@ -188,6 +186,122 @@ export class WishListsController {
       await this.wishListsService.removeItemFromWishList(id, itemId, requestWithUser.user.id);
 
       res.status(200).json(successResponse({ message: 'Item removido exitosamente' }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/wishlists/:id/save
+   * Guardar wishlist de otro usuario
+   */
+  saveWishlist = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const { id } = req.params;
+
+      await this.wishListsService.saveWishlist(id, requestWithUser.user.id);
+
+      res.status(200).json(successResponse({ message: 'Wish list guardada exitosamente' }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * DELETE /api/v1/wishlists/:id/save
+   * Desguardar wishlist
+   */
+  unsaveWishlist = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const { id } = req.params;
+
+      await this.wishListsService.unsaveWishlist(id, requestWithUser.user.id);
+
+      res.status(200).json(successResponse({ message: 'Wish list desguardada exitosamente' }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/wishlists/saved
+   * Obtener wishlists guardadas del usuario autenticado
+   */
+  getSavedWishlists = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const wishLists = await this.wishListsService.getSavedWishlists(requestWithUser.user.id);
+
+      res.status(200).json(successResponse(wishLists));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/wishlists/:id/share-token
+   * Generar token de compartir para wishlist
+   */
+  generateShareToken = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const { id } = req.params;
+
+      const result = await this.wishListsService.generateShareToken(id, requestWithUser.user.id);
+
+      res.status(200).json(successResponse({ token: result.token, shareUrl: result.shareUrl }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/wishlists/share/:token
+   * Obtener wishlist por token de compartir (público)
+   */
+  getWishlistByShareToken = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { token, username, slug } = req.params;
+
+      // Si viene username y slug, construir el path
+      let tokenOrPath = token;
+      if (username && slug) {
+        tokenOrPath = `${username}/${slug}`;
+      }
+
+      if (!tokenOrPath) {
+        throw new BadRequestError('Token o path es requerido');
+      }
+
+      const wishList = await this.wishListsService.getWishlistByShareToken(tokenOrPath);
+
+      if (!wishList) {
+        return res.status(404).json(errorResponse(ErrorCode.NOT_FOUND, 'Wish list no encontrada'));
+      }
+
+      res.status(200).json(successResponse(wishList));
     } catch (error) {
       next(error);
     }

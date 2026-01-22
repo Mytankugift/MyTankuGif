@@ -13,6 +13,7 @@ export interface FeedItem {
   handle?: string
   likesCount?: number
   commentsCount?: number
+  isLiked?: boolean
   description?: string | null
   videoUrl?: string | null
   author?: {
@@ -20,6 +21,7 @@ export interface FeedItem {
     email: string
     firstName: string | null
     lastName: string | null
+    username: string | null
     avatar: string | null
   }
 }

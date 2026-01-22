@@ -45,7 +45,7 @@ export interface ProductResponse {
     id: string;
     sku: string;
     title: string;
-    price: number;
+    tankuPrice: number;
     stock: number;
     active: boolean;
   }>;
@@ -93,8 +93,7 @@ export class ProductsService {
       id: variant.id,
       sku: variant.sku,
       title: variant.title,
-      price: variant.price,
-      suggestedPrice: variant.suggestedPrice,
+      tankuPrice: variant.tankuPrice || 0, // Precio final (tankuPrice)
       stock: totalStock,
       active: variant.active,
       attributes: variant.attributes as Record<string, any> | null,
@@ -132,7 +131,7 @@ export class ProductsService {
     }
   ): ProductListDTO {
     const minPrice = product.variants && product.variants.length > 0
-      ? Math.min(...product.variants.map((v) => v.price))
+      ? Math.min(...product.variants.map((v) => v.tankuPrice || 0).filter(p => p > 0))
       : 0;
 
     return {
@@ -462,8 +461,7 @@ export class ProductsService {
           id: variant.id,
           sku: variant.sku,
           title: variant.title,
-          price: variant.suggestedPrice || variant.price, // Usar suggestedPrice como prioridad, fallback a price
-          suggestedPrice: variant.suggestedPrice || null, // Incluir también suggestedPrice explícitamente
+          tankuPrice: variant.tankuPrice || 0, // Precio final (tankuPrice)
           stock: totalStock,
           active: variant.active,
         };
@@ -567,8 +565,7 @@ export class ProductsService {
           id: variant.id,
           sku: variant.sku,
           title: variant.title,
-          price: variant.suggestedPrice || variant.price, // Usar suggestedPrice como prioridad, fallback a price
-          suggestedPrice: variant.suggestedPrice || null, // Incluir también suggestedPrice explícitamente
+          tankuPrice: variant.tankuPrice || 0, // Precio final (tankuPrice)
           stock: totalStock,
           active: variant.active,
         };
@@ -639,8 +636,7 @@ export class ProductsService {
           id: variant.id,
           sku: variant.sku,
           title: variant.title,
-          price: variant.suggestedPrice || variant.price, // Usar suggestedPrice como prioridad, fallback a price
-          suggestedPrice: variant.suggestedPrice || null, // Incluir también suggestedPrice explícitamente
+          tankuPrice: variant.tankuPrice || 0, // Precio final (tankuPrice)
           stock: totalStock,
           active: variant.active,
         };

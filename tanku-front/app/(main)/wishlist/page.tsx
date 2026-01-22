@@ -4,13 +4,23 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { MyWishlists } from '@/components/wishlists/my-wishlists'
 import { SavedWishlistsViewer } from '@/components/wishlists/saved-wishlists-viewer'
 import { WishlistNav } from '@/components/layout/wishlist-nav'
 
-export default function WishlistPage() {
+// Componente interno que usa useSearchParams
+function WishlistPageContent() {
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<'mine' | 'saved'>('mine')
+  
+  // Si viene con ?saved=true, activar el tab de guardadas
+  useEffect(() => {
+    if (searchParams.get('saved') === 'true') {
+      setActiveTab('saved')
+    }
+  }, [searchParams])
 
   return (
     <>
@@ -52,6 +62,21 @@ export default function WishlistPage() {
         </div>
       </div>
     </>
+  )
+}
+
+// Componente principal con Suspense boundary
+export default function WishlistPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 md:pt-28" style={{ backgroundColor: '#1E1E1E' }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center text-gray-400">Cargando...</div>
+        </div>
+      </div>
+    }>
+      <WishlistPageContent />
+    </Suspense>
   )
 }
 

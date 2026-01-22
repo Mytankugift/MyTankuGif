@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { FeedService } from '../feed/feed.service';
+import { calculateTankuPriceFromVariant } from '../../shared/utils/price.utils';
 import type { Product } from '@prisma/client';
 
 /**
@@ -292,6 +293,12 @@ export class DropiSyncService {
               const variationSuggestedPrice = variation.suggested_price ? Math.round(variation.suggested_price) : (dropiProduct.suggestedPrice || null);
               const variationPrice = variationSalePrice > 0 ? variationSalePrice : (variationSuggestedPrice || dropiProduct.price || 0);
               
+              // Calcular tankuPrice desde la variante
+              const variationTankuPrice = calculateTankuPriceFromVariant({
+                suggestedPrice: variationSuggestedPrice,
+                price: variationPrice,
+              });
+              
               // Extraer atributos desde attribute_values (estructura real del raw)
               // attribute_values: [{ attribute_name: "Color", value: "Negro" }, { attribute_name: "Talla", value: "L" }]
               let attributesData: any[] = [];
@@ -365,6 +372,7 @@ export class DropiSyncService {
                         title: variationTitle,
                         price: variationPrice,
                         suggestedPrice: variationSuggestedPrice,
+                        tankuPrice: variationTankuPrice,
                         attributes: attributesData.length > 0 ? attributesData : undefined,
                       },
                     });
@@ -375,6 +383,7 @@ export class DropiSyncService {
                         title: variationTitle,
                         price: variationPrice,
                         suggestedPrice: variationSuggestedPrice,
+                        tankuPrice: variationTankuPrice,
                         attributes: attributesData.length > 0 ? attributesData : undefined,
                       },
                     });
@@ -407,6 +416,12 @@ export class DropiSyncService {
               
               // Crear variante si no existe o si falló la actualización
               if (shouldCreate && !variant) {
+                // Calcular tankuPrice para nueva variante
+                const newVariationTankuPrice = calculateTankuPriceFromVariant({
+                  suggestedPrice: variationSuggestedPrice,
+                  price: variationPrice,
+                });
+                
                 variant = await prisma.productVariant.create({
                   data: {
                     productId: product.id,
@@ -414,6 +429,7 @@ export class DropiSyncService {
                     title: variationTitle,
                     price: variationPrice,
                     suggestedPrice: variationSuggestedPrice,
+                    tankuPrice: newVariationTankuPrice,
                     attributes: attributesData.length > 0 ? attributesData : undefined,
                     active: true,
                   },
@@ -444,6 +460,12 @@ export class DropiSyncService {
 
             const finalPrice = Math.round(dropiProduct.price || 0);
             const finalSuggestedPrice = dropiProduct.suggestedPrice ? Math.round(dropiProduct.suggestedPrice) : null;
+            
+            // Calcular tankuPrice para producto SIMPLE
+            const simpleTankuPrice = calculateTankuPriceFromVariant({
+              suggestedPrice: finalSuggestedPrice,
+              price: finalPrice,
+            });
 
             const existingVariant = await prisma.productVariant.findUnique({
               where: { sku: uniqueSku },
@@ -469,12 +491,13 @@ export class DropiSyncService {
                   // Si el productId es diferente, actualizarlo también
                   variant = await prisma.productVariant.update({
                     where: { id: existingVariant.id },
-                    data: {
-                      productId: product.id, // Asegurar que el productId sea correcto
-                      title: dropiProduct.name || 'Default',
-                      price: finalPrice,
-                      suggestedPrice: finalSuggestedPrice,
-                    },
+                      data: {
+                        productId: product.id, // Asegurar que el productId sea correcto
+                        title: dropiProduct.name || 'Default',
+                        price: finalPrice,
+                        suggestedPrice: finalSuggestedPrice,
+                        tankuPrice: simpleTankuPrice,
+                      },
                   });
                 } else {
                   variant = await prisma.productVariant.update({
@@ -483,6 +506,7 @@ export class DropiSyncService {
                       title: dropiProduct.name || 'Default',
                       price: finalPrice,
                       suggestedPrice: finalSuggestedPrice,
+                      tankuPrice: simpleTankuPrice,
                     },
                   });
                 }
@@ -519,6 +543,7 @@ export class DropiSyncService {
                   title: dropiProduct.name || 'Default',
                   price: finalPrice,
                   suggestedPrice: finalSuggestedPrice,
+                  tankuPrice: simpleTankuPrice,
                   active: true,
                 },
               });

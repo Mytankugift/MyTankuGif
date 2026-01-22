@@ -18,6 +18,7 @@ interface CartState {
   addItem: (variantId: string, quantity: number, cartId?: string) => Promise<void>
   updateItem: (itemId: string, quantity: number, cartId?: string) => Promise<void>
   removeItem: (itemId: string, cartId?: string) => Promise<void>
+  removeItems: (itemIds: string[], cartId?: string) => Promise<void>
   clearCart: () => void
   getCartId: () => string | null
   getItemCount: () => number
@@ -232,6 +233,53 @@ export const useCartStore = create<CartState>((set, get) => ({
       set({ 
         isLoading: false,
         error: error?.message || 'Error al eliminar item'
+      })
+      throw error
+    }
+  },
+
+  /**
+   * Eliminar múltiples items del carrito
+   */
+  removeItems: async (itemIds: string[], cartId?: string) => {
+    set({ isLoading: true, error: null })
+    
+    try {
+      const currentCartId = cartId || get().cart?.id
+      
+      if (!currentCartId) {
+        throw new Error('No hay carrito disponible')
+      }
+
+      // Eliminar items uno por uno
+      for (const itemId of itemIds) {
+        const response = await apiClient.request<Cart>(
+          API_ENDPOINTS.CART.DELETE_ITEM(itemId),
+          {
+            method: 'DELETE',
+            body: JSON.stringify({ cartId: currentCartId }),
+          }
+        )
+        
+        if (!response.success) {
+          throw new Error(response.error?.message || 'Error al eliminar items')
+        }
+      }
+      
+      // Recargar el carrito después de eliminar todos los items
+      await get().fetchCart()
+      
+      // Emitir evento
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cartUpdated'))
+      }
+      
+      set({ isLoading: false })
+    } catch (error: any) {
+      console.error('[Cart Store] Error eliminando items:', error)
+      set({ 
+        isLoading: false,
+        error: error?.message || 'Error al eliminar items'
       })
       throw error
     }

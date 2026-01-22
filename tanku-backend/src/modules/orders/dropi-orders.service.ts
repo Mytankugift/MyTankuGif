@@ -240,9 +240,9 @@ export class DropiOrdersService {
       }
 
       // item.price es el precio BASE (sin incremento)
-      // item.finalPrice es el precio con incremento (15% + $10,000)
-      // Usar finalPrice si está disponible, sino calcularlo desde price
-      const finalPrice = item.finalPrice || Math.round((item.price * 1.15) + 10000);
+      // item.finalPrice es el precio final (tankuPrice)
+      // Usar finalPrice si está disponible, sino usar price (que ya es tankuPrice)
+      const finalPrice = item.finalPrice || item.price;
       
       const dropiProduct = {
         id: dropiId,

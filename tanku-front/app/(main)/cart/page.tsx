@@ -1,14 +1,29 @@
 'use client'
 
-import { useEffect, Suspense } from 'react'
+import { useEffect, Suspense, useState } from 'react'
 import { useCartStore } from '@/lib/stores/cart-store'
 import { CartItem } from '@/components/cart/cart-item'
 import { CartSummary } from '@/components/cart/cart-summary'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 
 function CartPageContent() {
   const { cart, fetchCart, isLoading } = useCartStore()
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(() => {
+    // Cargar desde localStorage si existe
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('cart-selected-items')
+      if (saved) {
+        try {
+          return new Set(JSON.parse(saved))
+        } catch {
+          return new Set()
+        }
+      }
+    }
+    return new Set()
+  })
 
   useEffect(() => {
     fetchCart()
@@ -27,6 +42,38 @@ function CartPageContent() {
       }
     }
   }, [fetchCart])
+
+  // Inicializar todos los items como seleccionados cuando se carga el carrito
+  useEffect(() => {
+    if (cart && cart.items.length > 0) {
+      const currentItemIds = new Set(cart.items.map(item => item.id))
+      
+      // Si no hay items guardados o están vacíos, seleccionar todos por defecto
+      if (selectedItems.size === 0) {
+        const allItems = new Set(cart.items.map(item => item.id))
+        setSelectedItems(allItems)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('cart-selected-items', JSON.stringify(Array.from(allItems)))
+        }
+      } else {
+        // Sincronizar con items actuales (eliminar items que ya no existen)
+        const filtered = new Set(Array.from(selectedItems).filter(id => currentItemIds.has(id)))
+        if (filtered.size !== selectedItems.size) {
+          setSelectedItems(filtered)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('cart-selected-items', JSON.stringify(Array.from(filtered)))
+          }
+        }
+      }
+    }
+  }, [cart])
+
+  // Persistir cambios en localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && selectedItems.size >= 0) {
+      localStorage.setItem('cart-selected-items', JSON.stringify(Array.from(selectedItems)))
+    }
+  }, [selectedItems])
 
   if (isLoading && !cart) {
     return (
@@ -84,40 +131,62 @@ function CartPageContent() {
         <h1 className="text-3xl sm:text-4xl font-bold text-[#66DEDB] mb-6 sm:mb-8">Carrito</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 lg:gap-8">
-          {/* Lista de items */}
-          <div className="bg-gray-800/50 rounded-lg overflow-hidden">
-            <div className="bg-zinc-800 px-4 sm:px-6 py-4 border-b border-gray-700">
-              <h2 className="text-2xl font-bold text-[#66DEDB]">Productos</h2>
+          {/* Lista de items - Cards minimalistas */}
+          <div className="space-y-4">
+            {/* Header con botón seleccionar todo */}
+            <div className="flex items-center justify-end">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    const newSelected = selectedItems.size === cart.items.length && cart.items.length > 0
+                      ? new Set<string>()
+                      : new Set(cart.items.map(item => item.id))
+                    setSelectedItems(newSelected)
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('cart-selected-items', JSON.stringify(Array.from(newSelected)))
+                    }
+                  }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-[#66DEDB] text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  {selectedItems.size > 0 
+                    ? `${selectedItems.size} de ${cart.items.length} seleccionados`
+                    : 'Seleccionar todos'}
+                </button>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead className="bg-zinc-800 border-b border-gray-700">
-                  <tr className="text-[#3B9BC3] font-medium text-sm">
-                    <th className="p-3 sm:p-4 pl-4 sm:pl-6 text-center" style={{ width: '80px' }}>
-                      Imagen
-                    </th>
-                    <th className="p-3 sm:p-4 text-left">Producto</th>
-                    <th className="p-3 sm:p-4 text-center">Cantidad</th>
-                    <th className="p-3 sm:p-4 text-center hidden sm:table-cell">Precio</th>
-                    <th className="p-3 sm:p-4 pr-4 sm:pr-6 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-700">
-                  {[...cart.items].sort((a, b) => {
-                    const dateA = new Date(a.createdAt || 0).getTime()
-                    const dateB = new Date(b.createdAt || 0).getTime()
-                    return dateB - dateA // Más reciente primero
-                  }).map((item) => (
-                    <CartItem key={item.id} item={item} />
-                  ))}
-                </tbody>
-              </table>
+
+            {/* Cards de productos */}
+            <div className="space-y-3">
+              {[...cart.items].sort((a, b) => {
+                const dateA = new Date(a.createdAt || 0).getTime()
+                const dateB = new Date(b.createdAt || 0).getTime()
+                return dateB - dateA // Más reciente primero
+              }).map((item) => (
+                <CartItem
+                  key={item.id}
+                  item={item}
+                  isSelected={selectedItems.has(item.id)}
+                  onSelectChange={(itemId, selected) => {
+                    const newSelected = new Set(selectedItems)
+                    if (selected) {
+                      newSelected.add(itemId)
+                    } else {
+                      newSelected.delete(itemId)
+                    }
+                    setSelectedItems(newSelected)
+                    // Persistir inmediatamente
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('cart-selected-items', JSON.stringify(Array.from(newSelected)))
+                    }
+                  }}
+                />
+              ))}
             </div>
           </div>
 
           {/* Resumen */}
           <div className="lg:sticky lg:top-4 lg:self-start">
-            <CartSummary cart={cart} />
+            <CartSummary cart={cart} selectedItems={selectedItems} />
           </div>
         </div>
       </div>

@@ -339,22 +339,42 @@ export class EpaycoController {
           console.warn(`📦 [EPAYCO-WEBHOOK] ========== ERROR AL CREAR ORDEN EN DROPI ==========\n`);
         }
 
-        // Vaciar carrito solo si Dropi fue exitoso
+        // Vaciar carrito solo si Dropi fue exitoso y solo los items seleccionados
         if (dropiSuccess) {
           try {
-            console.log(`🧹 [EPAYCO-WEBHOOK] Eliminando items del carrito: ${cartId}`);
+            console.log(`🧹 [EPAYCO-WEBHOOK] Eliminando items seleccionados del carrito: ${cartId}`);
             const cartWithItems = await prisma.cart.findUnique({
               where: { id: cartId },
               include: { items: true },
             });
 
             if (cartWithItems && cartWithItems.items.length > 0) {
-              for (const item of cartWithItems.items) {
-                await prisma.cartItem.delete({
-                  where: { id: item.id },
-                });
+              // Obtener variantIds seleccionados del checkout_data
+              const checkoutData = metadata.checkout_data;
+              const selectedVariantIds = checkoutData?.selectedVariantIds || [];
+              
+              if (selectedVariantIds.length > 0) {
+                // Filtrar items que coincidan con los variantIds seleccionados
+                const itemsToDelete = cartWithItems.items.filter(item => 
+                  selectedVariantIds.includes(item.variantId)
+                );
+                
+                for (const item of itemsToDelete) {
+                  await prisma.cartItem.delete({
+                    where: { id: item.id },
+                  });
+                }
+                console.log(`✅ [EPAYCO-WEBHOOK] ${itemsToDelete.length} items seleccionados eliminados del carrito`);
+              } else {
+                // Si no hay selectedVariantIds, eliminar todos (comportamiento legacy)
+                console.warn(`⚠️ [EPAYCO-WEBHOOK] No se encontraron selectedVariantIds, eliminando todos los items`);
+                for (const item of cartWithItems.items) {
+                  await prisma.cartItem.delete({
+                    where: { id: item.id },
+                  });
+                }
+                console.log(`✅ [EPAYCO-WEBHOOK] Todos los items eliminados del carrito`);
               }
-              console.log(`✅ [EPAYCO-WEBHOOK] Carrito vaciado exitosamente`);
             }
           } catch (cartError: any) {
             console.warn(`⚠️ [EPAYCO-WEBHOOK] Error limpiando carrito:`, cartError?.message);

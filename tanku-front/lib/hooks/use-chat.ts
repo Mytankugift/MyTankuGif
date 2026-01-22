@@ -22,6 +22,7 @@ export interface Conversation {
       email: string
       firstName: string | null
       lastName: string | null
+      username: string | null
       profile: {
         avatar: string | null
         banner: string | null
@@ -53,6 +54,7 @@ export interface Message {
     email: string
     firstName: string | null
     lastName: string | null
+    username: string | null
     profile: {
       avatar: string | null
       banner: string | null
@@ -234,6 +236,7 @@ export function useChat() {
         email: user?.email || '',
         firstName: user?.firstName || null,
         lastName: user?.lastName || null,
+        username: user?.username || null,
         profile: user?.profile || null,
       },
     }
@@ -374,6 +377,7 @@ export function useChat() {
         email: '',
         firstName: null,
         lastName: null,
+        username: null,
         profile: null,
       }
       

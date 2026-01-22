@@ -33,7 +33,7 @@ export function useProduct(handle: string | null, options: UseProductOptions = {
           // Agregar price si no existe (precio mínimo de variantes)
           price: response.data.price || 
             (response.data.variants?.length > 0 
-              ? Math.min(...response.data.variants.map(v => v.price))
+              ? Math.min(...response.data.variants.map(v => v.tankuPrice))
               : undefined),
         }
         
@@ -87,7 +87,7 @@ export async function fetchProductByHandle(handle: string): Promise<ProductDTO |
         thumbnail: response.data.thumbnail ?? response.data.images?.[0] ?? undefined,
         price: response.data.price || 
           (response.data.variants?.length > 0 
-            ? Math.min(...response.data.variants.map(v => v.price))
+            ? Math.min(...response.data.variants.map(v => v.tankuPrice))
             : undefined),
       }
     }

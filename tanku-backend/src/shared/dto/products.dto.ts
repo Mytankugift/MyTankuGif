@@ -14,8 +14,7 @@ export type ProductVariantDTO = {
   id: string;
   sku: string;
   title: string;
-  price: number;
-  suggestedPrice: number | null;
+  tankuPrice: number; // Precio final calculado (único precio expuesto al frontend)
   stock: number;
   active: boolean;
   attributes: Record<string, any> | null;

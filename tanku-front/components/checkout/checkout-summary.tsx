@@ -17,10 +17,13 @@ export function CheckoutSummary({ cart }: CheckoutSummaryProps) {
     }).format(price)
   }
 
-  const subtotal = cart.subtotal || 0
+  // Calcular subtotal y total basado en los items del carrito (que ya están filtrados)
+  const subtotal = cart.items.reduce((sum, item) => {
+    return sum + (item.total || (item.unitPrice || item.price || 0) * item.quantity)
+  }, 0)
   const shipping = 0 // Por ahora sin envío
   const tax = 0 // Por ahora sin impuestos
-  const total = cart.total || subtotal
+  const total = subtotal
 
   return (
     <div className="bg-gray-800/50 rounded-lg p-6">

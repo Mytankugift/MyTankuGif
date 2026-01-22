@@ -9,11 +9,13 @@ export interface User {
   email: string
   firstName: string | null
   lastName: string | null
+  username: string | null
   phone: string | null
   profile: {
     avatar: string | null
     banner: string | null
     bio: string | null
+    socialLinks?: Array<{ platform: string; url: string }>
   } | null
 }
 
@@ -28,8 +30,7 @@ export interface ProductVariantDTO {
   id: string
   sku: string
   title: string
-  price: number
-  suggestedPrice: number | null
+  tankuPrice: number // Precio final calculado
   stock: number
   active: boolean
   attributes: Record<string, any> | null
@@ -81,11 +82,11 @@ export interface FeedItemDTO {
   // Para posters
   author?: {
     id: string
+    email: string
     firstName: string | null
     lastName: string | null
-    profile: {
-      avatar: string | null
-    } | null
+    username: string | null
+    avatar: string | null
   }
   reactionsCount?: number
   commentsCount?: number
@@ -106,8 +107,10 @@ export interface PosterDTO {
   videoUrl: string | null
   author: {
     id: string
+    email: string
     firstName: string | null
     lastName: string | null
+    username: string | null
     profile: {
       avatar: string | null
     } | null
@@ -135,8 +138,7 @@ export interface CartItem {
     id: string
     sku: string
     title: string
-    price: number
-    suggestedPrice?: number | null
+    tankuPrice: number // Precio final calculado
     stock: number
   }
   // Propiedades adicionales para compatibilidad
@@ -211,6 +213,7 @@ export interface OrderDTO {
     postalCode: string
     country: string
   } | null
+  metadata?: Record<string, any> // Metadata de la orden (dropi_order_ids, etc.)
   createdAt: string
   updatedAt: string
 }
@@ -307,7 +310,7 @@ export interface WishListDTO {
     variant?: {
       id: string
       title: string
-      price: number
+      tankuPrice: number // Precio final calculado
     } | null
     product: {
       id: string
@@ -382,6 +385,7 @@ export interface FriendUserDTO {
   id: string
   firstName: string | null
   lastName: string | null
+  username: string | null
   email: string
   profile: {
     avatar: string | null

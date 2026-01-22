@@ -10,7 +10,7 @@ export type WishListItemDTO = {
   variant?: {
     id: string;
     title: string;
-    price: number;
+    tankuPrice: number; // Precio final calculado (único precio expuesto al frontend)
   } | null;
   product: {
     id: string;
@@ -23,8 +23,7 @@ export type WishListItemDTO = {
       id: string;
       sku: string;
       title: string;
-      price: number;
-      suggestedPrice?: number | null;
+      tankuPrice: number; // Precio final calculado (único precio expuesto al frontend)
       stock: number;
       active: boolean;
     }>;

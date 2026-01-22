@@ -9,6 +9,7 @@ datasource db {
 model User {
   id                   String                 @id @default(cuid())
   email                String                 @unique
+  username             String?                @unique // Username único para menciones
   password             String?
   firstName            String?                @map("first_name")
   lastName             String?                @map("last_name")
@@ -28,6 +29,7 @@ model User {
   stories              StoriesUser[]
   profile              UserProfile?
   wishLists            WishList[]
+  savedWishlists       SavedWishlist[]
   categoryInterests    UserCategoryInterest[] @relation("UserCategoryInterests")
   friends              Friend[]               @relation("UserFriends")
   friendOf             Friend[]               @relation("FriendOf")
@@ -41,14 +43,16 @@ model User {
 }
 
 model UserProfile {
-  id        String   @id @default(cuid())
-  userId    String   @unique @map("user_id")
-  avatar    String?
-  banner    String?
-  bio       String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  userId     String   @unique @map("user_id")
+  avatar     String?
+  banner     String?
+  bio        String?
+  isPublic   Boolean  @default(true) @map("is_public") // Perfil público por defecto
+  socialLinks Json?   @map("social_links") // Array de { platform: string, url: string }
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_profiles")
 }
@@ -131,6 +135,7 @@ model ProductVariant {
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
   suggestedPrice    Int?               @map("suggested_price")
+  tankuPrice        Int?               @map("tanku_price") // Precio final calculado: (basePrice * 1.15) + 10000
   attributes        Json? // Atributos de la variante: [{ attribute_name, value }]
   cartItems         CartItem[]
   orderItems        OrderItem[]
@@ -256,14 +261,16 @@ model Address {
 }
 
 model WishList {
-  id        String         @id @default(cuid())
-  userId    String         @map("user_id")
-  name      String
-  public    Boolean        @default(false)
-  createdAt DateTime       @default(now()) @map("created_at")
-  updatedAt DateTime       @updatedAt @map("updated_at")
-  items     WishListItem[]
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String          @id @default(cuid())
+  userId        String          @map("user_id")
+  name          String
+  public        Boolean         @default(false)
+  shareToken    String?         @unique @map("share_token") // Token para compartir por link público
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  items         WishListItem[]
+  savedBy       SavedWishlist[]
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("wish_lists")
 }
@@ -279,6 +286,19 @@ model WishListItem {
   wishList   WishList       @relation(fields: [wishListId], references: [id], onDelete: Cascade)
 
   @@map("wish_list_items")
+}
+
+model SavedWishlist {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id") // Usuario que guardó la wishlist
+  wishListId String  @map("wish_list_id") // Wishlist guardada
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wishList  WishList @relation(fields: [wishListId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, wishListId]) // Un usuario no puede guardar la misma wishlist dos veces
+  @@map("saved_wishlists")
 }
 
 model StalkerGift {
@@ -447,6 +467,7 @@ model PosterComment {
   parentId   String?         @map("parent_id")
   likesCount Int             @default(0) @map("likes_count")
   isActive   Boolean         @default(true) @map("is_active")
+  mentions   Json?           // Array de userIds mencionados: ["userId1", "userId2"]
   createdAt  DateTime        @default(now()) @map("created_at")
   updatedAt  DateTime        @updatedAt @map("updated_at")
   customer   User            @relation(fields: [customerId], references: [id], onDelete: Cascade)

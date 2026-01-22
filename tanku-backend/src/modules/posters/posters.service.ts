@@ -3,6 +3,8 @@ import { S3Service } from '../../shared/services/s3.service';
 import { PosterDTO, PosterAuthorDTO } from '../../shared/dto/posters.dto';
 import { NotFoundError, BadRequestError } from '../../shared/errors/AppError';
 import { FeedService } from '../feed/feed.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { UsersService } from '../users/users.service';
 import type { Poster, PosterComment, PosterReaction, User, UserProfile } from '@prisma/client';
 
 export class PostersService {
@@ -23,7 +25,27 @@ export class PostersService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      username: user.username || null,
       avatar: user.profile?.avatar || null,
+    };
+  }
+
+  /**
+   * Mapper: PosterComment de Prisma a PosterCommentDTO
+   */
+  private mapCommentToDTO(
+    comment: PosterComment & { customer: User & { profile: UserProfile | null } }
+  ): any {
+    return {
+      id: comment.id,
+      posterId: comment.posterId,
+      userId: comment.customerId,
+      content: comment.content,
+      parentId: comment.parentId,
+      likesCount: comment.likesCount,
+      createdAt: comment.createdAt.toISOString(),
+      author: this.mapUserToPosterAuthorDTO(comment.customer),
+      mentions: comment.mentions ? (comment.mentions as string[]) : undefined,
     };
   }
 
@@ -35,8 +57,14 @@ export class PostersService {
       customer: User & { profile: UserProfile | null };
       reactions: PosterReaction[];
       comments: (PosterComment & { customer: User & { profile: UserProfile | null } })[];
-    }
+    },
+    currentUserId?: string
   ): PosterDTO {
+    // Verificar si el usuario actual le dio like
+    const isLiked = currentUserId
+      ? poster.reactions.some(r => r.customerId === currentUserId)
+      : false;
+
     return {
       id: poster.id,
       imageUrl: poster.imageUrl,
@@ -46,6 +74,8 @@ export class PostersService {
       commentsCount: poster.commentsCount,
       createdAt: poster.createdAt.toISOString(),
       author: this.mapUserToPosterAuthorDTO(poster.customer),
+      isLiked,
+      comments: poster.comments?.map(c => this.mapCommentToDTO(c)),
     };
   }
 
@@ -151,7 +181,7 @@ export class PostersService {
         take: 20,
       });
 
-      return posters.map((poster) => this.mapPosterToDTO(poster));
+      return posters.map((poster) => this.mapPosterToDTO(poster, userId));
     } catch (error: any) {
       console.error(`❌ [POSTERS SERVICE] Error obteniendo feed:`, error.message);
       return [];
@@ -199,7 +229,7 @@ export class PostersService {
         orderBy: { createdAt: 'desc' },
       });
 
-      return posters.map((poster) => this.mapPosterToDTO(poster));
+      return posters.map((poster) => this.mapPosterToDTO(poster, userId));
     } catch (error: any) {
       console.error(`❌ [POSTERS SERVICE] Error obteniendo posters:`, error.message);
       return [];
@@ -207,9 +237,9 @@ export class PostersService {
   }
 
   /**
-   * Obtener un poster específico por ID
+   * Obtener un poster específico por ID (sin comentarios para carga rápida)
    */
-  async getPosterById(posterId: string): Promise<PosterDTO> {
+  async getPosterById(posterId: string, currentUserId?: string, includeComments: boolean = false): Promise<PosterDTO> {
     const poster = await prisma.poster.findUnique({
       where: { id: posterId },
       include: {
@@ -219,8 +249,10 @@ export class PostersService {
           },
         },
         reactions: true,
-        comments: {
+        comments: includeComments ? {
           where: { isActive: true },
+          orderBy: { createdAt: 'asc' },
+          take: 50, // Limitar a 50 comentarios iniciales
           include: {
             customer: {
               include: {
@@ -228,7 +260,7 @@ export class PostersService {
               },
             },
           },
-        },
+        } : false,
       },
     });
 
@@ -236,7 +268,126 @@ export class PostersService {
       throw new NotFoundError('Poster no encontrado');
     }
 
-    return this.mapPosterToDTO(poster);
+    return this.mapPosterToDTO(poster as any, currentUserId);
+  }
+
+  /**
+   * Obtener comentarios de un poster (paginados)
+   */
+  async getPosterComments(
+    posterId: string,
+    page: number = 0,
+    limit: number = 20
+  ): Promise<{
+    comments: Array<{
+      id: string;
+      userId: string;
+      content: string;
+      parentId: string | null;
+      likesCount: number;
+      createdAt: string;
+      author: PosterAuthorDTO;
+    }>;
+    hasMore: boolean;
+    total: number;
+  }> {
+    const skip = page * limit;
+
+    const [comments, total] = await Promise.all([
+      prisma.posterComment.findMany({
+        where: {
+          posterId,
+          isActive: true,
+          parentId: null, // Solo comentarios principales
+        },
+        orderBy: { createdAt: 'asc' },
+        skip,
+        take: limit,
+        include: {
+          customer: {
+            include: {
+              profile: true,
+            },
+          },
+          replies: {
+            where: { isActive: true },
+            orderBy: { createdAt: 'asc' },
+            include: {
+              customer: {
+                include: {
+                  profile: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.posterComment.count({
+        where: {
+          posterId,
+          isActive: true,
+        },
+      }),
+    ]);
+
+    return {
+      comments: comments.map(comment => {
+        // Procesar mentions si existen
+        let mentionsArray: string[] | undefined = undefined;
+        if (comment.mentions) {
+          try {
+            if (Array.isArray(comment.mentions)) {
+              mentionsArray = comment.mentions as string[];
+            } else if (typeof comment.mentions === 'string') {
+              mentionsArray = JSON.parse(comment.mentions);
+            }
+          } catch (e) {
+            console.error('Error parsing mentions:', e);
+          }
+        }
+
+        // Procesar replies (respuestas)
+        const repliesArray = comment.replies?.map(reply => {
+          let replyMentions: string[] | undefined = undefined;
+          if (reply.mentions) {
+            try {
+              if (Array.isArray(reply.mentions)) {
+                replyMentions = reply.mentions as string[];
+              } else if (typeof reply.mentions === 'string') {
+                replyMentions = JSON.parse(reply.mentions);
+              }
+            } catch (e) {
+              console.error('Error parsing reply mentions:', e);
+            }
+          }
+
+          return {
+            id: reply.id,
+            userId: reply.customerId,
+            content: reply.content,
+            parentId: reply.parentId,
+            likesCount: reply.likesCount,
+            createdAt: reply.createdAt.toISOString(),
+            author: this.mapUserToPosterAuthorDTO(reply.customer),
+            mentions: replyMentions,
+          };
+        }) || [];
+
+        return {
+          id: comment.id,
+          userId: comment.customerId,
+          content: comment.content,
+          parentId: comment.parentId,
+          likesCount: comment.likesCount,
+          createdAt: comment.createdAt.toISOString(),
+          author: this.mapUserToPosterAuthorDTO(comment.customer),
+          mentions: mentionsArray,
+          replies: repliesArray,
+        };
+      }),
+      hasMore: skip + comments.length < total,
+      total,
+    };
   }
 
   /**
@@ -374,8 +525,81 @@ export class PostersService {
         likesCount: updatedPoster.likesCount,
       });
 
+      // Crear notificación si el usuario que dio like no es el dueño del post
+      if (poster.customerId !== userId) {
+        try {
+          const notificationsService = new NotificationsService();
+          const posterAuthor = await prisma.user.findUnique({
+            where: { id: poster.customerId },
+            select: { firstName: true, lastName: true, email: true },
+          });
+          
+          const likerName = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { firstName: true, lastName: true, email: true },
+          });
+
+          const likerDisplayName = likerName?.firstName && likerName?.lastName
+            ? `${likerName.firstName} ${likerName.lastName}`
+            : likerName?.email?.split('@')[0] || 'Alguien';
+
+          await notificationsService.createNotification({
+            userId: poster.customerId,
+            type: 'post_like',
+            title: 'Nuevo like en tu publicación',
+            message: `${likerDisplayName} le dio like a tu publicación`,
+            data: {
+              posterId,
+              fromUserId: userId,
+              type: 'post_like',
+            },
+          });
+        } catch (notifError: any) {
+          // No fallar si la notificación no se puede crear
+          console.error(`Error creando notificación de like:`, notifError?.message);
+        }
+      }
+
       return { liked: true };
     }
+  }
+
+  /**
+   * Extraer menciones del texto (formato: @displayName|userId)
+   * El frontend envía menciones como @displayName|userId para mostrar nombre pero guardar ID
+   * Retorna array de userIds mencionados
+   */
+  private async extractMentions(content: string): Promise<string[]> {
+    // Regex para encontrar menciones: @displayName|userId o @userId (formato legacy)
+    // Formato nuevo: @nombre|userId (permite espacios en el nombre)
+    // Formato legacy: @userId (para compatibilidad)
+    // Cambiado [^|@\s]+ a [^|@]+ para permitir espacios en nombres
+    const mentionRegex = /@([^|@]+?)\|([a-zA-Z0-9_-]{20,})|@([a-zA-Z0-9_-]{20,})/g;
+    const matches = content.matchAll(mentionRegex);
+    const mentionedUserIds: string[] = [];
+
+    for (const match of matches) {
+      // match[2] es userId del formato @nombre|userId
+      // match[3] es userId del formato legacy @userId
+      const userId = match[2] || match[3];
+      if (userId && !mentionedUserIds.includes(userId)) {
+        mentionedUserIds.push(userId);
+      }
+    }
+
+    if (mentionedUserIds.length === 0) {
+      return [];
+    }
+
+    // Verificar que los IDs existen en la BD
+    const validUsers = await prisma.user.findMany({
+      where: {
+        id: { in: mentionedUserIds },
+      },
+      select: { id: true },
+    });
+
+    return validUsers.map(u => u.id);
   }
 
   /**
@@ -391,16 +615,26 @@ export class PostersService {
       throw new NotFoundError('Poster no encontrado');
     }
 
-    // Crear comentario
+    // Extraer menciones del contenido
+    const mentionedUserIds = await this.extractMentions(content);
+
+    // Crear comentario con menciones (solo si hay menciones)
+    const commentData: any = {
+      posterId,
+      customerId: userId,
+      content,
+      parentId: parentId || null,
+      likesCount: 0,
+      isActive: true,
+    };
+    
+    // Solo agregar mentions si hay menciones
+    if (mentionedUserIds.length > 0) {
+      commentData.mentions = mentionedUserIds;
+    }
+    
     const comment = await prisma.posterComment.create({
-      data: {
-        posterId,
-        customerId: userId,
-        content,
-        parentId: parentId || null,
-        likesCount: 0,
-        isActive: true,
-      },
+      data: commentData,
     });
 
     // Incrementar contador de comentarios
@@ -419,7 +653,122 @@ export class PostersService {
       commentsCount: updatedPoster.commentsCount,
     });
 
+    // Crear notificaciones
+    try {
+      const notificationsService = new NotificationsService();
+      const commenter = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { firstName: true, lastName: true, email: true },
+      });
+
+      const commenterDisplayName = commenter?.firstName && commenter?.lastName
+        ? `${commenter.firstName} ${commenter.lastName}`
+        : commenter?.email?.split('@')[0] || 'Alguien';
+
+      const commentPreview = content.substring(0, 50) + (content.length > 50 ? '...' : '');
+
+      // Notificación al dueño del post (si no es quien comentó)
+      if (poster.customerId !== userId) {
+        await notificationsService.createNotification({
+          userId: poster.customerId,
+          type: 'post_comment',
+          title: 'Nuevo comentario en tu publicación',
+          message: `${commenterDisplayName} comentó en tu publicación: "${commentPreview}"`,
+          data: {
+            posterId,
+            commentId: comment.id,
+            fromUserId: userId,
+            type: 'post_comment',
+          },
+        });
+      }
+
+      // Notificaciones a usuarios mencionados (excluyendo al dueño del post y al comentador)
+      const mentionedUserIdsToNotify = mentionedUserIds.filter(
+        mentionedId => mentionedId !== poster.customerId && mentionedId !== userId
+      );
+
+      if (mentionedUserIdsToNotify.length > 0) {
+        const mentionedUsers = await prisma.user.findMany({
+          where: { id: { in: mentionedUserIdsToNotify } },
+          select: { id: true, firstName: true, lastName: true, email: true },
+        });
+
+        for (const mentionedUser of mentionedUsers) {
+          await notificationsService.createNotification({
+            userId: mentionedUser.id,
+            type: 'comment_mention',
+            title: 'Te mencionaron en un comentario',
+            message: `${commenterDisplayName} te mencionó en un comentario: "${commentPreview}"`,
+            data: {
+              posterId,
+              commentId: comment.id,
+              fromUserId: userId,
+              type: 'comment_mention',
+            },
+          });
+        }
+      }
+    } catch (notifError: any) {
+      // No fallar si la notificación no se puede crear
+      console.error(`Error creando notificaciones de comentario:`, notifError?.message);
+    }
+
     return comment;
+  }
+
+  /**
+   * Dar like/unlike a un comentario
+   * TODO: Implementar sistema completo de reacciones con modelo separado para rastrear qué usuarios dieron like
+   * Por ahora, simplemente incrementa/decrementa el contador
+   */
+  async toggleCommentLike(commentId: string, userId: string): Promise<{ liked: boolean }> {
+    const comment = await prisma.posterComment.findUnique({
+      where: { id: commentId },
+    });
+
+    if (!comment) {
+      throw new NotFoundError('Comentario no encontrado');
+    }
+
+    // TODO: En el futuro, crear un modelo PosterCommentReaction para rastrear likes individuales
+    // Por ahora, siempre incrementamos el contador (se puede mejorar después)
+    await prisma.posterComment.update({
+      where: { id: commentId },
+      data: {
+        likesCount: {
+          increment: 1,
+        },
+      },
+    });
+
+    return { liked: true };
+  }
+
+  /**
+   * Eliminar un poster (soft delete)
+   */
+  async deletePoster(posterId: string, userId: string): Promise<void> {
+    const poster = await prisma.poster.findUnique({
+      where: { id: posterId },
+    });
+
+    if (!poster) {
+      throw new NotFoundError('Poster no encontrado');
+    }
+
+    // Verificar que el usuario es el dueño del poster
+    if (poster.customerId !== userId) {
+      throw new BadRequestError('No tienes permiso para eliminar este poster');
+    }
+
+    // Soft delete: marcar como inactivo
+    await prisma.poster.update({
+      where: { id: posterId },
+      data: {
+        isActive: false,
+      },
+    });
   }
 }
 

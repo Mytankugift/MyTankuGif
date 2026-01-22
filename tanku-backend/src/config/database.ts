@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 // import mongoose from 'mongoose';
 // import Redis from 'ioredis';
 import { env } from './env';
+// import { createPriceMiddleware } from '../shared/middleware/prisma-price.middleware'; // Comentado temporalmente
 
 /**
  * Prisma Client (PostgreSQL) - Prisma 7
@@ -20,6 +21,11 @@ export const prisma = new PrismaClient({
   adapter,
   log: env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
 }); // ✅ Removido  ['query', 'error', 'warn'] porque se veia mucho en la consola y no servia para nada
+
+// Middleware temporalmente deshabilitado - Prisma 7 con adapter no soporta $use
+// El cálculo de tankuPrice se hace explícitamente en sync-to-backend y otros servicios
+// TODO: Implementar validación en el código explícito en lugar de middleware si es necesario
+// prisma.$use(createPriceMiddleware(prisma));
 
 /**
  * MongoDB Connection (Opcional en desarrollo)

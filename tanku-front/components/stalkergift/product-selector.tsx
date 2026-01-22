@@ -90,14 +90,13 @@ export function ProductSelector({
                           : (prod.thumbnail ? [prod.thumbnail] : []),
                         category: prod.category || undefined,
                         variants: prod.variants && Array.isArray(prod.variants) 
-                          ? prod.variants.map((v: any) => ({
-                              id: v.id,
-                              sku: v.sku,
-                              title: v.title,
-                              price: v.price,
-                              suggestedPrice: v.suggestedPrice || null,
-                              stock: v.stock || 0,
-                              active: v.active !== false,
+                            ? prod.variants.map((v: any) => ({
+                                id: v.id,
+                                sku: v.sku,
+                                title: v.title,
+                                tankuPrice: v.tankuPrice || 0,
+                                stock: v.stock || 0,
+                                active: v.active !== false,
                             }))
                           : [],
                         active: prod.active !== false,
@@ -155,13 +154,12 @@ export function ProductSelector({
   const getProductPrice = (prod: ProductDTO) => {
     if (prod.variants && prod.variants.length > 0) {
       const minVariant = prod.variants.reduce((min, v) => {
-        const price = v.suggestedPrice || v.price
-        const minPrice = min.suggestedPrice || min.price
-        return price < minPrice ? v : min
+        const price = v.tankuPrice || 0
+        const minPrice = min.tankuPrice || 0
+        return price < minPrice && price > 0 ? v : min
       })
-      const basePrice = minVariant.suggestedPrice || minVariant.price
-      // Aplicar incremento: (precio * 1.15) + 10,000
-      return basePrice > 0 ? Math.round((basePrice * 1.15) + 10000) : 0
+      // Usar tankuPrice directamente (ya calculado en sync)
+      return minVariant.tankuPrice || 0
     }
     return 0
   }

@@ -1,14 +1,15 @@
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useChat } from '@/lib/hooks/use-chat'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { ConversationList } from '@/components/chat/conversation-list'
 import { ChatWindow } from '@/components/chat/chat-window'
 import { BaseNav } from '@/components/layout/base-nav'
 
-export default function MessagesClient() {
+// Componente interno que usa useSearchParams
+function MessagesClientContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user } = useAuthStore()
@@ -96,6 +97,22 @@ export default function MessagesClient() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Componente principal con Suspense boundary
+export default function MessagesClient() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-900">
+        <BaseNav />
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center text-gray-400">Cargando...</div>
+        </div>
+      </div>
+    }>
+      <MessagesClientContent />
+    </Suspense>
   )
 }
 

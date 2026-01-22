@@ -4,6 +4,7 @@ import { WishListDTO, WishListItemDTO } from '../../shared/dto/wishlists.dto';
 import type { WishList, WishListItem } from '@prisma/client';
 import { env } from '../../config/env';
 import { FeedService } from '../feed/feed.service';
+import * as crypto from 'crypto';
 
 export class WishListsService {
   private feedService: FeedService;
@@ -26,12 +27,32 @@ export class WishListsService {
   }
 
   /**
+   * Generar slug desde el nombre de la wishlist
+   */
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+      .replace(/[^a-z0-9]+/g, '-') // Reemplazar caracteres especiales con guiones
+      .replace(/(^-|-$)/g, '') // Remover guiones al inicio y final
+      .substring(0, 100); // Limitar longitud
+  }
+
+  /**
+   * Generar ID corto desde el ID completo (primeros 8 caracteres)
+   */
+  private generateShortId(id: string): string {
+    return id.substring(0, 8);
+  }
+
+  /**
    * Mapper: WishListItem de Prisma a WishListItemDTO
    */
   private mapWishListItemToDTO(
     item: WishListItem & {
       product: { id: string; title: string; handle: string; images: string[] };
-      variant?: { id: string; title: string; price: number } | null;
+      variant?: { id: string; title: string; price: number; suggestedPrice?: number | null; tankuPrice: number | null } | null;
     }
   ): WishListItemDTO {
     return {
@@ -42,7 +63,7 @@ export class WishListsService {
         ? {
             id: item.variant.id,
             title: item.variant.title,
-            price: item.variant.price,
+            tankuPrice: item.variant.tankuPrice || 0, // Precio final (tankuPrice)
           }
         : null,
       product: {
@@ -107,6 +128,7 @@ export class WishListsService {
                 title: true,
                 price: true,
                 suggestedPrice: true,
+                tankuPrice: true,
                 sku: true,
               },
             },
@@ -127,7 +149,7 @@ export class WishListsService {
   private mapWishListItemToDTOComplete(
     item: WishListItem & {
       product: any; // Product con todas sus relaciones
-      variant?: { id: string; title: string; price: number; suggestedPrice: number | null; sku: string } | null;
+      variant?: { id: string; title: string; price: number; suggestedPrice: number | null; tankuPrice: number | null; sku: string } | null;
     }
   ): WishListItemDTO {
     // Mapear variantes del producto completo
@@ -135,8 +157,7 @@ export class WishListsService {
       id: v.id,
       sku: v.sku,
       title: v.title,
-      price: v.price,
-      suggestedPrice: v.suggestedPrice,
+      tankuPrice: v.tankuPrice || 0, // Precio final (tankuPrice)
       stock: v.warehouseVariants?.reduce((sum: number, wv: any) => sum + (wv.stock || 0), 0) || 0,
       active: v.active,
     })) || [];
@@ -154,7 +175,7 @@ export class WishListsService {
         ? {
             id: item.variant.id,
             title: item.variant.title,
-            price: item.variant.price,
+            tankuPrice: item.variant.tankuPrice || 0,
           }
         : null,
       product: {
@@ -222,6 +243,8 @@ export class WishListsService {
                 id: true,
                 title: true,
                 price: true,
+                suggestedPrice: true,
+                tankuPrice: true,
               },
             },
           },
@@ -283,6 +306,8 @@ export class WishListsService {
                 id: true,
                 title: true,
                 price: true,
+                suggestedPrice: true,
+                tankuPrice: true,
               },
             },
           },
@@ -383,16 +408,17 @@ export class WishListsService {
     } else {
       // Si NO se especifica variantId y el producto solo tiene 1 variante activa,
       // guardamos automáticamente esa variante para que el item tenga precio/variante.
+      // IMPORTANTE: Usar la misma lógica que el feed (ordenar por price asc)
       const onlyVariant = await prisma.productVariant.findFirst({
         where: { productId, active: true },
         select: { id: true },
-        orderBy: { createdAt: 'asc' },
+        orderBy: { price: 'asc' }, // Cambiar de createdAt a price para consistencia con feed
       });
 
       const secondVariant = await prisma.productVariant.findFirst({
         where: { productId, active: true, NOT: { id: onlyVariant?.id } },
         select: { id: true },
-        orderBy: { createdAt: 'asc' },
+        orderBy: { price: 'asc' }, // Cambiar de createdAt a price para consistencia con feed
       });
 
       if (onlyVariant && !secondVariant) {
@@ -435,6 +461,8 @@ export class WishListsService {
                 id: true,
                 title: true,
                 price: true,
+                suggestedPrice: true,
+                tankuPrice: true,
               },
             }
           : undefined,
@@ -515,6 +543,341 @@ export class WishListsService {
     } catch (error) {
       console.error(`Error actualizando métricas para producto ${productId}:`, error);
       // No fallar si la actualización de métricas falla
+    }
+  }
+
+  /**
+   * Guardar wishlist de otro usuario
+   */
+  async saveWishlist(wishListId: string, userId: string): Promise<void> {
+    // Verificar que la wishlist existe
+    const wishList = await prisma.wishList.findUnique({
+      where: { id: wishListId },
+      include: { user: true },
+    });
+
+    if (!wishList) {
+      throw new NotFoundError('Wish list no encontrada');
+    }
+
+    // No se puede guardar tu propia wishlist
+    if (wishList.userId === userId) {
+      throw new BadRequestError('No puedes guardar tu propia wish list');
+    }
+
+    // Verificar que no esté ya guardada
+    const existing = await prisma.savedWishlist.findUnique({
+      where: {
+        userId_wishListId: {
+          userId,
+          wishListId,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new ConflictError('Ya tienes esta wish list guardada');
+    }
+
+    // Guardar la wishlist
+    await prisma.savedWishlist.create({
+      data: {
+        userId,
+        wishListId,
+      },
+    });
+  }
+
+  /**
+   * Desguardar wishlist
+   */
+  async unsaveWishlist(wishListId: string, userId: string): Promise<void> {
+    const saved = await prisma.savedWishlist.findUnique({
+      where: {
+        userId_wishListId: {
+          userId,
+          wishListId,
+        },
+      },
+    });
+
+    if (!saved) {
+      throw new NotFoundError('Wish list guardada no encontrada');
+    }
+
+    await prisma.savedWishlist.delete({
+      where: {
+        userId_wishListId: {
+          userId,
+          wishListId,
+        },
+      },
+    });
+  }
+
+  /**
+   * Obtener wishlists guardadas por el usuario
+   */
+  async getSavedWishlists(userId: string): Promise<WishListDTO[]> {
+    const saved = await prisma.savedWishlist.findMany({
+      where: { userId },
+      include: {
+        wishList: {
+          include: {
+            items: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    title: true,
+                    handle: true,
+                    images: true,
+                  },
+                },
+                variant: {
+                  select: {
+                    id: true,
+                    title: true,
+                    price: true,
+                    tankuPrice: true,
+                  },
+                },
+              },
+            },
+            user: {
+              include: {
+                profile: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return saved.map((s) => {
+      const dto = this.mapWishListToDTO(s.wishList);
+      // Agregar información del usuario propietario (user y userId para compatibilidad con frontend)
+      return {
+        ...dto,
+        userId: s.wishList.user.id, // Agregar userId para agrupar por usuario
+        user: {
+          id: s.wishList.user.id,
+          firstName: s.wishList.user.firstName,
+          lastName: s.wishList.user.lastName,
+          email: s.wishList.user.email,
+          username: s.wishList.user.username || null, // Agregar username
+          profile: s.wishList.user.profile
+            ? {
+                avatar: s.wishList.user.profile.avatar,
+                banner: s.wishList.user.profile.banner,
+                bio: s.wishList.user.profile.bio,
+              }
+            : null,
+        },
+      } as any;
+    });
+  }
+
+  /**
+   * Generar token de compartir para wishlist y retornar URL SEO
+   */
+  async generateShareToken(wishListId: string, userId: string): Promise<{ token: string; shareUrl: string }> {
+    const wishList = await prisma.wishList.findUnique({
+      where: { id: wishListId },
+      include: {
+        user: {
+          select: {
+            username: true,
+          },
+        },
+      },
+    });
+
+    if (!wishList) {
+      throw new NotFoundError('Wish list no encontrada');
+    }
+
+    if (wishList.userId !== userId) {
+      throw new ForbiddenError('No tienes permiso para compartir esta wish list');
+    }
+
+    // Generar token único (mantener para compatibilidad con búsqueda)
+    const token = crypto.randomBytes(32).toString('hex');
+
+    await prisma.wishList.update({
+      where: { id: wishListId },
+      data: { shareToken: token },
+    });
+
+    // Generar URL SEO: /wishlists/share/{username}/{slug}-{shortId}
+    const username = wishList.user.username || 'user';
+    const slug = this.generateSlug(wishList.name);
+    const shortId = this.generateShortId(wishListId);
+    const shareUrl = `/wishlists/share/${username}/${slug}-${shortId}`;
+
+    return { token, shareUrl };
+  }
+
+  /**
+   * Obtener wishlist por token de compartir o por URL SEO (público)
+   * Acepta tanto el token antiguo como el nuevo formato: {username}/{slug}-{shortId}
+   */
+  async getWishlistByShareToken(tokenOrPath: string): Promise<WishListDTO | null> {
+    let wishList = null;
+
+    // Si es un token hexadecimal (64 caracteres), buscar directamente
+    if (/^[a-f0-9]{64}$/i.test(tokenOrPath)) {
+      wishList = await prisma.wishList.findUnique({
+        where: { shareToken: tokenOrPath },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  title: true,
+                  handle: true,
+                  images: true,
+                },
+              },
+              variant: {
+                select: {
+                  id: true,
+                  title: true,
+                  price: true,
+                  suggestedPrice: true,
+                  tankuPrice: true,
+                },
+              },
+            },
+          },
+          user: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+      });
+    } else {
+      // Formato SEO: {username}/{slug}-{shortId}
+      // Ejemplo: "soydavidchang/mi-wishlist-cumpleanos-cmkecoi8"
+      const parts = tokenOrPath.split('/');
+      if (parts.length === 2) {
+        const [username, slugWithId] = parts;
+        // Extraer el shortId (últimos 8 caracteres después del último guión)
+        const lastDashIndex = slugWithId.lastIndexOf('-');
+        if (lastDashIndex > 0) {
+          const shortId = slugWithId.substring(lastDashIndex + 1);
+          
+          // Buscar wishlist por username y shortId
+          // Primero obtener el usuario
+          const user = await prisma.user.findUnique({
+            where: { username },
+            select: { id: true },
+          });
+
+          if (user) {
+            // Buscar wishlists del usuario que empiecen con el shortId
+            const wishLists = await prisma.wishList.findMany({
+              where: {
+                userId: user.id,
+                shareToken: { not: null }, // Solo wishlists compartidas
+              },
+              include: {
+                items: {
+                  include: {
+                    product: {
+                      select: {
+                        id: true,
+                        title: true,
+                        handle: true,
+                        images: true,
+                      },
+                    },
+                    variant: {
+                      select: {
+                        id: true,
+                        title: true,
+                        price: true,
+                        suggestedPrice: true,
+                        tankuPrice: true,
+                      },
+                    },
+                  },
+                },
+                user: {
+                  include: {
+                    profile: true,
+                  },
+                },
+              },
+            });
+
+            // Encontrar la wishlist cuyo ID empieza con el shortId
+            wishList = wishLists.find((wl) => wl.id.startsWith(shortId)) || null;
+          }
+        }
+      }
+    }
+
+    if (!wishList) {
+      return null;
+    }
+
+    return this.mapWishListToDTO(wishList);
+  }
+
+  /**
+   * Obtener wishlists de un usuario considerando privacidad y amistad
+   */
+  async getUserWishListsWithPrivacy(
+    targetUserId: string,
+    viewerUserId?: string
+  ): Promise<{ wishlists: WishListDTO[]; canViewPrivate: boolean }> {
+    const isOwnProfile = viewerUserId === targetUserId;
+
+    // Si es el propio perfil, devolver todas las wishlists
+    if (isOwnProfile) {
+      const wishLists = await this.getUserWishLists(targetUserId);
+      return { wishlists: wishLists, canViewPrivate: true };
+    }
+
+    // Si no hay viewer, solo devolver públicas
+    if (!viewerUserId) {
+      const wishLists = await this.getUserWishLists(targetUserId);
+      return {
+        wishlists: wishLists.filter((w) => w.public),
+        canViewPrivate: false,
+      };
+    }
+
+    // Verificar si son amigos
+    const { FriendsService } = await import('../friends/friends.service');
+    const friendsService = new FriendsService();
+    const areFriends = await friendsService.areFriends(viewerUserId, targetUserId);
+
+    const wishLists = await this.getUserWishLists(targetUserId);
+
+    if (areFriends) {
+      // Si son amigos, mostrar todas (públicas y privadas)
+      return { wishlists: wishLists, canViewPrivate: true };
+    } else {
+      // Si no son amigos, solo mostrar públicas y nombres de privadas
+      const publicWishlists = wishLists.filter((w) => w.public);
+      const privateWishlists = wishLists
+        .filter((w) => !w.public)
+        .map((w) => ({
+          ...w,
+          items: [], // Ocultar items de wishlists privadas
+        }));
+
+      return {
+        wishlists: [...publicWishlists, ...privateWishlists],
+        canViewPrivate: false,
+      };
     }
   }
 }

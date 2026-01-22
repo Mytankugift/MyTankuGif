@@ -48,9 +48,13 @@ export const API_ENDPOINTS = {
   // Users
   USERS: {
     ME: '/api/v1/users/me',
+    BY_ID: (userId: string) => `/api/v1/users/${userId}`,
+    BY_USERNAME: (username: string) => `/api/v1/users/by-username/${username}`,
     PROFILE: '/api/v1/users/me/profile',
     PROFILE_AVATAR: '/api/v1/users/me/profile/avatar',
     PROFILE_BANNER: '/api/v1/users/me/profile/banner',
+    SEARCH: '/api/v1/users/search',
+    GET_BY_IDS: '/api/v1/users/by-ids',
     ADDRESSES: {
       LIST: '/api/v1/users/me/addresses',
       CREATE: '/api/v1/users/me/addresses',
@@ -70,6 +74,7 @@ export const API_ENDPOINTS = {
     CREATE: '/api/v1/posters',
     REACT: (id: string) => `/api/v1/posters/${id}/reactions`,
     COMMENT: (id: string) => `/api/v1/posters/${id}/comments`,
+    COMMENT_LIKE: (posterId: string, commentId: string) => `/api/v1/posters/${posterId}/comments/${commentId}/like`,
   },
   // Stories
   STORIES: {
@@ -80,6 +85,7 @@ export const API_ENDPOINTS = {
   // Wishlists
   WISHLISTS: {
     LIST: '/api/v1/wishlists',
+    SAVED: '/api/v1/wishlists/saved',
     CREATE: '/api/v1/wishlists',
     BY_ID: (id: string) => `/api/v1/wishlists/${id}`,
     UPDATE: (id: string) => `/api/v1/wishlists/${id}`,
@@ -87,6 +93,10 @@ export const API_ENDPOINTS = {
     BY_USER: (userId: string) => `/api/v1/wishlists/${userId}`,
     ADD_ITEM: (id: string) => `/api/v1/wishlists/${id}/items`,
     REMOVE_ITEM: (id: string, itemId: string) => `/api/v1/wishlists/${id}/items/${itemId}`,
+    SAVE: (id: string) => `/api/v1/wishlists/${id}/save`,
+    UNSAVE: (id: string) => `/api/v1/wishlists/${id}/save`,
+    SHARE_TOKEN: (id: string) => `/api/v1/wishlists/${id}/share-token`,
+    BY_SHARE_TOKEN: (token: string) => `/api/v1/wishlists/share/${token}`,
   },
   // Regions
   REGIONS: '/api/v1/regions',

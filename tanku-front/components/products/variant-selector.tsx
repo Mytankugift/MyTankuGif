@@ -45,8 +45,8 @@ export function VariantSelector({
 
   // Calcular precio con incremento (15% + $10,000)
   const getVariantPrice = (variant: ProductVariantDTO) => {
-    const basePrice = variant.suggestedPrice || variant.price || 0
-    return basePrice > 0 ? Math.round((basePrice * 1.15) + 10000) : 0
+    // Usar tankuPrice directamente (ya calculado en sync)
+    return variant.tankuPrice || 0
   }
 
   return (

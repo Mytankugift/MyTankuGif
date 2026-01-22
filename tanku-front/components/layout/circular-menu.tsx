@@ -1,11 +1,13 @@
 'use client'
 
 import React, { useState } from 'react'
+import { CreatePostModal } from '@/components/posters/create-post-modal'
 
 const CircularMenu = () => {
   const [hoveredText, setHoveredText] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalContent, setModalContent] = useState<string | null>(null)
+  const [createPostModalOpen, setCreatePostModalOpen] = useState(false)
 
   const menuItems = [
     { id: 'new-event', label: 'NEW EVENT', href: '/events/new', position: 'top' },
@@ -125,7 +127,7 @@ const CircularMenu = () => {
 
       <button
         className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-24 cursor-pointer z-50"
-        onClick={() => handleItemClick('/posts/new')}
+        onClick={() => setCreatePostModalOpen(true)}
         onMouseEnter={() => setHoveredText('new-post')}
         onMouseLeave={() => setHoveredText(null)}
         aria-label="New Post"
@@ -157,8 +159,8 @@ const CircularMenu = () => {
         </div>
       </div>
 
-      {/* Modal placeholder - TODO: Implementar modal completo */}
-      {modalOpen && (
+      {/* Modal placeholder para otros items */}
+      {modalOpen && modalContent !== '/posts/new' && (
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
           onClick={handleCloseModal}
@@ -179,6 +181,17 @@ const CircularMenu = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de creación de post */}
+      <CreatePostModal
+        isOpen={createPostModalOpen}
+        onClose={() => setCreatePostModalOpen(false)}
+        onPostCreated={() => {
+          setCreatePostModalOpen(false)
+          // El feed se actualizará automáticamente en la próxima carga
+          // No necesitamos recargar toda la página
+        }}
+      />
     </div>
   )
 }

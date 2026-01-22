@@ -140,12 +140,14 @@ export class CartController {
               stock = (variant as any).stock || 0;
             }
 
+            // Calcular tankuPrice si no está disponible
+            const tankuPrice = variant.tankuPrice || 0;
+            
             itemResult.variant = {
               id: variant.id,
               sku: variant.sku,
               title: variant.title,
-              price: variant.suggestedPrice || variant.price, // Usar suggestedPrice como prioridad
-              suggestedPrice: variant.suggestedPrice || null, // Incluir también suggestedPrice explícitamente
+              tankuPrice: tankuPrice, // Precio final (tankuPrice)
               stock: stock,
               active: variant.active,
             };
@@ -168,9 +170,8 @@ export class CartController {
         // Siempre incluir unit_price (precio unitario del variant con incremento)
         const variant = item.variant;
         if (variant) {
-          const basePrice = variant.suggestedPrice || variant.price || 0;
-          // Aplicar incremento: (precio * 1.15) + 10,000
-          const unitPrice = basePrice > 0 ? Math.round((basePrice * 1.15) + 10000) : 0;
+          // Usar tankuPrice directamente (ya calculado en sync)
+          const unitPrice = variant.tankuPrice || 0;
           itemResult.unit_price = unitPrice;
           
           // El + indica campo calculado

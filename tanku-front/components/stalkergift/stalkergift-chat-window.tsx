@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useChat } from '@/lib/hooks/use-chat'
 import { useSocket } from '@/lib/hooks/use-socket'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -13,6 +14,7 @@ interface StalkerGiftChatWindowProps {
 }
 
 export function StalkerGiftChatWindow({ conversationId, conversation }: StalkerGiftChatWindowProps) {
+  const router = useRouter()
   const { sendMessage: sendMessageChat, fetchMessages, getMessages, markAsRead, getOtherParticipant, user } = useChat()
   const { socket, isConnected, joinConversation, sendMessage: sendSocketMessage, getMessages: getSocketMessages, getTypingUsers, markAsRead: markAsReadSocket } = useSocket()
   const [message, setMessage] = useState('')
@@ -139,6 +141,71 @@ export function StalkerGiftChatWindow({ conversationId, conversation }: StalkerG
   
   const typingUsers = conversationId ? getTypingUsers(conversationId) : []
 
+  // Función para convertir URLs y menciones en links clicables
+  const renderMessageWithLinks = (text: string) => {
+    if (!text) return text
+    
+    // Regex para detectar URLs y menciones
+    const urlRegex = /(https?:\/\/[^\s]+)/g
+    // Regex para menciones: @displayName|userId o @userId
+    const mentionRegex = /(@[^|@]+?\|[a-zA-Z0-9_-]{20,})|(@[a-zA-Z0-9_-]{20,})/g
+    
+    // Primero dividir por URLs
+    const urlParts = text.split(urlRegex)
+    
+    return urlParts.map((urlPart, urlIndex) => {
+      // Si es una URL, renderizarla
+      if (urlPart.match(urlRegex)) {
+        return (
+          <a
+            key={`url-${urlIndex}`}
+            href={urlPart}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline break-all"
+          >
+            {urlPart}
+          </a>
+        )
+      }
+      
+      // Si no es URL, procesar menciones
+      const mentionParts = urlPart.split(mentionRegex)
+      return mentionParts.map((mentionPart, mentionIndex) => {
+        // Formato: @displayName|userId
+        if (mentionPart.startsWith('@') && mentionPart.includes('|')) {
+          const match = mentionPart.match(/^@(.+?)\|([a-zA-Z0-9_-]{20,})$/)
+          if (match) {
+            const [, displayName, userId] = match
+            return (
+              <button
+                key={`mention-${urlIndex}-${mentionIndex}`}
+                onClick={() => router.push(`/profile/${userId}`)}
+                className="text-[#73FFA2] font-semibold hover:text-[#66DEDB] hover:underline transition-colors"
+              >
+                @{displayName.trim()}
+              </button>
+            )
+          }
+        }
+        // Formato legacy: @userId
+        if (mentionPart.startsWith('@') && mentionPart.length > 20) {
+          const userId = mentionPart.substring(1).trim()
+          return (
+            <button
+              key={`mention-${urlIndex}-${mentionIndex}`}
+              onClick={() => router.push(`/profile/${userId}`)}
+              className="text-[#73FFA2] font-semibold hover:text-[#66DEDB] hover:underline transition-colors"
+            >
+              @{userId.substring(0, 8)}...
+            </button>
+          )
+        }
+        return <span key={`text-${urlIndex}-${mentionIndex}`}>{mentionPart}</span>
+      })
+    })
+  }
+
   if (!conversation || !otherParticipant) {
     return (
       <div className="flex items-center justify-center h-full text-gray-400">
@@ -191,7 +258,9 @@ export function StalkerGiftChatWindow({ conversationId, conversation }: StalkerG
                 {!isOwn && (
                   <p className="text-xs font-semibold mb-1 opacity-70">{senderName}</p>
                 )}
-                <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                <p className="text-sm whitespace-pre-wrap break-words">
+                  {renderMessageWithLinks(msg.content)}
+                </p>
                 <p className="text-xs mt-1 opacity-60">
                   {new Date(msg.createdAt).toLocaleTimeString('es-ES', {
                     hour: '2-digit',

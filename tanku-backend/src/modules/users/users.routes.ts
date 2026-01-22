@@ -100,5 +100,33 @@ router.put('/me/addresses/:addressId', authenticate, usersController.updateUserA
  */
 router.delete('/me/addresses/:addressId', authenticate, usersController.deleteUserAddress);
 
+// ==================== USER SEARCH ====================
+
+/**
+ * GET /api/v1/users/search?q=...
+ * Buscar usuarios para autocompletado de menciones
+ */
+router.get('/search', authenticate, usersController.searchUsers);
+
+/**
+ * POST /api/v1/users/by-ids
+ * Obtener usuarios por IDs (para menciones en comentarios)
+ */
+router.post('/by-ids', authenticate, usersController.getUsersByIds);
+
+/**
+ * GET /api/v1/users/by-username/:username
+ * Obtener información de usuario por username considerando privacidad
+ * IMPORTANTE: Esta ruta debe ir antes de /:userId para evitar conflictos
+ */
+router.get('/by-username/:username', usersController.getUserByUsername);
+
+/**
+ * GET /api/v1/users/:userId
+ * Obtener información de usuario por ID considerando privacidad
+ * IMPORTANTE: Esta ruta debe ir al final para evitar conflictos con /me
+ */
+router.get('/:userId', usersController.getUserById);
+
 export default router;
 

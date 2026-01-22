@@ -8,6 +8,7 @@ export type PosterAuthorDTO = {
   email: string;
   firstName: string | null;
   lastName: string | null;
+  username: string | null;
   avatar: string | null;
 };
 
@@ -20,6 +21,8 @@ export type PosterDTO = {
   commentsCount: number;
   createdAt: string;
   author: PosterAuthorDTO;
+  isLiked?: boolean; // Si el usuario actual le dio like
+  comments?: PosterCommentDTO[]; // Comentarios completos (opcional, solo en detalle)
 };
 
 export type PosterReactionDTO = {
@@ -39,5 +42,6 @@ export type PosterCommentDTO = {
   likesCount: number;
   createdAt: string;
   author: PosterAuthorDTO;
+  mentions?: string[]; // Array de userIds mencionados
 };
 

@@ -89,13 +89,13 @@ export function WishlistProductsModal({
                       {item.variant && (
                         <p className="text-sm text-gray-400 mb-2">{item.variant.title}</p>
                       )}
-                      {item.variant?.price && (
+                      {item.variant && item.variant.tankuPrice && (
                         <p className="text-lg font-bold text-[#3B9BC3] mb-3">
                           {new Intl.NumberFormat('es-CO', {
                             style: 'currency',
                             currency: 'COP',
                             minimumFractionDigits: 0,
-                          }).format(item.variant.price)}
+                          }).format(item.variant.tankuPrice)}
                         </p>
                       )}
                       <div className="flex items-center gap-2">

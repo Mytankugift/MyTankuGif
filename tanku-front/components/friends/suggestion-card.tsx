@@ -6,6 +6,7 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useFriends } from '@/lib/hooks/use-friends'
 import type { FriendSuggestionDTO } from '@/types/api'
 
@@ -15,6 +16,7 @@ interface SuggestionCardProps {
 }
 
 export function SuggestionCard({ suggestion, onSendRequest }: SuggestionCardProps) {
+  const router = useRouter()
   const { sendFriendRequest, blockUser } = useFriends()
   const [isSending, setIsSending] = useState(false)
   const [isBlocking, setIsBlocking] = useState(false)
@@ -135,25 +137,53 @@ export function SuggestionCard({ suggestion, onSendRequest }: SuggestionCardProp
       </div>
 
       <div className="flex gap-5">
-        {/* Imagen grande a la izquierda */}
-        <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-xl overflow-hidden flex-shrink-0 border-2 border-gray-700 hover:border-[#73FFA2]/50 transition-colors">
+        {/* Imagen grande a la izquierda - clickeable */}
+        <button
+          onClick={() => router.push(suggestion.user.username ? `/profile/${suggestion.user.username}` : `/profile/${suggestion.userId}`)}
+          className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-xl overflow-hidden flex-shrink-0 border-2 border-gray-700 hover:border-[#73FFA2]/50 transition-colors cursor-pointer"
+        >
           <Image
             src={imgSrc}
             alt={fullName}
             width={128}
             height={128}
             className="object-cover w-full h-full"
-            onError={() => setImgSrc(fallbackAvatar)}
+            onError={(e) => {
+              if (imgSrc !== fallbackAvatar) {
+                setImgSrc(fallbackAvatar)
+              } else {
+                const target = e.target as HTMLImageElement
+                target.style.display = 'none'
+              }
+            }}
             referrerPolicy="no-referrer"
             unoptimized
           />
-        </div>
+        </button>
 
         {/* Información a la derecha */}
         <div className="flex-1 min-w-0 flex flex-col gap-2.5">
-          {/* Nombre y razón */}
+          {/* Username primero (sin @), luego nombre y razón - clickeable */}
           <div>
-            <h3 className="text-white font-semibold text-lg mb-1">{fullName}</h3>
+            <button
+              onClick={() => router.push(suggestion.user.username ? `/profile/${suggestion.user.username}` : `/profile/${suggestion.userId}`)}
+              className="text-left"
+            >
+              {suggestion.user.username ? (
+                <>
+                  <h3 className="text-white font-semibold text-lg mb-0.5 hover:text-[#73FFA2] transition-colors">
+                    {suggestion.user.username}
+                  </h3>
+                  {fullName && fullName !== 'Sin nombre' && (
+                    <p className="text-sm text-gray-400 mb-1">{fullName}</p>
+                  )}
+                </>
+              ) : (
+                <h3 className="text-white font-semibold text-lg mb-1 hover:text-[#73FFA2] transition-colors">
+                  {fullName}
+                </h3>
+              )}
+            </button>
             <p className="text-[#73FFA2] text-sm font-medium">{getReasonText()}</p>
           </div>
 

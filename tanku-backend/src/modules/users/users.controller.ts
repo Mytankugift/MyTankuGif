@@ -217,10 +217,17 @@ export class UsersController {
         lastName: req.body.lastName,
         phone: req.body.phone,
         email: req.body.email,
+        username: req.body.username,
       };
 
       // Validar que al menos un campo esté presente
-      if (!updateData.firstName && !updateData.lastName && !updateData.phone && !updateData.email) {
+      const hasField = updateData.firstName !== undefined || 
+                      updateData.lastName !== undefined || 
+                      updateData.phone !== undefined || 
+                      updateData.email !== undefined || 
+                      updateData.username !== undefined;
+      
+      if (!hasField) {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'Al menos un campo debe ser proporcionado para actualizar'));
       }
 
@@ -383,7 +390,9 @@ export class UsersController {
       }
 
       const updateData: UpdateUserProfileDTO = {
-        bio: req.body.bio,
+        bio: req.body.bio !== undefined ? req.body.bio : undefined,
+        isPublic: req.body.isPublic !== undefined ? req.body.isPublic : undefined,
+        socialLinks: req.body.socialLinks !== undefined ? req.body.socialLinks : undefined,
       };
 
       const profile = await this.usersService.upsertUserProfile(requestWithUser.user.id, updateData);
@@ -559,6 +568,96 @@ export class UsersController {
         }
         throw error;
       }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/users/search?q=...
+   * Buscar usuarios para autocompletado de menciones
+   */
+  searchUsers = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { q } = req.query;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      // Permitir query vacío para mostrar usuarios recientes
+      const query = typeof q === 'string' ? q : '';
+
+      const users = await this.usersService.searchUsers(query, limit);
+
+      res.status(200).json(successResponse(users));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/users/by-ids
+   * Obtener usuarios por IDs (para menciones)
+   */
+  getUsersByIds = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { userIds } = req.body;
+
+      if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'BAD_REQUEST',
+            message: 'userIds debe ser un array no vacío',
+          },
+        });
+      }
+
+      const users = await this.usersService.getUsersByIds(userIds);
+
+      res.status(200).json(successResponse({ users }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/users/:userId
+   * Obtener información de usuario por ID considerando privacidad
+   */
+  getUserById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { userId } = req.params;
+      const requestWithUser = req as RequestWithUser;
+      const viewerUserId = requestWithUser.user?.id;
+
+      if (!userId) {
+        throw new BadRequestError('userId es requerido');
+      }
+
+      const user = await this.usersService.getUserById(userId, viewerUserId);
+
+      res.status(200).json(successResponse(user));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/users/by-username/:username
+   * Obtener información de usuario por username considerando privacidad
+   */
+  getUserByUsername = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { username } = req.params;
+      const requestWithUser = req as RequestWithUser;
+      const viewerUserId = requestWithUser.user?.id;
+
+      if (!username) {
+        throw new BadRequestError('username es requerido');
+      }
+
+      const user = await this.usersService.getUserByUsername(username, viewerUserId);
+
+      res.status(200).json(successResponse(user));
     } catch (error) {
       next(error);
     }

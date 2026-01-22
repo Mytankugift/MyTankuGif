@@ -143,6 +143,14 @@ export function useFeed(filters: FeedFilters = {}) {
         // Filtrar items sin imágenes
         const validItems = filterItemsWithImages(response.data.items || [])
         
+        // Si no hay items nuevos, no actualizar nada
+        if (validItems.length === 0) {
+          console.log('[FEED] No hay items nuevos en loadMore')
+          setHasMore(false)
+          setIsLoadingMore(false)
+          return
+        }
+        
         // Asegurar que nextCursorToken sea string | null
         const safeCursor = typeof response.data.nextCursorToken === 'string' 
           ? response.data.nextCursorToken 
@@ -158,7 +166,20 @@ export function useFeed(filters: FeedFilters = {}) {
         const scrollContainer = document.querySelector('.custom-scrollbar') as HTMLElement
         const scrollTop = scrollContainer?.scrollTop || 0
         
-        setItems((prev) => [...prev, ...validItems])
+        // Filtrar duplicados: solo agregar items que no estén ya en la lista
+        setItems((prev) => {
+          const existingIds = new Set(prev.map(item => item.id))
+          const newItems = validItems.filter(item => !existingIds.has(item.id))
+          
+          if (newItems.length === 0) {
+            console.log('[FEED] Todos los items ya están cargados, no se agregan duplicados')
+            return prev
+          }
+          
+          console.log('[FEED] Agregando', newItems.length, 'items nuevos de', validItems.length, 'recibidos')
+          return [...prev, ...newItems]
+        })
+        
         setNextCursorToken(safeCursor)
         setHasMore(!!safeCursor)
         
@@ -191,6 +212,18 @@ export function useFeed(filters: FeedFilters = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, categoryId, searchQuery])
 
+  // Función para actualizar un item específico sin recargar todo
+  const updateItem = useCallback((itemId: string, updates: Partial<FeedItem>) => {
+    setItems(prev => prev.map(item => 
+      item.id === itemId ? { ...item, ...updates } : item
+    ))
+  }, [])
+
+  // Función para remover un item
+  const removeItem = useCallback((itemId: string) => {
+    setItems(prev => prev.filter(item => item.id !== itemId))
+  }, [])
+
   return {
     items,
     isLoading,
@@ -200,6 +233,8 @@ export function useFeed(filters: FeedFilters = {}) {
     error,
     loadMore,
     reload: loadFeed,
+    updateItem,
+    removeItem,
   }
 }
 

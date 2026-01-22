@@ -2,6 +2,12 @@
 
 import React, { useState, useRef, useEffect, memo } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import { HeartIcon } from '@heroicons/react/24/outline'
+import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
+import { apiClient } from '@/lib/api/client'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { useAuthStore } from '@/lib/stores/auth-store'
 
 interface PosterCardProps {
   poster: {
@@ -13,11 +19,13 @@ interface PosterCardProps {
     likesCount: number
     commentsCount: number
     createdAt: string
+    isLiked?: boolean
     author?: {
       id: string
       email: string
       firstName: string | null
       lastName: string | null
+      username: string | null
       avatar: string | null
     }
   }
@@ -26,8 +34,13 @@ interface PosterCardProps {
 }
 
 export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLightMode = false }: PosterCardProps) {
+  const router = useRouter()
+  const { token } = useAuthStore()
   const [activeMedia, setActiveMedia] = useState<'image' | 'video'>('image')
   const [imageError, setImageError] = useState(false)
+  const [isLiked, setIsLiked] = useState(poster.isLiked || false)
+  const [likesCount, setLikesCount] = useState(poster.likesCount || 0)
+  const [isLiking, setIsLiking] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const [isVideoVisible, setIsVideoVisible] = useState(false)
@@ -120,6 +133,29 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
     }
   }
 
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!token || isLiking) return
+
+    setIsLiking(true)
+    try {
+      const response = await apiClient.post<import('@/types/api-responses').LikeResponse>(
+        API_ENDPOINTS.POSTERS.REACT(poster.id),
+        { reactionType: 'like' }
+      )
+
+      if (response.success && response.data) {
+        const data = response.data
+        setIsLiked(data.liked)
+        setLikesCount(data.liked ? likesCount + 1 : likesCount - 1)
+      }
+    } catch (err) {
+      console.error('Error al dar like:', err)
+    } finally {
+      setIsLiking(false)
+    }
+  }
+
   const authorName =
     poster.author?.firstName && poster.author?.lastName
       ? `${poster.author.firstName} ${poster.author.lastName}`
@@ -150,13 +186,19 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
           )}
         </div>
         <div className="ml-1.5 sm:ml-2">
-          <p
-            className={`font-medium text-xs sm:text-sm truncate max-w-[80px] sm:max-w-full ${
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              if (poster.author?.id) {
+                router.push(poster.author.username ? `/profile/${poster.author.username}` : `/profile/${poster.author.id}`)
+              }
+            }}
+            className={`font-medium text-xs sm:text-sm truncate max-w-[80px] sm:max-w-full text-left hover:text-[#73FFA2] transition-colors ${
               isLightMode ? 'text-black' : 'text-white'
             }`}
           >
             {authorName}
-          </p>
+          </button>
           <p className={`text-xs ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
             {new Date(poster.createdAt).toLocaleDateString('es-ES', {
               month: 'short',
@@ -366,27 +408,23 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
       {/* Poster Actions */}
       <div className="flex justify-between items-center mt-1 sm:mt-2">
         <button
-          className={`flex items-center hover:text-[#73FFA2] transition-colors ${
-            isLightMode ? 'text-gray-700' : 'text-gray-300'
+          className={`flex items-center transition-colors ${
+            isLiked
+              ? 'text-red-500 hover:text-red-400'
+              : isLightMode
+              ? 'text-gray-700 hover:text-red-500'
+              : 'text-gray-300 hover:text-red-500'
           }`}
-          onClick={(e) => e.stopPropagation()}
+          onClick={handleLike}
+          disabled={!token || isLiking}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-1 sm:mr-1.5 md:mr-2"
-          >
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-          </svg>
+          {isLiked ? (
+            <HeartSolidIcon className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-1 sm:mr-1.5 md:mr-2" />
+          ) : (
+            <HeartIcon className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-1 sm:mr-1.5 md:mr-2" />
+          )}
           <span className={`text-xs sm:text-sm ${isLightMode ? 'text-black' : 'text-white'}`}>
-            {poster.likesCount}
+            {likesCount}
           </span>
         </button>
         <button
@@ -410,6 +448,7 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
     prevProps.poster.id === nextProps.poster.id &&
     prevProps.poster.imageUrl === nextProps.poster.imageUrl &&
     prevProps.poster.likesCount === nextProps.poster.likesCount &&
+    prevProps.poster.isLiked === nextProps.poster.isLiked &&
     prevProps.isLightMode === nextProps.isLightMode
   )
 })

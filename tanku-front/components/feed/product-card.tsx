@@ -281,18 +281,30 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
                   className="absolute top-full right-0 mt-2 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setShowMenu(false)
-                      if (isAuthenticated) {
+                  {product.handle && (
+                    <Link
+                      href={`/products/${product.handle}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowMenu(false)
+                      }}
+                      className="block w-full px-4 py-2 text-left text-sm text-white hover:bg-gray-800 transition-colors"
+                    >
+                      Ir a publicación
+                    </Link>
+                  )}
+                  {isAuthenticated && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowMenu(false)
                         setIsWishlistModalOpen(true)
-                      }
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm text-white hover:bg-gray-800 transition-colors"
-                  >
-                    💝 Agregar a wishlist
-                  </button>
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-white hover:bg-gray-800 transition-colors"
+                    >
+                      💝 Agregar a wishlist
+                    </button>
+                  )}
                 </div>
               </>
             )}

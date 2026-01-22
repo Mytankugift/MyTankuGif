@@ -32,6 +32,7 @@ export class FriendsService {
       id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
+      username: user.username || null,
       email: user.email,
       profile: user.profile
         ? {
@@ -900,5 +901,26 @@ export class FriendsService {
       blockedUser: this.mapUserToFriendUserDTO(blocked.friend),
       createdAt: blocked.createdAt.toISOString(),
     }));
+  }
+
+  /**
+   * Verificar si dos usuarios son amigos
+   */
+  async areFriends(userId1: string, userId2: string): Promise<boolean> {
+    if (userId1 === userId2) {
+      return false; // No se puede ser amigo de uno mismo
+    }
+
+    const friendship = await prisma.friend.findFirst({
+      where: {
+        status: 'accepted',
+        OR: [
+          { userId: userId1, friendId: userId2 },
+          { userId: userId2, friendId: userId1 },
+        ],
+      },
+    });
+
+    return !!friendship;
   }
 }

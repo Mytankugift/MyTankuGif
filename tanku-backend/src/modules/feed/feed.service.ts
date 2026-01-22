@@ -132,13 +132,14 @@ export class FeedService {
         }
       }
 
-      // Obtener posts por fecha (solo posts)
+      // Obtener posts por fecha (solo posts, filtrados por amigos + propio si hay userId)
       let posts: any[] = [];
       try {
         console.log(`📰 [FEED-SERVICE] Obteniendo posts por fecha...`);
         posts = await this.getPostsByDate(
           cursor,
-          estimatedPosts + 2 // Buffer extra
+          estimatedPosts + 2, // Buffer extra
+          userId // Pasar userId para filtrar por amigos + propio
         );
         console.log(`📰 [FEED-SERVICE] Posts obtenidos: ${posts.length}`);
       } catch (postsError: any) {
@@ -230,9 +231,8 @@ export class FeedService {
           ? this.normalizeImageUrl(product.images[0]) || ''
           : '') || '';
         
-        // Calcular precio con incremento (15% + $10,000) - igual que en el carrito
-        const basePrice = firstVariant?.suggestedPrice || firstVariant?.price || 0;
-        const finalPrice = basePrice > 0 ? Math.round((basePrice * 1.15) + 10000) : undefined;
+        // Usar tankuPrice directamente (ya calculado en sync)
+        const finalPrice = firstVariant?.tankuPrice || undefined;
         
         feedItems.push({
           id: product.id,
@@ -680,36 +680,122 @@ export class FeedService {
 
   /**
    * Obtener posts por fecha (solo posts, más recientes primero)
+   * Filtra por amigos + propio si se proporciona userId
    */
   private async getPostsByDate(
     cursor: FeedCursorDTO | undefined,
-    limit: number
+    limit: number,
+    userId?: string
   ) {
     const where: any = {
       isActive: true,
     };
 
-    // Aplicar cursor para posts si existe
-    if (cursor?.lastPostCreatedAt) {
-      where.OR = [
-        {
-          createdAt: {
-            lt: new Date(cursor.lastPostCreatedAt),
+    // Si hay userId, filtrar por amigos + propio
+    if (userId) {
+      try {
+        // Obtener lista de amigos aceptados (bidireccional)
+        const friends = await prisma.friend.findMany({
+          where: {
+            OR: [
+              { userId, status: 'accepted' },
+              { friendId: userId, status: 'accepted' }
+            ]
           },
-        },
-        {
-          AND: [
+          select: {
+            userId: true,
+            friendId: true,
+          }
+        });
+
+        // Extraer IDs de amigos (bidireccional) + incluir el usuario mismo
+        const friendIds = new Set<string>([userId]); // Incluir el usuario mismo
+        friends.forEach(f => {
+          if (f.userId === userId) friendIds.add(f.friendId);
+          if (f.friendId === userId) friendIds.add(f.userId);
+        });
+
+        // Si hay cursor, combinar con filtro de amigos
+        if (cursor?.lastPostCreatedAt) {
+          where.AND = [
             {
-              createdAt: new Date(cursor.lastPostCreatedAt),
+              customerId: { in: Array.from(friendIds) },
             },
             {
-              id: {
-                not: cursor.lastPostId,
+              OR: [
+                {
+                  createdAt: {
+                    lt: new Date(cursor.lastPostCreatedAt),
+                  },
+                },
+                {
+                  AND: [
+                    {
+                      createdAt: new Date(cursor.lastPostCreatedAt),
+                    },
+                    {
+                      id: {
+                        not: cursor.lastPostId,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ];
+        } else {
+          // Sin cursor, solo filtrar por amigos
+          where.customerId = { in: Array.from(friendIds) };
+        }
+      } catch (friendsError: any) {
+        // Si hay error obteniendo amigos, continuar sin filtro (fallback)
+        console.warn(`⚠️ [FEED-SERVICE] Error obteniendo amigos para filtrar posters:`, friendsError?.message);
+        // Si hay cursor, aplicarlo normalmente
+        if (cursor?.lastPostCreatedAt) {
+          where.OR = [
+            {
+              createdAt: {
+                lt: new Date(cursor.lastPostCreatedAt),
               },
             },
-          ],
-        },
-      ];
+            {
+              AND: [
+                {
+                  createdAt: new Date(cursor.lastPostCreatedAt),
+                },
+                {
+                  id: {
+                    not: cursor.lastPostId,
+                  },
+                },
+              ],
+            },
+          ];
+        }
+      }
+    } else {
+      // Sin userId, aplicar cursor normalmente si existe
+      if (cursor?.lastPostCreatedAt) {
+        where.OR = [
+          {
+            createdAt: {
+              lt: new Date(cursor.lastPostCreatedAt),
+            },
+          },
+          {
+            AND: [
+              {
+                createdAt: new Date(cursor.lastPostCreatedAt),
+              },
+              {
+                id: {
+                  not: cursor.lastPostId,
+                },
+              },
+            ],
+          },
+        ];
+      }
     }
 
     // Obtener posts ordenados por fecha
@@ -754,12 +840,26 @@ export class FeedService {
     let itemsAdded = 0;
 
     while (itemsAdded < limit && (productIndex < products.length || postIndex < posts.length)) {
-      // Calcular si toca insertar post
+      // Contar cuántos productos consecutivos hemos insertado (sin contar posters intermedios)
+      // Necesitamos contar desde el último poster o desde el inicio
+      let consecutiveProducts = 0;
+      for (let i = intercalated.length - 1; i >= 0; i--) {
+        if (intercalated[i].itemType === 'poster') {
+          break; // Detener al encontrar el último poster
+        }
+        if (intercalated[i].itemType === 'product') {
+          consecutiveProducts++;
+        }
+      }
+      
+      // Si ya insertamos 5 productos consecutivos (postsPerProducts), insertar 1 poster
+      // Pero solo si hay posts disponibles y no es el primer item
       const shouldInsertPost = intercalated.length > 0 && 
-        (intercalated.length % (postsPerProducts + 1)) === postsPerProducts;
+        consecutiveProducts >= postsPerProducts && 
+        postIndex < posts.length;
 
-      if (shouldInsertPost && postIndex < posts.length) {
-        // Insertar post
+      if (shouldInsertPost) {
+        // Insertar post después de cada grupo de 5 productos
         intercalated.push({
           itemId: posts[postIndex].itemId,
           itemType: 'poster',

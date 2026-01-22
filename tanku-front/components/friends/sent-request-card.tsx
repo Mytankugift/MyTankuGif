@@ -46,6 +46,11 @@ export function SentRequestCard({ request, onCancel }: SentRequestCardProps) {
               height={64}
               className="object-cover w-full h-full rounded-full"
               unoptimized={avatar.startsWith('http')}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                target.style.display = 'none'
+              }}
             />
           ) : (
             <span className="text-lg text-gray-400 font-bold">
@@ -56,8 +61,19 @@ export function SentRequestCard({ request, onCancel }: SentRequestCardProps) {
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <h3 className="text-white font-semibold truncate">{fullName}</h3>
-          <p className="text-gray-400 text-sm truncate">{request.fromUser.email}</p>
+          {request.fromUser.username ? (
+            <>
+              <h3 className="text-white font-semibold truncate">{request.fromUser.username}</h3>
+              {fullName && fullName !== 'Sin nombre' && (
+                <p className="text-gray-400 text-sm truncate">{fullName}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <h3 className="text-white font-semibold truncate">{fullName}</h3>
+              <p className="text-gray-400 text-sm truncate">{request.fromUser.email}</p>
+            </>
+          )}
           <p className="text-gray-500 text-xs mt-1">Solicitud pendiente</p>
         </div>
 

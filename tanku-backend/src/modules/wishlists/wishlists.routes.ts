@@ -42,8 +42,41 @@ router.post('/:id/items', authenticate, wishListsController.addItemToWishList);
 router.delete('/:id/items/:itemId', authenticate, wishListsController.removeItemFromWishList);
 
 /**
+ * POST /api/v1/wishlists/:id/save
+ * Guardar wishlist de otro usuario
+ */
+router.post('/:id/save', authenticate, wishListsController.saveWishlist);
+
+/**
+ * DELETE /api/v1/wishlists/:id/save
+ * Desguardar wishlist
+ */
+router.delete('/:id/save', authenticate, wishListsController.unsaveWishlist);
+
+/**
+ * POST /api/v1/wishlists/:id/share-token
+ * Generar token de compartir para wishlist
+ */
+router.post('/:id/share-token', authenticate, wishListsController.generateShareToken);
+
+/**
+ * GET /api/v1/wishlists/saved
+ * Obtener wishlists guardadas del usuario autenticado
+ */
+router.get('/saved', authenticate, wishListsController.getSavedWishlists);
+
+/**
+ * GET /api/v1/wishlists/share/:token
+ * GET /api/v1/wishlists/share/:username/:slug-:id
+ * Obtener wishlist por token de compartir o por URL SEO (público)
+ * IMPORTANTE: Esta ruta debe ir antes de /:userId para evitar conflictos
+ */
+router.get('/share/:token', wishListsController.getWishlistByShareToken);
+router.get('/share/:username/:slug', wishListsController.getWishlistByShareToken);
+
+/**
  * GET /api/v1/wishlists/:userId
- * Obtener wish lists de un usuario específico (para wishlists públicas)
+ * Obtener wish lists de un usuario específico (considerando privacidad y amistad)
  * IMPORTANTE: Esta ruta debe ir al final para evitar conflictos con /:id
  */
 router.get('/:userId', wishListsController.getWishListsByUserId);

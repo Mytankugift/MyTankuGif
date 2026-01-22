@@ -3,7 +3,10 @@
  * El frontend NUNCA debe recibir modelos Prisma directamente
  */
 
-import { UserPublicDTO } from './auth.dto';
+import { UserPublicDTO, SocialLink } from './auth.dto';
+
+// Re-exportar SocialLink para que pueda ser importado desde users.dto
+export type { SocialLink };
 
 export type AddressDTO = {
   id: string;
@@ -32,6 +35,7 @@ export type UpdateUserDTO = {
   lastName?: string;
   phone?: string;
   email?: string;
+  username?: string;
 };
 
 export type CreateAddressDTO = {
@@ -63,18 +67,24 @@ export type UpdateAddressDTO = {
 };
 
 // UserProfile DTOs
+// SocialLink se importa de auth.dto para evitar duplicación
+
 export type UserProfileDTO = {
   id: string;
   userId: string;
   avatar: string | null;
   banner: string | null;
   bio: string | null;
+  isPublic: boolean;
+  socialLinks?: SocialLink[];
   createdAt: string;
   updatedAt: string;
 };
 
 export type UpdateUserProfileDTO = {
   bio?: string;
+  isPublic?: boolean;
+  socialLinks?: SocialLink[];
 };
 
 // PersonalInformation DTOs
