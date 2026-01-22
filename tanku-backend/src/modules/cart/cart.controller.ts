@@ -491,11 +491,22 @@ export class CartController {
       // Si no hay usuario (guest), crear un carrito guest (userId = null)
       // El carrito guest se guardará en localStorage del frontend
       // Cuando el usuario se registre, se puede asociar este carrito al usuario
-      const guestCart = await this.cartService.createCartNormalized(undefined);
-      
-      console.log(`📦 [CART] Carrito guest creado: ${guestCart.id}`);
-      
-      res.status(200).json(successResponse(guestCart));
+      try {
+        const guestCart = await this.cartService.createCartNormalized(undefined);
+        
+        console.log(`📦 [CART] Carrito guest creado: ${guestCart.id}`);
+        
+        res.status(200).json(successResponse(guestCart));
+      } catch (error: any) {
+        console.error(`❌ [CART] Error creando carrito guest:`, error);
+        console.error(`   Error details:`, {
+          message: error?.message,
+          code: error?.code,
+          stack: error?.stack,
+        });
+        // Retornar error más descriptivo
+        return res.status(500).json(errorResponse(ErrorCode.INTERNAL_ERROR, 'Error al crear carrito. Por favor, intenta nuevamente.'));
+      }
     } catch (error) {
       next(error);
     }

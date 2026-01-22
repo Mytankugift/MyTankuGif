@@ -88,11 +88,11 @@ export class GoogleAuthService {
     const { email, name, picture, id: googleId } = googleUserInfo;
 
     // Buscar usuario existente por email
+    // NO incluir personalInfo aquí porque puede causar error si la relación no existe
     let user = await prisma.user.findUnique({
       where: { email },
       include: {
         profile: true,
-        personalInfo: true,
       },
     });
 
@@ -115,7 +115,6 @@ export class GoogleAuthService {
         },
         include: {
           profile: true,
-          personalInfo: true,
         },
       });
 
