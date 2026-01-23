@@ -6,6 +6,7 @@ import { BadRequestError, UnauthorizedError, ConflictError } from '../../shared/
 import { JwtPayload } from '../../shared/types';
 import { UserPublicDTO, AuthResponseDTO } from '../../shared/dto/auth.dto';
 import type { User, UserProfile } from '@prisma/client';
+import { ConsentService } from '../consent/consent.service';
 
 export interface RegisterInput {
   email: string;
@@ -21,6 +22,12 @@ export interface LoginInput {
 }
 
 export class AuthService {
+  private consentService: ConsentService;
+
+  constructor() {
+    this.consentService = new ConsentService();
+  }
+
   /**
    * Mapper: Convierte User de Prisma a UserPublicDTO
    */
@@ -165,7 +172,7 @@ export class AuthService {
   /**
    * Obtener usuario actual por ID
    */
-  async getCurrentUser(userId: string): Promise<UserPublicDTO> {
+  async getCurrentUser(userId: string): Promise<UserPublicDTO & { requiresDataPolicyAcceptance?: boolean }> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { profile: true },
@@ -175,7 +182,15 @@ export class AuthService {
       throw new UnauthorizedError('Usuario no encontrado');
     }
 
-    return this.mapUserToPublicDTO(user);
+    const userDTO = this.mapUserToPublicDTO(user);
+    
+    // Verificar si requiere aceptación de política
+    const requiresAcceptance = await this.consentService.requiresDataPolicyAcceptance(userId);
+    
+    return {
+      ...userDTO,
+      requiresDataPolicyAcceptance: requiresAcceptance,
+    };
   }
 
   /**

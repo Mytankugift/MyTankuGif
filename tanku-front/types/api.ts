@@ -11,6 +11,7 @@ export interface User {
   lastName: string | null
   username: string | null
   phone: string | null
+  requiresDataPolicyAcceptance?: boolean
   profile: {
     avatar: string | null
     banner: string | null

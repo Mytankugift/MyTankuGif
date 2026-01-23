@@ -160,5 +160,9 @@ export const API_ENDPOINTS = {
     CLOSE: (id: string) => `/api/v1/chat/conversations/${id}/close`,
     UNREAD_COUNT: '/api/v1/chat/unread-count',
   },
+  // Consent
+  CONSENT: {
+    SAVE: '/api/v1/consent',
+  },
 } as const
 

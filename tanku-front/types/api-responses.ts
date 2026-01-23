@@ -29,6 +29,7 @@ export interface UserMeResponse {
   lastName: string | null
   email: string
   phone: string | null
+  requiresDataPolicyAcceptance?: boolean
   profile: {
     avatar: string | null
     banner: string | null

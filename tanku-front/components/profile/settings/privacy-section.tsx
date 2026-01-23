@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { CheckIcon } from '@heroicons/react/24/outline'
+import Link from 'next/link'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
@@ -132,6 +133,36 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
                 profilePublic ? 'translate-x-6' : 'translate-x-0'
               }`} />
             </button>
+          </div>
+
+          {/* Enlace a términos y condiciones */}
+          <div className="pt-4 border-t border-gray-600">
+            <p className="text-xs text-gray-400 mb-2">
+              Para más información sobre cómo manejamos tus datos, consulta nuestros:
+            </p>
+            <Link
+              href="/terms"
+              className="text-sm text-[#73FFA2] hover:text-[#66DEDB] transition-colors inline-flex items-center gap-1"
+              style={{ fontFamily: 'Poppins, sans-serif' }}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              Términos y Condiciones
+            </Link>
           </div>
         </>
       )}

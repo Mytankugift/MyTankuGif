@@ -38,6 +38,7 @@ model User {
   groupMembers         GroupMember[]
   conversationParticipants ConversationParticipant[]
   messages             Message[]
+  consents             UserConsent[]
 
   @@map("users")
 }
@@ -740,4 +741,22 @@ model Message {
   @@index([senderId])
   @@index([status])
   @@map("messages")
+}
+
+model UserConsent {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  consentType   String   @map("consent_type") // 'DATA_TREATMENT'
+  policyVersion String   @map("policy_version") // Versión de la política (ej: '1.0')
+  acceptedAt    DateTime @default(now()) @map("accepted_at")
+  ipHash        String?  @map("ip_hash") // Hash de la IP (SHA256)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, consentType, policyVersion])
+  @@index([userId])
+  @@index([consentType])
+  @@map("user_consents")
 }

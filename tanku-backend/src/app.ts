@@ -192,6 +192,10 @@ app.get(`${APP_CONSTANTS.API_PREFIX}`, (_req, res) => {
 // Auth routes - SOLO con prefijo /api/v1
 app.use(`${APP_CONSTANTS.API_PREFIX}/auth`, authRoutes);
 
+// Consent routes
+import consentRoutes from './modules/consent/consent.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/consent`, consentRoutes);
+
 // Regions routes
 import regionsRoutes from './modules/regions/regions.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/regions`, regionsRoutes);

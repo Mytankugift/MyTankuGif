@@ -27,6 +27,12 @@ export const APP_CONSTANTS = {
 } as const;
 
 /**
+ * Versión de la política de privacidad
+ * Incrementar cuando cambie la política para requerir nueva aceptación
+ */
+export const DATA_POLICY_VERSION = '1.0';
+
+/**
  * Mensajes de error comunes
  */
 export const ERROR_MESSAGES = {
