@@ -619,6 +619,7 @@ export class WishListsService {
    * Obtener wishlists guardadas por el usuario
    */
   async getSavedWishlists(userId: string): Promise<WishListDTO[]> {
+    // Obtener wishlists guardadas explícitamente
     const saved = await prisma.savedWishlist.findMany({
       where: { userId },
       include: {
@@ -657,28 +658,61 @@ export class WishListsService {
       },
     });
 
-    return saved.map((s) => {
-      const dto = this.mapWishListToDTO(s.wishList);
-      // Agregar información del usuario propietario (user y userId para compatibilidad con frontend)
-      return {
-        ...dto,
-        userId: s.wishList.user.id, // Agregar userId para agrupar por usuario
-        user: {
-          id: s.wishList.user.id,
-          firstName: s.wishList.user.firstName,
-          lastName: s.wishList.user.lastName,
-          email: s.wishList.user.email,
-          username: s.wishList.user.username || null, // Agregar username
-          profile: s.wishList.user.profile
-            ? {
-                avatar: s.wishList.user.profile.avatar,
-                banner: s.wishList.user.profile.banner,
-                bio: s.wishList.user.profile.bio,
-              }
-            : null,
+    // Verificar accesos aprobados para wishlists privadas
+    const privateWishlistIds = saved
+      .filter(s => !s.wishList.public)
+      .map(s => s.wishList.id);
+
+    let approvedWishlistIds = new Set<string>();
+    if (privateWishlistIds.length > 0) {
+      const approvedAccess = await prisma.wishlistAccessRequest.findMany({
+        where: {
+          requesterId: userId,
+          status: 'approved',
+          wishlistId: {
+            in: privateWishlistIds,
+          },
         },
-      } as any;
-    });
+        select: {
+          wishlistId: true,
+        },
+      });
+      approvedWishlistIds = new Set(approvedAccess.map((a) => a.wishlistId));
+    }
+
+    // Filtrar: solo devolver wishlists públicas O privadas con acceso aprobado
+    return saved
+      .filter((s) => {
+        // Si es pública, siempre incluirla
+        if (s.wishList.public) return true;
+        // Si es privada, solo incluirla si tiene acceso aprobado
+        return approvedWishlistIds.has(s.wishList.id);
+      })
+      .map((s) => {
+        const dto = this.mapWishListToDTO(s.wishList);
+        // Si es privada y no tiene acceso aprobado, ocultar items
+        if (!s.wishList.public && !approvedWishlistIds.has(s.wishList.id)) {
+          dto.items = [];
+        }
+        return {
+          ...dto,
+          userId: s.wishList.user.id,
+          user: {
+            id: s.wishList.user.id,
+            firstName: s.wishList.user.firstName,
+            lastName: s.wishList.user.lastName,
+            email: s.wishList.user.email,
+            username: s.wishList.user.username || null,
+            profile: s.wishList.user.profile
+              ? {
+                  avatar: s.wishList.user.profile.avatar,
+                  banner: s.wishList.user.profile.banner,
+                  bio: s.wishList.user.profile.bio,
+                }
+              : null,
+          },
+        } as any;
+      });
   }
 
   /**
@@ -836,7 +870,9 @@ export class WishListsService {
   async getUserWishListsWithPrivacy(
     targetUserId: string,
     viewerUserId?: string
-  ): Promise<{ wishlists: WishListDTO[]; canViewPrivate: boolean }> {
+  ): Promise<{ wishlists: WishListDTO[]; canViewPrivate: boolean; pendingRequestIds?: string[] }> {
+    console.log(`🔍 [SERVICE] getUserWishListsWithPrivacy INICIADO - targetUserId: ${targetUserId}, viewerUserId: ${viewerUserId}`);
+    
     const isOwnProfile = viewerUserId === targetUserId;
 
     // Si es el propio perfil, devolver todas las wishlists
@@ -845,27 +881,9 @@ export class WishListsService {
       return { wishlists: wishLists, canViewPrivate: true };
     }
 
-    // Si no hay viewer, solo devolver públicas
+    // Si no hay viewer, devolver públicas Y nombres de privadas (para que todos puedan solicitar acceso)
     if (!viewerUserId) {
       const wishLists = await this.getUserWishLists(targetUserId);
-      return {
-        wishlists: wishLists.filter((w) => w.public),
-        canViewPrivate: false,
-      };
-    }
-
-    // Verificar si son amigos
-    const { FriendsService } = await import('../friends/friends.service');
-    const friendsService = new FriendsService();
-    const areFriends = await friendsService.areFriends(viewerUserId, targetUserId);
-
-    const wishLists = await this.getUserWishLists(targetUserId);
-
-    if (areFriends) {
-      // Si son amigos, mostrar todas (públicas y privadas)
-      return { wishlists: wishLists, canViewPrivate: true };
-    } else {
-      // Si no son amigos, solo mostrar públicas y nombres de privadas
       const publicWishlists = wishLists.filter((w) => w.public);
       const privateWishlists = wishLists
         .filter((w) => !w.public)
@@ -873,12 +891,535 @@ export class WishListsService {
           ...w,
           items: [], // Ocultar items de wishlists privadas
         }));
-
+      
       return {
         wishlists: [...publicWishlists, ...privateWishlists],
         canViewPrivate: false,
       };
     }
+
+    // NUEVA LÓGICA: Las reglas son las mismas independientemente de amistad
+    // - Wishlists públicas: siempre visibles
+    // - Wishlists privadas: solo visibles si hay acceso aprobado
+    
+    // Verificar accesos aprobados a wishlists privadas (SIEMPRE, sin importar amistad)
+    console.log(`🔍 [WISHLISTS] Consulta de accesos aprobados - requesterId: ${viewerUserId}, targetUserId: ${targetUserId}`);
+    const approvedAccess = await prisma.wishlistAccessRequest.findMany({
+      where: {
+        requesterId: viewerUserId,
+        status: 'approved',
+        wishlist: {
+          userId: targetUserId,
+        },
+      },
+      select: {
+        wishlistId: true,
+        status: true,
+        requesterId: true,
+      },
+    });
+
+    console.log(`🔍 [WISHLISTS] Accesos aprobados encontrados en BD: ${approvedAccess.length}`);
+    approvedAccess.forEach(a => {
+      console.log(`🔍 [WISHLISTS] Acceso aprobado: wishlistId=${a.wishlistId}, requesterId=${a.requesterId}, status=${a.status}`);
+    });
+
+    // También verificar TODOS los accesos (para debug)
+    const allAccess = await prisma.wishlistAccessRequest.findMany({
+      where: {
+        requesterId: viewerUserId,
+        wishlist: {
+          userId: targetUserId,
+        },
+      },
+      select: {
+        wishlistId: true,
+        status: true,
+      },
+    });
+    console.log(`🔍 [WISHLISTS] TODOS los accesos (cualquier status): ${allAccess.length}`, allAccess);
+
+    const approvedWishlistIds = new Set(approvedAccess.map((a) => a.wishlistId));
+    console.log(`🔍 [WISHLISTS] approvedWishlistIds Set:`, Array.from(approvedWishlistIds));
+
+    // Obtener solicitudes pendientes
+    const pendingRequestIds = await this.getPendingRequestIds(viewerUserId, targetUserId);
+
+    const wishLists = await this.getUserWishLists(targetUserId);
+    
+    console.log(`🔍 [WISHLISTS] getUserWishListsWithPrivacy - viewerUserId: ${viewerUserId}, targetUserId: ${targetUserId}`);
+    console.log(`🔍 [WISHLISTS] Total wishlists obtenidas: ${wishLists.length}, Públicas: ${wishLists.filter(w => w.public).length}, Privadas: ${wishLists.filter(w => !w.public).length}`);
+    console.log(`🔍 [WISHLISTS] Accesos aprobados: ${approvedWishlistIds.size}, Solicitudes pendientes: ${pendingRequestIds.length}`);
+
+    // Log detallado de cada wishlist privada
+    wishLists.filter(w => !w.public).forEach(w => {
+      console.log(`🔍 [WISHLISTS] Wishlist privada "${w.name}" (ID: ${w.id}) tiene ${w.items?.length || 0} items, acceso aprobado: ${approvedWishlistIds.has(w.id)}`);
+      if (w.items && w.items.length > 0 && approvedWishlistIds.has(w.id)) {
+        console.log(`🔍 [WISHLISTS] Items de "${w.name}" con acceso:`, w.items.map(i => ({ id: i.id, productTitle: i.product?.title })));
+      }
+    });
+
+    // SIEMPRE aplicar las mismas reglas:
+    // - Públicas: siempre visibles con items
+    // - Privadas con acceso aprobado: visibles con items
+    // - Privadas sin acceso: solo nombre (sin items)
+    const publicWishlists = wishLists.filter((w) => w.public);
+    
+    // Wishlists privadas con acceso aprobado (mostrar con items) - INDEPENDIENTE DE AMISTAD
+    const privateWithAccess = wishLists
+      .filter((w) => {
+        const hasAccess = !w.public && approvedWishlistIds.has(w.id);
+        if (!w.public) {
+          console.log(`🔍 [WISHLISTS] Wishlist privada "${w.name}" (${w.id}): hasAccess=${hasAccess}, items=${w.items?.length || 0}, approvedWishlistIds.has(${w.id})=${approvedWishlistIds.has(w.id)}`);
+        }
+        return hasAccess;
+      });
+
+    console.log(`🔍 [WISHLISTS] Wishlists privadas con acceso aprobado: ${privateWithAccess.length}`);
+    privateWithAccess.forEach(w => {
+      console.log(`🔍 [WISHLISTS] Wishlist "${w.name}" con acceso aprobado tiene ${w.items?.length || 0} items`);
+      if (w.items && w.items.length > 0) {
+        console.log(`🔍 [WISHLISTS] Items de "${w.name}" con acceso:`, w.items.map(i => ({ id: i.id, productTitle: i.product?.title })));
+      } else {
+        console.log(`⚠️ [WISHLISTS] PROBLEMA: Wishlist "${w.name}" con acceso aprobado NO tiene items!`);
+      }
+    });
+
+    // Wishlists privadas sin acceso (solo nombre, sin items)
+    const privateWithoutAccess = wishLists
+      .filter((w) => !w.public && !approvedWishlistIds.has(w.id))
+      .map((w) => ({
+        ...w,
+        items: [], // Ocultar items
+      }));
+
+    const finalWishlists = [...publicWishlists, ...privateWithAccess, ...privateWithoutAccess];
+    
+    console.log(`🔍 [WISHLISTS] ========== RESUMEN FINAL ==========`);
+    console.log(`🔍 [WISHLISTS] Públicas: ${publicWishlists.length}`);
+    console.log(`🔍 [WISHLISTS] Privadas con acceso: ${privateWithAccess.length}`);
+    console.log(`🔍 [WISHLISTS] Privadas sin acceso: ${privateWithoutAccess.length}`);
+    console.log(`🔍 [WISHLISTS] Total final: ${finalWishlists.length}`);
+
+    finalWishlists.forEach(w => {
+      const itemsCount = Array.isArray(w.items) ? w.items.length : 0;
+      console.log(`🔍 [WISHLISTS] FINAL: "${w.name}" (${w.public ? 'pública' : 'privada'}) - items=${itemsCount}, id=${w.id}`);
+    });
+
+    return {
+      wishlists: finalWishlists,
+      canViewPrivate: approvedWishlistIds.size > 0, // true solo si hay acceso aprobado a alguna wishlist privada
+      pendingRequestIds: pendingRequestIds || [], // Asegurar que siempre se devuelva
+    };
+  }
+
+  /**
+   * Solicitar acceso a una wishlist privada
+   */
+  async requestAccess(wishlistId: string, requesterId: string): Promise<void> {
+    // Verificar que la wishlist existe
+    const wishlist = await prisma.wishList.findUnique({
+      where: { id: wishlistId },
+      include: { user: true },
+    });
+
+    if (!wishlist) {
+      throw new NotFoundError('Wishlist no encontrada');
+    }
+
+    // Verificar que no sea el dueño
+    if (wishlist.userId === requesterId) {
+      throw new BadRequestError('No puedes solicitar acceso a tu propia wishlist');
+    }
+
+    // Verificar que la wishlist sea privada
+    if (wishlist.public) {
+      throw new BadRequestError('No se puede solicitar acceso a una wishlist pública');
+    }
+
+    // Verificar si ya existe una solicitud
+    const existingRequest = await prisma.wishlistAccessRequest.findUnique({
+      where: {
+        wishlistId_requesterId: {
+          wishlistId,
+          requesterId,
+        },
+      },
+    });
+
+    if (existingRequest) {
+      if (existingRequest.status === 'pending') {
+        throw new ConflictError('Ya existe una solicitud pendiente para esta wishlist');
+      }
+      if (existingRequest.status === 'approved') {
+        throw new ConflictError('Ya tienes acceso a esta wishlist');
+      }
+      // Si fue rechazada, permitir crear una nueva solicitud
+    }
+
+    // Crear o actualizar solicitud
+    await prisma.wishlistAccessRequest.upsert({
+      where: {
+        wishlistId_requesterId: {
+          wishlistId,
+          requesterId,
+        },
+      },
+      update: {
+        status: 'pending',
+        createdAt: new Date(),
+        respondedAt: null,
+      },
+      create: {
+        wishlistId,
+        requesterId,
+        status: 'pending',
+      },
+    });
+
+    // TODO: Crear notificación para el dueño de la wishlist
+  }
+
+  /**
+   * Obtener solicitudes de acceso pendientes para las wishlists del usuario
+   */
+  async getAccessRequests(ownerId: string) {
+    // Obtener todas las wishlists del usuario
+    const wishlists = await prisma.wishList.findMany({
+      where: { userId: ownerId },
+      include: {
+        accessRequests: {
+          where: { status: 'pending' },
+          include: {
+            requester: {
+              select: {
+                id: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                profile: {
+                  select: {
+                    avatar: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    // Aplanar las solicitudes
+    const requests = wishlists.flatMap((w) =>
+      w.accessRequests.map((req) => ({
+        id: req.id,
+        wishlistId: w.id,
+        wishlistName: w.name,
+        requester: {
+          id: req.requester.id,
+          username: req.requester.username,
+          firstName: req.requester.firstName,
+          lastName: req.requester.lastName,
+          avatar: req.requester.profile?.avatar || null,
+        },
+        createdAt: req.createdAt,
+      }))
+    );
+
+    return requests;
+  }
+
+  /**
+   * Aprobar solicitud de acceso
+   */
+  async approveAccessRequest(requestId: string, ownerId: string): Promise<void> {
+    const request = await prisma.wishlistAccessRequest.findUnique({
+      where: { id: requestId },
+      include: { wishlist: true },
+    });
+
+    if (!request) {
+      throw new NotFoundError('Solicitud no encontrada');
+    }
+
+    if (request.wishlist.userId !== ownerId) {
+      throw new ForbiddenError('No tienes permiso para aprobar esta solicitud');
+    }
+
+    if (request.status !== 'pending') {
+      throw new BadRequestError('Esta solicitud ya fue procesada');
+    }
+
+    await prisma.wishlistAccessRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'approved',
+        respondedAt: new Date(),
+      },
+    });
+
+    // TODO: Crear notificación para el solicitante
+  }
+
+  /**
+   * Rechazar solicitud de acceso
+   */
+  async rejectAccessRequest(requestId: string, ownerId: string): Promise<void> {
+    const request = await prisma.wishlistAccessRequest.findUnique({
+      where: { id: requestId },
+      include: { wishlist: true },
+    });
+
+    if (!request) {
+      throw new NotFoundError('Solicitud no encontrada');
+    }
+
+    if (request.wishlist.userId !== ownerId) {
+      throw new ForbiddenError('No tienes permiso para rechazar esta solicitud');
+    }
+
+    if (request.status !== 'pending') {
+      throw new BadRequestError('Esta solicitud ya fue procesada');
+    }
+
+    await prisma.wishlistAccessRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'rejected',
+        respondedAt: new Date(),
+      },
+    });
+
+    // TODO: Crear notificación para el solicitante
+  }
+
+  /**
+   * Obtener IDs de wishlists para las que el usuario tiene solicitudes pendientes
+   */
+  async getPendingRequestIds(requesterId: string, targetUserId: string): Promise<string[]> {
+    const requests = await prisma.wishlistAccessRequest.findMany({
+      where: {
+        requesterId,
+        status: 'pending',
+        wishlist: {
+          userId: targetUserId,
+        },
+      },
+      select: {
+        wishlistId: true,
+      },
+    });
+
+    return requests.map((r) => r.wishlistId);
+  }
+
+  /**
+   * Cancelar una solicitud de acceso pendiente (solo el solicitante puede cancelar)
+   */
+  async cancelAccessRequest(wishlistId: string, requesterId: string): Promise<void> {
+    // Buscar la solicitud pendiente
+    const request = await prisma.wishlistAccessRequest.findUnique({
+      where: {
+        wishlistId_requesterId: {
+          wishlistId,
+          requesterId,
+        },
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundError('Solicitud no encontrada');
+    }
+
+    if (request.status !== 'pending') {
+      throw new BadRequestError('Solo se pueden cancelar solicitudes pendientes');
+    }
+
+    // Eliminar la solicitud
+    await prisma.wishlistAccessRequest.delete({
+      where: {
+        id: request.id,
+      },
+    });
+  }
+
+  /**
+   * Obtener usuarios con acceso aprobado a una wishlist
+   */
+  async getWishlistAccessGrants(wishlistId: string, ownerId: string): Promise<Array<{
+    userId: string;
+    username: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    avatar: string | null;
+    grantedAt: Date;
+  }>> {
+    // Verificar que la wishlist existe y pertenece al usuario
+    const wishlist = await prisma.wishList.findUnique({
+      where: { id: wishlistId },
+    });
+
+    if (!wishlist) {
+      throw new NotFoundError('Wishlist no encontrada');
+    }
+
+    if (wishlist.userId !== ownerId) {
+      throw new ForbiddenError('No tienes permiso para ver los accesos de esta wishlist');
+    }
+
+    // Obtener todas las solicitudes aprobadas para esta wishlist
+    const approvedRequests = await prisma.wishlistAccessRequest.findMany({
+      where: {
+        wishlistId,
+        status: 'approved',
+      },
+      include: {
+        requester: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+      orderBy: {
+        respondedAt: 'desc',
+      },
+    });
+
+    return approvedRequests.map((request) => ({
+      userId: request.requester.id,
+      username: request.requester.username,
+      firstName: request.requester.firstName,
+      lastName: request.requester.lastName,
+      avatar: request.requester.profile?.avatar || null,
+      grantedAt: request.respondedAt || request.updatedAt,
+    }));
+  }
+
+  /**
+   * Revocar acceso a una wishlist (cambiar solicitud aprobada a rejected)
+   */
+  async revokeWishlistAccess(wishlistId: string, userId: string, ownerId: string): Promise<void> {
+    // Verificar que la wishlist existe y pertenece al usuario
+    const wishlist = await prisma.wishList.findUnique({
+      where: { id: wishlistId },
+    });
+
+    if (!wishlist) {
+      throw new NotFoundError('Wishlist no encontrada');
+    }
+
+    if (wishlist.userId !== ownerId) {
+      throw new ForbiddenError('No tienes permiso para revocar accesos de esta wishlist');
+    }
+
+    // Buscar la solicitud aprobada
+    const request = await prisma.wishlistAccessRequest.findFirst({
+      where: {
+        wishlistId,
+        requesterId: userId,
+        status: 'approved',
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundError('Acceso no encontrado');
+    }
+
+    // Cambiar el estado a rejected
+    await prisma.wishlistAccessRequest.update({
+      where: { id: request.id },
+      data: {
+        status: 'rejected',
+        respondedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Revocar todos los accesos a una wishlist
+   */
+  async revokeAllWishlistAccess(wishlistId: string, ownerId: string): Promise<void> {
+    // Verificar que la wishlist existe y pertenece al usuario
+    const wishlist = await prisma.wishList.findUnique({
+      where: { id: wishlistId },
+    });
+
+    if (!wishlist) {
+      throw new NotFoundError('Wishlist no encontrada');
+    }
+
+    if (wishlist.userId !== ownerId) {
+      throw new ForbiddenError('No tienes permiso para revocar accesos de esta wishlist');
+    }
+
+    // Cambiar todas las solicitudes aprobadas a rejected
+    await prisma.wishlistAccessRequest.updateMany({
+      where: {
+        wishlistId,
+        status: 'approved',
+      },
+      data: {
+        status: 'rejected',
+        respondedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Obtener wishlist automática "Me gusta" de un usuario
+   */
+  async getLikedWishlist(userId: string): Promise<WishListDTO | null> {
+    const wishlist = await prisma.wishList.findFirst({
+      where: {
+        userId,
+        isAutoGenerated: true,
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                category: true,
+                variants: {
+                  where: { active: true },
+                  include: {
+                    warehouseVariants: {
+                      select: {
+                        stock: true,
+                      },
+                    },
+                  },
+                  orderBy: { price: 'asc' },
+                },
+              },
+            },
+            variant: {
+              select: {
+                id: true,
+                title: true,
+                price: true,
+                suggestedPrice: true,
+                tankuPrice: true,
+                sku: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+
+    if (!wishlist) {
+      return null;
+    }
+
+    return this.mapWishListToDTOComplete(wishlist);
   }
 }
 

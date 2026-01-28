@@ -18,6 +18,7 @@ import { CreatePostModal } from '@/components/posters/create-post-modal'
 import { PosterDetailModal } from '@/components/posters/poster-detail-modal'
 import Image from 'next/image'
 import { Cog6ToothIcon, CameraIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { BaseNav } from '@/components/layout/base-nav'
 
 
 function ProfileContent() {
@@ -46,9 +47,9 @@ function ProfileContent() {
   const initialAvatar = user?.profile?.avatar || ''
   const [imgSrc, setImgSrc] = useState<string>(initialAvatar)
 
-  const tabs: Array<'PUBLICACIONES' | 'Red Tanku' | 'MIS COMPRAS' | 'STALKER GIFTS'> = [
+  const tabs: Array<'PUBLICACIONES' | 'RED TANKU' | 'MIS COMPRAS' | 'STALKER GIFTS'> = [
     'PUBLICACIONES',
-    'Red Tanku',
+    'RED TANKU',
     'MIS COMPRAS',
     'STALKER GIFTS'
   ]
@@ -245,8 +246,10 @@ function ProfileContent() {
   }
 
   return (
-    <div className="min-h-screen w-full p-3 sm:p-4 md:p-6" style={{ backgroundColor: '#1E1E1E' }}>
-      <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">
+    <>
+      <BaseNav showStories={false} canHide={false} isVisible={true} />
+      <div className="min-h-screen w-full p-3 sm:p-4 md:p-6 pt-20 sm:pt-24 md:pt-28 custom-scrollbar overflow-y-auto" style={{ backgroundColor: '#1E1E1E', height: 'calc(100vh - 0px)' }}>
+        <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">
         {/* Sección principal - Dos columnas */}
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           {/* Columna principal - 75% */}
@@ -486,7 +489,7 @@ function ProfileContent() {
               </div>
             )}
           
-            {activeTab === 'Red Tanku' && user?.id && (
+            {activeTab === 'RED TANKU' && user?.id && (
               <div className="w-full">
                 <RedTankuTab userId={user.id} />
               </div>
@@ -545,8 +548,9 @@ function ProfileContent() {
           ))
         }}
         />
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 

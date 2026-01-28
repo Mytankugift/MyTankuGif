@@ -48,8 +48,8 @@ function MessagesClientContent() {
 
   return (
     <div
-      className="min-h-screen"
-      style={{ backgroundColor: '#1E1E1E' }}
+      className="min-h-screen custom-scrollbar overflow-y-auto"
+      style={{ backgroundColor: '#1E1E1E', height: 'calc(100vh - 0px)' }}
     >
       {/* Nav con botones de carrito y notificaciones */}
       <BaseNav />

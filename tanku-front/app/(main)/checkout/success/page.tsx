@@ -26,24 +26,26 @@ function CheckoutSuccessContent() {
     const cartIdParam = urlParams.get('cartId')
     const orderIdParam = urlParams.get('orderId')
 
+    // Si viene solo con orderId (contra entrega), redirigir a perfil
+    if (orderIdParam && !refPaycoParam) {
+      router.push(`/profile?tab=MIS_COMPRAS&orderId=${orderIdParam}`)
+      return
+    }
+
     setRefPayco(refPaycoParam)
     setCartId(cartIdParam)
 
-    if (orderIdParam) {
-      // ✅ Caso de contraentrega: buscar orden directamente por orderId
-      checkOrderByOrderId(orderIdParam)
-    } else if (refPaycoParam) {
+    if (refPaycoParam) {
       // Consultar el estado de la transacción usando ref_payco (ePayco)
       verifyPaymentStatus(refPaycoParam, cartIdParam)
     } else if (cartIdParam) {
       // Si no hay ref_payco, verificar por cartId
       checkOrderStatus(cartIdParam)
     } else {
-      setIsLoading(false)
-      setPaymentStatus('failed')
-      setErrorMessage('No se encontraron parámetros de pago en la URL')
+      // Si no hay parámetros de Epayco, redirigir al perfil
+      router.push('/profile?tab=MIS_COMPRAS')
     }
-  }, [])
+  }, [router])
 
   const verifyPaymentStatus = async (refPayco: string, cartId: string | null) => {
     try {
@@ -178,75 +180,6 @@ function CheckoutSuccessContent() {
     }
   }
 
-  const checkOrderByOrderId = async (orderIdToCheck: string) => {
-    try {
-      console.log('[CHECKOUT-SUCCESS] Verificando orden por orderId:', orderIdToCheck)
-      
-      const orderResponse = await apiClient.get<OrderDTO>(API_ENDPOINTS.ORDERS.BY_ID(orderIdToCheck))
-      
-      if (orderResponse.success && orderResponse.data) {
-        const order = orderResponse.data as OrderDTO
-        setOrderId(order.id)
-        
-        // Verificar si es contra entrega y tiene dropiOrderIds
-        if (order.paymentMethod === 'cash_on_delivery') {
-          const metadata = order.metadata as Record<string, any> || {}
-          const dropiOrderIds = metadata.dropi_order_ids || []
-          
-          if (dropiOrderIds.length > 0) {
-            // Dropi exitoso - mostrar success
-            setPaymentStatus('success')
-            setErrorMessage(null)
-          } else {
-            // Dropi pendiente o falló - mostrar pending y reintentar
-            setPaymentStatus('pending')
-            setErrorMessage('La orden está siendo procesada en Dropi. Te notificaremos cuando esté lista.')
-            
-            // Reintentar después de 3 segundos
-            setTimeout(() => {
-              checkOrderByOrderId(orderIdToCheck)
-            }, 3000)
-          }
-          return
-        }
-        
-        // Para otros métodos de pago (Epayco)
-        if (order.paymentStatus === 'paid') {
-          // Verificar también que Dropi fue exitoso
-          const metadata = order.metadata as Record<string, any> || {}
-          const dropiOrderIds = metadata.dropi_order_ids || []
-          
-          if (dropiOrderIds.length > 0) {
-            setPaymentStatus('success')
-          } else {
-            // Pago exitoso pero Dropi pendiente
-            setPaymentStatus('pending')
-            setErrorMessage('El pago fue exitoso. La orden está siendo procesada en Dropi...')
-            
-            // Reintentar después de 3 segundos
-            setTimeout(() => {
-              checkOrderByOrderId(orderIdToCheck)
-            }, 3000)
-          }
-        } else if (order.paymentStatus === 'pending') {
-          setPaymentStatus('pending')
-        } else {
-          setPaymentStatus('failed')
-        }
-        return
-      }
-
-      // Si no encontramos la orden
-      setPaymentStatus('failed')
-      setErrorMessage('No se encontró la orden')
-    } catch (error: any) {
-      console.error('[CHECKOUT-SUCCESS] Error verificando orden por orderId:', error)
-      setPaymentStatus('pending')
-      setErrorMessage('No se pudo verificar el estado de la orden. Por favor, verifica más tarde.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const checkOrderStatus = async (cartIdToCheck: string) => {
     try {
@@ -348,9 +281,7 @@ function CheckoutSuccessContent() {
               ¡Orden creada exitosamente!
             </h1>
             <p className="text-gray-300 mb-6">
-              {orderId && !refPayco 
-                ? 'Tu orden ha sido creada correctamente. El pago se realizará al momento de la entrega (contraentrega).'
-                : 'Tu pago ha sido procesado correctamente. Tu orden está siendo procesada.'}
+              Tu pago ha sido procesado correctamente. Tu orden está siendo procesada.
             </p>
             {refPayco && (
               <p className="text-sm text-gray-400 mb-2">

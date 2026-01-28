@@ -11,6 +11,7 @@ import { useCartStore } from '@/lib/stores/cart-store'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { WishlistProductsModal } from './wishlist-products-modal'
 import { ShareWishlistModal } from './share-wishlist-modal'
+import { WishlistAccessManager } from './wishlist-access-manager'
 import type { WishListDTO } from '@/types/api'
 
 export function MyWishlists() {
@@ -26,6 +27,8 @@ export function MyWishlists() {
   const [openVisibilityFor, setOpenVisibilityFor] = useState<string | null>(null)
   const [priceCache, setPriceCache] = useState<Record<string, number>>({})
   const inFlightKeysRef = useRef<Set<string>>(new Set())
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
+  const confirmDeleteRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchWishLists()
@@ -47,11 +50,35 @@ export function MyWishlists() {
     setIsPublic(false)
   }
 
-  const handleDelete = async (wishlistId: string) => {
-    if (confirm('¿Estás seguro de que quieres eliminar esta wishlist?')) {
-      await deleteWishList(wishlistId)
-    }
+  const handleDeleteClick = (wishlistId: string) => {
+    setConfirmingDelete(wishlistId)
   }
+
+  const handleDeleteConfirm = async (wishlistId: string) => {
+    await deleteWishList(wishlistId)
+    setConfirmingDelete(null)
+  }
+
+  const handleDeleteCancel = () => {
+    setConfirmingDelete(null)
+  }
+
+  // Cerrar globito al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (confirmDeleteRef.current && !confirmDeleteRef.current.contains(event.target as Node)) {
+        setConfirmingDelete(null)
+      }
+    }
+
+    if (confirmingDelete) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [confirmingDelete])
 
   const handleRemoveItem = async (wishListId: string, itemId: string) => {
     await removeItemFromWishList(wishListId, itemId)
@@ -264,12 +291,34 @@ export function MyWishlists() {
                       >
                         Compartir
                       </button>
-                      <button
-                        onClick={() => handleDelete(wishlist.id)}
-                        className="text-sm text-red-400 hover:text-red-300 transition-colors"
-                      >
-                        Eliminar
-                      </button>
+                      <WishlistAccessManager wishlistId={wishlist.id} isPrivate={!wishlist.public} />
+                      <div className="relative" ref={confirmDeleteRef}>
+                        {confirmingDelete === wishlist.id ? (
+                          <div className="absolute bottom-full right-0 mb-2 z-20 bg-gray-900 border border-[#73FFA2]/50 rounded-lg p-3 shadow-xl whitespace-nowrap">
+                            <p className="text-xs text-white mb-2">¿Eliminar esta wishlist?</p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleDeleteConfirm(wishlist.id)}
+                                className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                              >
+                                Sí
+                              </button>
+                              <button
+                                onClick={handleDeleteCancel}
+                                className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
+                              >
+                                No
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                        <button
+                          onClick={() => handleDeleteClick(wishlist.id)}
+                          className="text-sm text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}

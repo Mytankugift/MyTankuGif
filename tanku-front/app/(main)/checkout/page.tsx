@@ -387,9 +387,9 @@ function CheckoutContent() {
             return
           }
           
-          // Dropi exitoso - redirigir a página de éxito
+          // Dropi exitoso - redirigir directamente a la tab de mis compras en el perfil
           setShowConfirmationModal(false)
-          router.push(`/checkout/success?orderId=${order.id}`)
+          router.push(`/profile?tab=MIS_COMPRAS&orderId=${order.id}`)
           
           // Limpiar selección guardada
           if (typeof window !== 'undefined') {
@@ -603,6 +603,7 @@ function CheckoutContent() {
           cart={cart}
           paymentMethod={paymentMethod}
           isSubmitting={isSubmitting}
+          selectedItems={selectedItems}
         />
       )}
 

@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { ProductsService, ProductListQuery, ProductListQueryOld } from './products.service';
 import { BadRequestError } from '../../shared/errors/AppError';
-import { successResponse } from '../../shared/response';
+import { successResponse, errorResponse, ErrorCode } from '../../shared/response';
 import { PaginationQuery } from '../../shared/pagination';
+import { RequestWithUser } from '../../shared/types';
 
 export class ProductsController {
   private productsService: ProductsService;
@@ -205,6 +206,136 @@ export class ProductsController {
       res.status(200).json(successResponse(products));
     } catch (error) {
       console.error(`❌ [PRODUCTS] Error obteniendo top productos:`, error);
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/products/:productId/like
+   * Dar like a un producto
+   */
+  likeProduct = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { productId } = req.params;
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+
+      if (!userId) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autorizado'));
+      }
+
+      if (!productId) {
+        throw new BadRequestError('productId es requerido');
+      }
+
+      const result = await this.productsService.likeProduct(productId, userId);
+
+      res.status(200).json(successResponse(result));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * DELETE /api/v1/products/:productId/like
+   * Quitar like de un producto
+   */
+  unlikeProduct = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { productId } = req.params;
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+
+      if (!userId) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autorizado'));
+      }
+
+      if (!productId) {
+        throw new BadRequestError('productId es requerido');
+      }
+
+      const result = await this.productsService.unlikeProduct(productId, userId);
+
+      res.status(200).json(successResponse(result));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/products/:productId/likes
+   * Obtener contador de likes de un producto
+   */
+  getProductLikesCount = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { productId } = req.params;
+
+      if (!productId) {
+        throw new BadRequestError('productId es requerido');
+      }
+
+      const likesCount = await this.productsService.getProductLikesCount(productId);
+
+      res.status(200).json(successResponse({ likesCount }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/products/:productId/liked
+   * Verificar si el usuario actual le dio like a un producto
+   */
+  isProductLiked = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { productId } = req.params;
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+
+      if (!userId) {
+        return res.status(200).json(successResponse({ isLiked: false }));
+      }
+
+      if (!productId) {
+        throw new BadRequestError('productId es requerido');
+      }
+
+      const isLiked = await this.productsService.isProductLiked(productId, userId);
+
+      res.status(200).json(successResponse({ isLiked }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/products/liked
+   * Obtener productos que le gustan al usuario actual
+   */
+  getLikedProducts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+
+      if (!userId) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autorizado'));
+      }
+
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+
+      if (limit < 1 || limit > 100) {
+        throw new BadRequestError('El límite debe estar entre 1 y 100');
+      }
+
+      if (offset < 0) {
+        throw new BadRequestError('El offset debe ser mayor o igual a 0');
+      }
+
+      const result = await this.productsService.getLikedProducts(userId, limit, offset);
+
+      res.status(200).json(successResponse(result));
+    } catch (error) {
       next(error);
     }
   };

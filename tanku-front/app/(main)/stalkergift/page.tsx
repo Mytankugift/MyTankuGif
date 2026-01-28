@@ -14,6 +14,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { StalkerGiftDTO } from '@/types/api'
 import { GiftIcon } from '@heroicons/react/24/outline'
+import { BaseNav } from '@/components/layout/base-nav'
 
 type StalkerGiftTab = 'received' | 'sent' | 'chats'
 
@@ -150,7 +151,9 @@ function StalkerGiftPageContent() {
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 md:pt-28" style={{ backgroundColor: '#1E1E1E' }}>
+    <>
+      <BaseNav showStories={false} canHide={false} isVisible={true} />
+      <div className="min-h-screen p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 md:pt-28 custom-scrollbar overflow-y-auto" style={{ backgroundColor: '#1E1E1E', height: 'calc(100vh - 0px)' }}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6 mt-2 flex items-center justify-between">
@@ -327,7 +330,8 @@ function StalkerGiftPageContent() {
           }}
         />
       )}
-    </div>
+      </div>
+    </>
   )
 }
 

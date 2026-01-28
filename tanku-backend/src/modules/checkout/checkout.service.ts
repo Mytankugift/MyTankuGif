@@ -106,9 +106,27 @@ export class CheckoutService {
       }
     }
 
-    // Calcular totales
-    const subtotal = cart.subtotal || cart.items.reduce(
-      (sum, item) => sum + (item.unit_price || 0) * item.quantity,
+    // Filtrar items del carrito usando solo los variantIds seleccionados de dataCart
+    const selectedVariantIds = dataCart.producVariants?.map((pv: any) => pv.variant_id) || [];
+    
+    // Si hay variantIds seleccionados, filtrar el carrito; si no, usar todos los items
+    const itemsToProcess = selectedVariantIds.length > 0
+      ? cart.items.filter(item => selectedVariantIds.includes(item.variant_id))
+      : cart.items;
+    
+    if (itemsToProcess.length === 0) {
+      throw new BadRequestError('No hay items seleccionados para procesar');
+    }
+
+    // Calcular totales usando solo los items seleccionados
+    const subtotal = itemsToProcess.reduce(
+      (sum, item) => {
+        const cartVariant = dataCart.producVariants?.find(
+          (pv: any) => pv.variant_id === item.variant_id
+        );
+        const finalPrice = cartVariant?.unit_price || item.unit_price || 0;
+        return sum + finalPrice * item.quantity;
+      },
       0
     );
     const shippingTotal = 0; // Se actualizará con la respuesta de Dropi
@@ -116,7 +134,6 @@ export class CheckoutService {
 
     // Guardar datos del checkout en metadata del carrito para uso posterior en el webhook
     // Incluir variantIds seleccionados para poder eliminar solo esos items después
-    const selectedVariantIds = dataCart.producVariants?.map((pv: any) => pv.variant_id) || [];
     
     await prisma.cart.update({
       where: { id: dataCart.cart_id },
@@ -196,17 +213,34 @@ export class CheckoutService {
       }
     }
 
-    // Mapear items del carrito a items de la orden
-    const orderItems = cart.items.map((item) => {
+    // Filtrar items del carrito usando solo los variantIds seleccionados de dataCart
+    const selectedVariantIds = dataCart.producVariants?.map((pv: any) => pv.variant_id) || [];
+    
+    // Si hay variantIds seleccionados, filtrar el carrito; si no, usar todos los items
+    const itemsToProcess = selectedVariantIds.length > 0
+      ? cart.items.filter(item => selectedVariantIds.includes(item.variant_id))
+      : cart.items;
+    
+    if (itemsToProcess.length === 0) {
+      throw new BadRequestError('No hay items seleccionados para procesar');
+    }
+
+    // Mapear items seleccionados del carrito a items de la orden
+    const orderItems = itemsToProcess.map((item) => {
       if (!item.variant || !item.product) {
         throw new BadRequestError(
           `Item ${item.id} no tiene variant o product asociado`
         );
       }
 
-      // Usar unit_price del cart (precio final ya calculado)
-      // El unit_price del cart es el precio final (tankuPrice)
-      const finalPrice = item.unit_price || 0;
+      // Buscar el precio unitario desde dataCart.producVariants si está disponible
+      // Esto asegura que usamos el precio correcto del resumen de pedido
+      const cartVariant = dataCart.producVariants?.find(
+        (pv: any) => pv.variant_id === item.variant_id
+      );
+      
+      // Usar unit_price del dataCart si está disponible, sino del cart item
+      const finalPrice = cartVariant?.unit_price || item.unit_price || 0;
 
       return {
         productId: item.product.id,
@@ -216,17 +250,23 @@ export class CheckoutService {
       };
     });
 
-    // Calcular totales
+    // Calcular totales usando solo los items seleccionados
     // El unit_price que viene del backend ya tiene el incremento aplicado (15% + $10,000)
     // No necesitamos aplicar el incremento nuevamente
-    const subtotal = cart.subtotal || cart.items.reduce(
-      (sum, item) => sum + (item.unit_price || 0) * item.quantity,
+    const subtotal = itemsToProcess.reduce(
+      (sum, item) => {
+        const cartVariant = dataCart.producVariants?.find(
+          (pv: any) => pv.variant_id === item.variant_id
+        );
+        const finalPrice = cartVariant?.unit_price || item.unit_price || 0;
+        return sum + finalPrice * item.quantity;
+      },
       0
     );
     const shippingTotal = 0; // Se actualizará con la respuesta de Dropi
     const total = subtotal + shippingTotal;
     
-    const totalQuantity = cart.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const totalQuantity = itemsToProcess.reduce((sum, item) => sum + (item.quantity || 0), 0);
     
     console.log(`💰 [CHECKOUT] Totales calculados:`, {
       subtotal,

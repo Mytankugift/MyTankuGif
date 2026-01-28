@@ -23,36 +23,18 @@ interface UserMentionAutocompleteProps {
   disabled?: boolean
 }
 
-// Función para ocultar el ID de las menciones en el texto mostrado
-const hideMentionIds = (text: string): string => {
+// Función para ocultar los marcadores @{userId} y mostrar el nombre
+// Nota: Esta función se usa solo cuando se recibe un valor externo que ya tiene marcadores
+// En el flujo normal, el displayValue ya tiene los nombres visibles
+const hideMentionIds = (text: string, mentionMap?: Map<string, string>): string => {
   if (!text) return text
-  // Reemplazar @displayName|userId con solo @displayName
-  // El regex busca: @ seguido de cualquier cosa que no sea | o @, luego |, luego el ID (mínimo 20 caracteres)
-  // Usamos [^|@]+ para capturar nombres con espacios
-  return text.replace(/@([^|@]+)\|([a-zA-Z0-9_-]{20,})/g, '@$1')
-}
-
-// Función para restaurar el formato completo con IDs
-const restoreMentionIds = (text: string, originalText: string): string => {
-  // Si el texto cambió pero tiene menciones sin ID, restaurar desde el original
-  // Regex mejorado para capturar nombres con espacios: @displayName|userId
-  const mentions = originalText.match(/@([^|@]+?)\|([a-zA-Z0-9_-]{20,})/g) || []
-  let restored = text
+  if (!mentionMap) return text
   
-  mentions.forEach(mention => {
-    const match = mention.match(/@([^|@]+?)\|([a-zA-Z0-9_-]{20,})/)
-    if (match) {
-      const [, displayName, userId] = match
-      // Escapar caracteres especiales del displayName para el regex
-      const escapedDisplayName = displayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      // Buscar @displayName sin | y sin que esté seguido de más caracteres que formen parte del ID
-      // Reemplazar solo si no tiene ya el formato completo
-      const regex = new RegExp(`@${escapedDisplayName}(?!\\|)`, 'g')
-      restored = restored.replace(regex, `@${displayName}|${userId}`)
-    }
+  // Reemplazar @{userId} con @NombreCompleto usando el mapa
+  return text.replace(/@\{([a-zA-Z0-9_-]+)\}/g, (match, userId) => {
+    const displayName = mentionMap.get(userId) || `@usuario`
+    return displayName
   })
-  
-  return restored
 }
 
 export function UserMentionAutocomplete({
@@ -70,19 +52,33 @@ export function UserMentionAutocomplete({
   const [suggestionsPosition, setSuggestionsPosition] = useState({ top: 0, left: 0, width: 0 })
   const [displayValue, setDisplayValue] = useState('') // Valor mostrado (sin IDs)
   const [internalValue, setInternalValue] = useState('') // Valor real (con IDs)
+  const mentionMapRef = useRef<Map<string, string>>(new Map()) // Mapa userId -> @NombreCompleto
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
   
   // Sincronizar displayValue cuando cambia el value externo
   // IMPORTANTE: Siempre ocultar IDs en displayValue, incluso si value viene con IDs
   useEffect(() => {
-    if (value === undefined || value === null) return
+    if (value === undefined || value === null) {
+      setDisplayValue('')
+      setInternalValue('')
+      return
+    }
     
-    // Si el valor externo tiene IDs, ocultarlos para mostrar
-    const hidden = hideMentionIds(value)
+    // Si el valor externo tiene marcadores @{userId}, ocultarlos para mostrar
+    const hidden = hideMentionIds(value, mentionMapRef.current)
+    
+    // Si el valor tiene marcadores, extraerlos y actualizar el mapa
+    const mentionMatches = value.matchAll(/@\{([a-zA-Z0-9_-]+)\}/g)
+    for (const match of mentionMatches) {
+      const userId = match[1]
+      // Si no está en el mapa, usar un placeholder (se actualizará cuando se inserte la mención)
+      if (!mentionMapRef.current.has(userId)) {
+        mentionMapRef.current.set(userId, '@usuario')
+      }
+    }
     
     // SIEMPRE actualizar displayValue para asegurar que los IDs estén ocultos
-    // Esto es crítico: si value viene con IDs, deben ocultarse
     setDisplayValue(hidden)
     
     // Actualizar internalValue con el valor completo (con IDs)
@@ -100,18 +96,18 @@ export function UserMentionAutocomplete({
       let lastAtIndex = -1
       for (let i = cursorPos - 1; i >= 0; i--) {
         if (textBeforeCursor[i] === '@') {
-          // Verificar si este @ es parte de una mención completada (tiene | seguido de ID)
           const textAfterThisAt = textBeforeCursor.substring(i + 1)
           
-          // Si hay un | seguido de un ID (mínimo 20 caracteres), es una mención completada
-          const completedMentionMatch = textAfterThisAt.match(/^[^|@]*\|[a-zA-Z0-9_-]{20,}/)
+          // Verificar si este @ es parte de una mención completada (tiene {userId})
+          // Formato: @{userId} - mención completada
+          const completedMentionMatch = textAfterThisAt.match(/^\{[a-zA-Z0-9_-]+\}/)
           if (completedMentionMatch) {
             // Esta es una mención completada, seguir buscando hacia atrás
             continue
           }
           
-          // Si hay un espacio, salto de línea o | sin ID después, no es válido
-          if (textAfterThisAt.match(/^[\s\n]/) || textAfterThisAt.match(/^\|/)) {
+          // Si hay un espacio o salto de línea inmediatamente después, no es válido
+          if (textAfterThisAt.match(/^[\s\n]/)) {
             // No es válido, seguir buscando
             continue
           }
@@ -194,29 +190,35 @@ export function UserMentionAutocomplete({
     // Obtener la posición actual del cursor para calcular correctamente textAfter
     const cursorPos = inputRef.current.selectionStart || displayValue.length
     
-    // Usar displayValue para la posición (sin IDs)
-    const textBefore = displayValue.substring(0, mentionStart)
-    // Calcular textAfter desde la posición del cursor, no desde mentionQuery
-    // Esto asegura que funcione correctamente con múltiples menciones
-    const textAfter = displayValue.substring(cursorPos)
+    // Usar internalValue para obtener el texto real antes del cursor
+    const textBefore = internalValue.substring(0, mentionStart)
+    // Calcular textAfter desde la posición del cursor en displayValue
+    // Necesitamos mapear la posición del cursor de displayValue a internalValue
+    const displayTextBefore = displayValue.substring(0, mentionStart)
+    const displayTextAfter = displayValue.substring(cursorPos)
     
-    // Obtener el nombre a mostrar (username > firstName+lastName > email)
-    const displayName = user.username 
-      || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email.split('@')[0])
+    // Obtener el nombre a mostrar (prioridad: firstName+lastName > username)
+    const displayName = user.firstName && user.lastName 
+      ? `${user.firstName} ${user.lastName}`
+      : (user.username || user.email.split('@')[0])
     
-    // Valor mostrado: solo el nombre (sin ID) - esto es lo que verá el usuario
-    const newDisplayValue = `${textBefore}@${displayName} ${textAfter}`
+    // Guardar en el mapa para poder mostrar el nombre después
+    mentionMapRef.current.set(user.id, `@${displayName}`)
     
-    // Valor real: con el ID para el backend - esto es lo que se envía
-    const newInternalValue = `${textBefore}@${displayName}|${user.id} ${textAfter}`
+    // Formato interno: @{userId} (esto es lo que se envía al backend)
+    const mentionMarker = `@{${user.id}}`
     
-    // Actualizar displayValue inmediatamente (sin ID)
+    // Valor interno: con el marcador @{userId}
+    const newInternalValue = `${textBefore}${mentionMarker} ${displayTextAfter}`
+    
+    // Valor mostrado: con el nombre visible
+    const newDisplayValue = `${displayTextBefore}@${displayName} ${displayTextAfter}`
+    
+    // Actualizar ambos valores
     setDisplayValue(newDisplayValue)
-    // Actualizar internalValue (con ID)
     setInternalValue(newInternalValue)
     
-    // Enviar el valor con ID al padre
-    // NOTA: El useEffect se ejecutará después y ocultará los IDs en displayValue
+    // Enviar el valor con marcador al padre (backend recibirá @{userId})
     onChange(newInternalValue)
 
     setShowSuggestions(false)
@@ -227,7 +229,7 @@ export function UserMentionAutocomplete({
     // Mover cursor después de la mención (basado en displayValue)
     setTimeout(() => {
       if (inputRef.current) {
-        const newCursorPos = mentionStart + displayName.length + 2 // @ + displayName + espacio
+        const newCursorPos = displayTextBefore.length + displayName.length + 2 // @ + displayName + espacio
         inputRef.current.setSelectionRange(newCursorPos, newCursorPos)
         inputRef.current.focus()
       }
@@ -246,52 +248,35 @@ export function UserMentionAutocomplete({
     // Actualizar displayValue inmediatamente (lo que ve el usuario)
     setDisplayValue(newDisplayValue)
     
-    // Restaurar IDs de menciones existentes basándose en el internalValue anterior
-    // Esto asegura que las menciones existentes mantengan sus IDs
-    let restoredValue = newDisplayValue
+    // Convertir displayValue (con nombres) a internalValue (con @{userId})
+    // Estrategia simple: reemplazar cada nombre conocido con su marcador
+    let newInternalValue = newDisplayValue
     
-    // Buscar todas las menciones con ID en el internalValue anterior
-    // Regex mejorado para capturar nombres con espacios
-    const existingMentions = internalValue.match(/@([^|@]+?)\|([a-zA-Z0-9_-]{20,})/g) || []
-    
-    // Obtener el texto antes del cursor para detectar si estamos editando una mención
-    const textBeforeCursor = newDisplayValue.substring(0, cursorPos)
-    
-    // Verificar si hay un @ activo cerca del cursor (dentro de los últimos 50 caracteres)
-    const recentText = textBeforeCursor.substring(Math.max(0, textBeforeCursor.length - 50))
-    const activeAtIndex = recentText.lastIndexOf('@')
-    const isEditingMention = activeAtIndex !== -1 && 
-      !recentText.substring(activeAtIndex).match(/@[^|@]*\|[a-zA-Z0-9_-]{20,}/)
-    
-    existingMentions.forEach(mention => {
-      const match = mention.match(/@([^|@]+?)\|([a-zA-Z0-9_-]{20,})/)
-      if (match) {
-        const [, displayName, userId] = match
-        // Escapar caracteres especiales del displayName
-        const escapedDisplayName = displayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        
-        // Buscar @displayName sin | en el nuevo texto y reemplazarlo con @displayName|userId
-        // Solo si no tiene ya el ID y no está siendo editada actualmente
-        const regex = new RegExp(`@${escapedDisplayName}(?!\\|)`, 'g')
-        
-        // Si estamos editando una mención, verificar que no sea esta la que estamos editando
-        if (isEditingMention) {
-          const mentionStartInRecent = recentText.lastIndexOf(`@${displayName}`)
-          if (mentionStartInRecent !== -1 && mentionStartInRecent === activeAtIndex) {
-            // Esta es la mención que se está editando, no restaurar
-            return
-          }
-        }
-        
-        restoredValue = restoredValue.replace(regex, `@${displayName}|${userId}`)
+    // Reemplazar cada nombre de mención conocida con su marcador
+    mentionMapRef.current.forEach((displayName, userId) => {
+      const nameWithoutAt = displayName.substring(1) // Quitar el @ inicial
+      // Escapar caracteres especiales para el regex
+      const escapedName = nameWithoutAt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      // Buscar @nombre que no esté seguido de { (para evitar reemplazar marcadores ya existentes)
+      const nameRegex = new RegExp(`@${escapedName}(?!\\{)`, 'g')
+      
+      // Verificar si estamos editando esta mención específica (cursor cerca del nombre)
+      const textBeforeCursor = newDisplayValue.substring(0, cursorPos)
+      const mentionPos = textBeforeCursor.lastIndexOf(displayName)
+      const isEditingThisMention = mentionPos !== -1 && 
+        (cursorPos - mentionPos) < displayName.length + 10 // Cursor dentro o cerca de la mención
+      
+      // Solo reemplazar si no estamos editando esta mención
+      if (!isEditingThisMention && nameRegex.test(newDisplayValue)) {
+        newInternalValue = newInternalValue.replace(nameRegex, `@{${userId}}`)
       }
     })
     
     // Actualizar internalValue
-    setInternalValue(restoredValue)
+    setInternalValue(newInternalValue)
     
-    // Enviar el valor con IDs al padre (pero el input mostrará solo displayValue)
-    onChange(restoredValue)
+    // Enviar el valor con marcadores al padre
+    onChange(newInternalValue)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -313,15 +298,22 @@ export function UserMentionAutocomplete({
     }
   }
 
+  // Función para obtener el nombre completo a mostrar (prioridad: firstName+lastName > username)
   const getUserDisplayName = (user: User) => {
-    // Prioridad: username > firstName + lastName > email
-    if (user.username) {
-      return user.username
-    }
+    // Prioridad: firstName + lastName > username
     if (user.firstName && user.lastName) {
       return `${user.firstName} ${user.lastName}`
     }
+    if (user.username) {
+      return user.username
+    }
+    // Fallback: primera parte del email (solo si no hay nombre ni username)
     return user.email.split('@')[0]
+  }
+
+  // Función para obtener el username a mostrar (para mostrar debajo del nombre)
+  const getUserUsername = (user: User) => {
+    return user.username || null
   }
 
   return (
@@ -361,6 +353,7 @@ export function UserMentionAutocomplete({
         >
           {suggestions.map((user, index) => {
             const displayName = getUserDisplayName(user)
+            const username = getUserUsername(user)
             return (
               <button
                 key={user.id}
@@ -400,7 +393,11 @@ export function UserMentionAutocomplete({
                 )}
                 <div className="flex-1 text-left">
                   <p className="text-white text-sm font-medium">{displayName}</p>
-                  <p className="text-gray-400 text-xs">{user.email}</p>
+                  {username ? (
+                    <p className="text-gray-400 text-xs">@{username}</p>
+                  ) : (
+                    <p className="text-gray-500 text-xs">Sin username</p>
+                  )}
                 </div>
               </button>
             )

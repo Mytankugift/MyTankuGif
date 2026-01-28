@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { CartButton } from '@/components/layout/cart-button'
 import { NotificationsButton } from '@/components/layout/notifications-button'
+import { MessagesDropdown } from '@/components/layout/messages-dropdown'
 import { useChat } from '@/lib/hooks/use-chat'
 
 // Componente CategorySelector
@@ -294,9 +295,15 @@ export function FeedNav({
 }: FeedNavProps) {
   const { user, isAuthenticated } = useAuthStore()
   const [isLightMode, setIsLightMode] = useState(false)
+  const [isMessagesDropdownOpen, setIsMessagesDropdownOpen] = useState(false)
   // ✅ Obtener total de mensajes no leídos para badge
   const { getTotalUnreadCount, lastReceivedMessage } = useChat()
   const totalUnread = user ? getTotalUnreadCount(user.id) : 0
+
+  const handleOpenChat = (conversationId: string) => {
+    // El dropdown ahora maneja el chat internamente, no necesitamos abrir ventanas flotantes
+    // Esta función se mantiene por compatibilidad pero no hace nada
+  }
 
   return (
     <div
@@ -306,7 +313,7 @@ export function FeedNav({
       style={{
         transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)',
         willChange: 'transform',
-        right: '8px',
+        right: '16px', // Aumentado de 8px a 16px para dejar espacio a la barra de scroll
       }}
     >
       {/* Stories Section - TODO: Implementar cuando tengamos stories */}
@@ -376,30 +383,39 @@ export function FeedNav({
             )}
           </button>
 
-          {/* Messages Icon */}
-          <Link
-            href="/messages"
-            className="relative flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
-          >
-            <Image
-              src="/feed/Icons/Chat_Green.png"
-              alt="Mensajes"
-              width={24}
-              height={24}
-              className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
-            />
-            <Image
-              src="/feed/Icons/Chat_Blue.png"
-              alt="Mensajes"
-              width={24}
-              height={24}
-              className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
-            />
-            {/* Badge azul Tanku de mensajes no leídos */}
-            {totalUnread > 0 && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#66DEDB] rounded-full border-2 border-[#1E1E1E]"></div>
+          {/* Messages Icon con Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsMessagesDropdownOpen(!isMessagesDropdownOpen)}
+              className="relative flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
+            >
+              <Image
+                src="/feed/Icons/Chat_Green.png"
+                alt="Mensajes"
+                width={24}
+                height={24}
+                className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
+              />
+              <Image
+                src="/feed/Icons/Chat_Blue.png"
+                alt="Mensajes"
+                width={24}
+                height={24}
+                className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
+              />
+              {/* Badge azul Tanku de mensajes no leídos */}
+              {totalUnread > 0 && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#66DEDB] rounded-full border-2 border-[#1E1E1E]"></div>
+              )}
+            </button>
+            {isAuthenticated && (
+              <MessagesDropdown
+                isOpen={isMessagesDropdownOpen}
+                onClose={() => setIsMessagesDropdownOpen(false)}
+                onOpenChat={handleOpenChat}
+              />
             )}
-          </Link>
+          </div>
 
           {/* Notifications */}
           <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10">

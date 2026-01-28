@@ -17,6 +17,11 @@ export const API_ENDPOINTS = {
     LIST: '/api/v1/products',
     TOP: '/api/v1/products/top',
     BY_HANDLE: (handle: string) => `/api/v1/products/${handle}`,
+    LIKE: (productId: string) => `/api/v1/products/${productId}/like`,
+    UNLIKE: (productId: string) => `/api/v1/products/${productId}/like`,
+    LIKES_COUNT: (productId: string) => `/api/v1/products/${productId}/likes`,
+    IS_LIKED: (productId: string) => `/api/v1/products/${productId}/liked`,
+    LIKED: '/api/v1/products/liked',
   },
   CATEGORIES: {
     LIST: '/api/v1/categories',
@@ -97,6 +102,16 @@ export const API_ENDPOINTS = {
     UNSAVE: (id: string) => `/api/v1/wishlists/${id}/save`,
     SHARE_TOKEN: (id: string) => `/api/v1/wishlists/${id}/share-token`,
     BY_SHARE_TOKEN: (token: string) => `/api/v1/wishlists/share/${token}`,
+    REQUEST_ACCESS: (wishlistId: string) => `/api/v1/wishlists/${wishlistId}/request-access`,
+    CANCEL_ACCESS_REQUEST: (wishlistId: string) => `/api/v1/wishlists/${wishlistId}/request-access`,
+    ACCESS_REQUESTS: '/api/v1/wishlists/access-requests',
+    APPROVE_ACCESS_REQUEST: (requestId: string) => `/api/v1/wishlists/access-requests/${requestId}/approve`,
+    REJECT_ACCESS_REQUEST: (requestId: string) => `/api/v1/wishlists/access-requests/${requestId}/reject`,
+    PENDING_REQUESTS: (userId: string) => `/api/v1/wishlists/pending-requests?userId=${userId}`,
+    ACCESS_GRANTS: (wishlistId: string) => `/api/v1/wishlists/${wishlistId}/access-grants`,
+    REVOKE_ACCESS: (wishlistId: string, userId: string) => `/api/v1/wishlists/${wishlistId}/access-grants/${userId}`,
+    REVOKE_ALL_ACCESS: (wishlistId: string) => `/api/v1/wishlists/${wishlistId}/access-grants`,
+    LIKED: '/api/v1/wishlists/liked', // Wishlist automática "Me gusta"
   },
   // Regions
   REGIONS: '/api/v1/regions',

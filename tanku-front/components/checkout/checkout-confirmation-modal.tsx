@@ -11,6 +11,7 @@ interface CheckoutConfirmationModalProps {
   cart: Cart
   paymentMethod: string
   isSubmitting: boolean
+  selectedItems?: Cart['items'] // Items seleccionados del checkout
 }
 
 export function CheckoutConfirmationModal({
@@ -20,6 +21,7 @@ export function CheckoutConfirmationModal({
   cart,
   paymentMethod,
   isSubmitting,
+  selectedItems,
 }: CheckoutConfirmationModalProps) {
   if (!isOpen) return null
 
@@ -43,6 +45,12 @@ export function CheckoutConfirmationModal({
     }
   }
 
+  // Calcular total basado en items seleccionados si están disponibles, sino usar todos los items del cart
+  const itemsToUse = selectedItems && selectedItems.length > 0 ? selectedItems : cart.items
+  const total = itemsToUse.reduce((sum, item) => {
+    return sum + (item.total || (item.unitPrice || item.price || 0) * item.quantity)
+  }, 0)
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="bg-gray-800 rounded-lg w-full max-w-md border border-gray-700">
@@ -65,7 +73,7 @@ export function CheckoutConfirmationModal({
             <div className="flex justify-between items-center mb-2">
               <span className="text-gray-300">Total:</span>
               <span className="text-xl font-bold text-[#66DEDB]">
-                {formatPrice(cart.total)}
+                {formatPrice(total)}
               </span>
             </div>
             <div className="flex justify-between items-center text-sm text-gray-400">

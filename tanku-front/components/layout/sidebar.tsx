@@ -197,6 +197,47 @@ export default function Sidebar() {
                 </div>
               )}
 
+              {/* Mensajes */}
+              {isAuthenticated ? (
+                <Link
+                  href="/messages"
+                  className="flex items-center gap-2.5 group hover:opacity-80 transition-opacity px-3 py-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
+                >
+                  <Image
+                    src="/feed/Icons/Chat_Green.png"
+                    alt="Mensajes"
+                    width={24}
+                    height={24}
+                    className="object-contain flex-shrink-0"
+                  />
+                  <span 
+                    className="font-normal"
+                    style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif', fontSize: '16px' }}
+                  >
+                    Mensajes
+                  </span>
+                </Link>
+              ) : (
+                <div 
+                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg opacity-50 cursor-not-allowed"
+                  title="Inicia sesión para acceder"
+                >
+                  <Image
+                    src="/feed/Icons/Chat_Green.png"
+                    alt="Mensajes"
+                    width={24}
+                    height={24}
+                    className="object-contain flex-shrink-0 opacity-50"
+                  />
+                  <span 
+                    className="font-normal"
+                    style={{ color: '#666', fontFamily: 'Poppins, sans-serif', fontSize: '16px' }}
+                  >
+                    Mensajes
+                  </span>
+                </div>
+              )}
+
               {/* Wishlist */}
               {isAuthenticated ? (
                 <Link

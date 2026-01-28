@@ -44,7 +44,7 @@ export type FeedItemDTO = {
   };
 
   // Campos de poster
-  likesCount?: number;
+  likesCount?: number; // Para posters y productos
   commentsCount?: number;
   description?: string;
   videoUrl?: string | null;
@@ -55,6 +55,9 @@ export type FeedItemDTO = {
     lastName: string | null;
     avatar: string | null;
   };
+  
+  // Campos adicionales para productos
+  isLiked?: boolean; // Si el usuario actual le dio like (solo productos)
 };
 
 export type FeedResponseDTO = {

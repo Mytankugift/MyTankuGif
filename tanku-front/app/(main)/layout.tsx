@@ -7,6 +7,7 @@ import { useAuthInit } from '@/lib/hooks/use-auth-init'
 import { OnboardingProvider } from '@/components/onboarding/onboarding-provider'
 import { ProfileNavigationProvider } from '@/lib/context/profile-navigation-context'
 import { DataPolicyConsentModal } from '@/components/auth/data-policy-consent-modal'
+import { FloatingChatsManager } from '@/components/chat/floating-chats-manager'
 import { useAuthStore } from '@/lib/stores/auth-store'
 
 export default function MainLayout({
@@ -64,6 +65,7 @@ export default function MainLayout({
         {showConsentModal && (
           <DataPolicyConsentModal isOpen={showConsentModal} />
         )}
+        <FloatingChatsManager />
       </ProfileNavigationProvider>
     </OnboardingProvider>
   )

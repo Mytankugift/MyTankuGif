@@ -80,6 +80,7 @@ export class UsersService {
     email: string;
     firstName: string | null;
     lastName: string | null;
+    username: string | null;
     avatar: string | null;
   }>> {
     let users;
@@ -107,13 +108,18 @@ export class UsersService {
     } else {
       const searchTerm = query.trim().toLowerCase();
 
+      // Priorizar búsqueda por nombre completo, luego username
+      // Buscar por firstName + lastName combinado primero
       users = await prisma.user.findMany({
         where: {
           OR: [
+            // Buscar por firstName o lastName individual
             { firstName: { contains: searchTerm, mode: 'insensitive' } },
             { lastName: { contains: searchTerm, mode: 'insensitive' } },
-            { email: { contains: searchTerm, mode: 'insensitive' } },
+            // Buscar por username
             { username: { contains: searchTerm, mode: 'insensitive' } },
+            // Email solo como último recurso (no debería mostrarse)
+            { email: { contains: searchTerm, mode: 'insensitive' } },
           ],
         },
         take: limit,
@@ -1093,7 +1099,7 @@ export class UsersService {
       };
     }
 
-    // Si no hay viewer, solo mostrar si el perfil es público
+    // Si no hay viewer, mostrar siempre avatar, banner y bio, pero canViewProfile depende de si es público
     if (!viewerUserId) {
       const isPublic = user.profile?.isPublic ?? true;
       
@@ -1112,12 +1118,12 @@ export class UsersService {
         firstName: user.firstName,
         lastName: user.lastName,
         username: user.username,
-        profile: user.profile && isPublic
+        profile: user.profile
           ? ({
               avatar: user.profile.avatar,
               banner: user.profile.banner,
               bio: user.profile.bio,
-              isPublic: true,
+              isPublic,
             } as any)
           : null,
         isOwnProfile: false,
@@ -1150,7 +1156,7 @@ export class UsersService {
       firstName: user.firstName,
       lastName: user.lastName,
       username: user.username,
-      profile: user.profile && canViewProfile
+      profile: user.profile
         ? {
             avatar: user.profile.avatar,
             banner: user.profile.banner,

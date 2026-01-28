@@ -8,12 +8,14 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { MyWishlists } from '@/components/wishlists/my-wishlists'
 import { SavedWishlistsViewer } from '@/components/wishlists/saved-wishlists-viewer'
+import { LikedProductsViewer } from '@/components/wishlists/liked-products-viewer'
 import { WishlistNav } from '@/components/layout/wishlist-nav'
+import { WishlistAccessRequests } from '@/components/wishlists/wishlist-access-requests'
 
 // Componente interno que usa useSearchParams
 function WishlistPageContent() {
   const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState<'mine' | 'saved'>('mine')
+  const [activeTab, setActiveTab] = useState<'liked' | 'mine' | 'saved' | 'requests'>('liked')
   
   // Si viene con ?saved=true, activar el tab de guardadas
   useEffect(() => {
@@ -36,6 +38,16 @@ function WishlistPageContent() {
         {/* Tabs */}
         <div className="flex gap-2 border-b border-gray-700 mb-6">
           <button
+            onClick={() => setActiveTab('liked')}
+            className={`px-4 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'liked'
+                ? 'text-[#73FFA2] border-b-2 border-[#73FFA2]'
+                : 'text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            Me gusta
+          </button>
+          <button
             onClick={() => setActiveTab('mine')}
             className={`px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'mine'
@@ -55,10 +67,23 @@ function WishlistPageContent() {
           >
             Wishlists Guardadas
           </button>
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`px-4 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'requests'
+                ? 'text-[#73FFA2] border-b-2 border-[#73FFA2]'
+                : 'text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            Solicitudes de Acceso
+          </button>
         </div>
 
           {/* Contenido según tab */}
-          {activeTab === 'mine' ? <MyWishlists /> : <SavedWishlistsViewer />}
+          {activeTab === 'liked' && <LikedProductsViewer />}
+          {activeTab === 'mine' && <MyWishlists />}
+          {activeTab === 'saved' && <SavedWishlistsViewer />}
+          {activeTab === 'requests' && <WishlistAccessRequests />}
         </div>
       </div>
     </>

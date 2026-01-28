@@ -312,7 +312,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-bold text-[#73FFA2]">Red Tanku</h3>
+          <h3 className="text-xl font-bold text-[#73FFA2]">RED TANKU</h3>
           <p className="text-sm text-gray-400 mt-1">
             Organiza tus amigos en grupos privados
           </p>

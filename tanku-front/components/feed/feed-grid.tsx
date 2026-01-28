@@ -51,6 +51,8 @@ export function FeedGrid({ items, onPosterClick }: FeedGridProps) {
                     price: item.price,
                     category: item.category,
                     handle: item.handle,
+                    likesCount: item.likesCount,
+                    isLiked: item.isLiked,
                   }}
                   isLightMode={false}
                 />

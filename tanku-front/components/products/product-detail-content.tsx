@@ -8,10 +8,12 @@ import { useCartStore } from '@/lib/stores/cart-store'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { Button } from '@/components/ui/button'
 import { VariantSelector } from '@/components/products/variant-selector'
-import { ShareIcon, HeartIcon } from '@heroicons/react/24/outline'
+import { ShareIcon, HeartIcon, BookmarkIcon } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 import { ShareProductModal } from './share-product-modal'
 import { WishlistSelectorModal } from '@/components/wishlists/wishlist-selector-modal'
+import { apiClient } from '@/lib/api/client'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { ProductDTO, FeedItemDTO } from '@/types/api'
 
 interface ProductDetailContentProps {
@@ -31,6 +33,9 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
   const [error, setError] = useState<string | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
   const [showWishlistModal, setShowWishlistModal] = useState(false)
+  const [isLiked, setIsLiked] = useState(false)
+  const [likesCount, setLikesCount] = useState(0)
+  const [isTogglingLike, setIsTogglingLike] = useState(false)
 
   // Cargar producto completo usando el hook
   const { product: fullProduct, isLoading: isLoadingProduct, error: productError } = useProduct(
@@ -46,6 +51,65 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
       setError(null)
     }
   }, [product])
+
+  // Cargar datos de likes
+  useEffect(() => {
+    if (!fullProduct?.id) return
+
+    const loadLikesData = async () => {
+      try {
+        const likesResponse = await apiClient.get<{ likesCount: number }>(
+          API_ENDPOINTS.PRODUCTS.LIKES_COUNT(fullProduct.id)
+        )
+        if (likesResponse.success && likesResponse.data) {
+          setLikesCount(likesResponse.data.likesCount)
+        }
+
+        if (isAuthenticated) {
+          const likedResponse = await apiClient.get<{ isLiked: boolean }>(
+            API_ENDPOINTS.PRODUCTS.IS_LIKED(fullProduct.id)
+          )
+          if (likedResponse.success && likedResponse.data) {
+            setIsLiked(likedResponse.data.isLiked)
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando likes:', error)
+      }
+    }
+
+    loadLikesData()
+  }, [fullProduct?.id, isAuthenticated])
+
+  // Función para toggle like
+  const handleToggleLike = async () => {
+    if (!isAuthenticated || !fullProduct?.id || isTogglingLike) return
+
+    setIsTogglingLike(true)
+    try {
+      if (isLiked) {
+        const response = await apiClient.delete<{ liked: boolean; likesCount: number }>(
+          API_ENDPOINTS.PRODUCTS.UNLIKE(fullProduct.id)
+        )
+        if (response.success && response.data) {
+          setIsLiked(false)
+          setLikesCount(response.data.likesCount)
+        }
+      } else {
+        const response = await apiClient.post<{ liked: boolean; likesCount: number }>(
+          API_ENDPOINTS.PRODUCTS.LIKE(fullProduct.id)
+        )
+        if (response.success && response.data) {
+          setIsLiked(true)
+          setLikesCount(response.data.likesCount)
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error)
+    } finally {
+      setIsTogglingLike(false)
+    }
+  }
 
   if (isLoadingProduct || !fullProduct) {
     return (
@@ -201,17 +265,22 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                   className="object-contain group-hover:scale-105 transition-transform duration-300"
                   unoptimized={allImages[currentImageIndex].startsWith('http')}
                 />
-                {/* Botón wishlist discreto en la esquina superior derecha */}
+                {/* Botón "me gusta" discreto en la esquina superior derecha */}
                 {isAuthenticated && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      setShowWishlistModal(true)
+                      handleToggleLike()
                     }}
                     className="absolute top-2 right-2 p-2 bg-gray-900/70 hover:bg-gray-900/90 rounded-full backdrop-blur-sm transition-colors z-10"
-                    title="Agregar a wishlist"
+                    title={isLiked ? 'Quitar me gusta' : 'Me gusta'}
+                    disabled={isTogglingLike}
                   >
-                    <HeartIcon className="w-5 h-5 text-gray-300 hover:text-red-400 transition-colors" />
+                    {isTogglingLike ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <HeartIcon className={`w-5 h-5 transition-colors ${isLiked ? 'text-red-500 fill-red-500' : 'text-gray-300 hover:text-red-400'}`} />
+                    )}
                   </button>
                 )}
               </div>
@@ -256,14 +325,29 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
               )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Botón wishlist discreto */}
+              {/* Botón "me gusta" */}
+              {isAuthenticated && (
+                <button
+                  onClick={handleToggleLike}
+                  disabled={isTogglingLike}
+                  className="p-2 text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
+                  title={isLiked ? 'Quitar me gusta' : 'Me gusta'}
+                >
+                  {isTogglingLike ? (
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <HeartIcon className={`w-6 h-6 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />
+                  )}
+                </button>
+              )}
+              {/* Botón wishlist con BookmarkIcon */}
               {isAuthenticated && (
                 <button
                   onClick={() => setShowWishlistModal(true)}
-                  className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                  className="p-2 text-gray-400 hover:text-[#73FFA2] transition-colors"
                   title="Agregar a wishlist"
                 >
-                  <HeartIcon className="w-6 h-6" />
+                  <BookmarkIcon className="w-6 h-6" />
                 </button>
               )}
               <button
@@ -281,6 +365,18 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
             <span className="text-3xl font-bold text-[#73FFA2]">
               {formatPrice(finalPrice)}
             </span>
+          </div>
+
+          {/* Contador de likes */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleToggleLike}
+              disabled={!isAuthenticated || isTogglingLike}
+              className="flex items-center gap-2 text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
+            >
+              <HeartIcon className={`w-5 h-5 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />
+              <span className="text-sm font-medium">{likesCount}</span>
+            </button>
           </div>
 
           {/* Selector de variantes */}

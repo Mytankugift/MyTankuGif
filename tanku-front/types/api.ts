@@ -91,6 +91,9 @@ export interface FeedItemDTO {
   }
   reactionsCount?: number
   commentsCount?: number
+  // Para productos: likes
+  likesCount?: number
+  isLiked?: boolean
 }
 
 export interface FeedResponseDTO {
@@ -318,6 +321,7 @@ export interface WishListDTO {
       title: string
       handle: string
       thumbnail: string | null
+      images?: string[] // Imágenes del producto (opcional, cuando se usa mapWishListToDTOComplete)
     }
     createdAt: string
   }>

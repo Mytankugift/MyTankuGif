@@ -264,15 +264,30 @@ export function useSocket() {
     // Handler: Confirmación de lectura
     const onRead = (data: { conversationId: string; readBy: string }) => {
       const { conversationId: convId } = data
+      const currentUserId = user?.id
       
+      // Verificar ANTES de setMessages si realmente hay cambios
       setMessages((prev) => {
         const conversationMessages = prev.get(convId) || []
+        
+        // Verificar si hay mensajes que necesitan actualización
+        const needsUpdate = conversationMessages.some(
+          msg => msg.senderId !== currentUserId && msg.status !== 'READ'
+        )
+        
+        // Si no hay cambios, retornar el mismo Map sin modificar
+        if (!needsUpdate) {
+          return prev
+        }
+        
+        // Solo actualizar si hay cambios
         const updated = conversationMessages.map((msg) => {
-          if (msg.senderId !== user?.id && msg.status !== 'READ') {
+          if (msg.senderId !== currentUserId && msg.status !== 'READ') {
             return { ...msg, status: 'READ' as const }
           }
           return msg
         })
+        
         return new Map(prev).set(convId, updated)
       })
     }

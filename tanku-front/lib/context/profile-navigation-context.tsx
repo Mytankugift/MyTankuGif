@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-type ProfileTab = 'PUBLICACIONES' | 'Red Tanku' | 'MIS COMPRAS' | 'STALKER GIFTS'
+type ProfileTab = 'PUBLICACIONES' | 'RED TANKU' | 'MIS COMPRAS' | 'STALKER GIFTS'
 
 interface ProfileNavigationContextType {
   activeTab: ProfileTab
@@ -43,9 +43,9 @@ export function ProfileNavigationProvider({ children }: ProfileNavigationProvide
       const decodedTab = decodeURIComponent(tabParam).replace(/\+/g, ' ').trim()
       const tabMap: Record<string, ProfileTab> = {
         'PUBLICACIONES': 'PUBLICACIONES',
-        'MY_TANKU': 'Red Tanku',
-        'RED_TANKU': 'Red Tanku',
-        'RED TANKU': 'Red Tanku',
+        'MY_TANKU': 'RED TANKU',
+        'RED_TANKU': 'RED TANKU',
+        'RED TANKU': 'RED TANKU',
         'MIS_COMPRAS': 'MIS COMPRAS',
         'STALKER_GIFTS': 'STALKER GIFTS'
       }
@@ -56,7 +56,7 @@ export function ProfileNavigationProvider({ children }: ProfileNavigationProvide
       if (!mappedTab) {
         const upperDecoded = decodedTab.toUpperCase()
         if (upperDecoded.includes('RED') && upperDecoded.includes('TANKU')) {
-          mappedTab = 'Red Tanku'
+          mappedTab = 'RED TANKU'
         } else if (upperDecoded === 'PUBLICACIONES') {
           mappedTab = 'PUBLICACIONES'
         } else if (upperDecoded.includes('MIS') && upperDecoded.includes('COMPRAS')) {

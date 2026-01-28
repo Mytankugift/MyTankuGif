@@ -77,93 +77,77 @@ export function CommentItem({
       })()
     : commentAuthorName
 
-  // Procesar menciones en el contenido - mejorado para manejar espacios y texto después
+  // Procesar menciones en el contenido
+  // El backend ya formatea el contenido reemplazando @{userId} con @NombreCompleto
+  // Aquí solo necesitamos convertir las menciones en links clickeables
   const processMentions = (text: string) => {
     if (!text) return ''
     
-    // Regex mejorado: captura @displayName|userId correctamente incluso con espacios en el nombre
-    // Busca: @ seguido de cualquier cosa (incluyendo espacios) hasta |, luego userId (mínimo 20 caracteres)
-    // Luego puede haber espacio y más texto
-    const parts = text.split(/(@[^|@]+?\|[a-zA-Z0-9_-]{20,})/g)
+    // El backend ya formateó el contenido, así que buscamos @NombreCompleto
+    // Necesitamos encontrar las menciones y buscar el userId correspondiente
+    // usando el array de mentions del comentario y el mapa de mentionedUsers
+    
+    // Dividir el texto en partes: menciones y texto normal
+    // Buscar menciones: @ seguido de nombre (puede tener espacios) hasta espacio, salto de línea o fin
+    const parts = text.split(/(@[^\s@\n]+(?:\s+[^\s@\n]+)*)/g)
+    
     return parts.map((part, index) => {
-      if (part.startsWith('@') && part.includes('|')) {
-        // Formato: @displayName|userId
-        const match = part.match(/^@(.+?)\|([a-zA-Z0-9_-]{20,})$/)
-        if (match) {
-          const [, displayName, userId] = match
-          // Buscar el usuario mencionado para obtener su nombre real
-          const mentionedUser = mentionedUsers[userId]
-          let finalDisplayName = displayName.trim()
-          
-          // Si tenemos el usuario en el estado, usar su información real
-          if (mentionedUser) {
-            finalDisplayName = mentionedUser.username 
-              || (mentionedUser.firstName && mentionedUser.lastName
-                  ? `${mentionedUser.firstName} ${mentionedUser.lastName}`
-                  : mentionedUser.email?.split('@')[0] || displayName.trim())
-          } else {
-            // Buscar en comentarios
-            const foundInComments = allComments.find(c => c.author.id === userId)
-            if (foundInComments?.author) {
-              const author = foundInComments.author
-              finalDisplayName = author.username 
-                || (author.firstName && author.lastName
-                    ? `${author.firstName} ${author.lastName}`
-                    : author.email?.split('@')[0] || displayName.trim())
+      if (part.startsWith('@') && part.length > 1) {
+        const mentionName = part.substring(1).trim() // Nombre sin el @
+        
+        // Buscar el usuario mencionado en el array de mentions del comentario
+        // Necesitamos encontrar el userId que corresponde a este nombre
+        let foundUserId: string | null = null
+        let foundUsername: string | null = null
+        
+        // Buscar en mentionedUsers (si está disponible)
+        if (comment.mentions && comment.mentions.length > 0) {
+          for (const userId of comment.mentions) {
+            const mentionedUser = mentionedUsers[userId]
+            if (mentionedUser) {
+              const userDisplayName = mentionedUser.firstName && mentionedUser.lastName
+                ? `${mentionedUser.firstName} ${mentionedUser.lastName}`
+                : (mentionedUser.username || '')
+              
+              if (userDisplayName === mentionName || mentionedUser.username === mentionName) {
+                foundUserId = userId
+                foundUsername = mentionedUser.username || null
+                break
+              }
             }
           }
+        }
+        
+        // Si no se encontró, buscar en los comentarios
+        if (!foundUserId) {
+          const foundInComments = allComments.find(c => {
+            const authorDisplayName = c.author.firstName && c.author.lastName
+              ? `${c.author.firstName} ${c.author.lastName}`
+              : (c.author.username || '')
+            return authorDisplayName === mentionName || c.author.username === mentionName
+          })
           
-          // Obtener username del usuario mencionado si está disponible
-          const username = mentionedUser?.username || (allComments?.find(c => c.author.id === userId)?.author?.username)
-          
+          if (foundInComments?.author) {
+            foundUserId = foundInComments.author.id
+            foundUsername = foundInComments.author.username || null
+          }
+        }
+        
+        // Si encontramos el usuario, crear link; si no, mostrar como texto normal
+        if (foundUserId) {
           return (
             <button
               key={index}
-              onClick={() => router.push(username ? `/profile/${username}` : `/profile/${userId}`)}
+              onClick={() => router.push(foundUsername ? `/profile/${foundUsername}` : `/profile/${foundUserId}`)}
               className="text-[#73FFA2] font-semibold hover:text-[#66DEDB] hover:underline transition-colors"
             >
-              @{finalDisplayName}
+              {part}
             </button>
           )
         }
       }
-      // Formato legacy: @userId (sin |)
-      if (part.startsWith('@') && !part.includes('|')) {
-        const userId = part.substring(1).trim()
-        if (userId.length >= 20) {
-          const mentionedUser = mentionedUsers[userId]
-          let displayName = userId.substring(0, 8)
-          
-          if (mentionedUser) {
-            displayName = mentionedUser.username 
-              || (mentionedUser.firstName && mentionedUser.lastName
-                  ? `${mentionedUser.firstName} ${mentionedUser.lastName}`
-                  : mentionedUser.email?.split('@')[0] || displayName)
-          } else {
-            const foundInComments = allComments.find(c => c.author.id === userId)
-            if (foundInComments?.author) {
-              const author = foundInComments.author
-              displayName = author.username 
-                || (author.firstName && author.lastName
-                    ? `${author.firstName} ${author.lastName}`
-                    : author.email?.split('@')[0] || displayName)
-            }
-          }
-          
-          // Obtener username del usuario mencionado si está disponible
-          const username = mentionedUser?.username || (allComments?.find(c => c.author.id === userId)?.author?.username)
-          
-          return (
-            <button
-              key={index}
-              onClick={() => router.push(username ? `/profile/${username}` : `/profile/${userId}`)}
-              className="text-[#73FFA2] font-semibold hover:text-[#66DEDB] hover:underline transition-colors"
-            >
-              @{displayName}
-            </button>
-          )
-        }
-      }
+      
+      // Texto normal (no es mención o no se encontró el usuario)
       return <span key={index}>{part}</span>
     })
   }

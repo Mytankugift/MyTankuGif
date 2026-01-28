@@ -98,6 +98,33 @@ export default function OtherUserProfilePage() {
     }
   }, [currentUser?.id, profileUser?.id, fetchSentRequests, fetchRequests, fetchFriends])
 
+  // Recargar perfil cuando cambie el estado de amistad (para sincronizar con backend)
+  useEffect(() => {
+    const checkAndReloadProfile = async () => {
+      if (!username || !currentUser?.id || !profileUser?.id) return
+      
+      const isFriendLocal = friends.some(f => f.friendId === profileUser.id || f.friend.id === profileUser.id)
+      // Si localmente son amigos pero el backend dice que no, recargar perfil
+      if (isFriendLocal && !profileUser.areFriends) {
+        try {
+          const response = await apiClient.get<UserProfile>(API_ENDPOINTS.USERS.BY_USERNAME(username))
+          if (response.success && response.data) {
+            setProfileUser(response.data)
+            if (response.data.friendsCount !== undefined) {
+              setFriendsCount(response.data.friendsCount)
+            }
+          }
+        } catch (error) {
+          console.error('Error recargando perfil:', error)
+        }
+      }
+    }
+    
+    // Esperar un poco para que el backend procese la solicitud
+    const timeoutId = setTimeout(checkAndReloadProfile, 500)
+    return () => clearTimeout(timeoutId)
+  }, [friends, profileUser?.id, profileUser?.areFriends, username, currentUser?.id])
+
   // El conteo de amigos ahora viene del backend en getUserById
 
   // Verificar si hay solicitud pendiente o si son amigos
@@ -105,6 +132,10 @@ export default function OtherUserProfilePage() {
   const hasSentRequest = sentRequests.some(req => req.friendId === userId)
   const hasReceivedRequest = requests.some(req => req.userId === userId)
   const isFriend = friends.some(f => f.friendId === userId || f.friend.id === userId)
+  
+  // Usar areFriends del backend o isFriend del estado local como respaldo
+  const areFriends = profileUser?.areFriends || isFriend
+  const canViewContent = profileUser?.canViewProfile || areFriends
 
   const handleAcceptRequest = async () => {
     const request = requests.find(req => req.userId === userId)
@@ -114,6 +145,16 @@ export default function OtherUserProfilePage() {
         await acceptRequest(request.id)
         await fetchFriends()
         await fetchRequests()
+        // Recargar el perfil para actualizar canViewProfile y areFriends
+        if (username) {
+          const response = await apiClient.get<UserProfile>(API_ENDPOINTS.USERS.BY_USERNAME(username))
+          if (response.success && response.data) {
+            setProfileUser(response.data)
+            if (response.data.friendsCount !== undefined) {
+              setFriendsCount(response.data.friendsCount)
+            }
+          }
+        }
       } catch (error) {
         console.error('Error aceptando solicitud:', error)
       } finally {
@@ -156,6 +197,16 @@ export default function OtherUserProfilePage() {
       await removeFriend(userId)
       await fetchFriends()
       setShowMenu(false)
+      // Recargar el perfil para actualizar canViewProfile y areFriends
+      if (username) {
+        const response = await apiClient.get<UserProfile>(API_ENDPOINTS.USERS.BY_USERNAME(username))
+        if (response.success && response.data) {
+          setProfileUser(response.data)
+          if (response.data.friendsCount !== undefined) {
+            setFriendsCount(response.data.friendsCount)
+          }
+        }
+      }
     } catch (error) {
       console.error('Error eliminando amigo:', error)
     } finally {
@@ -184,7 +235,15 @@ export default function OtherUserProfilePage() {
   useEffect(() => {
     const loadPosters = async () => {
       const userId = profileUser?.id
-      if (!userId || !profileUser?.canViewProfile) return
+      const areFriendsLocal = profileUser?.areFriends || friends.some(f => f.friendId === userId || f.friend.id === userId)
+      const canViewContentLocal = profileUser?.canViewProfile || areFriendsLocal
+      // Si no puede ver el perfil y no son amigos, no cargar posters
+      if (!userId || !canViewContentLocal) {
+        setPosters([])
+        setPostsCount(0)
+        setIsLoadingPosters(false)
+        return
+      }
       setIsLoadingPosters(true)
       try {
         const response = await apiClient.get<PosterDTO[]>(API_ENDPOINTS.POSTERS.BY_USER(userId))
@@ -203,7 +262,7 @@ export default function OtherUserProfilePage() {
     if (activeTab === 'PUBLICACIONES') {
       loadPosters()
     }
-  }, [profileUser?.id, activeTab, profileUser?.canViewProfile])
+  }, [profileUser?.id, activeTab, profileUser?.canViewProfile, profileUser?.areFriends, friends, userId])
 
   if (isLoading) {
     return (
@@ -232,36 +291,6 @@ export default function OtherUserProfilePage() {
     )
   }
 
-  if (!profileUser.canViewProfile) {
-    return (
-      <div className="min-h-screen" style={{ backgroundColor: '#1E1E1E' }}>
-        <div className="w-full max-w-6xl mx-auto p-3 sm:p-4 md:p-6">
-          <button
-            onClick={() => router.back()}
-            className="mb-4 p-2 hover:bg-gray-800 rounded-lg transition-colors"
-          >
-            <ArrowLeftIcon className="w-6 h-6 text-gray-400" />
-          </button>
-          <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
-            <div className="text-center">
-              <p className="text-gray-400 text-xl mb-4">Este perfil es privado</p>
-              <p className="text-gray-500 text-sm mb-6">
-                {profileUser.areFriends
-                  ? 'Necesitas ser amigo de este usuario para ver su perfil'
-                  : 'Solo los amigos pueden ver este perfil'}
-              </p>
-              <button
-                onClick={() => router.back()}
-                className="px-4 py-2 bg-[#73FFA2] text-gray-900 rounded-lg hover:bg-[#66DEDB] transition-colors"
-              >
-                Volver
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   const userName = profileUser.firstName && profileUser.lastName
     ? `${profileUser.firstName} ${profileUser.lastName}`
@@ -335,7 +364,7 @@ export default function OtherUserProfilePage() {
                 </div>
                 
                 {/* Botón de menú (3 puntos) - solo si son amigos */}
-                {currentUser?.id && userId !== currentUser.id && isFriend && (
+                {currentUser?.id && userId !== currentUser.id && areFriends && (
                   <div className="relative" ref={menuRef}>
                     <button
                       onClick={() => setShowMenu(!showMenu)}
@@ -371,8 +400,8 @@ export default function OtherUserProfilePage() {
                 {profileUser.profile?.bio || 'Miembro de la comunidad TANKU'}
               </p>
               
-              {/* Botón de Mensaje - solo si son amigos */}
-              {currentUser?.id && userId !== currentUser.id && isFriend && (
+                {/* Botón de Mensaje - solo si son amigos */}
+              {currentUser?.id && userId !== currentUser.id && areFriends && (
                 <Link
                   href={`/messages?userId=${userId}`}
                   className="inline-block px-4 py-2 bg-[#66DEDB] hover:bg-[#73FFA2] text-gray-900 font-semibold rounded-lg transition-colors text-sm"
@@ -468,7 +497,17 @@ export default function OtherUserProfilePage() {
         {/* Contenido de los tabs */}
         {activeTab === 'PUBLICACIONES' && (
           <div className="w-full">
-            {isLoadingPosters ? (
+            {!canViewContent ? (
+              <div className="flex flex-col items-center justify-center py-4 sm:py-6 md:py-12 text-center">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gray-700 rounded-full flex items-center justify-center mb-2 sm:mb-3 md:mb-4">
+                  <svg className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <h3 className="text-white text-base sm:text-lg font-medium mb-1 sm:mb-2">Este perfil es privado</h3>
+                <p className="text-gray-400 text-xs sm:text-sm">Solo los amigos pueden ver las publicaciones.</p>
+              </div>
+            ) : isLoadingPosters ? (
               <div className="flex justify-center items-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2]"></div>
               </div>
@@ -513,7 +552,8 @@ export default function OtherUserProfilePage() {
 
         {activeTab === 'WISHLISTS' && userId && (
           <div className="w-full">
-            <UserWishlistsTab userId={userId} canViewPrivate={profileUser.areFriends} />
+            {/* Siempre renderizar UserWishlistsTab - el componente maneja la visibilidad de wishlists privadas */}
+            <UserWishlistsTab userId={userId} canViewPrivate={areFriends} />
           </div>
         )}
       </div>

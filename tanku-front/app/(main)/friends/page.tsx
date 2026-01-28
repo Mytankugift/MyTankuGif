@@ -195,7 +195,7 @@ export default function FriendsPage() {
   return (
     <>
       <FriendsNav onSearch={handleSearch} initialSearchQuery={searchQuery} />
-      <div className="min-h-screen p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 md:pt-28" style={{ backgroundColor: '#1E1E1E' }}>
+      <div className="min-h-screen p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 md:pt-28 custom-scrollbar overflow-y-auto" style={{ backgroundColor: '#1E1E1E', height: 'calc(100vh - 0px)' }}>
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="mb-6 mt-2">

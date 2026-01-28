@@ -1,3 +1,3 @@
 -- AlterTable
-ALTER TABLE "poster_comments" ADD COLUMN "mentions" JSONB;
+-- ALTER TABLE "poster_comments" ADD COLUMN "mentions" JSONB;
 

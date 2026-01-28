@@ -4,11 +4,13 @@
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { useCartStore } from '@/lib/stores/cart-store'
+import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { WishlistProductsModal } from './wishlist-products-modal'
 import type { WishListDTO } from '@/types/api'
 
@@ -34,11 +36,7 @@ function UserAvatarWithHexagon({ userId, userData, isSelected, onSelect }: UserA
     >
       {/* Avatar circular */}
       <div
-        className={`relative w-16 h-16 rounded-full overflow-hidden border-2 transition-all duration-300 ${
-          isSelected
-            ? 'border-[#73FFA2] scale-110'
-            : 'border-gray-700 hover:border-[#73FFA2]/50'
-        }`}
+        className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-gray-700 transition-all duration-300"
       >
         <Image
           src={imgSrc}
@@ -59,15 +57,23 @@ function UserAvatarWithHexagon({ userId, userData, isSelected, onSelect }: UserA
       {isSelected && (
         <div className="absolute inset-0 pointer-events-none">
           <svg
-            width="88"
-            height="80"
-            viewBox="0 0 88 80"
-            className="absolute -top-4 -left-4"
+            width="120"
+            height="100"
+            viewBox="0 0 120 100"
+            className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"
             style={{ filter: 'drop-shadow(0 0 8px rgba(115, 255, 162, 0.5))' }}
           >
-            {/* Hexágono con lados laterales más largos */}
+            {/* Hexágono con 6 puntos: lados izquierdo y derecho más largos que las puntas de arriba/abajo */}
+            {/* Puntos: arriba, arriba-derecha, abajo-derecha, abajo, abajo-izquierda, arriba-izquierda */}
             <polygon
-              points="44,4 76,18 84,40 76,62 44,76 12,62 4,40 12,18"
+              points="
+              60,6
+              96,25
+              96,75
+              60,94
+              24,75
+              24,25
+              "
               fill="none"
               stroke="#73FFA2"
               strokeWidth="2.5"
@@ -101,10 +107,13 @@ interface SavedWishlist extends WishListDTO {
 
 export function SavedWishlistsViewer() {
   const { isAuthenticated, user } = useAuthStore()
+  const { addItem } = useCartStore()
   const [savedWishlists, setSavedWishlists] = useState<SavedWishlist[]>([])
   const [selectedWishlist, setSelectedWishlist] = useState<SavedWishlist | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [confirmingUnsave, setConfirmingUnsave] = useState<string | null>(null)
+  const confirmRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   const fetchSavedWishlists = useCallback(async () => {
     if (!isAuthenticated || !user?.id) return
@@ -173,16 +182,102 @@ export function SavedWishlistsViewer() {
     }
   }, [isAuthenticated, fetchSavedWishlists])
 
-  const handleUnsave = async (wishlistId: string) => {
-    if (!confirm('¿Dejar de ver esta wishlist?')) return
+  // Escuchar evento cuando se aprueba acceso a una wishlist
+  useEffect(() => {
+    if (!isAuthenticated) return
+    
+    const handleAccessApproved = () => {
+      // Refrescar wishlists guardadas cuando se aprueba acceso
+      setTimeout(() => {
+        fetchSavedWishlists()
+      }, 500)
+    }
+    
+    window.addEventListener('wishlist-access-approved', handleAccessApproved)
+    
+    return () => {
+      window.removeEventListener('wishlist-access-approved', handleAccessApproved)
+    }
+  }, [isAuthenticated, fetchSavedWishlists])
 
+  const handleUnsaveClick = (wishlistId: string) => {
+    setConfirmingUnsave(wishlistId)
+  }
+
+  const handleUnsaveConfirm = async (e: React.MouseEvent, wishlistId: string) => {
+    e.stopPropagation()
     try {
       await apiClient.delete(API_ENDPOINTS.WISHLISTS.UNSAVE(wishlistId))
       setSavedWishlists((prev) => prev.filter((w) => w.id !== wishlistId))
+      setConfirmingUnsave(null)
     } catch (error) {
       console.error('Error dejando de ver wishlist:', error)
       alert('Error al desguardar la wishlist')
+      setConfirmingUnsave(null)
     }
+  }
+
+  const handleUnsaveCancel = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setConfirmingUnsave(null)
+  }
+
+  // Cerrar globito al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!confirmingUnsave) return
+      
+      const target = event.target as Node
+      const confirmRef = confirmRefs.current.get(confirmingUnsave)
+      
+      // Verificar que el click no sea dentro del contenedor del globito
+      if (confirmRef && !confirmRef.contains(target)) {
+        setConfirmingUnsave(null)
+      }
+    }
+
+    if (confirmingUnsave) {
+      // Usar click en lugar de mousedown para que los botones puedan procesar primero
+      document.addEventListener('click', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [confirmingUnsave])
+
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price)
+
+  const getDisplayPrice = (item: SavedWishlist['items'][0]) => {
+    const finalPrice = item.variant?.tankuPrice || 0
+    if (finalPrice > 0) {
+      return formatPrice(finalPrice)
+    }
+    return '—'
+  }
+
+  const handleAddToCartFromWishlistItem = async (item: SavedWishlist['items'][0]) => {
+    if (item.variantId) {
+      await addItem(item.variantId, 1)
+      return
+    }
+
+    const handle = item.product.handle
+    if (!handle) return
+    const fullProduct = await fetchProductByHandle(handle)
+    const variants = fullProduct?.variants || []
+    if (variants.length === 1) {
+      await addItem(variants[0].id, 1)
+      return
+    }
+
+    setSelectedWishlist((prev) => prev || null)
   }
 
   if (isLoading) {
@@ -221,7 +316,7 @@ export function SavedWishlistsViewer() {
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-[#66DEDB] mb-2">Wishlists Guardadas</h2>
         <p className="text-gray-400 text-sm">
-          Click en un amigo para ver sus wishlists guardadas
+          Haz click para ver las wishlists guardadas
         </p>
       </div>
 
@@ -254,65 +349,150 @@ export function SavedWishlistsViewer() {
 
       {/* Lista de wishlists del usuario seleccionado */}
       {selectedUserId && wishlistsByUser[selectedUserId] && (
-
-        <div className="space-y-4">
+        <div className="space-y-8">
           <h3 className="text-lg font-semibold text-white">
-            Wishlists de {wishlistsByUser[selectedUserId].user.firstName || 'este usuario'}
+            Wishlists de {(() => {
+              const user = wishlistsByUser[selectedUserId].user
+              const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+              return fullName || 'este usuario'
+            })()}
           </h3>
           {wishlistsByUser[selectedUserId].wishlists.map((wishlist) => (
-            <div
-              key={wishlist.id}
-              className="bg-gray-800/50 rounded-xl p-4 border border-gray-700 hover:border-[#73FFA2]/30 transition-all"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h4 className="text-white font-semibold">{wishlist.name}</h4>
+            <div key={wishlist.id} className="space-y-3">
+              {/* Header de wishlist */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <h4 className="text-base font-semibold text-white truncate">{wishlist.name}</h4>
                   {wishlist.public && (
-                    <span className="text-xs text-[#73FFA2]">🌐 Pública</span>
+                    <span className="text-xs text-gray-400">🌐 Pública</span>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4 flex-shrink-0">
                   <span className="text-sm text-gray-400">
                     {wishlist.items.length} producto{wishlist.items.length !== 1 ? 's' : ''}
                   </span>
-                  <button
-                    onClick={() => handleUnsave(wishlist.id)}
-                    className="px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors"
-                    title="Dejar de ver"
+                  <div 
+                    className="relative" 
+                    ref={(el) => {
+                      if (el) {
+                        confirmRefs.current.set(wishlist.id, el)
+                      } else {
+                        confirmRefs.current.delete(wishlist.id)
+                      }
+                    }}
                   >
-                    ✕
-                  </button>
+                    {confirmingUnsave === wishlist.id ? (
+                      <div 
+                        className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-20 bg-gray-900 border border-[#73FFA2]/50 rounded-lg p-3 shadow-xl whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <p className="text-xs text-white mb-2">¿Quitar esta wishlist?</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => handleUnsaveConfirm(e, wishlist.id)}
+                            className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                          >
+                            Sí
+                          </button>
+                          <button
+                            onClick={handleUnsaveCancel}
+                            className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleUnsaveClick(wishlist.id)
+                      }}
+                      className="text-sm text-red-400 hover:text-red-300 transition-colors"
+                      title="Dejar de ver esta wishlist"
+                    >
+                      Quitar wishlist
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Previsualización de productos (máximo 4) */}
-              {wishlist.items.length > 0 && (
-                <div className="grid grid-cols-4 gap-2 mb-3">
-                  {wishlist.items.slice(0, 4).map((item) => (
+              {/* Carrusel de productos con diseño minimalista */}
+              {wishlist.items.length > 0 ? (
+                <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                  {wishlist.items.map((item) => (
                     <div
                       key={item.id}
-                      className="relative aspect-square rounded overflow-hidden bg-gray-700/30"
+                      className="flex-shrink-0 w-[120px]"
                     >
-                      {item.product.thumbnail && (
-                        <Image
-                          src={item.product.thumbnail}
-                          alt={item.product.title}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      )}
+                      <div className="relative">
+                        <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-700/30">
+                          {item.product.thumbnail ? (
+                            <Image
+                              src={item.product.thumbnail}
+                              alt={item.product.title}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-gray-500 text-xs">Sin imagen</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-1 border border-gray-700/30 rounded-lg p-2 bg-gray-800/20">
+                        {/* Nombre con tooltip */}
+                        <div
+                          className="text-xs text-white line-clamp-1 cursor-default"
+                          title={item.product.title}
+                        >
+                          {item.product.title}
+                        </div>
+                        {/* Precio */}
+                        <div className="text-xs font-semibold text-[#3B9BC3] mt-1">
+                          {getDisplayPrice(item)}
+                        </div>
+                        {/* Acciones bajo el precio */}
+                        <div className="mt-2 flex items-center justify-between gap-1">
+                          {/* Carrito */}
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              await handleAddToCartFromWishlistItem(item)
+                            }}
+                            className="p-1.5 rounded bg-black/30 hover:bg-black/50 transition-colors flex-shrink-0"
+                            aria-label="Agregar al carrito"
+                            title="Agregar al carrito"
+                          >
+                            <Image
+                              src="/feed/Icons/Shopping_Cart_Green.png"
+                              alt="Carrito"
+                              width={14}
+                              height={14}
+                              className="object-contain"
+                            />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
+
+                  {/* Ver más como texto azul al final */}
+                  <button
+                    onClick={() => setSelectedWishlist(wishlist)}
+                    className="flex-shrink-0 text-sm text-[#3B9BC3] hover:underline px-2"
+                  >
+                    Ver más
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  Esta wishlist está vacía
                 </div>
               )}
-
-              <button
-                onClick={() => setSelectedWishlist(wishlist)}
-                className="w-full py-2 px-4 text-sm bg-[#73FFA2] text-gray-900 font-semibold rounded-lg hover:bg-[#66DEDB] transition-colors"
-              >
-                Ver todos los productos
-              </button>
             </div>
           ))}
         </div>

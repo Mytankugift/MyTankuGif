@@ -219,6 +219,50 @@ export class FeedService {
 
       console.log(`📰 [FEED-SERVICE] Mapas creados: ${productMap.size} productos, ${posterMap.size} posters`);
 
+      // Obtener métricas de likes para productos (batch query)
+      const productIdsForMetrics = Array.from(productMap.keys());
+      const itemMetricsMap = new Map<string, { likesCount: number }>();
+      if (productIdsForMetrics.length > 0) {
+        try {
+          const metrics = await (prisma as any).itemMetric.findMany({
+            where: {
+              itemId: { in: productIdsForMetrics },
+              itemType: 'product',
+            },
+            select: {
+              itemId: true,
+              likesCount: true,
+            },
+          });
+          metrics.forEach((m: any) => {
+            itemMetricsMap.set(m.itemId, { likesCount: m.likesCount || 0 });
+          });
+        } catch (error) {
+          console.error('Error obteniendo métricas de likes:', error);
+        }
+      }
+
+      // Obtener likes del usuario actual para productos (batch query)
+      const userLikedProductsSet = new Set<string>();
+      if (userId && productIdsForMetrics.length > 0) {
+        try {
+          const userLikes = await prisma.productLike.findMany({
+            where: {
+              userId,
+              productId: { in: productIdsForMetrics },
+            },
+            select: {
+              productId: true,
+            },
+          });
+          userLikes.forEach((like) => {
+            userLikedProductsSet.add(like.productId);
+          });
+        } catch (error) {
+          console.error('Error obteniendo likes del usuario:', error);
+        }
+      }
+
       // Mapear items en el orden correcto (mantener orden de intercalación)
       const feedItems: FeedItemDTO[] = [];
       for (const item of intercalated.items) {
@@ -234,6 +278,11 @@ export class FeedService {
         // Usar tankuPrice directamente (ya calculado en sync)
         const finalPrice = firstVariant?.tankuPrice || undefined;
         
+        // Obtener likesCount e isLiked
+        const metrics = itemMetricsMap.get(product.id);
+        const likesCount = metrics?.likesCount || 0;
+        const isLiked = userId ? userLikedProductsSet.has(product.id) : false;
+        
         feedItems.push({
           id: product.id,
           type: 'product',
@@ -247,6 +296,8 @@ export class FeedService {
             name: product.category.name,
             handle: product.category.handle,
           } : undefined,
+          likesCount,
+          isLiked,
         });
       } else {
         const poster = posterMap.get(item.itemId);
@@ -1301,13 +1352,13 @@ export class FeedService {
     }
 
     // Calcular score global
-    // Fórmula: (wishlist * 1) + (orders * 5) + (likes * 2) + (comments * 3)
-    // Los pesos pueden ajustarse según necesidades
+    // Fórmula actualizada: orders * 8 + wishlist * 4 + comments * 3 + likes * 1
+    // Compra manda (orders), intención fuerte (wishlist), engagement real (comments), popularidad suave (likes)
     const globalScore =
-      metrics.wishlistCount * 1 +
-      metrics.ordersCount * 5 +
-      metrics.likesCount * 2 +
-      metrics.commentsCount * 3;
+      metrics.ordersCount * 8 +        // compra manda
+      metrics.wishlistCount * 4 +      // intención fuerte
+      metrics.commentsCount * 3 +      // engagement real
+      metrics.likesCount * 1;          // popularidad suave (habrán muchos likes)
 
     // Obtener createdAt del item original
     let createdAt: Date;

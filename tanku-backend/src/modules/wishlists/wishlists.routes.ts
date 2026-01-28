@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { WishListsController } from './wishlists.controller';
-import { authenticate } from '../../shared/middleware/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 const wishListsController = new WishListsController();
@@ -60,10 +60,52 @@ router.delete('/:id/save', authenticate, wishListsController.unsaveWishlist);
 router.post('/:id/share-token', authenticate, wishListsController.generateShareToken);
 
 /**
+ * POST /api/v1/wishlists/:wishlistId/request-access
+ * Solicitar acceso a una wishlist privada
+ */
+router.post('/:wishlistId/request-access', authenticate, wishListsController.requestAccess);
+
+/**
+ * DELETE /api/v1/wishlists/:wishlistId/request-access
+ * Cancelar una solicitud de acceso pendiente
+ */
+router.delete('/:wishlistId/request-access', authenticate, wishListsController.cancelAccessRequest);
+
+/**
+ * PUT /api/v1/wishlists/access-requests/:requestId/approve
+ * Aprobar solicitud de acceso
+ */
+router.put('/access-requests/:requestId/approve', authenticate, wishListsController.approveAccessRequest);
+
+/**
+ * PUT /api/v1/wishlists/access-requests/:requestId/reject
+ * Rechazar solicitud de acceso
+ */
+router.put('/access-requests/:requestId/reject', authenticate, wishListsController.rejectAccessRequest);
+
+/**
  * GET /api/v1/wishlists/saved
  * Obtener wishlists guardadas del usuario autenticado
  */
 router.get('/saved', authenticate, wishListsController.getSavedWishlists);
+
+/**
+ * GET /api/v1/wishlists/liked
+ * Obtener wishlist automática "Me gusta" del usuario autenticado
+ */
+router.get('/liked', authenticate, wishListsController.getLikedWishlist);
+
+/**
+ * GET /api/v1/wishlists/access-requests
+ * Obtener solicitudes de acceso pendientes para las wishlists del usuario
+ */
+router.get('/access-requests', authenticate, wishListsController.getAccessRequests);
+
+/**
+ * GET /api/v1/wishlists/pending-requests
+ * Obtener IDs de wishlists para las que el usuario tiene solicitudes pendientes
+ */
+router.get('/pending-requests', authenticate, wishListsController.getPendingRequests);
 
 /**
  * GET /api/v1/wishlists/share/:token
@@ -75,11 +117,30 @@ router.get('/share/:token', wishListsController.getWishlistByShareToken);
 router.get('/share/:username/:slug', wishListsController.getWishlistByShareToken);
 
 /**
+ * GET /api/v1/wishlists/:wishlistId/access-grants
+ * Obtener usuarios con acceso aprobado a una wishlist
+ */
+router.get('/:wishlistId/access-grants', authenticate, wishListsController.getWishlistAccessGrants);
+
+/**
+ * DELETE /api/v1/wishlists/:wishlistId/access-grants
+ * Revocar todos los accesos a una wishlist
+ */
+router.delete('/:wishlistId/access-grants', authenticate, wishListsController.revokeAllWishlistAccess);
+
+/**
+ * DELETE /api/v1/wishlists/:wishlistId/access-grants/:userId
+ * Revocar acceso de un usuario específico a una wishlist
+ */
+router.delete('/:wishlistId/access-grants/:userId', authenticate, wishListsController.revokeWishlistAccess);
+
+/**
  * GET /api/v1/wishlists/:userId
  * Obtener wish lists de un usuario específico (considerando privacidad y amistad)
  * IMPORTANTE: Esta ruta debe ir al final para evitar conflictos con /:id
+ * Autenticación opcional: si el usuario está autenticado, se consideran accesos aprobados
  */
-router.get('/:userId', wishListsController.getWishListsByUserId);
+router.get('/:userId', optionalAuthenticate, wishListsController.getWishListsByUserId);
 
 export default router;
 

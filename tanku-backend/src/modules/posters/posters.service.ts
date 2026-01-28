@@ -330,8 +330,9 @@ export class PostersService {
       }),
     ]);
 
-    return {
-      comments: comments.map(comment => {
+    // Formatear comentarios con menciones
+    const formattedComments = await Promise.all(
+      comments.map(async (comment) => {
         // Procesar mentions si existen
         let mentionsArray: string[] | undefined = undefined;
         if (comment.mentions) {
@@ -346,37 +347,51 @@ export class PostersService {
           }
         }
 
-        // Procesar replies (respuestas)
-        const repliesArray = comment.replies?.map(reply => {
-          let replyMentions: string[] | undefined = undefined;
-          if (reply.mentions) {
-            try {
-              if (Array.isArray(reply.mentions)) {
-                replyMentions = reply.mentions as string[];
-              } else if (typeof reply.mentions === 'string') {
-                replyMentions = JSON.parse(reply.mentions);
-              }
-            } catch (e) {
-              console.error('Error parsing reply mentions:', e);
-            }
-          }
+        // Formatear contenido del comentario (reemplazar @{userId} con nombres)
+        const formattedContent = await this.formatCommentContent(
+          comment.content,
+          mentionsArray
+        );
 
-          return {
-            id: reply.id,
-            userId: reply.customerId,
-            content: reply.content,
-            parentId: reply.parentId,
-            likesCount: reply.likesCount,
-            createdAt: reply.createdAt.toISOString(),
-            author: this.mapUserToPosterAuthorDTO(reply.customer),
-            mentions: replyMentions,
-          };
-        }) || [];
+        // Procesar replies (respuestas)
+        const repliesArray = await Promise.all(
+          (comment.replies || []).map(async (reply) => {
+            let replyMentions: string[] | undefined = undefined;
+            if (reply.mentions) {
+              try {
+                if (Array.isArray(reply.mentions)) {
+                  replyMentions = reply.mentions as string[];
+                } else if (typeof reply.mentions === 'string') {
+                  replyMentions = JSON.parse(reply.mentions);
+                }
+              } catch (e) {
+                console.error('Error parsing reply mentions:', e);
+              }
+            }
+
+            // Formatear contenido de la respuesta
+            const formattedReplyContent = await this.formatCommentContent(
+              reply.content,
+              replyMentions
+            );
+
+            return {
+              id: reply.id,
+              userId: reply.customerId,
+              content: formattedReplyContent,
+              parentId: reply.parentId,
+              likesCount: reply.likesCount,
+              createdAt: reply.createdAt.toISOString(),
+              author: this.mapUserToPosterAuthorDTO(reply.customer),
+              mentions: replyMentions,
+            };
+          })
+        );
 
         return {
           id: comment.id,
           userId: comment.customerId,
-          content: comment.content,
+          content: formattedContent,
           parentId: comment.parentId,
           likesCount: comment.likesCount,
           createdAt: comment.createdAt.toISOString(),
@@ -384,7 +399,11 @@ export class PostersService {
           mentions: mentionsArray,
           replies: repliesArray,
         };
-      }),
+      })
+    );
+
+    return {
+      comments: formattedComments,
       hasMore: skip + comments.length < total,
       total,
     };
@@ -569,19 +588,73 @@ export class PostersService {
    * El frontend envía menciones como @displayName|userId para mostrar nombre pero guardar ID
    * Retorna array de userIds mencionados
    */
+  /**
+   * Formatear contenido de comentario reemplazando @{userId} con nombres actuales
+   */
+  private async formatCommentContent(content: string, mentionedUserIds?: string[]): Promise<string> {
+    if (!content) return content;
+
+    // Si no hay menciones, devolver el contenido tal cual
+    if (!mentionedUserIds || mentionedUserIds.length === 0) {
+      return content;
+    }
+
+    // Obtener información de usuarios mencionados
+    const users = await prisma.user.findMany({
+      where: { id: { in: mentionedUserIds } },
+      select: { 
+        id: true, 
+        firstName: true, 
+        lastName: true, 
+        username: true 
+      },
+    });
+
+    let formattedContent = content;
+
+    // Reemplazar cada marcador @{userId} con el nombre actual del usuario
+    users.forEach(user => {
+      const displayName = user.firstName && user.lastName
+        ? `${user.firstName} ${user.lastName}`
+        : (user.username || 'Usuario');
+      
+      // Reemplazar todos los marcadores de este usuario
+      const mentionMarker = `@{${user.id}}`;
+      formattedContent = formattedContent.replace(
+        new RegExp(mentionMarker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+        `@${displayName}`
+      );
+    });
+
+    // También soportar formato legacy: @displayName|userId y @userId
+    // Reemplazar formato legacy @displayName|userId con solo el nombre actual
+    const legacyRegex = /@([^|@]+?)\|([a-zA-Z0-9_-]{20,})/g;
+    formattedContent = formattedContent.replace(legacyRegex, (match, displayName, userId) => {
+      const user = users.find(u => u.id === userId);
+      if (user) {
+        const currentDisplayName = user.firstName && user.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : (user.username || 'Usuario');
+        return `@${currentDisplayName}`;
+      }
+      return match; // Si no se encuentra el usuario, mantener el formato original
+    });
+
+    return formattedContent;
+  }
+
   private async extractMentions(content: string): Promise<string[]> {
-    // Regex para encontrar menciones: @displayName|userId o @userId (formato legacy)
-    // Formato nuevo: @nombre|userId (permite espacios en el nombre)
-    // Formato legacy: @userId (para compatibilidad)
-    // Cambiado [^|@\s]+ a [^|@]+ para permitir espacios en nombres
-    const mentionRegex = /@([^|@]+?)\|([a-zA-Z0-9_-]{20,})|@([a-zA-Z0-9_-]{20,})/g;
+    // Regex para encontrar menciones en formato: @{userId}
+    // También soporta formato legacy: @displayName|userId y @userId para compatibilidad
+    const mentionRegex = /@\{([a-zA-Z0-9_-]+)\}|@([^|@]+?)\|([a-zA-Z0-9_-]{20,})|@([a-zA-Z0-9_-]{20,})/g;
     const matches = content.matchAll(mentionRegex);
     const mentionedUserIds: string[] = [];
 
     for (const match of matches) {
-      // match[2] es userId del formato @nombre|userId
-      // match[3] es userId del formato legacy @userId
-      const userId = match[2] || match[3];
+      // match[1] es userId del formato nuevo @{userId}
+      // match[3] es userId del formato @nombre|userId
+      // match[4] es userId del formato legacy @userId
+      const userId = match[1] || match[3] || match[4];
       if (userId && !mentionedUserIds.includes(userId)) {
         mentionedUserIds.push(userId);
       }

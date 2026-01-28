@@ -8,6 +8,9 @@ import { useCartStore } from '@/lib/stores/cart-store'
 import { ProductModal } from '@/components/products/product-modal'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { WishlistSelectorModal } from '@/components/wishlists/wishlist-selector-modal'
+import { BookmarkIcon } from '@heroicons/react/24/outline'
+import { apiClient } from '@/lib/api/client'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { FeedItemDTO } from '@/types/api'
 
 interface ProductCardProps {
@@ -23,6 +26,8 @@ interface ProductCardProps {
       handle: string
     }
     handle?: string // Para navegación
+    likesCount?: number // Del feed optimizado
+    isLiked?: boolean // Del feed optimizado
   }
   onOpenModal?: (product: any) => void
   isLightMode?: boolean
@@ -37,6 +42,9 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isWishlistModalOpen, setIsWishlistModalOpen] = useState(false)
   const [imageError, setImageError] = useState(false)
+  const [isLiked, setIsLiked] = useState(product.isLiked ?? false)
+  const [likesCount, setLikesCount] = useState(product.likesCount ?? 0)
+  const [isTogglingLike, setIsTogglingLike] = useState(false)
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
 
@@ -72,6 +80,63 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
       }
     }
   }, [])
+
+  // Actualizar estado cuando cambian los props del feed
+  // Esto asegura que cuando se recarga el feed, los likes se actualicen correctamente
+  useEffect(() => {
+    // Siempre actualizar cuando cambia el product.id (nuevo producto o recarga)
+    // Actualizar likesCount si viene del feed
+    if (product.likesCount !== undefined) {
+      setLikesCount(product.likesCount)
+    } else {
+      // Si no viene del feed, mantener el estado actual
+    }
+    // Actualizar isLiked si viene del feed
+    if (product.isLiked !== undefined) {
+      setIsLiked(product.isLiked)
+    } else {
+      // Si no viene del feed, mantener el estado actual
+    }
+  }, [product.id, product.likesCount, product.isLiked])
+
+  // Manejar like/unlike
+  const handleToggleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    
+    if (!isAuthenticated) {
+      setIsModalOpen(true) // Abrir modal para que se autentique
+      return
+    }
+
+    if (isTogglingLike) return
+
+    setIsTogglingLike(true)
+    try {
+      if (isLiked) {
+        // Quitar like
+        const response = await apiClient.delete<{ liked: boolean; likesCount: number }>(
+          API_ENDPOINTS.PRODUCTS.UNLIKE(product.id)
+        )
+        if (response.success && response.data) {
+          setIsLiked(false)
+          setLikesCount(response.data.likesCount)
+        }
+      } else {
+        // Dar like
+        const response = await apiClient.post<{ liked: boolean; likesCount: number }>(
+          API_ENDPOINTS.PRODUCTS.LIKE(product.id)
+        )
+        if (response.success && response.data) {
+          setIsLiked(true)
+          setLikesCount(response.data.likesCount)
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error)
+    } finally {
+      setIsTogglingLike(false)
+    }
+  }
 
   // Cerrar menú al hacer clic fuera
   useEffect(() => {
@@ -209,8 +274,38 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
           )}
         </div>
 
-        {/* Botón de carrito */}
-        <div className="absolute bottom-2 right-2 z-10">
+        {/* Botones de acción (carrito y like) */}
+        <div className="absolute bottom-2 right-2 z-10 flex items-center gap-2">
+          {/* Botón de like */}
+          <button
+            className={`${
+              isLiked ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-800/80 hover:bg-gray-700/90'
+            } rounded-full p-2 transition-all duration-300 backdrop-blur-sm`}
+            onClick={handleToggleLike}
+            disabled={isTogglingLike || !isAuthenticated}
+            title={isLiked ? 'Quitar me gusta' : 'Me gusta'}
+          >
+            {isTogglingLike ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill={isLiked ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-white"
+              >
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            )}
+          </button>
+
+          {/* Botón de carrito */}
           <button
             className="bg-[#3B9BC3] hover:bg-[#3B9BC3] rounded-full px-2.5 py-1 transition-all duration-300 shadow-lg border-0"
             style={{
@@ -302,7 +397,8 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
                       }}
                       className="w-full px-4 py-2 text-left text-sm text-white hover:bg-gray-800 transition-colors"
                     >
-                      💝 Agregar a wishlist
+                      <BookmarkIcon className="w-4 h-4 inline mr-2" />
+                      Agregar a wishlist
                     </button>
                   )}
                 </div>
@@ -312,9 +408,9 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
         </div>
       </div>
 
-      {/* Contenedor de precio y rating */}
+      {/* Contenedor de precio y likes */}
       <div className="p-2 sm:p-2.5 md:p-3 bg-gray-700/30">
-        {/* Precio con estrella y rating */}
+        {/* Precio con corazón y contador de likes */}
         <div className="flex items-center gap-2 mb-1">
           {product.price && (
             <span
@@ -327,31 +423,30 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
           <div className="flex items-center gap-1">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
               fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-red-500"
             >
-              <path
-                d="M9.87223 0L12.2028 7.38373H19.7447L13.6432 11.9471L15.9738 19.3309L9.87223 14.7675L3.77071 19.3309L6.10128 11.9471L-0.00024128 7.38373H7.54166L9.87223 0Z"
-                fill="#FEF580"
-              />
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
-            <span className="text-sm font-semibold text-[#FEF580]">4.8</span>
+            <span className="text-sm font-semibold text-gray-300">{likesCount}</span>
           </div>
         </div>
 
         {/* Nombre del producto */}
         <h3
-          className={`text-xs sm:text-sm md:text-base font-normal mb-1 line-clamp-2 ${
+          className={`text-xs sm:text-sm md:text-base font-normal line-clamp-2 ${
             isLightMode ? 'text-gray-800' : 'text-gray-300'
           }`}
         >
           {product.title}
         </h3>
-
-        {/* 20% OFF */}
-        <div className="text-xs sm:text-sm font-semibold text-[#66DEDB]">20% OFF</div>
       </div>
 
       {/* Modal de Producto */}
@@ -382,6 +477,8 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     prevProps.product.id === nextProps.product.id &&
     prevProps.product.imageUrl === nextProps.product.imageUrl &&
     prevProps.product.price === nextProps.product.price &&
+    prevProps.product.likesCount === nextProps.product.likesCount &&
+    prevProps.product.isLiked === nextProps.product.isLiked &&
     prevProps.isLightMode === nextProps.isLightMode
   )
 })
