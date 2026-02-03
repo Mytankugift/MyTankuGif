@@ -2,6 +2,8 @@ import { prisma } from '../../config/database';
 import { OrdersService, CreateOrderInput } from '../orders/orders.service';
 import { DropiOrdersService } from '../orders/dropi-orders.service';
 import { CartService } from '../cart/cart.service';
+import { GiftService } from '../gifts/gift.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { BadRequestError, NotFoundError } from '../../shared/errors/AppError';
 import type { Prisma } from '@prisma/client';
 
@@ -50,11 +52,15 @@ export class CheckoutService {
   private ordersService: OrdersService;
   private dropiOrdersService: DropiOrdersService;
   private cartService: CartService;
+  private giftService: GiftService;
+  private notificationsService: NotificationsService;
 
   constructor() {
     this.ordersService = new OrdersService();
     this.dropiOrdersService = new DropiOrdersService();
     this.cartService = new CartService();
+    this.giftService = new GiftService();
+    this.notificationsService = new NotificationsService();
   }
 
   /**
@@ -191,10 +197,63 @@ export class CheckoutService {
       throw new BadRequestError('El carrito está vacío');
     }
 
+    // Obtener carrito completo de Prisma para verificar si es carrito de regalos
+    const cartFromDb = await prisma.cart.findUnique({
+      where: { id: dataCart.cart_id },
+      select: {
+        isGiftCart: true,
+        giftRecipientId: true,
+      },
+    });
+
+    const isGiftCart = cartFromDb?.isGiftCart || false;
+    const giftRecipientId = cartFromDb?.giftRecipientId || null;
+
     // Usar userId del parámetro (debe venir de auth middleware ahora)
     const finalUserId = userId;
     if (!finalUserId) {
       throw new BadRequestError('userId es requerido. Debes estar autenticado para completar el checkout.');
+    }
+
+    // Si es carrito de regalos, validar y obtener dirección del destinatario
+    if (isGiftCart) {
+      if (!giftRecipientId) {
+        throw new BadRequestError('El carrito de regalos no tiene un destinatario configurado');
+      }
+
+      // Validar que el destinatario puede recibir regalos y que el remitente puede enviar
+      const eligibility = await this.giftService.validateGiftRecipient(giftRecipientId, finalUserId);
+      if (!eligibility.canReceive) {
+        throw new BadRequestError(eligibility.reason || 'El destinatario no puede recibir regalos');
+      }
+      if (eligibility.canSendGift === false) {
+        throw new BadRequestError(eligibility.sendGiftReason || 'No puedes enviar regalos a este usuario');
+      }
+
+      // NO permitir contraentrega para regalos
+      if (dataForm.payment_method === 'cash_on_delivery') {
+        throw new BadRequestError('Los regalos solo se pueden pagar con Epayco. El método de pago contraentrega no está disponible para regalos.');
+      }
+
+      // Obtener dirección del destinatario (sin mostrarla al remitente)
+      const giftAddress = await this.giftService.getGiftAddress(giftRecipientId);
+      if (!giftAddress) {
+        throw new BadRequestError('El destinatario no tiene una dirección configurada para recibir regalos');
+      }
+
+      // Usar dirección del destinatario para el envío
+      // Sobrescribir shippingAddress con la dirección del destinatario
+      dataForm.shipping_address = {
+        first_name: giftAddress.firstName,
+        last_name: giftAddress.lastName,
+        phone: giftAddress.phone || '',
+        address_1: giftAddress.address1,
+        address_2: giftAddress.address2 || undefined,
+        city: giftAddress.city,
+        province: giftAddress.state,
+        postal_code: giftAddress.postalCode,
+        country_code: giftAddress.country,
+      };
     }
 
     // Si el carrito no tiene userId (carrito guest), asociarlo al usuario
@@ -304,9 +363,13 @@ export class CheckoutService {
         country: shippingAddress.country_code || 'CO',
       },
       items: orderItems,
+      isGiftOrder: isGiftCart,
+      giftSenderId: isGiftCart ? finalUserId : undefined,
+      giftRecipientId: isGiftCart ? giftRecipientId || undefined : undefined,
       metadata: {
         cart_id: dataCart.cart_id,
         billing_address: billingAddress,
+        isGiftCart: isGiftCart,
       },
     };
 
@@ -317,6 +380,22 @@ export class CheckoutService {
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
     });
+
+    // Si es orden de regalo, crear notificación para el destinatario
+    if (isGiftCart && giftRecipientId) {
+      try {
+        console.log(`🎁 [CHECKOUT] Creando notificación de regalo para destinatario: ${giftRecipientId}`);
+        await this.notificationsService.createGiftNotification(
+          giftRecipientId,
+          order.id,
+          finalUserId
+        );
+        console.log(`✅ [CHECKOUT] Notificación de regalo creada exitosamente`);
+      } catch (notificationError: any) {
+        // No fallar la creación de la orden si la notificación falla
+        console.error(`⚠️ [CHECKOUT] Error creando notificación de regalo:`, notificationError?.message);
+      }
+    }
 
     // Si es contra entrega, crear orden en Dropi inmediatamente
     if (dataForm.payment_method === 'cash_on_delivery') {

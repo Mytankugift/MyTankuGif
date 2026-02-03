@@ -34,5 +34,7 @@ export type CartDTO = {
   region?: any; // TODO: Implementar cuando tengamos regiones
   createdAt: string;
   updatedAt: string;
+  isGiftCart?: boolean; // Indica si es carrito de regalos
+  giftRecipientId?: string | null; // ID del usuario que recibirá el regalo
 };
 

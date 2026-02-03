@@ -37,16 +37,18 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
   const apiMessages = selectedConversationId ? getMessages(selectedConversationId) : []
   const socketMessages = selectedConversationId ? getSocketMessages(selectedConversationId) : []
   
-  const allMessages = [...apiMessages]
-  socketMessages.forEach(socketMsg => {
-    if (!allMessages.find(m => m.id === socketMsg.id) && socketMsg.senderId !== user?.id) {
-      allMessages.push(socketMsg)
-    }
-  })
-  
-  const messages = allMessages.sort((a, b) => 
-    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  )
+  // ✅ Usar useMemo para evitar recálculos innecesarios
+  const messages = useMemo(() => {
+    const allMessages = [...apiMessages]
+    socketMessages.forEach(socketMsg => {
+      if (!allMessages.find(m => m.id === socketMsg.id) && socketMsg.senderId !== user?.id) {
+        allMessages.push(socketMsg)
+      }
+    })
+    return allMessages.sort((a, b) => 
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    )
+  }, [apiMessages, socketMessages, user?.id])
 
   // Cargar mensajes cuando se selecciona una conversación
   useEffect(() => {
@@ -59,15 +61,40 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
         }
         
         fetchMessages(selectedConversationId).then(() => {
+          // Marcar como leído solo después de cargar los mensajes
+          // Esto asegura que el usuario realmente está viendo el chat
           if (markAsReadSocket) {
-            markAsRead(selectedConversationId, markAsReadSocket)
+            // Delay para asegurar que el chat está visible
+            setTimeout(() => {
+              markAsRead(selectedConversationId, markAsReadSocket)
+            }, 500)
           }
         }).catch((err) => {
           console.error('Error cargando mensajes:', err)
         })
       }
+      // NO marcar como leído si ya se cargó antes - solo cuando el usuario hace click en el chat
     }
   }, [selectedConversationId, isConnected, fetchMessages, joinConversation, markAsRead, markAsReadSocket])
+
+  // ✅ Marcar como leído cuando llegan nuevos mensajes y el chat está ABIERTO Y VISIBLE
+  // Solo marcar como leído si el dropdown está abierto Y hay un chat seleccionado
+  useEffect(() => {
+    // Solo marcar como leído si:
+    // 1. El dropdown está abierto (isOpen)
+    // 2. Hay un chat seleccionado (selectedConversationId)
+    // 3. Hay mensajes
+    // 4. El socket está disponible
+    if (isOpen && selectedConversationId && messages.length > 0 && markAsReadSocket) {
+      // Marcar como leído automáticamente cuando hay nuevos mensajes (por Socket)
+      const hasUnread = messages.some(msg => 
+        msg.senderId !== user?.id && msg.status !== 'READ'
+      )
+      if (hasUnread) {
+        markAsRead(selectedConversationId, markAsReadSocket)
+      }
+    }
+  }, [isOpen, messages, selectedConversationId, markAsReadSocket, user?.id, markAsRead])
 
   // Scroll al final
   useEffect(() => {
@@ -93,14 +120,18 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
   }, [isOpen])
 
   // Memoizar datos de cada conversación
+  // NO poner unreadCount = 0 solo por estar seleccionado
+  // El indicador debe desaparecer solo cuando realmente se marca como leído
   const conversationsData = useMemo(() => {
     return friendsConversations.map(conversation => {
       const allMessages = getAllMessagesForConversation(conversation.id)
+      // ✅ Calcular correctamente, sin forzar a 0 solo por estar seleccionado
+      const unreadCount = getUnreadCountForConversation(conversation.id, user?.id || '')
       return {
         conversation,
         lastMessage: allMessages[0]?.content || 'Sin mensajes',
         lastMessageTime: allMessages[0]?.createdAt || conversation.updatedAt,
-        unreadCount: getUnreadCountForConversation(conversation.id, user?.id || ''),
+        unreadCount,
       }
     })
   }, [friendsConversations, getAllMessagesForConversation, getUnreadCountForConversation, user?.id, lastReceivedMessage])
@@ -137,6 +168,20 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
   const handleSend = async () => {
     if (!message.trim() || !selectedConversationId || isSending) return
 
+    // Verificar que el socket esté conectado antes de enviar
+    if (!isConnected || !sendSocketMessage) {
+      console.error('Error: Socket no conectado')
+      // ✅ Mostrar mensaje al usuario en lugar de solo log
+      alert('El chat no está conectado. Por favor, espera un momento e intenta de nuevo.')
+      return
+    }
+
+    // Asegurar que el socket esté unido a la conversación antes de enviar
+    // Esto es importante para que las notificaciones funcionen correctamente
+    if (selectedConversationId && !selectedConversationId.startsWith('temp-')) {
+      joinConversation(selectedConversationId)
+    }
+
     const messageText = message.trim()
     setMessage('')
     if (textareaRef.current) {
@@ -145,11 +190,9 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
     
     setIsSending(true)
     try {
-      if (isConnected) {
-        sendSocketMessage(selectedConversationId, messageText)
-      } else {
-        await sendMessageChat(selectedConversationId, messageText, 'TEXT', sendSocketMessage)
-      }
+      // Siempre usar sendMessageChat que maneja los mensajes optimistas correctamente
+      // Pasar markAsReadSocket para que marque como leído automáticamente al enviar
+      await sendMessageChat(selectedConversationId, messageText, 'TEXT', sendSocketMessage, markAsReadSocket)
     } catch (error) {
       console.error('Error enviando mensaje:', error)
       setMessage(messageText)
@@ -333,11 +376,9 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
                           </div>
                         )}
                       </div>
-                      {/* Badge de no leídos */}
+                      {/* Badge azul Tanku de mensajes no leídos (sin número, solo indicador) */}
                       {unreadCount > 0 && (
-                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#66DEDB] rounded-full border-2 border-gray-900 flex items-center justify-center">
-                          <span className="text-xs font-bold text-gray-900">{unreadCount > 9 ? '9+' : unreadCount}</span>
-                        </div>
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#66DEDB] rounded-full border-2 border-gray-900"></div>
                       )}
                     </div>
 

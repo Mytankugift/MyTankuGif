@@ -31,9 +31,10 @@ interface PosterCardProps {
   }
   onOpenModal?: (poster: any) => void
   isLightMode?: boolean
+  isAboveFold?: boolean // ✅ Nuevo prop para indicar si está visible sin scroll
 }
 
-export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLightMode = false }: PosterCardProps) {
+export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLightMode = false, isAboveFold = false }: PosterCardProps) {
   const router = useRouter()
   const { token } = useAuthStore()
   const [activeMedia, setActiveMedia] = useState<'image' | 'video'>('image')
@@ -239,12 +240,13 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
                       objectFit: 'cover',
                     }}
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 25vw"
+                    loading={isAboveFold ? "eager" : "lazy"}
                     onError={() => {
                       console.warn('[PosterCard] Error cargando imagen:', poster.imageUrl)
                       setImageError(true)
                     }}
                     unoptimized={poster.imageUrl?.includes('.gif')}
-                    priority={false}
+                    priority={isAboveFold}
                   />
                 ) : (
                   <div 

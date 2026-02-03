@@ -69,7 +69,16 @@ export function CartSummary({ cart, selectedItems }: CartSummaryProps) {
       </div>
 
       {/* Botón de checkout */}
-      <Link href={selectedItems && selectedItems.size > 0 ? `/checkout?items=${Array.from(selectedItems).join(',')}` : '/checkout'} className="mt-4">
+      <Link 
+        href={
+          cart.isGiftCart 
+            ? `/checkout/gift?cartId=${cart.id}`
+            : selectedItems && selectedItems.size > 0 
+              ? `/checkout?items=${Array.from(selectedItems).join(',')}` 
+              : '/checkout'
+        } 
+        className="mt-4"
+      >
         <Button 
           disabled={selectedItems ? selectedItems.size === 0 : false}
           className="w-full bg-[#66DEDB] hover:bg-[#5accc9] text-black font-semibold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"

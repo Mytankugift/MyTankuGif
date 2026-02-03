@@ -6,18 +6,28 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useWishLists } from '@/lib/hooks/use-wishlists'
 import { useCartStore } from '@/lib/stores/cart-store'
+import { useAuthStore } from '@/lib/stores/auth-store'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { WishlistProductsModal } from './wishlist-products-modal'
 import { ShareWishlistModal } from './share-wishlist-modal'
 import { WishlistAccessManager } from './wishlist-access-manager'
+import { apiClient } from '@/lib/api/client'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { WishListDTO } from '@/types/api'
+
+interface RecommendedWishlist {
+  name: string
+  description: string
+}
 
 export function MyWishlists() {
   const { wishLists, fetchWishLists, createWishList, deleteWishList, updateWishList, removeItemFromWishList, isLoading } =
     useWishLists()
   const { addItem } = useCartStore()
+  const { user } = useAuthStore()
   const [selectedWishlist, setSelectedWishlist] = useState<WishListDTO | null>(null)
   const [shareWishlist, setShareWishlist] = useState<WishListDTO | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -29,10 +39,42 @@ export function MyWishlists() {
   const inFlightKeysRef = useRef<Set<string>>(new Set())
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
   const confirmDeleteRef = useRef<HTMLDivElement>(null)
+  const [recommendedWishlists, setRecommendedWishlists] = useState<RecommendedWishlist[]>([])
+  const [showRecommendedWishlists, setShowRecommendedWishlists] = useState(false)
 
   useEffect(() => {
     fetchWishLists()
+    loadRecommendedWishlists()
   }, [fetchWishLists])
+
+  const loadRecommendedWishlists = async () => {
+    try {
+      const response = await apiClient.get<RecommendedWishlist[]>(API_ENDPOINTS.WISHLISTS.RECOMMENDED)
+      if (response.success && response.data) {
+        setRecommendedWishlists(Array.isArray(response.data) ? response.data : [])
+      }
+    } catch (error) {
+      console.error('Error al cargar wishlists recomendadas:', error)
+    }
+  }
+
+  const handleShowRecommendedWishlists = () => {
+    setShowRecommendedWishlists(true)
+  }
+
+  const handleCloseRecommendedWishlists = () => {
+    setShowRecommendedWishlists(false)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tanku_hide_recommended_wishlists', 'true')
+    }
+  }
+
+  const useRecommendedWishlist = (recommended: RecommendedWishlist) => {
+    setNewName(recommended.name)
+    setIsPublic(false) // Por defecto privada
+    setIsCreateModalOpen(true)
+    setShowRecommendedWishlists(false)
+  }
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -154,13 +196,51 @@ export function MyWishlists() {
       {/* Header con acción crear (minimalista) */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-[#66DEDB]">Mis Wishlists</h2>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="text-sm text-[#73FFA2] hover:text-[#66DEDB] transition-colors"
-        >
-          + Crear wishlist
-        </button>
+        <div className="flex gap-2">
+          {/* Botón de sugerencias - siempre visible si hay sugerencias */}
+          {recommendedWishlists.length > 0 && !showRecommendedWishlists && (
+            <button
+              onClick={handleShowRecommendedWishlists}
+              className="text-sm text-gray-400 hover:text-[#73FFA2] transition-colors"
+            >
+              Ver Sugerencias
+            </button>
+          )}
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="text-sm text-[#73FFA2] hover:text-[#66DEDB] transition-colors"
+          >
+            + Crear wishlist
+          </button>
+        </div>
       </div>
+
+      {/* Wishlists recomendadas */}
+      {showRecommendedWishlists && recommendedWishlists.length > 0 && (
+        <div className="bg-gray-800/50 rounded-lg p-3 relative">
+          <button
+            onClick={handleCloseRecommendedWishlists}
+            className="absolute top-2 right-2 text-gray-500 hover:text-gray-300 transition-colors"
+            title="Cerrar"
+          >
+            <XMarkIcon className="w-4 h-4" />
+          </button>
+          <h4 className="text-xs font-medium text-gray-400 mb-2 pr-6">Sugerencias</h4>
+          <div className="flex flex-wrap gap-1.5">
+            {recommendedWishlists.map((rec, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  useRecommendedWishlist(rec)
+                }}
+                className="text-left px-2.5 py-1.5 rounded bg-gray-700/50 hover:bg-gray-700 transition-colors text-xs"
+              >
+                <div className="text-white font-medium">{rec.name}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Lista de wishlists */}
       {wishLists.length === 0 ? (
@@ -387,6 +467,7 @@ export function MyWishlists() {
                               width={14}
                               height={14}
                               className="object-contain"
+                              style={{ width: 'auto', height: 'auto' }}
                             />
                           </button>
                           {/* Basurita */}
@@ -492,6 +573,8 @@ export function MyWishlists() {
           isOpen={!!selectedWishlist}
           onClose={() => setSelectedWishlist(null)}
           onRemoveItem={handleRemoveItem}
+          wishlistOwnerId={user?.id}
+          isOwnWishlist={true}
         />
       )}
       

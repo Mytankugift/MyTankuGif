@@ -128,6 +128,8 @@ export class CartService {
       total: subtotal, // Por ahora total = subtotal (sin envío ni impuestos)
       createdAt: cart.createdAt.toISOString(),
       updatedAt: cart.updatedAt.toISOString(),
+      isGiftCart: cart.isGiftCart,
+      giftRecipientId: cart.giftRecipientId,
     };
   }
 
@@ -165,11 +167,15 @@ export class CartService {
   /**
    * Obtener carrito del usuario autenticado (NUEVO - Normalizado)
    * Si no hay carrito del usuario, busca carritos guest y los asocia al usuario
+   * Prioriza carritos normales (no de regalos)
    */
   async getUserCart(userId: string): Promise<CartDTO | null> {
-    // Primero buscar carrito del usuario
+    // Primero buscar carrito NORMAL del usuario (no de regalos)
     let cart = await prisma.cart.findFirst({
-      where: { userId },
+      where: { 
+        userId,
+        isGiftCart: false, // Solo buscar carritos normales
+      },
       include: {
         items: {
           include: {
@@ -253,6 +259,69 @@ export class CartService {
 
     if (!cart) {
       return null;
+    }
+
+    return this.mapCartToDTO(cart);
+  }
+
+  /**
+   * Obtener el ÚNICO carrito de regalos del usuario (o crear uno vacío si no existe)
+   * Cada usuario tiene UN SOLO carrito de regalos que puede contener productos para un destinatario
+   */
+  async getUserGiftCart(userId: string): Promise<CartDTO> {
+    // Buscar el ÚNICO carrito de regalos del usuario (sin filtrar por recipientId)
+    let cart = await prisma.cart.findFirst({
+      where: {
+        userId,
+        isGiftCart: true,
+      },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true,
+                warehouseVariants: {
+                  select: {
+                    stock: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc', // El más reciente
+      },
+    });
+
+    // Si no existe, crear uno nuevo vacío
+    if (!cart) {
+      console.log(`🆕 [CART] Creando nuevo carrito de regalos vacío para usuario ${userId}`);
+      cart = await prisma.cart.create({
+        data: {
+          userId,
+          isGiftCart: true,
+          giftRecipientId: null, // Se establecerá cuando se agregue el primer item
+        },
+        include: {
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: true,
+                  warehouseVariants: {
+                    select: {
+                      stock: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
     }
 
     return this.mapCartToDTO(cart);
@@ -420,6 +489,7 @@ export class CartService {
    * 4. Validar stock suficiente
    * 5. Si el item ya existe, sumar quantity (usar update)
    * 6. Si no existe, crear nuevo CartItem
+   * 7. NO permitir agregar items normales a carritos de regalos
    */
   async addItemToCartNormalized(
     cartId: string,
@@ -427,6 +497,20 @@ export class CartService {
     quantity: number,
     userId?: string
   ): Promise<CartDTO> {
+    // Verificar que el carrito no sea de regalos
+    const existingCart = await prisma.cart.findUnique({
+      where: { id: cartId },
+      select: { isGiftCart: true, userId: true },
+    });
+
+    // Si el carrito es de regalos, crear un nuevo carrito normal
+    if (existingCart && existingCart.isGiftCart) {
+      console.log(`⚠️ [CART] Intentando agregar item normal a carrito de regalos ${cartId}, creando nuevo carrito normal...`);
+      const newCart = await this.createCartNormalized(userId);
+      cartId = newCart.id;
+      console.log(`✅ [CART] Nuevo carrito normal creado: ${newCart.id}`);
+    }
+
     // Reutilizar lógica existente pero retornar DTO
     const cartResponse = await this.addItemToCart(cartId, variantId, quantity, userId);
     const cart = await prisma.cart.findUnique({
@@ -707,6 +791,8 @@ export class CartService {
   ): Promise<CartDTO> {
     // Reutilizar lógica existente pero retornar DTO
     const cartResponse = await this.deleteCartItem(cartId, itemId);
+    
+    // Obtener carrito actualizado (ya con giftRecipientId reseteado si quedó vacío)
     const cart = await prisma.cart.findUnique({
       where: { id: cartResponse.id },
       include: {
@@ -760,11 +846,341 @@ export class CartService {
 
     console.log(`✅ [CART-SERVICE] Item eliminado: id=${lineId}, cartId=${cartId}`);
 
+    // Verificar si el carrito quedó vacío y es un carrito de regalos
+    // Si es así, resetear giftRecipientId para permitir agregar items para otro destinatario
+    const cartAfterDelete = await prisma.cart.findUnique({
+      where: { id: cartId },
+      include: {
+        items: true,
+      },
+    });
+
+    if (cartAfterDelete && cartAfterDelete.isGiftCart && cartAfterDelete.items.length === 0) {
+      // El carrito de regalos quedó vacío, resetear giftRecipientId
+      console.log(`🔄 [CART-SERVICE] Carrito de regalos vacío, reseteando giftRecipientId para cartId=${cartId}`);
+      await prisma.cart.update({
+        where: { id: cartId },
+        data: {
+          giftRecipientId: null,
+        },
+      });
+    }
+
     // Retornar carrito actualizado
     const updatedCart = await this.getCartById(cartId);
     if (!updatedCart) {
       throw new Error('Error al obtener carrito actualizado');
     }
     return updatedCart;
+  }
+
+  /**
+   * Obtener o crear carrito de regalos para un destinatario específico
+   * 
+   * @param senderId - ID del usuario que envía el regalo
+   * @param recipientId - ID del usuario que recibirá el regalo
+   * @returns Carrito de regalos (DTO)
+   */
+  async getGiftCart(senderId: string, recipientId: string): Promise<CartDTO | null> {
+    // Buscar carrito de regalos existente para este destinatario
+    let cart = await prisma.cart.findFirst({
+      where: {
+        userId: senderId,
+        isGiftCart: true,
+        giftRecipientId: recipientId,
+      },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true,
+                warehouseVariants: {
+                  select: {
+                    stock: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    // Si no existe, crear uno nuevo
+    if (!cart) {
+      cart = await prisma.cart.create({
+        data: {
+          userId: senderId,
+          isGiftCart: true,
+          giftRecipientId: recipientId,
+        },
+        include: {
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: true,
+                  warehouseVariants: {
+                    select: {
+                      stock: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    return this.mapCartToDTO(cart);
+  }
+
+  /**
+   * Validar consistencia del carrito de regalos
+   * Verifica que todos los items sean para el mismo destinatario
+   * 
+   * @param cartId - ID del carrito
+   * @param recipientId - ID del destinatario esperado
+   * @throws BadRequestError si el carrito tiene items para otro destinatario
+   */
+  async validateGiftCartConsistency(cartId: string, recipientId: string): Promise<void> {
+    const cart = await prisma.cart.findUnique({
+      where: { id: cartId },
+    });
+
+    if (!cart) {
+      throw new NotFoundError('Carrito no encontrado');
+    }
+
+    if (!cart.isGiftCart) {
+      throw new BadRequestError('Este carrito no es un carrito de regalos');
+    }
+
+    if (cart.giftRecipientId && cart.giftRecipientId !== recipientId) {
+      throw new BadRequestError(
+        `Este carrito contiene productos para otro destinatario. Por favor, limpia el carrito antes de agregar productos para un destinatario diferente.`
+      );
+    }
+  }
+
+  /**
+   * Agregar item al carrito de regalos
+   * 
+   * @param cartId - ID del carrito (opcional, si no existe se crea)
+   * @param variantId - ID de la variante del producto
+   * @param quantity - Cantidad
+   * @param senderId - ID del usuario que envía el regalo
+   * @param recipientId - ID del usuario que recibirá el regalo
+   * @returns Carrito actualizado (DTO)
+   */
+  async addItemToGiftCart(
+    cartId: string | null,
+    variantId: string,
+    quantity: number,
+    senderId: string,
+    recipientId: string
+  ): Promise<CartDTO> {
+    // Validar que el destinatario puede recibir regalos y que el remitente puede enviar
+    const { GiftService } = await import('../gifts/gift.service');
+    const giftService = new GiftService();
+    const eligibility = await giftService.validateGiftRecipient(recipientId, senderId);
+
+    if (!eligibility.canReceive) {
+      throw new BadRequestError(eligibility.reason || 'Este usuario no puede recibir regalos');
+    }
+
+    if (eligibility.canSendGift === false) {
+      throw new BadRequestError(eligibility.sendGiftReason || 'No puedes enviar regalos a este usuario');
+    }
+
+    // Buscar el ÚNICO carrito de regalos del usuario
+    let cart: any;
+    
+    if (cartId) {
+      // Si se pasó un cartId, validar que sea el carrito de regalos del usuario
+      cart = await prisma.cart.findUnique({
+        where: { id: cartId },
+        include: {
+          items: true, // Incluir items para verificar si está vacío
+        },
+      });
+
+      if (!cart) {
+        throw new NotFoundError('Carrito no encontrado');
+      }
+
+      if (cart.userId !== senderId || !cart.isGiftCart) {
+        throw new BadRequestError('Este no es tu carrito de regalos');
+      }
+
+      // Validar que el destinatario sea el mismo o permitir cambiar si está vacío
+      const isEmpty = !cart.items || cart.items.length === 0;
+      
+      // Si el carrito tiene otro destinatario y tiene items, lanzar error para que el frontend muestre el modal
+      if (cart.giftRecipientId && cart.giftRecipientId !== recipientId && !isEmpty) {
+        // Lanzar error que el frontend ya maneja con el modal de confirmación
+        throw new BadRequestError('DIFFERENT_RECIPIENT');
+      }
+      
+      // Si el carrito tiene otro destinatario pero está vacío, limpiar el giftRecipientId
+      // O si el carrito tiene items pero el frontend ya limpió (isEmpty es true después de limpiar)
+      if (cart.giftRecipientId && cart.giftRecipientId !== recipientId) {
+        if (isEmpty) {
+          // Carrito vacío: limpiar giftRecipientId y establecer el nuevo
+          console.log(`🔄 [CART] Carrito vacío con otro destinatario, cambiando giftRecipientId de ${cart.giftRecipientId} a ${recipientId}`);
+          cart = await prisma.cart.update({
+            where: { id: cart.id },
+            data: {
+              giftRecipientId: recipientId,
+            },
+          });
+        } else {
+          // Esto no debería pasar porque el backend lanzaría DIFFERENT_RECIPIENT antes
+          // Pero por si acaso, eliminar items y cambiar destinatario
+          console.log(`🔄 [CART] Carrito con items para otro destinatario, eliminando items y cambiando giftRecipientId`);
+          await prisma.cartItem.deleteMany({
+            where: { cartId: cart.id },
+          });
+          cart = await prisma.cart.update({
+            where: { id: cart.id },
+            data: {
+              giftRecipientId: recipientId,
+            },
+          });
+        }
+      }
+    } else {
+      // Buscar el ÚNICO carrito de regalos del usuario
+      cart = await prisma.cart.findFirst({
+        where: {
+          userId: senderId,
+          isGiftCart: true,
+        },
+      });
+
+      if (cart) {
+        // Si existe y tiene otro destinatario, lanzar error
+        if (cart.giftRecipientId && cart.giftRecipientId !== recipientId) {
+          throw new BadRequestError('DIFFERENT_RECIPIENT');
+        }
+        
+        // Si existe y está vacío o tiene el mismo destinatario, usarlo
+        console.log(`🔄 [CART] Reutilizando carrito de regalos existente: ${cart.id}`);
+      } else {
+        // Si no existe, crear uno nuevo
+        console.log(`🆕 [CART] Creando nuevo carrito de regalos para usuario ${senderId}`);
+        cart = await prisma.cart.create({
+          data: {
+            userId: senderId,
+            isGiftCart: true,
+            giftRecipientId: recipientId,
+          },
+        });
+      }
+    }
+
+    // Si el carrito no tiene destinatario aún, establecerlo
+    if (!cart.giftRecipientId) {
+      cart = await prisma.cart.update({
+        where: { id: cart.id },
+        data: {
+          giftRecipientId: recipientId,
+        },
+      });
+    }
+
+    // Verificar que la variante existe
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: variantId },
+      include: { 
+        product: true,
+        warehouseVariants: {
+          select: {
+            stock: true,
+          },
+        },
+      },
+    });
+
+    if (!variant) {
+      throw new NotFoundError('Variante de producto no encontrada');
+    }
+
+    if (!variant.active) {
+      throw new BadRequestError('La variante no está disponible');
+    }
+
+    // Calcular stock
+    const totalStock = variant.warehouseVariants?.reduce(
+      (sum, wv) => sum + (wv.stock || 0),
+      0
+    ) || 0;
+
+    if (totalStock < quantity) {
+      throw new BadRequestError('Stock insuficiente');
+    }
+
+    // Buscar si el item ya existe en el carrito
+    const existingItem = await prisma.cartItem.findFirst({
+      where: {
+        cartId: cart.id,
+        variantId: variantId,
+      },
+    });
+
+    if (existingItem) {
+      // Si existe, sumar quantity
+      const newQuantity = existingItem.quantity + quantity;
+      
+      if (totalStock < newQuantity) {
+        throw new BadRequestError(`Stock insuficiente. Disponible: ${totalStock}, solicitado: ${newQuantity}`);
+      }
+      
+      await prisma.cartItem.update({
+        where: { id: existingItem.id },
+        data: { quantity: newQuantity },
+      });
+    } else {
+      // Si no existe, crear nuevo item
+      await prisma.cartItem.create({
+        data: {
+          cartId: cart.id,
+          variantId: variantId,
+          quantity: quantity,
+        },
+      });
+    }
+
+    // Retornar carrito actualizado como DTO
+    const updatedCart = await prisma.cart.findUnique({
+      where: { id: cart.id },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true,
+                warehouseVariants: {
+                  select: {
+                    stock: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!updatedCart) {
+      throw new Error('Error al obtener carrito actualizado');
+    }
+
+    return this.mapCartToDTO(updatedCart);
   }
 }

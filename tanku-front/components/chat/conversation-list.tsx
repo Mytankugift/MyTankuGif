@@ -24,16 +24,17 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
   const conversationsData = useMemo(() => {
     return friendsConversations.map(conversation => {
       const allMessages = getAllMessagesForConversation(conversation.id)
+      // ✅ Calcular correctamente, sin forzar a 0 solo por estar seleccionado
+      // El indicador debe desaparecer solo cuando realmente se marca como leído
+      const unreadCount = getUnreadCountForConversation(conversation.id, user?.id || '')
       return {
         conversation,
         lastMessage: allMessages[0]?.content || 'Sin mensajes',
         lastMessageTime: allMessages[0]?.createdAt || conversation.updatedAt,
-        unreadCount: selectedConversationId === conversation.id 
-          ? 0 
-          : getUnreadCountForConversation(conversation.id, user?.id || ''),
+        unreadCount,
       }
     })
-  }, [friendsConversations, getAllMessagesForConversation, getUnreadCountForConversation, selectedConversationId, user?.id, lastReceivedMessage]) // ✅ lastReceivedMessage fuerza recálculo
+  }, [friendsConversations, getAllMessagesForConversation, getUnreadCountForConversation, user?.id, lastReceivedMessage]) // ✅ lastReceivedMessage fuerza recálculo
 
 
   const formatTime = (dateString: string) => {

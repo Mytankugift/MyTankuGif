@@ -10,8 +10,10 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useCartStore } from '@/lib/stores/cart-store'
+import { useGiftCart } from '@/lib/hooks/use-gift-cart'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { WishlistProductsModal } from './wishlist-products-modal'
+import { GiftCartConfirmationModal } from '@/components/gifts/gift-cart-confirmation-modal'
 import type { WishListDTO } from '@/types/api'
 
 interface UserAvatarWithHexagonProps {
@@ -108,12 +110,18 @@ interface SavedWishlist extends WishListDTO {
 export function SavedWishlistsViewer() {
   const { isAuthenticated, user } = useAuthStore()
   const { addItem } = useCartStore()
+  const { addToGiftCart, clearGiftCart } = useGiftCart()
+  const { cart } = useCartStore()
   const [savedWishlists, setSavedWishlists] = useState<SavedWishlist[]>([])
   const [selectedWishlist, setSelectedWishlist] = useState<SavedWishlist | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [confirmingUnsave, setConfirmingUnsave] = useState<string | null>(null)
   const confirmRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const [showGiftConfirmation, setShowGiftConfirmation] = useState(false)
+  const [pendingGiftItem, setPendingGiftItem] = useState<{ variantId: string; recipientId: string } | null>(null)
+  const [currentRecipientName, setCurrentRecipientName] = useState<string | null>(null)
+  const [newRecipientName, setNewRecipientName] = useState<string | null>(null)
 
   const fetchSavedWishlists = useCallback(async () => {
     if (!isAuthenticated || !user?.id) return
@@ -263,21 +271,98 @@ export function SavedWishlistsViewer() {
   }
 
   const handleAddToCartFromWishlistItem = async (item: SavedWishlist['items'][0]) => {
-    if (item.variantId) {
-      await addItem(item.variantId, 1)
+    try {
+      if (item.variantId) {
+        await addItem(item.variantId, 1)
+        return
+      }
+
+      const handle = item.product.handle
+      if (!handle) return
+      const fullProduct = await fetchProductByHandle(handle)
+      const variants = fullProduct?.variants || []
+      if (variants.length === 1) {
+        await addItem(variants[0].id, 1)
+        return
+      }
+
+      setSelectedWishlist((prev) => prev || null)
+    } catch (error: any) {
+      // Si el error es porque el carrito actual es de regalos
+      if (error.message === 'CART_IS_GIFT_CART') {
+        alert('Tienes productos en el carrito de regalos. Por favor, ve al carrito y finaliza tu compra de regalos antes de agregar productos a tu carrito normal, o limpia el carrito de regalos.')
+        return
+      }
+      console.error('Error agregando al carrito:', error)
+      alert(error.message || 'Error al agregar producto al carrito')
+    }
+  }
+
+  const handleSendAsGift = async (item: SavedWishlist['items'][0], wishlistOwnerId: string, skipConfirmation = false) => {
+    if (!item.variantId) {
+      alert('Este producto no tiene variante seleccionada')
       return
     }
 
-    const handle = item.product.handle
-    if (!handle) return
-    const fullProduct = await fetchProductByHandle(handle)
-    const variants = fullProduct?.variants || []
-    if (variants.length === 1) {
-      await addItem(variants[0].id, 1)
-      return
+    try {
+      await addToGiftCart(item.variantId, wishlistOwnerId, 1)
+      alert('Producto agregado al carrito de regalos')
+      setShowGiftConfirmation(false)
+      setPendingGiftItem(null)
+    } catch (error: any) {
+      // Si el error es por tener otro destinatario, mostrar confirmación (no es un error real)
+      if (error.message === 'DIFFERENT_RECIPIENT' && !skipConfirmation) {
+        setPendingGiftItem({ variantId: item.variantId, recipientId: wishlistOwnerId })
+        setShowGiftConfirmation(true)
+        return
+      }
+      
+      // Solo loggear errores reales (no los esperados)
+      if (!error.isExpected) {
+        console.error('Error enviando como regalo:', error)
+      }
+      
+      alert(error.message || 'Error al enviar como regalo')
     }
+  }
 
-    setSelectedWishlist((prev) => prev || null)
+  const handleConfirmClearCart = async () => {
+    if (!pendingGiftItem) return
+    
+    try {
+      // Limpiar carrito primero
+      await clearGiftCart()
+      
+      // Esperar un momento para que el estado se actualice
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      // Verificar que el carrito esté limpio antes de agregar
+      const { cart: currentCart } = useCartStore.getState()
+      if (currentCart && currentCart.isGiftCart && currentCart.giftRecipientId) {
+        // Si todavía tiene isGiftCart, forzar la limpieza del estado
+        useCartStore.getState().setCart(null)
+        // Esperar un momento más
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
+      
+      // Luego agregar el nuevo producto
+      await handleSendAsGift(
+        { variantId: pendingGiftItem.variantId } as SavedWishlist['items'][0],
+        pendingGiftItem.recipientId,
+        true
+      )
+      setShowGiftConfirmation(false)
+      setPendingGiftItem(null)
+      setCurrentRecipientName(null)
+      setNewRecipientName(null)
+    } catch (error: any) {
+      console.error('Error al limpiar y agregar:', error)
+      alert(error.message || 'Error al procesar el regalo')
+      setShowGiftConfirmation(false)
+      setPendingGiftItem(null)
+      setCurrentRecipientName(null)
+      setNewRecipientName(null)
+    }
   }
 
   if (isLoading) {
@@ -473,7 +558,20 @@ export function SavedWishlistsViewer() {
                               width={14}
                               height={14}
                               className="object-contain"
+                              style={{ width: 'auto', height: 'auto' }}
                             />
+                          </button>
+                          {/* Enviar como regalo */}
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              await handleSendAsGift(item, wishlist.userId)
+                            }}
+                            className="p-1.5 rounded bg-black/30 hover:bg-black/50 transition-colors flex-shrink-0"
+                            aria-label="Enviar como regalo"
+                            title="Enviar como regalo"
+                          >
+                            <span className="text-[10px] text-[#66DEDB]">🎁</span>
                           </button>
                         </div>
                       </div>
@@ -504,8 +602,26 @@ export function SavedWishlistsViewer() {
           wishlist={selectedWishlist}
           isOpen={!!selectedWishlist}
           onClose={() => setSelectedWishlist(null)}
+          wishlistOwnerId={selectedWishlist.userId}
+          isOwnWishlist={false}
         />
       )}
+
+      {/* Modal de confirmación para carrito de regalos con otro destinatario */}
+      <GiftCartConfirmationModal
+        isOpen={showGiftConfirmation}
+        onConfirm={handleConfirmClearCart}
+        onCancel={() => {
+          setShowGiftConfirmation(false)
+          setPendingGiftItem(null)
+        }}
+        onGoToCart={() => {
+          // Navegar al carrito y cambiar al tab de regalos
+          window.location.href = '/cart'
+        }}
+        currentRecipientName={currentRecipientName || undefined}
+        newRecipientName={newRecipientName || undefined}
+      />
     </div>
   )
 }

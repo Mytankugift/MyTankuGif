@@ -400,6 +400,7 @@ export class UsersService {
       postalCode: address.postalCode,
       country: address.country,
       isDefaultShipping: address.isDefaultShipping,
+      isGiftAddress: address.isGiftAddress,
       metadata: address.metadata as Record<string, any> | undefined,
       createdAt: address.createdAt.toISOString(),
       updatedAt: address.updatedAt.toISOString(),
@@ -489,6 +490,7 @@ export class UsersService {
         postalCode: addressData.postalCode,
         country: addressData.country.toUpperCase() || 'CO',
         isDefaultShipping: addressData.isDefaultShipping || false,
+        isGiftAddress: addressData.isGiftAddress || false,
         metadata: addressData.metadata || undefined,
       },
     });
@@ -534,6 +536,7 @@ export class UsersService {
     if (addressData.postalCode !== undefined) updateData.postalCode = addressData.postalCode;
     if (addressData.country !== undefined) updateData.country = addressData.country.toUpperCase();
     if (addressData.isDefaultShipping !== undefined) updateData.isDefaultShipping = addressData.isDefaultShipping;
+    if (addressData.isGiftAddress !== undefined) updateData.isGiftAddress = addressData.isGiftAddress;
     if (addressData.metadata !== undefined) updateData.metadata = addressData.metadata;
 
     const address = await prisma.address.update({
@@ -648,6 +651,8 @@ export class UsersService {
       banner: profile.banner,
       bio: profile.bio,
       isPublic: profile.isPublic ?? true,
+      allowGiftShipping: profile.allowGiftShipping ?? false,
+      useMainAddressForGifts: profile.useMainAddressForGifts ?? false,
       socialLinks,
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),
@@ -683,6 +688,12 @@ export class UsersService {
     if (updateData.isPublic !== undefined) {
       updatePayload.isPublic = updateData.isPublic;
     }
+    if (updateData.allowGiftShipping !== undefined) {
+      updatePayload.allowGiftShipping = updateData.allowGiftShipping;
+    }
+    if (updateData.useMainAddressForGifts !== undefined) {
+      updatePayload.useMainAddressForGifts = updateData.useMainAddressForGifts;
+    }
     if (updateData.socialLinks !== undefined) {
       updatePayload.socialLinks = updateData.socialLinks;
       console.log('📝 [USERS] Guardando socialLinks:', JSON.stringify(updateData.socialLinks, null, 2));
@@ -692,6 +703,8 @@ export class UsersService {
       userId,
       bio: updateData.bio || null,
       isPublic: updateData.isPublic !== undefined ? updateData.isPublic : true,
+      allowGiftShipping: updateData.allowGiftShipping !== undefined ? updateData.allowGiftShipping : false,
+      useMainAddressForGifts: updateData.useMainAddressForGifts !== undefined ? updateData.useMainAddressForGifts : false,
     };
     
     if (updateData.socialLinks !== undefined) {

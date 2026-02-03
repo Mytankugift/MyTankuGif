@@ -7,12 +7,12 @@
 
 import React, { useState } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { CartButton } from '@/components/layout/cart-button'
 import { NotificationsButton } from '@/components/layout/notifications-button'
 import { MessagesDropdown } from '@/components/layout/messages-dropdown'
 import { useChat } from '@/lib/hooks/use-chat'
+import { useSocket } from '@/lib/hooks/use-socket'
 
 interface BaseNavProps {
   /** Si se muestra la sección de stories */
@@ -39,8 +39,12 @@ export function BaseNav({
 }: BaseNavProps) {
   const { isAuthenticated, user } = useAuthStore()
   // ✅ Obtener total de mensajes no leídos para badge
-  const { getTotalUnreadCount, lastReceivedMessage } = useChat()
-  const totalUnread = user ? getTotalUnreadCount(user.id) : 0
+  const { getTotalUnreadCount, lastReceivedMessage, conversations } = useChat()
+  const { socketMessages } = useSocket() // ✅ Agregar socketMessages para reactividad
+  // Usar useMemo para recalcular cuando cambia lastReceivedMessage o socketMessages
+  const totalUnread = React.useMemo(() => {
+    return user ? getTotalUnreadCount(user.id) : 0
+  }, [user, getTotalUnreadCount, lastReceivedMessage, socketMessages, conversations])
   const [isMessagesDropdownOpen, setIsMessagesDropdownOpen] = useState(false)
 
   const handleOpenChat = (conversationId: string) => {
@@ -82,32 +86,43 @@ export function BaseNav({
 
           {/* Right Icons */}
           <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center">
-            {/* Messages Icon */}
-            <Link
-              href="/messages"
-              className="relative flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
-            >
-              <Image
-                src="/feed/Icons/Chat_Green.png"
-                alt="Mensajes"
-                width={24}
-                height={24}
-                className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
-                unoptimized
-              />
-              <Image
-                src="/feed/Icons/Chat_Blue.png"
-                alt="Mensajes"
-                width={24}
-                height={24}
-                className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
-                unoptimized
-              />
-              {/* Badge azul Tanku de mensajes no leídos */}
-              {totalUnread > 0 && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#66DEDB] rounded-full border-2 border-[#1E1E1E]"></div>
+            {/* Messages Icon con Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsMessagesDropdownOpen(!isMessagesDropdownOpen)}
+                className="relative flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
+              >
+                <Image
+                  src="/feed/Icons/Chat_Green.png"
+                  alt="Mensajes"
+                  width={24}
+                  height={24}
+                  className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
+                  style={{ width: 'auto', height: 'auto' }}
+                  unoptimized
+                />
+                <Image
+                  src="/feed/Icons/Chat_Blue.png"
+                  alt="Mensajes"
+                  width={24}
+                  height={24}
+                  className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
+                  style={{ width: 'auto', height: 'auto' }}
+                  unoptimized
+                />
+                {/* Badge azul Tanku de mensajes no leídos */}
+                {totalUnread > 0 && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#66DEDB] rounded-full border-2 border-[#1E1E1E]"></div>
+                )}
+              </button>
+              {isAuthenticated && (
+                <MessagesDropdown
+                  isOpen={isMessagesDropdownOpen}
+                  onClose={() => setIsMessagesDropdownOpen(false)}
+                  onOpenChat={handleOpenChat}
+                />
               )}
-            </Link>
+            </div>
 
             {/* Notifications */}
             <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10">
@@ -137,6 +152,7 @@ export function BaseNav({
                 width={24}
                 height={24}
                 className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
+                style={{ width: 'auto', height: 'auto' }}
                 unoptimized
               />
               <Image
@@ -145,6 +161,7 @@ export function BaseNav({
                 width={24}
                 height={24}
                 className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
+                style={{ width: 'auto', height: 'auto' }}
                 unoptimized
               />
               {/* Badge azul Tanku de mensajes no leídos */}

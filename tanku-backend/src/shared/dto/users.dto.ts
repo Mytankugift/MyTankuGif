@@ -20,6 +20,7 @@ export type AddressDTO = {
   postalCode: string;
   country: string;
   isDefaultShipping: boolean;
+  isGiftAddress?: boolean;
   metadata?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +50,7 @@ export type CreateAddressDTO = {
   postalCode: string;
   country: string;
   isDefaultShipping?: boolean;
+  isGiftAddress?: boolean;
   metadata?: Record<string, any>;
 };
 
@@ -63,6 +65,7 @@ export type UpdateAddressDTO = {
   postalCode?: string;
   country?: string;
   isDefaultShipping?: boolean;
+  isGiftAddress?: boolean;
   metadata?: Record<string, any>;
 };
 
@@ -76,6 +79,8 @@ export type UserProfileDTO = {
   banner: string | null;
   bio: string | null;
   isPublic: boolean;
+  allowGiftShipping?: boolean;
+  useMainAddressForGifts?: boolean;
   socialLinks?: SocialLink[];
   createdAt: string;
   updatedAt: string;
@@ -84,6 +89,8 @@ export type UserProfileDTO = {
 export type UpdateUserProfileDTO = {
   bio?: string;
   isPublic?: boolean;
+  allowGiftShipping?: boolean;
+  useMainAddressForGifts?: boolean;
   socialLinks?: SocialLink[];
 };
 

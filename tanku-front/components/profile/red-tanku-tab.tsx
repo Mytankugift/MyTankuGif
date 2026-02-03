@@ -73,30 +73,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
     loadGroups()
     loadRecommendedGroups()
     loadFriends()
-    
-    // Verificar si el usuario cerró los grupos recomendados anteriormente
-    if (typeof window !== 'undefined') {
-      const hideRecommended = localStorage.getItem('tanku_hide_recommended_groups')
-      if (hideRecommended === 'true') {
-        setShowRecommendedGroups(false)
-      } else if (groups.length === 0) {
-        // Solo mostrar si no hay grupos y el usuario no los cerró antes
-        setShowRecommendedGroups(true)
-      }
-    }
   }, [userId])
-
-  // Actualizar visibilidad de grupos recomendados cuando cambian los grupos
-  useEffect(() => {
-    if (groups.length > 0) {
-      setShowRecommendedGroups(false)
-    } else if (typeof window !== 'undefined') {
-      const hideRecommended = localStorage.getItem('tanku_hide_recommended_groups')
-      if (hideRecommended !== 'true') {
-        setShowRecommendedGroups(true)
-      }
-    }
-  }, [groups.length])
 
   const loadGroups = async () => {
     try {
@@ -318,10 +295,11 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
           </p>
         </div>
         <div className="flex gap-2">
-          {groups.length === 0 && recommendedGroups.length > 0 && !showRecommendedGroups && (
+          {/* Botón de sugerencias - siempre visible si hay sugerencias */}
+          {recommendedGroups.length > 0 && !showRecommendedGroups && (
             <button
               onClick={handleShowRecommendedGroups}
-              className="bg-gray-700 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-600 transition-all flex items-center gap-2"
+              className="text-sm text-gray-400 hover:text-[#73FFA2] transition-colors"
             >
               Ver Sugerencias
             </button>
@@ -338,17 +316,17 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
       </div>
 
       {/* Grupos recomendados */}
-      {showRecommendedGroups && groups.length === 0 && recommendedGroups.length > 0 && (
-        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 relative">
+      {showRecommendedGroups && recommendedGroups.length > 0 && (
+        <div className="bg-gray-800/50 rounded-lg p-3 relative">
           <button
             onClick={handleCloseRecommendedGroups}
-            className="absolute top-2 right-2 text-gray-400 hover:text-white transition-colors"
+            className="absolute top-2 right-2 text-gray-500 hover:text-gray-300 transition-colors"
             title="Cerrar"
           >
-            <XMarkIcon className="w-5 h-5" />
+            <XMarkIcon className="w-4 h-4" />
           </button>
-          <h4 className="text-sm font-medium text-[#73FFA2] mb-3 pr-6">Grupos Recomendados</h4>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <h4 className="text-xs font-medium text-gray-400 mb-2 pr-6">Sugerencias</h4>
+          <div className="flex flex-wrap gap-1.5">
             {recommendedGroups.map((rec, index) => (
               <button
                 key={index}
@@ -356,10 +334,9 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                   useRecommendedGroup(rec)
                   setShowRecommendedGroups(false)
                 }}
-                className="text-left p-3 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
+                className="text-left px-2.5 py-1.5 rounded bg-gray-700/50 hover:bg-gray-700 transition-colors text-xs"
               >
-                <div className="text-sm font-medium text-white">{rec.name}</div>
-                <div className="text-xs text-gray-400 mt-1">{rec.description}</div>
+                <div className="text-white font-medium">{rec.name}</div>
               </button>
             ))}
           </div>

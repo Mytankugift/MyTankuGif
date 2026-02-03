@@ -35,6 +35,9 @@ export function FeedGrid({ items, onPosterClick }: FeedGridProps) {
         columnClassName="masonry-grid_column"
       >
         {items.map((item, index) => {
+          // ✅ Determinar si el item está "above the fold" (primeras 4-6 imágenes)
+          const isAboveFold = index < 6; // Primeras 6 imágenes cargan eager
+          
           if (item.type === 'product' && item.title) {
             return (
               <div 
@@ -55,6 +58,7 @@ export function FeedGrid({ items, onPosterClick }: FeedGridProps) {
                     isLiked: item.isLiked,
                   }}
                   isLightMode={false}
+                  isAboveFold={isAboveFold}
                 />
               </div>
             )
@@ -80,6 +84,7 @@ export function FeedGrid({ items, onPosterClick }: FeedGridProps) {
                   }}
                   onOpenModal={onPosterClick}
                   isLightMode={false}
+                  isAboveFold={isAboveFold}
                 />
               </div>
             )

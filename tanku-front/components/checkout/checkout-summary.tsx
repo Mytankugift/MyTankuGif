@@ -5,9 +5,10 @@ import type { Cart } from '@/types/api'
 
 interface CheckoutSummaryProps {
   cart: Cart
+  isGiftCart?: boolean
 }
 
-export function CheckoutSummary({ cart }: CheckoutSummaryProps) {
+export function CheckoutSummary({ cart, isGiftCart = false }: CheckoutSummaryProps) {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -28,6 +29,18 @@ export function CheckoutSummary({ cart }: CheckoutSummaryProps) {
   return (
     <div className="bg-gray-800/50 rounded-lg p-6">
       <h2 className="text-xl font-bold text-[#66DEDB] mb-4">Resumen del pedido</h2>
+      
+      {/* Mensaje si es regalo */}
+      {isGiftCart && (
+        <div className="mb-4 p-3 bg-[#66DEDB]/10 border border-[#66DEDB]/30 rounded-lg">
+          <p className="text-sm text-[#66DEDB] font-medium">
+            🎁 Enviando como regalo
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            El pedido será enviado a la dirección del destinatario
+          </p>
+        </div>
+      )}
 
       {/* Items */}
       <div className="space-y-4 mb-6">

@@ -66,6 +66,10 @@ function CheckoutContent() {
   // Método de pago
   const [paymentMethod, setPaymentMethod] = useState<string>('cash_on_delivery')
   const [email, setEmail] = useState(user?.email || '')
+  
+  // Detectar si es carrito de regalos
+  const isGiftCart = cart?.isGiftCart === true
+  const giftRecipientId = cart?.giftRecipientId
 
   // Cargar carrito y direcciones al montar
   useEffect(() => {
@@ -153,7 +157,9 @@ function CheckoutContent() {
       return
     }
 
-    if (!selectedAddress) {
+    // Para carritos normales, validar dirección
+    // Para carritos de regalos, la dirección se obtiene automáticamente del destinatario
+    if (!isGiftCart && !selectedAddress) {
       setButtonTooltip('Por favor selecciona o crea una dirección de envío')
       return
     }
@@ -163,7 +169,10 @@ function CheckoutContent() {
   }
 
   const handleConfirmOrder = async () => {
-    if (!cart || !selectedAddress) return
+    if (!cart) return
+    // Para carritos normales, validar dirección
+    // Para carritos de regalos, la dirección se obtiene automáticamente del destinatario
+    if (!isGiftCart && !selectedAddress) return
 
     console.log('[CHECKOUT] Iniciando confirmación de pedido')
     console.log('[CHECKOUT] Método de pago seleccionado:', paymentMethod)
@@ -217,19 +226,46 @@ function CheckoutContent() {
     setIsSubmitting(true)
 
     try {
-      // Preparar dataForm con la dirección seleccionada
+      // Preparar dataForm
+      // Para carritos de regalos, la dirección se obtiene automáticamente del destinatario en el backend
+      // Para carritos normales, usar la dirección seleccionada
       const dataForm: CheckoutOrderRequest = {
-        shipping_address: {
-          first_name: selectedAddress.firstName,
-          last_name: selectedAddress.lastName,
-          address_1: selectedAddress.address1,
-          address_2: selectedAddress.address2 || undefined,
-          city: selectedAddress.city,
-          province: selectedAddress.state,
-          postal_code: selectedAddress.postalCode,
-          country_code: selectedAddress.country,
-          phone: selectedAddress.phone || undefined,
-        },
+        shipping_address: isGiftCart && selectedAddress
+          ? {
+              // Para regalos, el backend ignorará esta dirección y usará la del destinatario
+              // Pero necesitamos enviar algo para que el tipo sea válido
+              first_name: selectedAddress.firstName,
+              last_name: selectedAddress.lastName,
+              address_1: selectedAddress.address1,
+              address_2: selectedAddress.address2 || undefined,
+              city: selectedAddress.city,
+              province: selectedAddress.state,
+              postal_code: selectedAddress.postalCode,
+              country_code: selectedAddress.country,
+              phone: selectedAddress.phone || undefined,
+            }
+          : selectedAddress
+          ? {
+              first_name: selectedAddress.firstName,
+              last_name: selectedAddress.lastName,
+              address_1: selectedAddress.address1,
+              address_2: selectedAddress.address2 || undefined,
+              city: selectedAddress.city,
+              province: selectedAddress.state,
+              postal_code: selectedAddress.postalCode,
+              country_code: selectedAddress.country,
+              phone: selectedAddress.phone || undefined,
+            }
+          : {
+              // Placeholder - no debería llegar aquí por las validaciones
+              first_name: '',
+              last_name: '',
+              address_1: '',
+              city: '',
+              province: '',
+              postal_code: '',
+              country_code: 'CO',
+            },
         email,
         payment_method: paymentMethod,
         cart_id: cart.id,
@@ -343,8 +379,8 @@ function CheckoutContent() {
               // Epayco añadirá automáticamente ref_payco como parámetro de query
               response: `${window.location.origin}/checkout/success`,
               confirmation: webhookUrl,
-              name_billing: selectedAddress.firstName || '',
-              mobilephone_billing: selectedAddress.phone || '',
+              name_billing: selectedAddress?.firstName || '',
+              mobilephone_billing: selectedAddress?.phone || '',
             }
 
             console.log('[EPAYCO] Opciones configuradas:', epaycoOptions)
@@ -403,12 +439,39 @@ function CheckoutContent() {
           }, 100)
         }
       } else {
-        setButtonTooltip(response.error?.message || 'Error al procesar el pedido')
+        // Mejorar mensajes de error para regalos
+        let errorMessage = response.error?.message || 'Error al procesar el pedido'
+        
+        if (isGiftCart) {
+          if (errorMessage.includes('contraentrega') || errorMessage.includes('cash_on_delivery')) {
+            errorMessage = 'Los regalos solo se pueden pagar con Epayco. El método de pago contraentrega no está disponible para regalos.'
+          } else if (errorMessage.includes('no puede recibir regalos') || errorMessage.includes('dirección')) {
+            errorMessage = 'El destinatario ya no puede recibir regalos o no tiene una dirección configurada. Por favor, verifica la configuración del destinatario.'
+          } else if (errorMessage.includes('No puedes enviar regalos')) {
+            errorMessage = 'No puedes enviar regalos a este usuario. Su perfil es privado y no eres su amigo.'
+          }
+        }
+        
+        setButtonTooltip(errorMessage)
         setShowConfirmationModal(false)
       }
     } catch (err: any) {
       console.error('Error en checkout:', err)
-      setButtonTooltip(err.message || 'Error al procesar el pedido')
+      
+      // Mejorar mensajes de error para regalos
+      let errorMessage = err.message || 'Error al procesar el pedido'
+      
+      if (isGiftCart) {
+        if (errorMessage.includes('contraentrega') || errorMessage.includes('cash_on_delivery')) {
+          errorMessage = 'Los regalos solo se pueden pagar con Epayco. El método de pago contraentrega no está disponible para regalos.'
+        } else if (errorMessage.includes('no puede recibir regalos') || errorMessage.includes('dirección')) {
+          errorMessage = 'El destinatario ya no puede recibir regalos o no tiene una dirección configurada. Por favor, verifica la configuración del destinatario.'
+        } else if (errorMessage.includes('No puedes enviar regalos')) {
+          errorMessage = 'No puedes enviar regalos a este usuario. Su perfil es privado y no eres su amigo.'
+        }
+      }
+      
+      setButtonTooltip(errorMessage)
       setShowConfirmationModal(false)
     } finally {
       if (paymentMethod !== 'epayco') {
@@ -440,6 +503,21 @@ function CheckoutContent() {
         <h1 className="text-3xl font-bold text-[#66DEDB]">Checkout</h1>
       </div>
 
+      {/* Mensaje si es carrito de regalos */}
+      {isGiftCart && (
+        <div className="mb-6 bg-[#66DEDB]/10 border border-[#66DEDB]/30 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🎁</span>
+            <div>
+              <p className="text-[#66DEDB] font-semibold">Enviando regalo</p>
+              <p className="text-sm text-gray-400">
+                Este pedido será enviado como regalo. La dirección de envío se obtendrá automáticamente del destinatario.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Columna izquierda: Formularios */}
@@ -462,55 +540,57 @@ function CheckoutContent() {
               </div>
             </div>
 
-            {/* Dirección de envío */}
-            <div className="bg-gray-800/50 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-[#66DEDB]">Dirección de envío</h2>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingAddress(null)
+            {/* Dirección de envío - Ocultar si es carrito de regalos */}
+            {!isGiftCart && (
+              <div className="bg-gray-800/50 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-[#66DEDB]">Dirección de envío</h2>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingAddress(null)
+                      setIsAddressModalOpen(true)
+                    }}
+                    className="text-sm text-[#66DEDB] hover:text-[#5accc9] transition-colors font-medium"
+                  >
+                    + Agregar dirección
+                  </button>
+                </div>
+                <AddressSelector
+                  addresses={addresses}
+                  isLoading={false}
+                  selectedAddressId={selectedAddress?.id || null}
+                  onSelectAddress={(address) => setSelectedAddress(address)}
+                  onEdit={(address) => {
+                    setEditingAddress(address)
                     setIsAddressModalOpen(true)
                   }}
-                  className="text-sm text-[#66DEDB] hover:text-[#5accc9] transition-colors font-medium"
-                >
-                  + Agregar dirección
-                </button>
-              </div>
-              <AddressSelector
-                addresses={addresses}
-                isLoading={false}
-                selectedAddressId={selectedAddress?.id || null}
-                onSelectAddress={(address) => setSelectedAddress(address)}
-                onEdit={(address) => {
-                  setEditingAddress(address)
-                  setIsAddressModalOpen(true)
-                }}
-                onDelete={async (addressId) => {
-                  try {
-                    await deleteAddress(addressId)
-                    // Actualizar selectedAddress después de eliminar
-                    if (selectedAddress?.id === addressId) {
-                      // Si era la dirección seleccionada, seleccionar la primera disponible o null
-                      const remainingAddresses = addresses.filter(addr => addr.id !== addressId)
-                      setSelectedAddress(
-                        remainingAddresses.length > 0 
-                          ? (remainingAddresses.find(addr => addr.isDefaultShipping) || remainingAddresses[0])
-                          : null
-                      )
+                  onDelete={async (addressId) => {
+                    try {
+                      await deleteAddress(addressId)
+                      // Actualizar selectedAddress después de eliminar
+                      if (selectedAddress?.id === addressId) {
+                        // Si era la dirección seleccionada, seleccionar la primera disponible o null
+                        const remainingAddresses = addresses.filter(addr => addr.id !== addressId)
+                        setSelectedAddress(
+                          remainingAddresses.length > 0 
+                            ? (remainingAddresses.find(addr => addr.isDefaultShipping) || remainingAddresses[0])
+                            : null
+                        )
+                      }
+                    } catch (err) {
+                      console.error('Error eliminando dirección:', err)
                     }
-                  } catch (err) {
-                    console.error('Error eliminando dirección:', err)
-                  }
-                }}
-              />
-            </div>
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Columna derecha: Resumen y Método de pago */}
           <div className="lg:col-span-1">
             <div className="sticky top-8 space-y-6">
-              <CheckoutSummary cart={{ ...cart, items: selectedItems }} />
+              <CheckoutSummary cart={{ ...cart, items: selectedItems }} isGiftCart={isGiftCart} />
               
               {/* Método de pago */}
               <div className="bg-gray-800/50 rounded-lg p-6">
@@ -518,6 +598,7 @@ function CheckoutContent() {
                 <CheckoutPaymentMethod
                   value={paymentMethod}
                   onChange={setPaymentMethod}
+                  isGiftCart={isGiftCart}
                 />
               </div>
             </div>

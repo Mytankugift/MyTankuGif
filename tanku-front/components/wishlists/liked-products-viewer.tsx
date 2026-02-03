@@ -237,6 +237,7 @@ export function LikedProductsViewer() {
                     width={14}
                     height={14}
                     className="object-contain"
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                   Carrito
                 </button>

@@ -12,6 +12,7 @@ import { OnboardingStepUsername } from './onboarding-step-username'
 import { OnboardingStepBirthday } from './onboarding-step-birthday'
 import { OnboardingStepCategories } from './onboarding-step-categories'
 import { OnboardingStepActivities } from './onboarding-step-activities'
+import { OnboardingStepAddress } from './onboarding-step-address'
 import { useOnboarding } from '@/lib/hooks/use-onboarding'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { ONBOARDING_CATEGORIES, ONBOARDING_ACTIVITIES } from '@/lib/constants/onboarding'
@@ -35,6 +36,8 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
   const [selectedCategorySlugs, setSelectedCategorySlugs] = useState<string[]>([])
   const [selectedActivitySlugs, setSelectedActivitySlugs] = useState<string[]>([])
   const [categoryMap, setCategoryMap] = useState<Map<string, string>>(new Map()) // slug -> id
+  const [addressData, setAddressData] = useState<any>(null) // Datos de dirección si se completa
+  const [giftPreferences, setGiftPreferences] = useState<{ allowGiftShipping: boolean; useMainAddressForGifts: boolean } | null>(null)
 
   // Cargar categorías del backend para mapear slugs a IDs
   useEffect(() => {
@@ -80,6 +83,8 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
       setDay(null)
       setSelectedCategorySlugs([])
       setSelectedActivitySlugs([])
+      setAddressData(null)
+      setGiftPreferences(null)
     }
   }, [isOpen, user?.username])
 
@@ -94,6 +99,9 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         return selectedCategorySlugs.length >= 1
       case 3:
         return selectedActivitySlugs.length >= 1
+      case 4:
+        // El paso de dirección es opcional, siempre se puede proceder
+        return true
       default:
         return false
     }
@@ -108,9 +116,60 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
       // Guardar datos del paso actual antes de avanzar
       await saveCurrentStep()
       setCurrentStep(currentStep + 1)
+    } else if (currentStep === 4) {
+      // Paso de dirección: guardar dirección y preferencias, luego completar
+      await handleComplete()
     } else {
       // Último paso: guardar y completar
       await handleComplete()
+    }
+  }
+
+  const handleAddressComplete = async (addressData?: any, preferences?: { allowGiftShipping: boolean; useMainAddressForGifts: boolean }) => {
+    setAddressData(addressData)
+    setGiftPreferences(preferences || null)
+    // Guardar dirección y preferencias en el backend
+    if (addressData) {
+      await saveAddressAndPreferences(addressData, preferences)
+    }
+    // Completar onboarding
+    await handleComplete()
+  }
+
+  const handleAddressSkip = async () => {
+    // Omitir dirección, completar onboarding
+    await handleComplete()
+  }
+
+  const saveAddressAndPreferences = async (addressData: any, preferences?: { allowGiftShipping: boolean; useMainAddressForGifts: boolean }) => {
+    try {
+      // Crear dirección
+      if (addressData) {
+        const addressResponse = await apiClient.post(API_ENDPOINTS.USERS.ADDRESSES.CREATE, addressData)
+        if (!addressResponse.success) {
+          console.error('Error creando dirección:', addressResponse.error)
+        }
+      }
+
+      // Actualizar preferencias de regalos en el perfil
+      if (preferences) {
+        const profileResponse = await apiClient.put(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
+          allowGiftShipping: preferences.allowGiftShipping,
+          useMainAddressForGifts: preferences.useMainAddressForGifts,
+        })
+        if (!profileResponse.success) {
+          console.error('Error actualizando preferencias:', profileResponse.error)
+        }
+      }
+      
+      // Si se marcó como dirección de regalos, actualizar la dirección
+      if (addressData && preferences?.allowGiftShipping) {
+        // La dirección ya se creó, ahora actualizarla para marcarla como isGiftAddress
+        // Esto se puede hacer en el backend cuando se crea la dirección si allowGiftShipping es true
+      }
+    } catch (error) {
+      console.error('Error guardando dirección y preferencias:', error)
+      // No bloquear el flujo, solo loguear el error
     }
   }
 
@@ -179,7 +238,7 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
 
   if (!isOpen) return null
 
-  const totalSteps = 4 // username, birthday, categories, activities
+  const totalSteps = 5 // username, birthday, categories, activities, address
   const progress = ((currentStep + 1) / totalSteps) * 100
 
   return (
@@ -189,7 +248,7 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         <div className="flex items-center justify-between p-3 border-b border-gray-700">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold text-[#66DEDB]">Bienvenido</h1>
-            <span className="text-xs text-gray-400">Paso {currentStep + 1}/4</span>
+            <span className="text-xs text-gray-400">Paso {currentStep + 1}/5</span>
           </div>
           <button
             onClick={onClose}
@@ -243,6 +302,13 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
               onToggleActivity={toggleActivity}
             />
           )}
+
+          {currentStep === 4 && (
+            <OnboardingStepAddress
+              onSkip={handleAddressSkip}
+              onComplete={handleAddressComplete}
+            />
+          )}
         </div>
 
         {/* Footer con botones */}
@@ -259,13 +325,16 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
           {currentStep === 0 ? (
             // El botón de continuar está dentro de OnboardingStepUsername
             <div />
+          ) : currentStep === 4 ? (
+            // El paso de dirección maneja sus propios botones
+            <div />
           ) : (
             <Button
               onClick={handleNext}
               disabled={!canProceed() || isLoading}
               className="bg-[#73FFA2] hover:bg-[#66DEDB] text-gray-900 font-semibold px-6 py-2 h-8 text-sm"
             >
-              {isLoading ? 'Guardando...' : currentStep === 3 ? 'Listo' : 'Continuar'}
+              {isLoading ? 'Guardando...' : currentStep === 3 ? 'Continuar' : 'Continuar'}
             </Button>
           )}
         </div>

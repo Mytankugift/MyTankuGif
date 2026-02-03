@@ -13,10 +13,20 @@ import type { WishListDTO } from '@/types/api'
 interface WishlistProductCardProps {
   item: WishListDTO['items'][0]
   onAddToCart: (variantId?: string) => Promise<void>
+  onSendAsGift?: (variantId?: string) => Promise<void>
+  wishlistOwnerId?: string
+  isOwnWishlist?: boolean
 }
 
-export function WishlistProductCard({ item, onAddToCart }: WishlistProductCardProps) {
+export function WishlistProductCard({ 
+  item, 
+  onAddToCart, 
+  onSendAsGift,
+  wishlistOwnerId,
+  isOwnWishlist = false 
+}: WishlistProductCardProps) {
   const [isAdding, setIsAdding] = useState(false)
+  const [isSendingGift, setIsSendingGift] = useState(false)
   const [imageError, setImageError] = useState(false)
 
   const formatPrice = (price: number) => {
@@ -40,6 +50,20 @@ export function WishlistProductCard({ item, onAddToCart }: WishlistProductCardPr
       setIsAdding(false)
     }
   }
+
+  const handleSendAsGift = async () => {
+    if (!onSendAsGift) return
+    setIsSendingGift(true)
+    try {
+      await onSendAsGift(item.variantId || undefined)
+    } catch (error) {
+      console.error('Error enviando como regalo:', error)
+    } finally {
+      setIsSendingGift(false)
+    }
+  }
+
+  const showGiftButton = wishlistOwnerId && !isOwnWishlist && onSendAsGift
 
   const displayPrice = item.variant?.tankuPrice || item.product.thumbnail ? null : null // Necesitaríamos el precio del producto
 
@@ -78,13 +102,25 @@ export function WishlistProductCard({ item, onAddToCart }: WishlistProductCardPr
           </p>
         )}
 
-        <button
-          onClick={handleAddToCart}
-          disabled={isAdding}
-          className="w-full py-1.5 px-2 text-[10px] bg-[#73FFA2] text-gray-900 font-semibold rounded hover:bg-[#66DEDB] transition-colors disabled:opacity-50"
-        >
-          {isAdding ? 'Agregando...' : 'Agregar al carrito'}
-        </button>
+        <div className="space-y-1.5">
+          <button
+            onClick={handleAddToCart}
+            disabled={isAdding}
+            className="w-full py-1.5 px-2 text-[10px] bg-[#73FFA2] text-gray-900 font-semibold rounded hover:bg-[#66DEDB] transition-colors disabled:opacity-50"
+          >
+            {isAdding ? 'Agregando...' : 'Agregar al carrito'}
+          </button>
+          
+          {showGiftButton && (
+            <button
+              onClick={handleSendAsGift}
+              disabled={isSendingGift}
+              className="w-full py-1.5 px-2 text-[10px] bg-[#66DEDB] text-gray-900 font-semibold rounded hover:bg-[#3B9BC3] transition-colors disabled:opacity-50"
+            >
+              {isSendingGift ? 'Enviando...' : 'Enviar como regalo'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -322,6 +322,7 @@ export class ChatService {
 
   /**
    * Marcar mensajes como leídos
+   * También marca las notificaciones relacionadas como leídas
    */
   async markAsRead(conversationId: string, userId: string): Promise<void> {
     // Verificar acceso
@@ -348,6 +349,39 @@ export class ChatService {
         readAt: new Date(),
       },
     });
+
+    // Marcar notificaciones relacionadas con esta conversación como leídas
+    // Solo las notificaciones de tipo MESSAGE relacionadas con esta conversación
+    // Primero obtener todas las notificaciones no leídas de tipo MESSAGE del usuario
+    const unreadNotifications = await prisma.notification.findMany({
+      where: {
+        userId,
+        type: 'MESSAGE',
+        isRead: false,
+      },
+    });
+
+    // Filtrar las que pertenecen a esta conversación específica
+    const notificationsToMark = unreadNotifications.filter(notif => {
+      if (!notif.data || typeof notif.data !== 'object') return false;
+      const data = notif.data as any;
+      return data.conversationId === conversationId;
+    });
+
+    // Marcar solo las notificaciones de esta conversación como leídas
+    if (notificationsToMark.length > 0) {
+      await prisma.notification.updateMany({
+        where: {
+          id: {
+            in: notificationsToMark.map(n => n.id),
+          },
+        },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+    }
   }
 
   /**

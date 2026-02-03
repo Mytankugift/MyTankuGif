@@ -28,15 +28,16 @@ export default function Sidebar() {
       style={{ backgroundColor: '#2D3A3A' }}
     >
       <div className="w-60 flex flex-col h-full py-2 px-2 flex-shrink-0">
-        {/* Logo Tanku */}
-        <div className="flex items-start justify-between w-full mb-8 px-4 flex-shrink-0">
+        {/* Logo Tanku - 15% del espacio */}
+        <div className="flex items-start justify-between w-full px-4 pb-4 flex-shrink-0" style={{ height: '15%', minHeight: '80px' }}>
           <Image 
             src="/feed/logo-tanku.svg" 
             alt="Logo Tanku" 
-            width={90} 
-            height={90} 
-            className="object-contain flex-shrink-0"
+            width={100} 
+            height={100} 
+            className="object-contain flex-shrink-0 w-22 h-22"
             priority={false}
+            loading="eager"
             unoptimized
           />
           {/* Avatar con "¿Whats up?" - Solo visible si está autenticado */}
@@ -86,8 +87,8 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* Menú vertical */}
-        <div className="flex flex-col gap-1.5 flex-1 w-full px-2 pt-2 pb-2 overflow-y-auto min-h-0">
+        {/* Menú vertical - 45% del espacio */}
+        <div className="flex flex-col gap-1.5 w-full px-2 pt-2 pb-2 overflow-y-auto" style={{ height: '45%', minHeight: '300px' }}>
           {/* Sección GivE-Commerce */}
           <div className="mb-0.5">
             <h3 
@@ -105,9 +106,10 @@ export default function Sidebar() {
                 <Image
                   src="/feed/Icons/Home_Green.png"
                   alt="My TANKU"
-                  width={24}
-                  height={24}
+                  width={20}
+                  height={20}
                   className="object-contain flex-shrink-0"
+                  style={{ width: 'auto', height: 'auto' }}
                 />
                 <span 
                   className="font-normal"
@@ -126,9 +128,10 @@ export default function Sidebar() {
                   <Image
                     src="/feed/Icons/Profile_Green.png"
                     alt="Mi Perfil"
-                    width={24}
-                    height={24}
+                    width={20}
+                    height={20}
                     className="object-contain flex-shrink-0"
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                   <span 
                     className="font-normal"
@@ -145,9 +148,10 @@ export default function Sidebar() {
                   <Image
                     src="/feed/Icons/Profile_Green.png"
                     alt="Mi Perfil"
-                    width={24}
-                    height={24}
+                    width={20}
+                    height={20}
                     className="object-contain flex-shrink-0 opacity-50"
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                   <span 
                     className="font-normal"
@@ -164,7 +168,7 @@ export default function Sidebar() {
                   href="/friends"
                   className="flex items-center gap-2.5 group hover:opacity-80 transition-opacity px-3 py-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
                 >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#73FFA2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#73FFA2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                     <circle cx="9" cy="7" r="4"></circle>
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -182,7 +186,7 @@ export default function Sidebar() {
                   className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg opacity-50 cursor-not-allowed"
                   title="Inicia sesión para acceder"
                 >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                     <circle cx="9" cy="7" r="4"></circle>
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -206,9 +210,10 @@ export default function Sidebar() {
                   <Image
                     src="/feed/Icons/Chat_Green.png"
                     alt="Mensajes"
-                    width={24}
-                    height={24}
+                    width={20}
+                    height={20}
                     className="object-contain flex-shrink-0"
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                   <span 
                     className="font-normal"
@@ -225,9 +230,10 @@ export default function Sidebar() {
                   <Image
                     src="/feed/Icons/Chat_Green.png"
                     alt="Mensajes"
-                    width={24}
-                    height={24}
+                    width={20}
+                    height={20}
                     className="object-contain flex-shrink-0 opacity-50"
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                   <span 
                     className="font-normal"
@@ -247,9 +253,10 @@ export default function Sidebar() {
                   <Image
                     src="/feed/Icons/Shopping_Cart_Green.png"
                     alt="Wishlist"
-                    width={24}
-                    height={24}
+                    width={20}
+                    height={20}
                     className="object-contain flex-shrink-0"
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                   <span 
                     className="font-normal"
@@ -266,9 +273,10 @@ export default function Sidebar() {
                   <Image
                     src="/feed/Icons/Shopping_Cart_Green.png"
                     alt="Wishlist"
-                    width={24}
-                    height={24}
+                    width={20}
+                    height={20}
                     className="object-contain flex-shrink-0 opacity-50"
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                   <span 
                     className="font-normal"
@@ -296,7 +304,7 @@ export default function Sidebar() {
                   href="/stalkergift"
                   className="flex items-center gap-2.5 group hover:opacity-80 transition-opacity px-3 py-1.5 rounded-lg hover:bg-white/10 text-left cursor-pointer"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 30 33" fill="none">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 30 33" fill="none">
                     <path d="M29 7.83203V24.5596L15.5156 31.8711L1.04688 24.583L1.00098 7.89062L15.4307 1.11035L29 7.83203Z" stroke="#73FFA2" strokeWidth="2"/>
                     <path d="M9.10889 20.5258H11.6108L12.7046 22.5473L11.5981 24.7465L9.13037 24.7534L8.10205 22.56L9.10889 20.5258Z" stroke="#73FFA2" strokeWidth="2"/>
                     <path d="M18.5 20.7058H21.002L22.0957 22.7273L20.9893 24.9265L18.5215 24.9333L17.4932 22.74L18.5 20.7058Z" stroke="#73FFA2" strokeWidth="2"/>
@@ -319,7 +327,7 @@ export default function Sidebar() {
                   className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg opacity-50 cursor-not-allowed"
                   title="Inicia sesión para acceder"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 30 33" fill="none" className="opacity-50">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 30 33" fill="none" className="opacity-50">
                     <path d="M29 7.83203V24.5596L15.5156 31.8711L1.04688 24.583L1.00098 7.89062L15.4307 1.11035L29 7.83203Z" stroke="#666" strokeWidth="2"/>
                     <path d="M9.10889 20.5258H11.6108L12.7046 22.5473L11.5981 24.7465L9.13037 24.7534L8.10205 22.56L9.10889 20.5258Z" stroke="#666" strokeWidth="2"/>
                     <path d="M18.5 20.7058H21.002L22.0957 22.7273L20.9893 24.9265L18.5215 24.9333L17.4932 22.74L18.5 20.7058Z" stroke="#666" strokeWidth="2"/>
@@ -342,11 +350,11 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Área fija inferior */}
-        <div className="flex-shrink-0 border-t border-gray-600 mt-auto">
-          {/* Botón de Logout */}
+        {/* Área fija inferior - 40% del espacio (15% cerrar sesión + 25% circular + 5% footer) */}
+        <div className="flex-shrink-0 border-t border-gray-600 flex flex-col" style={{ height: '40%', minHeight: '200px' }}>
+          {/* Botón de Logout - 15% del espacio total */}
           {isAuthenticated && user && (
-            <div className="px-4 py-1.5">
+            <div className="px-4 py-2 flex items-center" style={{ height: '37.5%', minHeight: '60px' }}>
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-3 text-red-400 hover:text-red-300 transition-colors w-full text-left px-2 py-1.5 rounded-lg hover:bg-red-500/10"
@@ -366,55 +374,49 @@ export default function Sidebar() {
             </div>
           )}
 
-          {/* Circular Menu */}
-          <div className="flex items-center justify-center w-full pb-0.5 pt-0">
+          {/* Circular Menu - 25% del espacio total (62.5% del área inferior) */}
+          <div className="flex items-center justify-center w-full" style={{ height: '62.5%', minHeight: '120px', position: 'relative', zIndex: 1 }}>
             <CircularMenu />
           </div>
 
-          {/* Footer con información de contacto */}
-          <div className="px-4 py-1.5">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-gray-400 text-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: '#73FFA2' }}>
+          {/* Footer con información de contacto - 5% del espacio total (12.5% del área inferior) */}
+          <div className="px-4 py-1.5 flex items-center justify-center" style={{ height: '12.5%', minHeight: '50px', position: 'relative', zIndex: 10 }}>
+            <div className="flex items-center gap-3 justify-center flex-wrap">
+              <a 
+                href="mailto:contacto@mytanku.com" 
+                className="hover:opacity-80 transition-opacity flex items-center justify-center p-2 cursor-pointer"
+                title="contacto@mytanku.com"
+                style={{ pointerEvents: 'auto' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: '#73FFA2' }}>
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
                   <polyline points="22,6 12,13 2,6"></polyline>
                 </svg>
-                <a 
-                  href="mailto:contacto@mytanku.com" 
-                  className="hover:text-greenTanku transition-colors break-all"
-                  style={{ fontFamily: 'Poppins, sans-serif', fontSize: '13px' }}
-                >
-                  contacto@mytanku.com
-                </a>
-              </div>
-              <div className="flex items-center gap-2 text-gray-400 text-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: '#73FFA2' }}>
+              </a>
+              <a 
+                href="tel:+573013363980" 
+                className="hover:opacity-80 transition-opacity flex items-center justify-center p-2 cursor-pointer"
+                title="+57 301 3363980"
+                style={{ pointerEvents: 'auto' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: '#73FFA2' }}>
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
                 </svg>
-                <a 
-                  href="tel:+573013363980" 
-                  className="hover:text-greenTanku transition-colors whitespace-nowrap"
-                  style={{ fontFamily: 'Poppins, sans-serif', fontSize: '13px' }}
-                >
-                  +57 301 3363980
-                </a>
-              </div>
-              <div className="flex items-center gap-2 text-gray-400 text-sm mt-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: '#73FFA2' }}>
+              </a>
+              <Link
+                href="/terms"
+                className="hover:opacity-80 transition-opacity flex items-center justify-center p-2 cursor-pointer"
+                title="Términos y Condiciones"
+                style={{ pointerEvents: 'auto' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: '#73FFA2' }}>
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
                   <line x1="16" y1="13" x2="8" y2="13"></line>
                   <line x1="16" y1="17" x2="8" y2="17"></line>
                   <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
-                <Link
-                  href="/terms"
-                  className="hover:text-greenTanku transition-colors"
-                  style={{ fontFamily: 'Poppins, sans-serif', fontSize: '13px' }}
-                >
-                  Términos y Condiciones
-                </Link>
-              </div>
+              </Link>
             </div>
           </div>
         </div>

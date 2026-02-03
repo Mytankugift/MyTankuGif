@@ -392,6 +392,8 @@ export class UsersController {
       const updateData: UpdateUserProfileDTO = {
         bio: req.body.bio !== undefined ? req.body.bio : undefined,
         isPublic: req.body.isPublic !== undefined ? req.body.isPublic : undefined,
+        allowGiftShipping: req.body.allowGiftShipping !== undefined ? req.body.allowGiftShipping : undefined,
+        useMainAddressForGifts: req.body.useMainAddressForGifts !== undefined ? req.body.useMainAddressForGifts : undefined,
         socialLinks: req.body.socialLinks !== undefined ? req.body.socialLinks : undefined,
       };
 

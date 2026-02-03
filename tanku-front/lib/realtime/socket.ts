@@ -40,7 +40,10 @@ export function initSocket(token?: string): Socket | null {
       withCredentials: true,
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity, // ✅ Reconectar indefinidamente
+      timeout: 20000,
+      forceNew: false, // ✅ Reutilizar conexión si existe
     })
 
     return socket

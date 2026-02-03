@@ -4,6 +4,25 @@ import { useState, useEffect } from 'react'
 import type { AddressDTO, CreateAddressDTO, UpdateAddressDTO } from '@/types/api'
 import { Button } from '@/components/ui/button'
 import { XMarkIcon } from '@heroicons/react/24/outline'
+import { apiClient } from '@/lib/api/client'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
+
+interface Department {
+  id: number
+  name: string
+  department_code?: string | null
+  country_id?: number
+}
+
+interface City {
+  id: number
+  name: string
+  department_id?: number
+  department_name?: string
+  code?: string
+  rate_type?: string // "[\"CON RECAUDO\"]" | "[\"SIN RECAUDO\"]" | "[\"CON RECAUDO\",\"SIN RECAUDO\"]"
+  trajectory_type?: string
+}
 
 interface AddressFormModalProps {
   isOpen: boolean
@@ -30,9 +49,45 @@ export function AddressFormModal({
     postalCode: '',
     country: 'CO',
     isDefaultShipping: false,
+    isGiftAddress: false,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [cities, setCities] = useState<City[]>([])
+  const [loadingDepartments, setLoadingDepartments] = useState(false)
+  const [loadingCities, setLoadingCities] = useState(false)
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null)
+
+  // Cargar departamentos al abrir el modal
+  useEffect(() => {
+    if (isOpen) {
+      loadDepartments()
+      // ❌ NO cargar ciudades aquí - se cargan cuando se selecciona un departamento
+    }
+  }, [isOpen])
+
+  // Establecer departamento seleccionado cuando se cargan los departamentos y hay una dirección en edición
+  useEffect(() => {
+    if (address && address.state && departments.length > 0 && !selectedDepartmentId) {
+      const department = departments.find(d => d.name === address.state)
+      if (department) {
+        setSelectedDepartmentId(department.id)
+      }
+    }
+  }, [departments, address, selectedDepartmentId])
+
+  // ✅ Cargar ciudades solo cuando se selecciona un departamento
+  useEffect(() => {
+    if (selectedDepartmentId) {
+      loadCities(selectedDepartmentId)
+    } else {
+      // Limpiar ciudades si no hay departamento seleccionado
+      setCities([])
+      setFormData(prev => ({ ...prev, city: '' })) // Limpiar ciudad seleccionada
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDepartmentId]) // loadCities se define después, no incluirlo en deps
 
   // Cargar datos si es edición
   useEffect(() => {
@@ -49,6 +104,7 @@ export function AddressFormModal({
         postalCode: address.postalCode,
         country: address.country,
         isDefaultShipping: address.isDefaultShipping,
+        isGiftAddress: address.isGiftAddress || false,
       })
     } else {
       // Resetear formulario para nueva dirección
@@ -64,10 +120,113 @@ export function AddressFormModal({
         postalCode: '',
         country: 'CO',
         isDefaultShipping: false,
+        isGiftAddress: false,
       })
+      setSelectedDepartmentId(null)
     }
     setError(null)
   }, [address, isOpen])
+
+  // Cargar departamentos
+  const loadDepartments = async () => {
+    setLoadingDepartments(true)
+    setError(null) // Limpiar errores previos
+    try {
+      console.log('[ADDRESS FORM] Cargando departamentos desde:', API_ENDPOINTS.DROPI.DEPARTMENTS)
+      const response = await apiClient.get<Department[]>(
+        API_ENDPOINTS.DROPI.DEPARTMENTS
+      )
+      console.log('[ADDRESS FORM] Respuesta departamentos completa:', JSON.stringify(response, null, 2))
+      
+      if (response.success && response.data) {
+        setDepartments(response.data)
+        console.log('[ADDRESS FORM] Departamentos cargados:', response.data.length)
+      } else {
+        // ✅ Mejorar el manejo de errores
+        console.error('[ADDRESS FORM] Error en respuesta - response.success:', response.success)
+        console.error('[ADDRESS FORM] Error en respuesta - response.error:', response.error)
+        console.error('[ADDRESS FORM] Error en respuesta - tipo de error:', typeof response.error)
+        console.error('[ADDRESS FORM] Error en respuesta - keys de error:', response.error ? Object.keys(response.error) : 'null')
+        
+        const errorMessage = response.error?.message || 
+                           (response.error && typeof response.error === 'object' && Object.keys(response.error).length > 0 
+                             ? JSON.stringify(response.error) 
+                             : 'Error al cargar departamentos')
+        console.error('[ADDRESS FORM] Mensaje de error final:', errorMessage)
+        setError(errorMessage)
+      }
+    } catch (err: any) {
+      console.error('[ADDRESS FORM] Error cargando departamentos:', err)
+      setError(err.message || 'Error al cargar departamentos. Por favor, intenta de nuevo.')
+    } finally {
+      setLoadingDepartments(false)
+    }
+  }
+
+  // ✅ Cargar ciudades para un departamento específico
+  const loadCities = async (departmentId: number) => {
+    setLoadingCities(true)
+    try {
+      console.log('[ADDRESS FORM] Cargando ciudades para departamento:', departmentId)
+      const response = await apiClient.get<{ success: boolean; data: City[] | { cities?: City[] } }>(
+        `${API_ENDPOINTS.DROPI.CITIES}?department_id=${departmentId}`
+      )
+      console.log('[ADDRESS FORM] Respuesta ciudades:', response)
+      
+      if (response.success && response.data) {
+        // ✅ Manejar diferentes estructuras de respuesta
+        let citiesArray: City[] = []
+        
+        if (Array.isArray(response.data)) {
+          // Estructura directa: { success: true, data: [...] }
+          citiesArray = response.data
+        } else if (typeof response.data === 'object' && (response.data as any).cities) {
+          // Estructura anidada: { success: true, data: { cities: [...] } }
+          citiesArray = (response.data as any).cities || []
+        }
+        
+        setCities(citiesArray)
+        console.log('[ADDRESS FORM] Ciudades cargadas:', citiesArray.length)
+      } else {
+        console.error('[ADDRESS FORM] Error en respuesta ciudades:', response.error)
+        setCities([]) // ✅ Asegurar que cities sea un array vacío en caso de error
+      }
+    } catch (err: any) {
+      console.error('[ADDRESS FORM] Error cargando ciudades:', err)
+      setCities([]) // ✅ Asegurar que cities sea un array vacío en caso de error
+      // No mostrar error para ciudades, solo log
+    } finally {
+      setLoadingCities(false)
+    }
+  }
+
+  // Filtrar ciudades por departamento seleccionado
+  // ✅ Asegurar que cities siempre sea un array antes de filtrar
+  const filteredCities = Array.isArray(cities)
+    ? (selectedDepartmentId
+        ? cities.filter(city => city.department_id === selectedDepartmentId)
+        : cities)
+    : []
+
+  // Manejar cambio de departamento
+  const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const departmentId = e.target.value ? parseInt(e.target.value) : null
+    setSelectedDepartmentId(departmentId)
+    
+    // Buscar el nombre del departamento
+    const department = departments.find(d => d.id === departmentId)
+    if (department) {
+      setFormData({ ...formData, state: department.name, city: '' }) // Limpiar ciudad al cambiar departamento
+    } else {
+      setFormData({ ...formData, state: '', city: '' })
+    }
+  }
+
+  // Manejar cambio de ciudad
+  const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const cityName = e.target.value
+    setFormData({ ...formData, city: cityName })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -94,6 +253,7 @@ export function AddressFormModal({
         postalCode: formData.postalCode,
         country: formData.country,
         isDefaultShipping: formData.isDefaultShipping,
+        isGiftAddress: formData.isGiftAddress,
         metadata: formData.alias ? { alias: formData.alias } : undefined,
       }
 
@@ -208,33 +368,54 @@ export function AddressFormModal({
             />
           </div>
 
-          {/* Ciudad y Departamento */}
+          {/* Departamento y Ciudad */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Ciudad *
-              </label>
-              <input
-                type="text"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                required
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
-                placeholder="Bogotá"
-              />
-            </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Departamento *
               </label>
-              <input
-                type="text"
-                value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+              <select
+                value={selectedDepartmentId || ''}
+                onChange={handleDepartmentChange}
                 required
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
-                placeholder="Cundinamarca"
-              />
+                disabled={loadingDepartments}
+                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">Selecciona un departamento</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+              {loadingDepartments && (
+                <p className="text-xs text-gray-400 mt-1">Cargando departamentos...</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Ciudad *
+              </label>
+              <select
+                value={formData.city}
+                onChange={handleCityChange}
+                required
+                disabled={loadingCities || !selectedDepartmentId}
+                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">{selectedDepartmentId ? 'Selecciona una ciudad' : 'Primero selecciona un departamento'}</option>
+                {filteredCities.map((city) => (
+                  <option key={city.id} value={city.name}>
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+              {loadingCities && (
+                <p className="text-xs text-gray-400 mt-1">Cargando ciudades...</p>
+              )}
+              {!selectedDepartmentId && (
+                <p className="text-xs text-gray-400 mt-1">Selecciona un departamento primero</p>
+              )}
             </div>
           </div>
 
@@ -278,6 +459,20 @@ export function AddressFormModal({
             />
             <label htmlFor="isDefaultShipping" className="text-sm text-gray-300">
               Usar como dirección de envío por defecto
+            </label>
+          </div>
+
+          {/* Dirección de regalos */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isGiftAddress"
+              checked={formData.isGiftAddress || false}
+              onChange={(e) => setFormData({ ...formData, isGiftAddress: e.target.checked })}
+              className="w-4 h-4 text-[#73FFA2] focus:ring-[#73FFA2] focus:ring-2 rounded"
+            />
+            <label htmlFor="isGiftAddress" className="text-sm text-gray-300">
+              Usar esta dirección para recibir regalos
             </label>
           </div>
 

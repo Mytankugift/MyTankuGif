@@ -158,6 +158,8 @@ export interface Cart {
   total: number
   createdAt?: string
   updatedAt?: string
+  isGiftCart?: boolean
+  giftRecipientId?: string | null
 }
 
 // Orders
@@ -235,6 +237,7 @@ export interface AddressDTO {
   postalCode: string
   country: string
   isDefaultShipping: boolean
+  isGiftAddress?: boolean
   metadata?: Record<string, any> // Para alias y otros datos
   createdAt: string
   updatedAt: string
@@ -251,6 +254,7 @@ export interface CreateAddressDTO {
   postalCode: string
   country?: string
   isDefaultShipping?: boolean
+  isGiftAddress?: boolean // Nueva dirección específica para regalos
   metadata?: Record<string, any> // Para alias
 }
 

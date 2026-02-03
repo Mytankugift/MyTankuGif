@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-type ProfileTab = 'PUBLICACIONES' | 'RED TANKU' | 'MIS COMPRAS' | 'STALKER GIFTS'
+export type ProfileTab = 'PUBLICACIONES' | 'RED TANKU' | 'MIS COMPRAS' | 'STALKER GIFTS' | 'REGALOS'
 
 interface ProfileNavigationContextType {
   activeTab: ProfileTab
@@ -47,7 +47,8 @@ export function ProfileNavigationProvider({ children }: ProfileNavigationProvide
         'RED_TANKU': 'RED TANKU',
         'RED TANKU': 'RED TANKU',
         'MIS_COMPRAS': 'MIS COMPRAS',
-        'STALKER_GIFTS': 'STALKER GIFTS'
+        'STALKER_GIFTS': 'STALKER GIFTS',
+        'REGALOS': 'REGALOS'
       }
       // Intentar mapear con el valor decodificado primero, luego con el original
       let mappedTab = tabMap[decodedTab.toUpperCase()] || tabMap[tabParam.toUpperCase()]
@@ -63,6 +64,8 @@ export function ProfileNavigationProvider({ children }: ProfileNavigationProvide
           mappedTab = 'MIS COMPRAS'
         } else if (upperDecoded.includes('STALKER') && upperDecoded.includes('GIFTS')) {
           mappedTab = 'STALKER GIFTS'
+        } else if (upperDecoded === 'REGALOS') {
+          mappedTab = 'REGALOS'
         }
       }
       

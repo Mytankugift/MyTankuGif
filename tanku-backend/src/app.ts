@@ -284,6 +284,10 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/chat`, chatRoutes);
 import stalkerGiftRoutes from './modules/stalker-gift/stalker-gift.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/stalker-gift`, stalkerGiftRoutes);
 
+// Gifts routes
+import giftRoutes from './modules/gifts/gift.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/gifts`, giftRoutes);
+
 // ePayco webhook routes
 import epaycoRoutes from './modules/orders/epayco.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/webhook/epayco`, epaycoRoutes);

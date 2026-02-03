@@ -37,7 +37,7 @@ export function SocialLinksSection({ onUpdate }: SocialLinksSectionProps) {
     const loadSocialLinks = async () => {
       if (!user?.id) return
       try {
-        const response = await apiClient.get<import('@/types/api-responses').UserProfileResponse>(API_ENDPOINTS.USERS.PROFILE)
+        const response = await apiClient.get<import('@/types/api-responses').UserProfileResponse>(API_ENDPOINTS.USERS.PROFILE.GET)
         console.log('📥 [SOCIAL LINKS] Respuesta del perfil:', response.data)
         if (response.success && response.data) {
           // socialLinks puede venir como array o como null/undefined
@@ -67,7 +67,7 @@ export function SocialLinksSection({ onUpdate }: SocialLinksSectionProps) {
 
     try {
       const updatedLinks = [...socialLinks, newLink]
-      const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE, {
+      const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
         socialLinks: updatedLinks,
       })
 
@@ -93,7 +93,7 @@ export function SocialLinksSection({ onUpdate }: SocialLinksSectionProps) {
 
     try {
       const updatedLinks = socialLinks.filter(link => link.platform !== platform)
-      const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE, {
+      const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
         socialLinks: updatedLinks,
       })
 

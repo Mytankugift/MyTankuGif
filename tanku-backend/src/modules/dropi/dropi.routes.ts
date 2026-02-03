@@ -25,4 +25,29 @@ router.get('/sync', dropiController.syncProducts); // Para pruebas desde navegad
 router.post('/sync-categories', categoriesSyncController.syncCategories);
 router.get('/sync-categories', categoriesSyncController.syncCategories); // Para pruebas desde navegador
 
+/**
+ * GET /api/v1/dropi/departments
+ * Obtener lista de departamentos desde Dropi
+ */
+router.get('/departments', dropiController.getDepartments);
+
+/**
+ * GET /api/v1/dropi/cities
+ * Obtener lista de ciudades (desde BD cache, o sincronizar desde Dropi si no hay datos)
+ */
+router.get('/cities', dropiController.getCities);
+
+/**
+ * POST /api/v1/dropi/sync-departments
+ * Sincronizar departamentos desde Dropi a nuestra BD
+ */
+router.post('/sync-departments', dropiController.syncDepartments);
+
+/**
+ * POST /api/v1/dropi/sync-cities
+ * Sincronizar ciudades desde Dropi a nuestra BD
+ * Body: { department_id?: number, rate_type?: string }
+ */
+router.post('/sync-cities', dropiController.syncCities);
+
 export default router;

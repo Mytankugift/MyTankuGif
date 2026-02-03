@@ -3,11 +3,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import { useProfileNavigation } from '@/lib/context/profile-navigation-context'
-import { ProfileNavigationProvider } from '@/lib/context/profile-navigation-context'
+import { useProfileNavigation, ProfileNavigationProvider, type ProfileTab } from '@/lib/context/profile-navigation-context'
 import { OrdersTab } from '@/components/profile/orders-tab'
 import { RedTankuTab } from '@/components/profile/red-tanku-tab'
 import { StalkerGiftOrdersTab } from '@/components/profile/stalkergift-orders-tab'
+import { GiftsTab } from '@/components/profile/gifts-tab'
 import { SettingsModal } from '@/components/profile/settings/settings-modal'
 import { SocialLinksDisplay } from '@/components/profile/social-links-display'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
@@ -47,11 +47,12 @@ function ProfileContent() {
   const initialAvatar = user?.profile?.avatar || ''
   const [imgSrc, setImgSrc] = useState<string>(initialAvatar)
 
-  const tabs: Array<'PUBLICACIONES' | 'RED TANKU' | 'MIS COMPRAS' | 'STALKER GIFTS'> = [
+  const tabs: ProfileTab[] = [
     'PUBLICACIONES',
     'RED TANKU',
     'MIS COMPRAS',
-    'STALKER GIFTS'
+    'STALKER GIFTS',
+    'REGALOS'
   ]
 
   // Cargar contador de amigos
@@ -504,6 +505,12 @@ function ProfileContent() {
             {activeTab === 'STALKER GIFTS' && user?.id && (
               <div className="w-full">
                 <StalkerGiftOrdersTab userId={user.id} initialOrderId={orderId} />
+              </div>
+            )}
+            
+            {activeTab === 'REGALOS' && user?.id && (
+              <div className="w-full">
+                <GiftsTab userId={user.id} />
               </div>
             )}
         </>

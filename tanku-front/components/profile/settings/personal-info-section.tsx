@@ -108,7 +108,7 @@ export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
       let response
       if (field === 'bio') {
         // La bio se actualiza en el perfil
-        response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE, { bio: formData.bio })
+        response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, { bio: formData.bio })
       } else {
         const updateData: Record<string, string> = {}
         updateData[field] = formData[field as keyof typeof formData]

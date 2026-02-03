@@ -84,6 +84,18 @@ export function useSocket() {
     const onConnect = () => {
       console.log('✅ [SOCKET] Conectado exitosamente')
       setIsConnected(true)
+      
+      // ✅ Re-unión automática a conversaciones activas al reconectar
+      // Esto asegura que los mensajes sigan llegando después de una reconexión
+      if (newSocket && messages.size > 0) {
+        const activeConversations = Array.from(messages.keys())
+        activeConversations.forEach(convId => {
+          if (!convId.startsWith('temp-')) {
+            newSocket.emit('chat:join', convId)
+            console.log(`🔄 [SOCKET] Re-uniendo a conversación ${convId} después de reconexión`)
+          }
+        })
+      }
     }
 
     const onDisconnect = (reason: string) => {
@@ -150,20 +162,21 @@ export function useSocket() {
       
       const conversationId = message.conversationId
       
-      console.log('📨 [SOCKET] Mensaje nuevo recibido:', {
-        conversationId,
-        senderId: message.senderId,
-        content: message.content.substring(0, 50),
-      })
-      
       // ✅ Solo actualizar mensajes, sin callbacks (React controlará el ciclo)
       setMessages((prev) => {
         const conversationMessages = prev.get(conversationId) || []
-        // Evitar duplicados
-        if (!conversationMessages.find((m) => m.id === message.id)) {
-          return new Map(prev).set(conversationId, [...conversationMessages, message])
+        // ✅ Evitar procesar el mismo mensaje múltiples veces
+        if (conversationMessages.find((m) => m.id === message.id)) {
+          return prev // Ya existe, no hacer nada
         }
-        return prev
+        
+        console.log('📨 [SOCKET] Mensaje nuevo recibido:', {
+          conversationId,
+          senderId: message.senderId,
+          content: message.content.substring(0, 50),
+        })
+        
+        return new Map(prev).set(conversationId, [...conversationMessages, message])
       })
       
       // ✅ Actualizar estado para que useChat reaccione con useEffect
@@ -386,10 +399,31 @@ export function useSocket() {
   const markAsRead = useCallback((conversationId: string) => {
     if (!socket || !isConnected) return
 
+    // ✅ Actualizar mensajes de socket optimistamente ANTES de enviar al servidor
+    setMessages((prev) => {
+      const conversationMessages = prev.get(conversationId) || []
+      const updated = conversationMessages.map((msg) => {
+        if (msg.senderId !== user?.id && msg.status !== 'READ') {
+          return { ...msg, status: 'READ' as const }
+        }
+        return msg
+      })
+      const newMap = new Map(prev).set(conversationId, updated)
+      
+      // ✅ Forzar actualización de lastReceivedMessage para que useChat reaccione
+      // Buscar el último mensaje de la conversación para actualizar lastReceivedMessage
+      const lastMessage = updated[updated.length - 1]
+      if (lastMessage) {
+        setLastReceivedMessage({ ...lastMessage })
+      }
+      
+      return newMap
+    })
+
     socket.emit('chat:read', {
       conversationId,
     })
-  }, [socket, isConnected])
+  }, [socket, isConnected, user?.id])
 
   /**
    * Cerrar conversación

@@ -36,7 +36,10 @@ export function CartButton() {
   // Escuchar eventos de actualización del carrito
   useEffect(() => {
     const handleCartUpdated = () => {
-      fetchCart()
+      // ✅ Diferir la llamada API para no bloquear el handler
+      setTimeout(() => {
+        fetchCart()
+      }, 0)
     }
 
     if (typeof window !== 'undefined') {
@@ -179,6 +182,7 @@ export function CartButton() {
           width={24}
           height={24}
           className="object-contain"
+          style={{ width: 'auto', height: 'auto' }}
         />
         {itemCount > 0 && (
           <span

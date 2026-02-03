@@ -210,4 +210,29 @@ export class NotificationsService {
       await socketService.emitNotificationCount(userId, unreadCount.unreadCount);
     }
   }
+
+  /**
+   * Crear notificación de regalo recibido
+   * 
+   * @param recipientId - ID del usuario que recibió el regalo
+   * @param orderId - ID de la orden de regalo
+   * @param senderId - ID del usuario que envió el regalo (opcional, puede ser anónimo)
+   */
+  async createGiftNotification(
+    recipientId: string,
+    orderId: string,
+    senderId?: string
+  ): Promise<NotificationDTO> {
+    return this.createNotification({
+      userId: recipientId,
+      type: 'gift_received',
+      title: '¡Te han enviado un regalo! 🎁',
+      message: 'Alguien te ha enviado un regalo. Revisa tu perfil para ver los detalles.',
+      data: {
+        orderId,
+        senderId: senderId || null,
+        type: 'gift',
+      },
+    });
+  }
 }

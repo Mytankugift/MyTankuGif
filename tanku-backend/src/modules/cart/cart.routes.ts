@@ -24,6 +24,18 @@ router.post('/', optionalAuthenticate, cartController.createCartNormalized);
 router.post('/items', optionalAuthenticate, cartController.addItemNormalized);
 
 /**
+ * GET /api/v1/cart/gift
+ * Obtener carrito de regalos del usuario (o crear uno vacío si no existe)
+ */
+router.get('/gift', authenticate, cartController.getCurrentUserGiftCart);
+
+/**
+ * POST /api/v1/cart/gift-items
+ * Agregar item al carrito de regalos
+ */
+router.post('/gift-items', authenticate, cartController.addGiftItem);
+
+/**
  * PUT /api/v1/cart/items/:itemId
  * Actualizar cantidad de item
  */

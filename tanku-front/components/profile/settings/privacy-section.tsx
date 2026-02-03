@@ -14,6 +14,8 @@ interface PrivacySectionProps {
 export function PrivacySection({ onUpdate }: PrivacySectionProps) {
   const { user, checkAuth } = useAuthStore()
   const [profilePublic, setProfilePublic] = useState(true)
+  const [allowGiftShipping, setAllowGiftShipping] = useState(false)
+  const [useMainAddressForGifts, setUseMainAddressForGifts] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,9 +27,11 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
       if (!user?.id) return
       setIsLoading(true)
       try {
-        const response = await apiClient.get<import('@/types/api-responses').UserProfileResponse>(API_ENDPOINTS.USERS.PROFILE)
+        const response = await apiClient.get<import('@/types/api-responses').UserProfileResponse>(API_ENDPOINTS.USERS.PROFILE.GET)
         if (response.success && response.data) {
           setProfilePublic(response.data.isPublic ?? true)
+          setAllowGiftShipping(response.data.allowGiftShipping ?? false)
+          setUseMainAddressForGifts(response.data.useMainAddressForGifts ?? false)
         }
       } catch (error) {
         console.error('Error cargando perfil:', error)
@@ -45,8 +49,10 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
     setSuccess(false)
 
     try {
-      const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE, {
+      const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
         isPublic: profilePublic,
+        allowGiftShipping,
+        useMainAddressForGifts,
       })
 
       if (response.success) {
@@ -105,8 +111,10 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
                 setIsSaving(true)
                 setError(null)
                 try {
-                  const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE, {
+                  const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
                     isPublic: newValue,
+                    allowGiftShipping,
+                    useMainAddressForGifts,
                   })
                   if (response.success) {
                     await checkAuth()
@@ -133,6 +141,101 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
                 profilePublic ? 'translate-x-6' : 'translate-x-0'
               }`} />
             </button>
+          </div>
+
+          {/* Preferencias de regalos */}
+          <div className="pt-4 border-t border-gray-600 space-y-4">
+            <h4 className="text-sm font-semibold text-[#66DEDB]">Preferencias de Regalos</h4>
+            
+            {/* Permitir recibir regalos */}
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <label className="text-sm font-medium text-white">Permitir recibir regalos</label>
+                <p className="text-xs text-gray-400">Permite que tus amigos te envíen regalos desde tus wishlists</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const newValue = !allowGiftShipping
+                  setAllowGiftShipping(newValue)
+                  setIsSaving(true)
+                  setError(null)
+                  try {
+                    const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
+                      isPublic: profilePublic,
+                      allowGiftShipping: newValue,
+                      useMainAddressForGifts,
+                    })
+                    if (response.success) {
+                      await checkAuth()
+                      if (onUpdate) {
+                        onUpdate()
+                      }
+                    } else {
+                      setError('Error al guardar configuración')
+                      setAllowGiftShipping(allowGiftShipping) // Revertir
+                    }
+                  } catch (err: any) {
+                    setError(err.message || 'Error al guardar configuración')
+                    setAllowGiftShipping(allowGiftShipping) // Revertir
+                  } finally {
+                    setIsSaving(false)
+                  }
+                }}
+                disabled={isSaving}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  allowGiftShipping ? 'bg-[#73FFA2]' : 'bg-gray-600'
+                } disabled:opacity-50`}
+              >
+                <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                  allowGiftShipping ? 'translate-x-6' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+
+            {/* Usar dirección principal para regalos */}
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <label className="text-sm font-medium text-white">Usar dirección principal para regalos</label>
+                <p className="text-xs text-gray-400">Usa tu dirección de envío principal para recibir regalos</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const newValue = !useMainAddressForGifts
+                  setUseMainAddressForGifts(newValue)
+                  setIsSaving(true)
+                  setError(null)
+                  try {
+                    const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
+                      isPublic: profilePublic,
+                      allowGiftShipping,
+                      useMainAddressForGifts: newValue,
+                    })
+                    if (response.success) {
+                      await checkAuth()
+                      if (onUpdate) {
+                        onUpdate()
+                      }
+                    } else {
+                      setError('Error al guardar configuración')
+                      setUseMainAddressForGifts(useMainAddressForGifts) // Revertir
+                    }
+                  } catch (err: any) {
+                    setError(err.message || 'Error al guardar configuración')
+                    setUseMainAddressForGifts(useMainAddressForGifts) // Revertir
+                  } finally {
+                    setIsSaving(false)
+                  }
+                }}
+                disabled={isSaving || !allowGiftShipping}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  useMainAddressForGifts && allowGiftShipping ? 'bg-[#73FFA2]' : 'bg-gray-600'
+                } disabled:opacity-50`}
+              >
+                <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                  useMainAddressForGifts && allowGiftShipping ? 'translate-x-6' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
           </div>
 
           {/* Enlace a términos y condiciones */}

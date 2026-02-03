@@ -96,6 +96,12 @@ router.get('/saved', authenticate, wishListsController.getSavedWishlists);
 router.get('/liked', authenticate, wishListsController.getLikedWishlist);
 
 /**
+ * GET /api/v1/wishlists/recommended
+ * Obtener wishlists recomendadas (plantillas)
+ */
+router.get('/recommended', authenticate, wishListsController.getRecommendedWishlists);
+
+/**
  * GET /api/v1/wishlists/access-requests
  * Obtener solicitudes de acceso pendientes para las wishlists del usuario
  */

@@ -79,6 +79,12 @@ export function useChat() {
    * Cargar todas las conversaciones
    */
   const fetchConversations = useCallback(async () => {
+    // ✅ Verificar autenticación antes de hacer la llamada
+    if (!user?.id) {
+      console.log('[useChat] Usuario no autenticado, omitiendo fetchConversations')
+      return
+    }
+
     setIsLoading(true)
     setError(null)
     try {
@@ -97,11 +103,21 @@ export function useChat() {
         setConversations(sorted)
       }
     } catch (err: any) {
-      setError(err.message || 'Error al cargar conversaciones')
+      // ✅ Solo mostrar error si el usuario está autenticado
+      if (user?.id) {
+        setError(err.message || 'Error al cargar conversaciones')
+      }
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [user?.id])
+
+  // ✅ Cargar conversaciones al inicializar
+  useEffect(() => {
+    if (user?.id) {
+      fetchConversations()
+    }
+  }, [user?.id, fetchConversations])
 
   /**
    * Crear o obtener conversación con un usuario
@@ -208,8 +224,9 @@ export function useChat() {
   /**
    * Enviar mensaje (SOLO por Socket - NO REST)
    * Retorna tempId para manejar mensaje optimista
+   * También marca como leído automáticamente (si el usuario está enviando, está leyendo)
    */
-  const sendMessage = useCallback((conversationId: string, content: string, type: 'TEXT' | 'IMAGE' | 'FILE' = 'TEXT', sendMessageSocket: (convId: string, msg: string, msgType?: 'TEXT' | 'IMAGE' | 'FILE') => string | null) => {
+  const sendMessage = useCallback((conversationId: string, content: string, type: 'TEXT' | 'IMAGE' | 'FILE' = 'TEXT', sendMessageSocket: (convId: string, msg: string, msgType?: 'TEXT' | 'IMAGE' | 'FILE') => string | null, markAsReadSocket?: (convId: string) => void) => {
     // Validar que no sea conversación temporal
     if (conversationId.startsWith('temp-')) {
       throw new Error('No se puede enviar mensaje a una conversación temporal. Crea la conversación primero.')
@@ -219,7 +236,7 @@ export function useChat() {
     const tempId = sendMessageSocket(conversationId, content, type)
     
     if (!tempId) {
-      throw new Error('Error al enviar mensaje por socket')
+      throw new Error('Error al enviar mensaje por socket. Verifica que el socket esté conectado.')
     }
 
     // Crear mensaje optimista
@@ -248,6 +265,31 @@ export function useChat() {
       if (!existing.find(m => m.id === tempId)) {
         newMap.set(conversationId, [...existing, optimisticMessage])
       }
+      
+      // Marcar como leído todos los mensajes anteriores cuando se envía un mensaje
+      // (si el usuario está enviando, está activamente leyendo)
+      if (user?.id && markAsReadSocket) {
+        const updated = newMap.get(conversationId)?.map((msg) => {
+          if (msg.senderId !== user.id && msg.status !== 'READ') {
+            return { ...msg, status: 'READ' as const }
+          }
+          return msg
+        }) || []
+        newMap.set(conversationId, updated)
+        
+        // Marcar como leído por socket
+        markAsReadSocket(conversationId)
+        
+        // Recalcular contador
+        let totalUnread = 0
+        newMap.forEach((convMessages) => {
+          totalUnread += convMessages.filter(msg => 
+            msg.senderId !== user.id && msg.status !== 'READ'
+          ).length
+        })
+        setUnreadCount(totalUnread)
+      }
+      
       return newMap
     })
     
@@ -300,27 +342,51 @@ export function useChat() {
       return newMap
     })
     
-    // Actualizar contador local (sin llamar API)
-    const conversationMessages = messages.get(conversationId) || []
-    const unreadInConv = conversationMessages.filter(msg => 
-      msg.senderId !== user?.id && msg.status !== 'READ'
-    ).length
-    setUnreadCount((prev) => Math.max(0, prev - unreadInConv))
-  }, [user, messages])
+    // Recalcular contador después de actualizar el estado
+    // Usar setTimeout para que se ejecute después de que el estado se actualice
+    if (user?.id) {
+      setTimeout(() => {
+        // Calcular contador usando todos los mensajes (incluyendo socket)
+        // Acceder al estado actual de messages usando una función
+        setMessages((currentMessages) => {
+          let totalUnread = 0
+          conversations.forEach(conv => {
+            const apiMessages = currentMessages.get(conv.id) || []
+            const socketMessagesRaw = socketMessages.get(conv.id) || []
+            const allConvMessages = [...apiMessages, ...socketMessagesRaw]
+            totalUnread += allConvMessages.filter(msg => 
+              msg.senderId !== user.id && msg.status !== 'READ'
+            ).length
+          })
+          setUnreadCount(totalUnread)
+          return currentMessages // Retornar sin cambios
+        })
+      }, 100) // Aumentar delay para asegurar que el estado se actualice
+    }
+  }, [user, conversations, socketMessages])
 
   /**
    * Cargar contador de no leídos
    */
   const fetchUnreadCount = useCallback(async () => {
+    // ✅ Verificar autenticación antes de hacer la llamada
+    if (!user?.id) {
+      console.log('[useChat] Usuario no autenticado, omitiendo fetchUnreadCount')
+      return
+    }
+
     try {
       const response = await apiClient.get<{ count: number }>(API_ENDPOINTS.CHAT.UNREAD_COUNT)
       if (response.success && response.data) {
         setUnreadCount(response.data.count)
       }
     } catch (err) {
-      console.error('Error cargando contador:', err)
+      // ✅ Solo loggear si el usuario está autenticado
+      if (user?.id) {
+        console.error('Error cargando contador:', err)
+      }
     }
-  }, [])
+  }, [user?.id])
 
   /**
    * Cerrar conversación
@@ -501,10 +567,16 @@ export function useChat() {
 
   // Cargar conversaciones al montar (SOLO una vez, el socket es la fuente de verdad)
   useEffect(() => {
+    // ✅ Verificar autenticación antes de hacer cualquier llamada
+    if (!user?.id) {
+      console.log('[useChat] Usuario no autenticado, omitiendo carga de datos')
+      return
+    }
+
     let mounted = true
     
     const loadData = async () => {
-      if (mounted) {
+      if (mounted && user?.id) {
         await fetchConversations()
         await fetchUnreadCount() // Solo una vez al montar
       }
@@ -519,7 +591,7 @@ export function useChat() {
       mounted = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // ✅ Solo ejecutar una vez al montar
+  }, [user?.id]) // ✅ Agregar user?.id como dependencia
 
   return {
     conversations,

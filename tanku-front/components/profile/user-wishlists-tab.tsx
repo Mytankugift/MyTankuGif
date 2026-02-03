@@ -8,6 +8,8 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
 import { WishlistProductsModal } from '@/components/wishlists/wishlist-products-modal'
 import { ShareWishlistModal } from '@/components/wishlists/share-wishlist-modal'
+import { GiftCartConfirmationModal } from '@/components/gifts/gift-cart-confirmation-modal'
+import { useGiftCart } from '@/lib/hooks/use-gift-cart'
 import Image from 'next/image'
 import { BookmarkIcon, LockClosedIcon, ShareIcon } from '@heroicons/react/24/outline'
 import type { WishListDTO } from '@/types/api'
@@ -19,7 +21,8 @@ interface UserWishlistsTabProps {
 
 export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabProps) {
   const { user: currentUser } = useAuthStore()
-  const { addItem } = useCartStore()
+  const { addItem, cart } = useCartStore()
+  const { addToGiftCart, clearGiftCart } = useGiftCart()
   const [wishlists, setWishlists] = useState<WishListDTO[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedWishlist, setSelectedWishlist] = useState<WishListDTO | null>(null)
@@ -28,6 +31,11 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
   const [pendingRequestIds, setPendingRequestIds] = useState<Set<string>>(new Set())
   const [backendCanViewPrivate, setBackendCanViewPrivate] = useState(false)
   const loadingRef = useRef(false)
+  const isOwnWishlist = currentUser?.id === userId
+  const [showGiftConfirmation, setShowGiftConfirmation] = useState(false)
+  const [pendingGiftItem, setPendingGiftItem] = useState<{ variantId: string; recipientId: string } | null>(null)
+  const [currentRecipientName, setCurrentRecipientName] = useState<string | null>(null)
+  const [newRecipientName, setNewRecipientName] = useState<string | null>(null)
 
   // Función para cargar wishlists (extraída para poder reutilizarla)
   const loadWishlists = useCallback(async () => {
@@ -245,21 +253,140 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
   }
 
   const handleAddToCartFromWishlistItem = async (item: WishListDTO['items'][0]) => {
-    if (item.variantId) {
-      await addItem(item.variantId, 1)
+    try {
+      if (item.variantId) {
+        await addItem(item.variantId, 1)
+        return
+      }
+
+      const handle = item.product.handle
+      if (!handle) return
+      const fullProduct = await fetchProductByHandle(handle)
+      const variants = fullProduct?.variants || []
+      if (variants.length === 1) {
+        await addItem(variants[0].id, 1)
+        return
+      }
+
+      setSelectedWishlist((prev) => prev || null)
+    } catch (error: any) {
+      // Si el error es porque el carrito actual es de regalos
+      if (error.message === 'CART_IS_GIFT_CART') {
+        alert('Tienes productos en el carrito de regalos. Por favor, ve al carrito y finaliza tu compra de regalos antes de agregar productos a tu carrito normal, o limpia el carrito de regalos.')
+        return
+      }
+      console.error('Error agregando al carrito:', error)
+      alert(error.message || 'Error al agregar producto al carrito')
+    }
+  }
+
+  // Función helper para obtener el nombre del usuario
+  const getUserName = async (userId: string): Promise<string> => {
+    try {
+      // Hacer petición al backend
+      const response = await apiClient.get<any>(API_ENDPOINTS.USERS.BY_ID(userId))
+      if (response.success && response.data) {
+        const user = response.data.user || response.data
+        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+        if (fullName) return fullName
+        return user.username || 'este usuario'
+      }
+      return 'este usuario'
+    } catch (error) {
+      console.error('Error obteniendo nombre del usuario:', error)
+      return 'este usuario'
+    }
+  }
+
+  const handleSendAsGift = async (item: WishListDTO['items'][0], skipConfirmation = false) => {
+    if (!item.variantId) {
+      alert('Este producto no tiene variante seleccionada')
       return
     }
 
-    const handle = item.product.handle
-    if (!handle) return
-    const fullProduct = await fetchProductByHandle(handle)
-    const variants = fullProduct?.variants || []
-    if (variants.length === 1) {
-      await addItem(variants[0].id, 1)
-      return
+    try {
+      await addToGiftCart(item.variantId, userId, 1)
+      alert('Producto agregado al carrito de regalos')
+      setShowGiftConfirmation(false)
+      setPendingGiftItem(null)
+      setCurrentRecipientName(null)
+      setNewRecipientName(null)
+    } catch (error: any) {
+      // Si el error es por tener otro destinatario, mostrar confirmación (no es un error real)
+      if (error.message === 'DIFFERENT_RECIPIENT' && !skipConfirmation) {
+        setPendingGiftItem({ variantId: item.variantId, recipientId: userId })
+        
+        // Obtener nombres de los destinatarios
+        const currentRecipientId = cart?.giftRecipientId
+        if (currentRecipientId) {
+          const currentName = await getUserName(currentRecipientId)
+          setCurrentRecipientName(currentName)
+        }
+        
+        const newName = await getUserName(userId)
+        setNewRecipientName(newName)
+        
+        setShowGiftConfirmation(true)
+        return
+      }
+      
+      // Solo loggear errores reales (no los esperados)
+      if (!error.isExpected) {
+        console.error('Error enviando como regalo:', error)
+      }
+      
+      alert(error.message || 'Error al enviar como regalo')
     }
+  }
 
-    setSelectedWishlist((prev) => prev || null)
+  const handleConfirmClearCart = async () => {
+    if (!pendingGiftItem) return
+    
+    try {
+      // Obtener el carrito actual de regalos
+      const { giftCart: currentGiftCart } = useCartStore.getState()
+      
+      // Si hay items en el carrito, eliminarlos todos primero
+      if (currentGiftCart && currentGiftCart.items && currentGiftCart.items.length > 0) {
+        const itemIds = currentGiftCart.items.map(item => item.id)
+        // Eliminar todos los items del carrito de regalos
+        for (const itemId of itemIds) {
+          try {
+            await useCartStore.getState().removeItem(itemId, currentGiftCart.id)
+          } catch (err: any) {
+            // Si el error es NOT_FOUND, el item ya no existe, continuar
+            if (!err?.message?.includes('NOT_FOUND') && !err?.message?.includes('no encontrado')) {
+              console.error('Error eliminando item:', err)
+            }
+          }
+        }
+      }
+      
+      // Esperar un momento para que el backend procese la limpieza
+      // y resetee el giftRecipientId
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Recargar el carrito de regalos para obtener el estado actualizado del backend
+      await useCartStore.getState().fetchGiftCart()
+      
+      // Verificar que el carrito de regalos esté limpio
+      const { giftCart: updatedGiftCart } = useCartStore.getState()
+      
+      // Luego agregar el nuevo producto
+      // El backend detectará que el carrito está vacío y permitirá cambiar el destinatario
+      await handleSendAsGift({ variantId: pendingGiftItem.variantId } as WishListDTO['items'][0], true)
+      setShowGiftConfirmation(false)
+      setPendingGiftItem(null)
+      setCurrentRecipientName(null)
+      setNewRecipientName(null)
+    } catch (error: any) {
+      console.error('Error al limpiar y agregar:', error)
+      alert(error.message || 'Error al procesar el regalo')
+      setShowGiftConfirmation(false)
+      setPendingGiftItem(null)
+      setCurrentRecipientName(null)
+      setNewRecipientName(null)
+    }
   }
 
   if (isLoading) {
@@ -416,8 +543,23 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
                             width={14}
                             height={14}
                             className="object-contain"
+                            style={{ width: 'auto', height: 'auto' }}
                           />
                         </button>
+                        {/* Enviar como regalo - solo si no es tu propia wishlist */}
+                        {!isOwnWishlist && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              await handleSendAsGift(item)
+                            }}
+                            className="p-1.5 rounded bg-black/30 hover:bg-black/50 transition-colors flex-shrink-0"
+                            aria-label="Enviar como regalo"
+                            title="Enviar como regalo"
+                          >
+                            <span className="text-[10px] text-[#66DEDB]">🎁</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -476,6 +618,8 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
           wishlist={selectedWishlist}
           isOpen={!!selectedWishlist}
           onClose={() => setSelectedWishlist(null)}
+          wishlistOwnerId={userId}
+          isOwnWishlist={isOwnWishlist}
         />
       )}
 
@@ -487,6 +631,24 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
           onClose={() => setShareWishlist(null)}
         />
       )}
+
+      {/* Modal de confirmación para carrito de regalos con otro destinatario */}
+      <GiftCartConfirmationModal
+        isOpen={showGiftConfirmation}
+        onConfirm={handleConfirmClearCart}
+        onCancel={() => {
+          setShowGiftConfirmation(false)
+          setPendingGiftItem(null)
+          setCurrentRecipientName(null)
+          setNewRecipientName(null)
+        }}
+        onGoToCart={() => {
+          // Navegar al carrito y cambiar al tab de regalos
+          window.location.href = '/cart'
+        }}
+        currentRecipientName={currentRecipientName || undefined}
+        newRecipientName={newRecipientName || undefined}
+      />
     </div>
   )
 }

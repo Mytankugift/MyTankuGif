@@ -63,8 +63,12 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
         
         // Cargar mensajes históricos (solo una vez)
         fetchMessages(conversationId).then(() => {
+          // Marcar como leído solo cuando el usuario realmente abre este chat específico
           if (markAsReadSocket) {
-            markAsRead(conversationId, markAsReadSocket)
+            // Delay para asegurar que el chat está visible
+            setTimeout(() => {
+              markAsRead(conversationId, markAsReadSocket)
+            }, 500)
           }
         }).catch((err) => {
           console.error('Error cargando mensajes:', err)

@@ -6,6 +6,9 @@ import { AddressSelector } from '@/components/addresses/address-selector'
 import { AddressFormModal } from '@/components/addresses/address-form-modal'
 import type { AddressDTO, CreateAddressDTO, UpdateAddressDTO } from '@/types/api'
 import { PlusIcon } from '@heroicons/react/24/outline'
+import { useAuthStore } from '@/lib/stores/auth-store'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { apiClient } from '@/lib/api/client'
 
 interface AddressesSectionProps {
   onUpdate?: () => void
@@ -13,13 +16,31 @@ interface AddressesSectionProps {
 
 export function AddressesSection({ onUpdate }: AddressesSectionProps) {
   const { addresses, isLoading, fetchAddresses, createAddress, updateAddress, deleteAddress } = useAddresses()
+  const { user } = useAuthStore()
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [editingAddress, setEditingAddress] = useState<AddressDTO | null>(null)
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
+  const [useMainAddressForGifts, setUseMainAddressForGifts] = useState(false)
 
   useEffect(() => {
     fetchAddresses()
   }, [fetchAddresses])
+
+  // Cargar preferencias de regalos del perfil
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user?.id) return
+      try {
+        const response = await apiClient.get<import('@/types/api-responses').UserProfileResponse>(API_ENDPOINTS.USERS.PROFILE.GET)
+        if (response.success && response.data) {
+          setUseMainAddressForGifts(response.data.useMainAddressForGifts ?? false)
+        }
+      } catch (error) {
+        console.error('Error cargando perfil:', error)
+      }
+    }
+    loadProfile()
+  }, [user?.id])
 
   const handleCreateAddress = () => {
     setEditingAddress(null)
@@ -92,6 +113,7 @@ export function AddressesSection({ onUpdate }: AddressesSectionProps) {
           onSelectAddress={(address) => setSelectedAddressId(address?.id || null)}
           onEdit={handleEditAddress}
           onDelete={handleDeleteAddress}
+          useMainAddressForGifts={useMainAddressForGifts}
         />
       )}
 

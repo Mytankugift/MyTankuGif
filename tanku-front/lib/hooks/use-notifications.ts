@@ -17,7 +17,7 @@ export interface NotificationItem {
 }
 
 export function useNotifications() {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, token } = useAuthStore()
   const [unreadCount, setUnreadCount] = useState<number>(0)
   const [items, setItems] = useState<NotificationItem[]>([])
   const [isOpen, setIsOpen] = useState(false)
@@ -64,18 +64,25 @@ export function useNotifications() {
 
   useEffect(() => {
     if (!isAuthenticated) return
+    
     fetchUnreadCount()
     fetchList()
 
-    const socket = initSocket()
+    // ✅ Verificar que haya token antes de inicializar socket
+    if (!token) {
+      console.warn('[useNotifications] No hay token, omitiendo inicialización de socket')
+      return
+    }
+
+    const socket = initSocket(token)
     if (!socket) return
 
-    const onEvent = async (msg: any) => {
+    const onEvent = (msg: any) => {
       if (!msg || !msg.type) return
       if (msg.type === 'notification') {
         const notification = msg.payload?.notification
         if (notification) {
-          // Actualizar lista de notificaciones
+          // Actualizar lista de notificaciones (rápido, síncrono)
           setItems((prev) => {
             // Evitar duplicados
             if (prev.some((n) => n.id === notification.id)) {
@@ -83,19 +90,25 @@ export function useNotifications() {
             }
             return [notification, ...prev].slice(0, 10)
           })
-          // Incrementar contador
+          // Incrementar contador (rápido, síncrono)
           setUnreadCount((c) => c + 1)
-          // Refrescar lista completa para asegurar sincronización
-          await fetchList()
-          await fetchUnreadCount()
+          
+          // ✅ Diferir las llamadas API para no bloquear el handler
+          // Usar setTimeout con 0ms para ejecutar en el siguiente tick
+          setTimeout(() => {
+            fetchList()
+            fetchUnreadCount()
+          }, 0)
         }
       } else if (msg.type === 'notification_count') {
         const count = msg.payload?.unreadCount
         if (typeof count === 'number') {
           setUnreadCount(count)
         }
-        // Refrescar también la lista
-        await fetchList()
+        // ✅ Diferir la llamada API
+        setTimeout(() => {
+          fetchList()
+        }, 0)
       }
     }
 

@@ -80,8 +80,18 @@ export class ApiClient {
 
     try {
       // Crear AbortController para timeout
+      // ✅ Aumentar timeout a 60 segundos para endpoints de Dropi (pueden tardar más)
+      const isDropiEndpoint = endpoint.includes('/dropi/')
+      const timeout = isDropiEndpoint ? 60000 : 30000 // 60 segundos para Dropi, 30 para otros
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 segundos
+      const timeoutId = setTimeout(() => {
+        console.warn(`[API] Timeout después de ${timeout}ms para ${endpoint}`)
+        controller.abort()
+      }, timeout)
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[API] Iniciando petición a ${endpoint} con timeout de ${timeout}ms`)
+      }
 
       const response = await fetch(url, {
         ...options,
@@ -93,14 +103,103 @@ export class ApiClient {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ 
-          error: { code: 'HTTP_ERROR', message: `HTTP ${response.status}: ${response.statusText}` } 
-        }))
+        let errorData: any = {};
+        const isAuthError = response.status === 401 || response.status === 403;
+        let isNotFoundError = false;
+        
+        try {
+          const text = await response.text();
+          
+          // ✅ Solo loggear errores si no es un error de autenticación común o NOT_FOUND
+          if (text && text.trim()) {
+            try {
+              errorData = JSON.parse(text);
+              
+              // Verificar si es un error NOT_FOUND o DIFFERENT_RECIPIENT (esperados)
+              isNotFoundError = errorData.error?.code === 'NOT_FOUND' || 
+                               errorData.error?.message?.includes('no encontrado') ||
+                               response.status === 404;
+              
+              const isDifferentRecipient = errorData.error?.code === 'BAD_REQUEST' && 
+                                          errorData.error?.message === 'DIFFERENT_RECIPIENT';
+              
+              // ✅ Solo loggear si no es un error de autenticación esperado, NOT_FOUND o DIFFERENT_RECIPIENT
+              if (!isAuthError && !isNotFoundError && !isDifferentRecipient) {
+                console.error('[API] Error response body:', text);
+              }
+            } catch (parseError) {
+              if (!isAuthError && !isNotFoundError) {
+                console.error('[API] Error parsing JSON:', parseError);
+              }
+              // Si el parseo falla, crear un objeto de error con el texto raw
+              errorData = {
+                error: {
+                  code: 'PARSE_ERROR',
+                  message: `Error al parsear respuesta: ${text.substring(0, 100)}`
+                }
+              };
+            }
+          } else {
+            // Si el texto está vacío, crear un error por defecto
+            errorData = {
+              error: {
+                code: 'HTTP_ERROR',
+                message: `HTTP ${response.status}: ${response.statusText}`
+              }
+            };
+          }
+        } catch (readError) {
+          if (!isAuthError && !isNotFoundError) {
+            console.error('[API] Error reading error response:', readError);
+          }
+          errorData = { 
+            error: { 
+              code: 'HTTP_ERROR', 
+              message: `HTTP ${response.status}: ${response.statusText}` 
+            } 
+          };
+        }
+        
+        // ✅ Mejorar el manejo de errores
+        // El backend devuelve { success: false, error: { code, message } }
+        // Pero también puede devolver directamente { error: { code, message } }
+        let errorObj = errorData.error || errorData;
+        
+        // Verificar si es DIFFERENT_RECIPIENT (error esperado)
+        const isDifferentRecipient = errorObj?.code === 'BAD_REQUEST' && 
+                                    errorObj?.message === 'DIFFERENT_RECIPIENT';
+        
+        // ✅ Solo loggear detalles si no es un error de autenticación esperado, NOT_FOUND o DIFFERENT_RECIPIENT
+        if (!isAuthError && !isNotFoundError && !isDifferentRecipient) {
+          console.error('[API] Error data parsed:', errorData);
+          console.error('[API] Error obj extracted:', errorObj);
+        }
+        
+        // Si errorObj es un objeto vacío o no tiene code/message, usar valores por defecto
+        if (!errorObj || typeof errorObj !== 'object' || Object.keys(errorObj).length === 0) {
+          if (!isAuthError && !isNotFoundError) {
+            console.warn('[API] Error object is empty, using default error');
+          }
+          errorObj = { 
+            code: 'HTTP_ERROR', 
+            message: `HTTP ${response.status}: ${response.statusText}` 
+          };
+        } else if (!errorObj.code || !errorObj.message) {
+          // Si tiene propiedades pero no code/message, construir un mensaje
+          if (!isAuthError && !isNotFoundError) {
+            console.warn('[API] Error object missing code or message, constructing error');
+          }
+          errorObj = {
+            code: errorObj.code || 'HTTP_ERROR',
+            message: errorObj.message || errorObj.toString() || `HTTP ${response.status}: ${response.statusText}`
+          };
+        }
+        
         return {
           success: false,
           data: null as T,
-          error: errorData.error || { code: 'HTTP_ERROR', message: `HTTP ${response.status}: ${response.statusText}` }
-        }
+          error: errorObj
+        };
       }
 
       // Manejar respuestas 204 (No Content) o respuestas vacías
@@ -165,11 +264,15 @@ export class ApiClient {
       console.error('[API] Error:', error)
       
       // Manejar diferentes tipos de errores
-      if (error.name === 'AbortError') {
+      if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+        console.error('[API] Request aborted - posible timeout o cancelación')
         return {
           success: false,
           data: null as T,
-          error: { code: 'TIMEOUT_ERROR', message: 'La solicitud tardó demasiado tiempo' }
+          error: { 
+            code: 'TIMEOUT_ERROR', 
+            message: 'La solicitud tardó demasiado tiempo o fue cancelada. Verifica tu conexión.' 
+          }
         }
       }
       

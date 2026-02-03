@@ -292,6 +292,90 @@ export class CartController {
   };
 
   /**
+   * GET /api/v1/cart/gift
+   * Obtener carrito de regalos del usuario (o crear uno vacío si no existe)
+   */
+  getCurrentUserGiftCart = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+
+      if (!userId) {
+        return res.status(200).json({
+          success: true,
+          data: null,
+          message: 'No hay usuario autenticado',
+        });
+      }
+
+      const cart = await this.cartService.getUserGiftCart(userId);
+
+      return res.status(200).json({
+        success: true,
+        data: cart,
+        cart: cart,
+      });
+    } catch (error) {
+      console.error(`❌ [CART] Error obteniendo carrito de regalos:`, error);
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/cart/gift-items
+   * Agregar item al carrito de regalos
+   */
+  addGiftItem = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { cart_id, variant_id, quantity, recipient_id } = req.body;
+
+      if (!variant_id) {
+        throw new BadRequestError('variant_id es requerido');
+      }
+
+      if (!quantity || quantity < 1) {
+        throw new BadRequestError('quantity debe ser mayor a 0');
+      }
+
+      if (!recipient_id) {
+        throw new BadRequestError('recipient_id es requerido');
+      }
+
+      const requestWithUser = req as RequestWithUser;
+      const senderId = requestWithUser.user?.id;
+
+      if (!senderId) {
+        throw new BadRequestError('Debes estar autenticado para enviar regalos');
+      }
+
+      console.log(`🎁 [CART] Agregando item de regalo: cart_id=${cart_id || 'null'}, variant_id=${variant_id}, quantity=${quantity}, recipient_id=${recipient_id}, sender_id=${senderId}`);
+
+      const cart = await this.cartService.addItemToGiftCart(
+        cart_id || null,
+        variant_id,
+        quantity,
+        senderId,
+        recipient_id
+      );
+
+      console.log(`✅ [CART] Item de regalo agregado. Carrito ID: ${cart.id}`);
+
+      const response = {
+        success: true,
+        message: 'Item agregado al carrito de regalos',
+        data: cart,
+        cart: cart,
+        cart_id: cart.id,
+      };
+
+      res.status(200).json(response);
+    } catch (error) {
+      console.error(`❌ [CART] Error agregando item de regalo:`, error);
+      next(error);
+    }
+  };
+
+  /**
    * POST /store/cart/add-item
    * Agregar item al carrito
    */
@@ -598,19 +682,28 @@ export class CartController {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'quantity debe ser mayor o igual a 0'));
       }
 
-      // Si no hay cartId, obtener carrito del usuario
-      let finalCartId = cartId;
-      if (!finalCartId && userId) {
-        const userCart = await this.cartService.getUserCart(userId);
-        if (!userCart) {
-          return res.status(404).json(errorResponse(ErrorCode.NOT_FOUND, 'Carrito no encontrado'));
-        }
-        finalCartId = userCart.id;
+      // Siempre buscar el item primero para obtener su cartId
+      // Esto asegura que funcionará para ambos tipos de carritos (normal y de regalos)
+      const item = await prisma.cartItem.findUnique({
+        where: { id: itemId },
+        include: { cart: true },
+      });
+
+      if (!item) {
+        return res.status(404).json(errorResponse(ErrorCode.NOT_FOUND, 'Item del carrito no encontrado'));
       }
 
-      if (!finalCartId) {
-        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'cartId es requerido o debe estar autenticado'));
+      // Verificar que el carrito pertenece al usuario si está autenticado
+      if (userId && item.cart.userId !== userId) {
+        return res.status(403).json(errorResponse(ErrorCode.FORBIDDEN, 'No tienes permiso para actualizar este item'));
       }
+
+      // Si se pasó cartId en el body, verificar que coincida con el del item
+      if (cartId && cartId !== item.cart.id) {
+        console.warn(`[CART] cartId del body (${cartId}) no coincide con el del item (${item.cart.id}), usando el del item`);
+      }
+
+      const finalCartId = item.cart.id;
 
       const cart = await this.cartService.updateCartItemNormalized(finalCartId, itemId, quantity, userId);
 
@@ -630,25 +723,41 @@ export class CartController {
       const userId = requestWithUser.user?.id;
 
       const { itemId } = req.params;
-      const { cartId } = req.body;
+      // Intentar obtener cartId del body (puede no estar disponible en DELETE)
+      let cartId: string | undefined;
+      try {
+        cartId = req.body?.cartId;
+      } catch (e) {
+        // Si el body no se puede parsear, continuar sin cartId
+        console.log('[CART] No se pudo parsear body en DELETE, buscando item directamente');
+      }
 
       if (!itemId) {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'itemId es requerido'));
       }
 
-      // Si no hay cartId, obtener carrito del usuario
-      let finalCartId = cartId;
-      if (!finalCartId && userId) {
-        const userCart = await this.cartService.getUserCart(userId);
-        if (!userCart) {
-          return res.status(404).json(errorResponse(ErrorCode.NOT_FOUND, 'Carrito no encontrado'));
-        }
-        finalCartId = userCart.id;
+      // Siempre buscar el item primero para obtener su cartId
+      // Esto asegura que funcionará incluso si el body no se parsea correctamente
+      const item = await prisma.cartItem.findUnique({
+        where: { id: itemId },
+        include: { cart: true },
+      });
+
+      if (!item) {
+        return res.status(404).json(errorResponse(ErrorCode.NOT_FOUND, 'Item del carrito no encontrado'));
       }
 
-      if (!finalCartId) {
-        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'cartId es requerido o debe estar autenticado'));
+      // Verificar que el carrito pertenece al usuario si está autenticado
+      if (userId && item.cart.userId !== userId) {
+        return res.status(403).json(errorResponse(ErrorCode.FORBIDDEN, 'No tienes permiso para eliminar este item'));
       }
+
+      // Si se pasó cartId en el body, verificar que coincida con el del item
+      if (cartId && cartId !== item.cart.id) {
+        console.warn(`[CART] cartId del body (${cartId}) no coincide con el del item (${item.cart.id}), usando el del item`);
+      }
+
+      const finalCartId = item.cart.id;
 
       const cart = await this.cartService.deleteCartItemNormalized(finalCartId, itemId);
 

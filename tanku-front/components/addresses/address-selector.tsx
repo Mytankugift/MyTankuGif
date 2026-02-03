@@ -11,6 +11,7 @@ interface AddressSelectorProps {
   onSelectAddress: (address: AddressDTO | null) => void
   onEdit: (address: AddressDTO) => void
   onDelete: (addressId: string) => void
+  useMainAddressForGifts?: boolean // Si el usuario usa su dirección principal para regalos
 }
 
 export function AddressSelector({
@@ -20,6 +21,7 @@ export function AddressSelector({
   onSelectAddress,
   onEdit,
   onDelete,
+  useMainAddressForGifts = false,
 }: AddressSelectorProps) {
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
   const confirmRef = useRef<HTMLDivElement>(null)
@@ -88,13 +90,18 @@ export function AddressSelector({
             className="mt-0.5 w-3.5 h-3.5 text-[#66DEDB] focus:ring-[#66DEDB] focus:ring-1"
           />
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
+            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <p className="text-sm font-medium text-white truncate">
                 {getAddressAlias(address)}
               </p>
               {address.isDefaultShipping && (
                 <span className="text-xs bg-[#66DEDB]/20 text-[#66DEDB] px-1.5 py-0.5 rounded flex-shrink-0">
                   Por defecto
+                </span>
+              )}
+              {(address.isGiftAddress || (useMainAddressForGifts && address.isDefaultShipping)) && (
+                <span className="text-xs bg-[#73FFA2]/20 text-[#73FFA2] px-1.5 py-0.5 rounded flex-shrink-0">
+                  Dirección de regalos
                 </span>
               )}
             </div>

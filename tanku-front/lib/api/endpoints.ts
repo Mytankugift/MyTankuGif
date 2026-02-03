@@ -32,10 +32,17 @@ export const API_ENDPOINTS = {
   // Cart
   CART: {
     GET: '/api/v1/cart',
+    GET_GIFT: '/api/v1/cart/gift',
     CREATE: '/api/v1/cart',
     ADD_ITEM: '/api/v1/cart/items',
+    ADD_GIFT_ITEM: '/api/v1/cart/gift-items',
     UPDATE_ITEM: (itemId: string) => `/api/v1/cart/items/${itemId}`,
     DELETE_ITEM: (itemId: string) => `/api/v1/cart/items/${itemId}`,
+  },
+  // Gifts
+  GIFTS: {
+    RECIPIENT_ELIGIBILITY: (userId: string) => `/api/v1/gifts/recipient/${userId}/eligibility`,
+    ORDERS: '/api/v1/gifts/orders',
   },
   // Orders
   ORDERS: {
@@ -55,7 +62,10 @@ export const API_ENDPOINTS = {
     ME: '/api/v1/users/me',
     BY_ID: (userId: string) => `/api/v1/users/${userId}`,
     BY_USERNAME: (username: string) => `/api/v1/users/by-username/${username}`,
-    PROFILE: '/api/v1/users/me/profile',
+    PROFILE: {
+      GET: '/api/v1/users/me/profile',
+      UPDATE: '/api/v1/users/me/profile',
+    },
     PROFILE_AVATAR: '/api/v1/users/me/profile/avatar',
     PROFILE_BANNER: '/api/v1/users/me/profile/banner',
     SEARCH: '/api/v1/users/search',
@@ -112,6 +122,7 @@ export const API_ENDPOINTS = {
     REVOKE_ACCESS: (wishlistId: string, userId: string) => `/api/v1/wishlists/${wishlistId}/access-grants/${userId}`,
     REVOKE_ALL_ACCESS: (wishlistId: string) => `/api/v1/wishlists/${wishlistId}/access-grants`,
     LIKED: '/api/v1/wishlists/liked', // Wishlist automática "Me gusta"
+    RECOMMENDED: '/api/v1/wishlists/recommended', // Wishlists recomendadas (plantillas)
   },
   // Regions
   REGIONS: '/api/v1/regions',
@@ -178,6 +189,11 @@ export const API_ENDPOINTS = {
   // Consent
   CONSENT: {
     SAVE: '/api/v1/consent',
+  },
+  // Dropi (Departamentos y Ciudades)
+  DROPI: {
+    DEPARTMENTS: '/api/v1/dropi/departments',
+    CITIES: '/api/v1/dropi/cities',
   },
 } as const
 

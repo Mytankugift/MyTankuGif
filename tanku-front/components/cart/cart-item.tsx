@@ -81,8 +81,30 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
     }
 
     try {
-      await removeItem(item.id)
+      // Obtener el cartId del item desde el store
+      // Buscar en ambos carritos (normal y de regalos)
+      const { normalCart, giftCart } = useCartStore.getState()
+      let cartId: string | undefined
+      
+      // Buscar en el carrito normal
+      if (normalCart?.items?.some(i => i.id === item.id)) {
+        cartId = normalCart.id
+      }
+      // Buscar en el carrito de regalos
+      else if (giftCart?.items?.some(i => i.id === item.id)) {
+        cartId = giftCart.id
+      }
+      
+      await removeItem(item.id, cartId)
+      // Si el item se eliminó correctamente, el carrito se actualizará automáticamente
     } catch (err: any) {
+      // Si el error es NOT_FOUND, el item ya no existe, no mostrar error
+      if (err?.message?.includes('NOT_FOUND') || err?.message?.includes('no encontrado')) {
+        console.warn('Item ya no existe, el carrito se actualizará automáticamente')
+        // Recargar ambos carritos para actualizar la UI
+        await useCartStore.getState().fetchBothCarts()
+        return
+      }
       console.error('Error eliminando item:', err)
       alert(err?.message || 'Error al eliminar producto')
     }
@@ -116,7 +138,15 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
         setShowVariantModal(false)
       } else {
         // Si es diferente variante, eliminar el actual y agregar el nuevo
-        await removeItem(item.id)
+        try {
+          await removeItem(item.id)
+        } catch (err: any) {
+          // Si el error es NOT_FOUND, el item ya no existe, continuar agregando el nuevo
+          if (!err?.message?.includes('NOT_FOUND') && !err?.message?.includes('no encontrado')) {
+            throw err
+          }
+          console.warn('Item ya no existe, agregando nueva variante...')
+        }
         await addItem(selectedVariantInModal.id, modalQuantity)
         setShowVariantModal(false)
       }

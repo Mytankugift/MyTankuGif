@@ -6,6 +6,7 @@
 
 import Image from 'next/image'
 import { useCartStore } from '@/lib/stores/cart-store'
+import { useGiftCart } from '@/lib/hooks/use-gift-cart'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import type { WishListDTO } from '@/types/api'
 
@@ -14,6 +15,8 @@ interface WishlistProductsModalProps {
   isOpen: boolean
   onClose: () => void
   onRemoveItem?: (wishListId: string, itemId: string) => Promise<void>
+  wishlistOwnerId?: string
+  isOwnWishlist?: boolean
 }
 
 export function WishlistProductsModal({
@@ -21,8 +24,11 @@ export function WishlistProductsModal({
   isOpen,
   onClose,
   onRemoveItem,
+  wishlistOwnerId,
+  isOwnWishlist = false,
 }: WishlistProductsModalProps) {
   const { addItem } = useCartStore()
+  const { addToGiftCart } = useGiftCart()
 
   if (!isOpen) return null
 
@@ -129,6 +135,27 @@ export function WishlistProductsModal({
                         >
                           Agregar al carrito
                         </button>
+                        {wishlistOwnerId && !isOwnWishlist && (
+                          <button
+                            onClick={async () => {
+                              if (!item.variantId) {
+                                alert('Este producto no tiene variante seleccionada')
+                                return
+                              }
+
+                              try {
+                                await addToGiftCart(item.variantId, wishlistOwnerId, 1)
+                                alert('Producto agregado al carrito de regalos')
+                              } catch (error: any) {
+                                console.error('Error enviando como regalo:', error)
+                                alert(error.message || 'Error al enviar como regalo')
+                              }
+                            }}
+                            className="px-4 py-2 text-sm bg-[#66DEDB] text-gray-900 font-semibold rounded-lg hover:bg-[#3B9BC3] transition-colors"
+                          >
+                            Enviar como regalo
+                          </button>
+                        )}
                         {onRemoveItem && (
                           <button
                             onClick={async () => {

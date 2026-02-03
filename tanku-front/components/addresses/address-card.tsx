@@ -10,6 +10,7 @@ interface AddressCardProps {
   onEdit: (address: AddressDTO) => void
   onDelete: (addressId: string) => void
   isDeleting?: boolean
+  useMainAddressForGifts?: boolean // Si el usuario usa su dirección principal para regalos
 }
 
 export function AddressCard({
@@ -17,6 +18,7 @@ export function AddressCard({
   onEdit,
   onDelete,
   isDeleting = false,
+  useMainAddressForGifts = false,
 }: AddressCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -43,11 +45,16 @@ export function AddressCard({
     <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h3 className="font-semibold text-white">{getAddressAlias()}</h3>
             {address.isDefaultShipping && (
               <span className="text-xs bg-[#66DEDB]/20 text-[#66DEDB] px-2 py-1 rounded">
                 Por defecto
+              </span>
+            )}
+            {(address.isGiftAddress || (useMainAddressForGifts && address.isDefaultShipping)) && (
+              <span className="text-xs bg-[#73FFA2]/20 text-[#73FFA2] px-2 py-1 rounded">
+                Dirección de regalos
               </span>
             )}
           </div>

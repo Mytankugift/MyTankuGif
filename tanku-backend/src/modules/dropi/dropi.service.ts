@@ -64,6 +64,14 @@ export class DropiService {
     const baseUrl = this.proxyUrl || this.baseUrl;
     const url = `${baseUrl}${endpoint}`;
     
+    // ✅ Agregar logging para debug
+    console.log(`[DROPI] ${method} ${url}`);
+    console.log(`[DROPI] Usando proxy: ${!!this.proxyUrl}`);
+    console.log(`[DROPI] Base URL: ${this.baseUrl}`);
+    console.log(`[DROPI] Proxy URL: ${this.proxyUrl || 'No configurado'}`);
+    console.log(`[DROPI] Token configurado: ${!!this.token}`);
+    console.log(`[DROPI] Token (primeros 10 chars): ${this.token ? this.token.substring(0, 10) + '...' : 'No configurado'}`);
+    
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'dropi-integration-key': this.token,
@@ -72,7 +80,10 @@ export class DropiService {
     // Si estamos usando proxy, agregar el header de proxy key
     if (this.proxyUrl && this.proxyKey) {
       headers['x-proxy-key'] = this.proxyKey;
+      console.log(`[DROPI] Proxy key configurado: ${!!this.proxyKey}`);
     }
+
+    console.log(`[DROPI] Headers:`, Object.keys(headers).map(k => `${k}: ${k === 'dropi-integration-key' || k === 'x-proxy-key' ? '***' : headers[k]}`));
 
     const options: RequestInit = {
       method,
@@ -81,18 +92,47 @@ export class DropiService {
 
     if (body && method !== 'GET') {
       options.body = JSON.stringify(body);
+      console.log(`[DROPI] Body:`, JSON.stringify(body));
     }
 
-    const response = await fetch(url, options);
+    const startTime = Date.now();
+    try {
+      // ✅ Agregar timeout para peticiones a Dropi (60 segundos)
+      const timeoutMs = 60000;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Timeout después de ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new BadRequestError(
-        `Error en Dropi API: ${response.status} - ${errorText}`
-      );
+      const fetchPromise = fetch(url, options);
+      
+      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+      const duration = Date.now() - startTime;
+      console.log(`[DROPI] Respuesta recibida en ${duration}ms - Status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[DROPI] Error en respuesta: ${response.status} - ${errorText}`);
+        throw new BadRequestError(
+          `Error en Dropi API: ${response.status} - ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+      console.log(`[DROPI] Respuesta exitosa - isSuccess: ${(data as any).isSuccess}`);
+      if ((data as any).objects) {
+        console.log(`[DROPI] Cantidad de objetos: ${(data as any).objects.length}`);
+      }
+      return data as Promise<T>;
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      console.error(`[DROPI] Error después de ${duration}ms:`, error.message || error);
+      if (error.message?.includes('Timeout')) {
+        throw new BadRequestError(`La petición a Dropi tardó más de 60 segundos. URL: ${url}`);
+      }
+      throw error;
     }
-
-    return response.json() as Promise<T>;
   }
 
   /**
@@ -385,5 +425,350 @@ export class DropiService {
       synced: syncedProducts.length,
       products: syncedProducts,
     };
+  }
+
+  /**
+   * Obtener lista de departamentos desde Dropi
+   * GET /integrations/department
+   */
+  async getDepartments(): Promise<{
+    isSuccess: boolean;
+    objects?: Array<{
+      id: number;
+      name: string;
+      department_code?: string | null;
+      country_id?: number;
+    }>;
+    message?: string;
+    status?: number;
+    count?: number | null;
+  }> {
+    try {
+      const response = await this.request<{
+        isSuccess: boolean;
+        objects?: Array<{
+          id: number;
+          name: string;
+          department_code?: string | null;
+          country_id?: number;
+        }>;
+        message?: string;
+        status?: number;
+        count?: number | null;
+      }>('GET', '/integrations/department');
+      
+      return response;
+    } catch (error: any) {
+      console.error('[DROPI] Error obteniendo departamentos:', error);
+      return {
+        isSuccess: false,
+        message: error.message || 'Error desconocido',
+      };
+    }
+  }
+
+  /**
+   * Obtener departamentos desde nuestra BD (cache)
+   */
+  async getDepartmentsFromDB(): Promise<Array<{
+    id: number;
+    name: string;
+    department_code?: string | null;
+    country_id?: number;
+  }>> {
+    // ✅ Verificar que prisma esté inicializado
+    if (!prisma || !prisma.department) {
+      console.error('[DROPI] Prisma no está inicializado o el modelo Department no existe');
+      throw new BadRequestError('Error de configuración de base de datos');
+    }
+
+    const departments = await prisma.department.findMany({
+      orderBy: { name: 'asc' },
+    });
+
+    return departments.map(dept => ({
+      id: dept.dropiId,
+      name: dept.name,
+      department_code: dept.departmentCode,
+      country_id: dept.countryId || undefined,
+    }));
+  }
+
+  /**
+   * Obtener ciudades desde nuestra BD (cache)
+   */
+  async getCitiesFromDB(departmentDropiId: number): Promise<Array<{
+    id: number;
+    name: string;
+    department_id?: number;
+    department_name?: string;
+    code?: string;
+    rate_type?: string;
+    trajectory_type?: string;
+  }>> {
+    // Buscar el departamento por dropiId
+    const department = await prisma.department.findUnique({
+      where: { dropiId: departmentDropiId },
+      include: { cities: true },
+    });
+
+    if (!department) {
+      return [];
+    }
+
+    return department.cities.map(city => ({
+      id: city.dropiId,
+      name: city.name,
+      department_id: departmentDropiId,
+      department_name: department.name,
+      code: city.code || undefined,
+      rate_type: city.rateType || undefined,
+      trajectory_type: city.trajectoryType || undefined,
+    }));
+  }
+
+  /**
+   * Obtener lista de ciudades desde Dropi
+   * POST /integrations/trajectory/bycity
+   * Body: { rate_type: "CON RECAUDO", department_id: number }
+   */
+  async getCities(departmentId: number, rateType: string = "CON RECAUDO"): Promise<{
+    isSuccess: boolean;
+    objects?: Array<{
+      id: number;
+      name: string;
+      department_id?: number;
+      department_name?: string;
+      code?: string;
+      rate_type?: string;
+      trajectory_type?: string;
+    }>;
+    message?: string;
+  }> {
+    try {
+      const body = {
+        rate_type: rateType,
+        department_id: departmentId,
+      };
+      
+      const response = await this.request<{
+        isSuccess: boolean;
+        objects?: any; // Dropi puede devolver diferentes estructuras
+        cities?: Array<{
+          id: number;
+          name: string;
+          department_id?: number;
+          department_name?: string;
+          code?: string;
+          rate_type?: string;
+          trajectory_type?: string;
+        }>;
+        message?: string;
+      }>('POST', '/integrations/trajectory/bycity', body);
+      
+      // ✅ Logging para debug
+      console.log('[DROPI] Respuesta getCities - isSuccess:', response.isSuccess);
+      console.log('[DROPI] Respuesta getCities - tiene objects?:', !!response.objects);
+      console.log('[DROPI] Respuesta getCities - tiene cities?:', !!(response as any).cities);
+      if (response.objects) {
+        console.log('[DROPI] Tipo de objects:', typeof response.objects);
+        if (Array.isArray(response.objects)) {
+          console.log('[DROPI] objects es array, longitud:', response.objects.length);
+        } else if (typeof response.objects === 'object') {
+          console.log('[DROPI] objects es objeto, keys:', Object.keys(response.objects));
+          if ((response.objects as any).cities) {
+            console.log('[DROPI] objects.cities es array, longitud:', (response.objects as any).cities.length);
+          }
+        }
+      }
+      
+      // ✅ Manejar diferentes estructuras de respuesta
+      let citiesArray: any[] = [];
+      
+      if (Array.isArray(response.objects)) {
+        // Estructura directa: { isSuccess: true, objects: [...] }
+        citiesArray = response.objects;
+      } else if (response.objects && typeof response.objects === 'object' && (response.objects as any).cities) {
+        // Estructura anidada: { isSuccess: true, objects: { cities: [...] } }
+        citiesArray = (response.objects as any).cities;
+      } else if ((response as any).cities && Array.isArray((response as any).cities)) {
+        // Estructura alternativa: { isSuccess: true, cities: [...] }
+        citiesArray = (response as any).cities;
+      }
+      
+      console.log('[DROPI] Ciudades extraídas:', citiesArray.length);
+      
+      return {
+        isSuccess: response.isSuccess,
+        objects: citiesArray,
+        message: response.message,
+      };
+    } catch (error: any) {
+      console.error('[DROPI] Error obteniendo ciudades:', error);
+      return {
+        isSuccess: false,
+        message: error.message || 'Error desconocido',
+      };
+    }
+  }
+
+  /**
+   * Sincronizar departamentos desde Dropi a nuestra BD
+   */
+  async syncDepartments(): Promise<{
+    synced: number;
+    updated: number;
+  }> {
+    console.log('🔄 [DROPI] Sincronizando departamentos desde Dropi...');
+    
+    const result = await this.getDepartments();
+    
+    if (!result.isSuccess || !result.objects) {
+      throw new BadRequestError(result.message || 'Error obteniendo departamentos desde Dropi');
+    }
+
+    let synced = 0;
+    let updated = 0;
+
+    for (const dept of result.objects) {
+      try {
+        const existing = await prisma.department.findUnique({
+          where: { dropiId: dept.id },
+        });
+
+        if (existing) {
+          // Actualizar si hay cambios (incluyendo payload)
+          await prisma.department.update({
+            where: { dropiId: dept.id },
+            data: {
+              name: dept.name,
+              departmentCode: dept.department_code || null,
+              countryId: dept.country_id || null,
+              payload: dept as any, // Guardar payload completo
+            },
+          });
+          updated++;
+        } else {
+          // Crear nuevo (incluyendo payload)
+          await prisma.department.create({
+            data: {
+              id: dept.id, // Usar el ID de Dropi como ID primario
+              dropiId: dept.id,
+              name: dept.name,
+              departmentCode: dept.department_code || null,
+              countryId: dept.country_id || null,
+              payload: dept as any, // Guardar payload completo
+            },
+          });
+          synced++;
+        }
+      } catch (error: any) {
+        console.error(`⚠️ [DROPI] Error sincronizando departamento ${dept.id}:`, error);
+      }
+    }
+
+    console.log(`✅ [DROPI] Departamentos sincronizados: ${synced} nuevos, ${updated} actualizados`);
+    return { synced, updated };
+  }
+
+  /**
+   * Sincronizar ciudades de un departamento desde Dropi a nuestra BD
+   */
+  async syncCities(departmentId: number, rateType: string = "CON RECAUDO"): Promise<{
+    synced: number;
+    updated: number;
+  }> {
+    console.log(`🔄 [DROPI] Sincronizando ciudades para departamento ${departmentId}...`);
+    
+    // Verificar que el departamento existe en nuestra BD
+    const department = await prisma.department.findUnique({
+      where: { dropiId: departmentId },
+    });
+
+    if (!department) {
+      throw new BadRequestError(`Departamento con dropiId ${departmentId} no encontrado en BD. Sincroniza departamentos primero.`);
+    }
+
+    const result = await this.getCities(departmentId, rateType);
+    
+    if (!result.isSuccess || !result.objects) {
+      throw new BadRequestError(result.message || 'Error obteniendo ciudades desde Dropi');
+    }
+
+    let synced = 0;
+    let updated = 0;
+
+    for (const city of result.objects) {
+      try {
+        const existing = await prisma.city.findUnique({
+          where: { dropiId: city.id },
+        });
+
+        if (existing) {
+          // Actualizar si hay cambios (incluyendo payload)
+          await prisma.city.update({
+            where: { dropiId: city.id },
+            data: {
+              name: city.name,
+              rateType: city.rate_type || null,
+              trajectoryType: city.trajectory_type || null,
+              code: city.code || null,
+              payload: city as any, // Guardar payload completo
+            },
+          });
+          updated++;
+        } else {
+          // Crear nuevo (incluyendo payload)
+          await prisma.city.create({
+            data: {
+              id: city.id, // Usar el ID de Dropi como ID primario
+              dropiId: city.id,
+              name: city.name,
+              departmentId: department.id, // Usar el ID interno del departamento
+              rateType: city.rate_type || null,
+              trajectoryType: city.trajectory_type || null,
+              code: city.code || null,
+              payload: city as any, // Guardar payload completo
+            },
+          });
+          synced++;
+        }
+      } catch (error: any) {
+        console.error(`⚠️ [DROPI] Error sincronizando ciudad ${city.id}:`, error);
+      }
+    }
+
+    console.log(`✅ [DROPI] Ciudades sincronizadas: ${synced} nuevas, ${updated} actualizadas`);
+    return { synced, updated };
+  }
+
+  /**
+   * Sincronizar todas las ciudades de todos los departamentos
+   */
+  async syncAllCities(rateType: string = "CON RECAUDO"): Promise<{
+    totalSynced: number;
+    totalUpdated: number;
+    departmentsProcessed: number;
+  }> {
+    console.log('🔄 [DROPI] Sincronizando todas las ciudades...');
+    
+    const departments = await prisma.department.findMany();
+    let totalSynced = 0;
+    let totalUpdated = 0;
+    let departmentsProcessed = 0;
+
+    for (const dept of departments) {
+      try {
+        const result = await this.syncCities(dept.dropiId, rateType);
+        totalSynced += result.synced;
+        totalUpdated += result.updated;
+        departmentsProcessed++;
+      } catch (error: any) {
+        console.error(`⚠️ [DROPI] Error sincronizando ciudades de departamento ${dept.dropiId}:`, error);
+      }
+    }
+
+    console.log(`✅ [DROPI] Sincronización completa: ${totalSynced} ciudades nuevas, ${totalUpdated} actualizadas, ${departmentsProcessed} departamentos procesados`);
+    return { totalSynced, totalUpdated, departmentsProcessed };
   }
 }

@@ -1,8 +1,11 @@
 'use client'
 
+import React from 'react'
+
 interface CheckoutPaymentMethodProps {
   value: string
   onChange: (method: string) => void
+  isGiftCart?: boolean
 }
 
 const paymentMethods = [
@@ -20,10 +23,22 @@ const paymentMethods = [
   },
 ]
 
-export function CheckoutPaymentMethod({ value, onChange }: CheckoutPaymentMethodProps) {
+export function CheckoutPaymentMethod({ value, onChange, isGiftCart = false }: CheckoutPaymentMethodProps) {
+  // Filtrar métodos de pago: si es carrito de regalos, solo mostrar Epayco
+  const availableMethods = isGiftCart
+    ? paymentMethods.filter(method => method.id === 'epayco')
+    : paymentMethods
+
+  // Si es carrito de regalos y el método actual es contraentrega, cambiar a Epayco
+  React.useEffect(() => {
+    if (isGiftCart && value === 'cash_on_delivery') {
+      onChange('epayco')
+    }
+  }, [isGiftCart, value, onChange])
+
   return (
     <div className="space-y-2">
-      {paymentMethods.map((method) => (
+      {availableMethods.map((method) => (
         <label
           key={method.id}
           className={`

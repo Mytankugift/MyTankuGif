@@ -563,5 +563,18 @@ export class WishListsController {
       next(error);
     }
   };
+
+  /**
+   * GET /api/v1/wishlists/recommended
+   * Obtener wishlists recomendadas (plantillas)
+   */
+  getRecommendedWishlists = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const recommended = this.wishListsService.getRecommendedWishlists();
+      res.status(200).json(successResponse(recommended));
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 

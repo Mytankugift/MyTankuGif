@@ -395,6 +395,7 @@ export function FeedNav({
                 width={24}
                 height={24}
                 className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
+                style={{ width: 'auto', height: 'auto' }}
               />
               <Image
                 src="/feed/Icons/Chat_Blue.png"
@@ -402,6 +403,7 @@ export function FeedNav({
                 width={24}
                 height={24}
                 className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
+                style={{ width: 'auto', height: 'auto' }}
               />
               {/* Badge azul Tanku de mensajes no leídos */}
               {totalUnread > 0 && (

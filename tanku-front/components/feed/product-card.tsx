@@ -31,9 +31,10 @@ interface ProductCardProps {
   }
   onOpenModal?: (product: any) => void
   isLightMode?: boolean
+  isAboveFold?: boolean // ✅ Nuevo prop para indicar si está visible sin scroll
 }
 
-export const ProductCard = memo(function ProductCard({ product, onOpenModal, isLightMode = false }: ProductCardProps) {
+export const ProductCard = memo(function ProductCard({ product, onOpenModal, isLightMode = false, isAboveFold = false }: ProductCardProps) {
   const { isAuthenticated } = useAuthStore()
   const { addItem } = useCartStore()
   const [showTitle, setShowTitle] = useState(false)
@@ -250,7 +251,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
                 height: '100%',
                 objectFit: 'cover',
               }}
-              loading="lazy"
+              loading={isAboveFold ? "eager" : "lazy"}
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 25vw"
               quality={85}
               onError={() => {
@@ -258,7 +259,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
                 setImageError(true)
               }}
               unoptimized={product.imageUrl?.includes('cloudfront.net') || product.imageUrl?.includes('.gif')}
-              priority={false}
+              priority={isAboveFold}
             />
           ) : (
             <div 

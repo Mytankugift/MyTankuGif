@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { OrderDTO } from '@/types/api'
 import { ShoppingBagIcon, CheckCircleIcon, XCircleIcon, ClockIcon, EyeIcon, XMarkIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
+import { useAuthStore } from '@/lib/stores/auth-store'
 
 interface OrdersTabProps {
   userId?: string
@@ -13,6 +14,7 @@ interface OrdersTabProps {
 }
 
 export function OrdersTab({ userId, initialOrderId }: OrdersTabProps) {
+  const { user } = useAuthStore()
   const [orders, setOrders] = useState<OrderDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<OrderDTO | null>(null)
@@ -408,21 +410,20 @@ export function OrdersTab({ userId, initialOrderId }: OrdersTabProps) {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Total:</span>
-                      <span className="text-white font-medium">{formatPrice(selectedOrder.total)}</span>
+                      {/* ✅ El total real es el subtotal (el envío ya está incluido) */}
+                      <span className="text-white font-medium">{formatPrice(selectedOrder.subtotal)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Subtotal:</span>
-                      <span className="text-white">{formatPrice(selectedOrder.subtotal)}</span>
-                    </div>
-                    {selectedOrder.shippingTotal > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Envío:</span>
-                        <span className="text-white">{formatPrice(selectedOrder.shippingTotal)}</span>
-                      </div>
-                    )}
+                    {/* ❌ ELIMINAR Subtotal y Envío - no deben mostrarse */}
                     <div className="flex justify-between">
                       <span className="text-gray-400">Método de Pago:</span>
-                      <span className="text-white">{selectedOrder.paymentMethod}</span>
+                      {/* ✅ Convertir cash_on_delivery a "Contraentrega" y epayco a "Epayco" */}
+                      <span className="text-white">
+                        {selectedOrder.paymentMethod === 'cash_on_delivery' 
+                          ? 'Contraentrega' 
+                          : selectedOrder.paymentMethod === 'epayco' 
+                          ? 'Epayco' 
+                          : selectedOrder.paymentMethod}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -561,42 +562,43 @@ export function OrdersTab({ userId, initialOrderId }: OrdersTabProps) {
                             {formatDropiStatus(item.dropiStatus)}
                           </span>
                         </div>
-                        {item.dropiOrderId && (
-                          <div>
-                            <span className="text-gray-400">ID de Dropi:</span>
-                            <span className="ml-2 text-white">{item.dropiOrderId}</span>
-                          </div>
-                        )}
-                        {item.dropiShippingCost !== null && item.dropiShippingCost !== undefined && (
-                          <div>
-                            <span className="text-gray-400">Costo de envío:</span>
-                            <span className="ml-2 text-white">{formatPrice(item.dropiShippingCost)}</span>
-                          </div>
-                        )}
-                        {item.dropiDropshipperWin !== null && item.dropiDropshipperWin !== undefined && (
-                          <div>
-                            <span className="text-gray-400">Ganancia del dropshipper:</span>
-                            <span className="ml-2 text-white">{formatPrice(item.dropiDropshipperWin)}</span>
+                        {/* ❌ ELIMINAR ID de Dropi, Costo de envío y Ganancia del dropshipper */}
+                        
+                        {/* ✅ Mostrar link a la guía cuando existe (mantener incluso si cambia el estado) */}
+                        {webhookData?.shipping_guide && webhookData?.shipping_company && webhookData?.sticker && (
+                          <div className="col-span-2">
+                            <span className="text-gray-400">Guía de envío:</span>
+                            <a
+                              href={`${process.env.NEXT_PUBLIC_DROPI_API_URL || 'https://api.dropi.co'}/guias/${webhookData.shipping_company.toLowerCase()}/${webhookData.sticker}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-2 text-[#73FFA2] hover:text-[#66DEDB] underline"
+                            >
+                              Ver guía de envío
+                            </a>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Payload del webhook */}
-                    <div className="bg-gray-800 rounded-lg p-4">
-                      <h4 className="text-sm font-medium text-[#73FFA2] mb-3">Payload Completo del Webhook de Dropi</h4>
-                      {hasData ? (
-                        <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-                          <pre className="text-xs text-gray-300 whitespace-pre-wrap break-words">
-                            {JSON.stringify(webhookData, null, 2)}
-                          </pre>
-                        </div>
-                      ) : (
-                        <div className="text-sm text-gray-400 text-center py-8">
-                          No hay datos del webhook disponibles aún. Los datos aparecerán aquí cuando Dropi envíe actualizaciones de estado.
-                        </div>
-                      )}
-                    </div>
+                    {/* Payload del webhook - Solo para cuenta de test */}
+                    {/* ✅ Ocultar payload completo o solo mostrarlo para cuenta de test */}
+                    {(process.env.NEXT_PUBLIC_ENABLE_DROPI_WEBHOOK_DEBUG === 'true' || user?.email?.includes('test')) && (
+                      <div className="bg-gray-800 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-[#73FFA2] mb-3">Payload Completo del Webhook de Dropi</h4>
+                        {hasData ? (
+                          <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                            <pre className="text-xs text-gray-300 whitespace-pre-wrap break-words">
+                              {JSON.stringify(webhookData, null, 2)}
+                            </pre>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-400 text-center py-8">
+                            No hay datos del webhook disponibles aún. Los datos aparecerán aquí cuando Dropi envíe actualizaciones de estado.
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })()}
