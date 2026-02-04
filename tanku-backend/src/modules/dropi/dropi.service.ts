@@ -64,13 +64,13 @@ export class DropiService {
     const baseUrl = this.proxyUrl || this.baseUrl;
     const url = `${baseUrl}${endpoint}`;
     
-    // ✅ Agregar logging para debug
-    console.log(`[DROPI] ${method} ${url}`);
-    console.log(`[DROPI] Usando proxy: ${!!this.proxyUrl}`);
-    console.log(`[DROPI] Base URL: ${this.baseUrl}`);
-    console.log(`[DROPI] Proxy URL: ${this.proxyUrl || 'No configurado'}`);
-    console.log(`[DROPI] Token configurado: ${!!this.token}`);
-    console.log(`[DROPI] Token (primeros 10 chars): ${this.token ? this.token.substring(0, 10) + '...' : 'No configurado'}`);
+    // ❌ REMOVIDO: Logs excesivos que causan rate limit en Railway
+    // Solo log en desarrollo o si hay error
+    const VERBOSE_LOGS = process.env.DROPI_VERBOSE_LOGS === 'true' || process.env.NODE_ENV === 'development';
+    
+    if (VERBOSE_LOGS) {
+      console.log(`[DROPI] ${method} ${url}`);
+    }
     
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -80,10 +80,7 @@ export class DropiService {
     // Si estamos usando proxy, agregar el header de proxy key
     if (this.proxyUrl && this.proxyKey) {
       headers['x-proxy-key'] = this.proxyKey;
-      console.log(`[DROPI] Proxy key configurado: ${!!this.proxyKey}`);
     }
-
-    console.log(`[DROPI] Headers:`, Object.keys(headers).map(k => `${k}: ${k === 'dropi-integration-key' || k === 'x-proxy-key' ? '***' : headers[k]}`));
 
     const options: RequestInit = {
       method,
@@ -92,7 +89,6 @@ export class DropiService {
 
     if (body && method !== 'GET') {
       options.body = JSON.stringify(body);
-      console.log(`[DROPI] Body:`, JSON.stringify(body));
     }
 
     const startTime = Date.now();
@@ -109,7 +105,11 @@ export class DropiService {
       
       const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
       const duration = Date.now() - startTime;
-      console.log(`[DROPI] Respuesta recibida en ${duration}ms - Status: ${response.status}`);
+      
+      // ✅ SOLO log si hay error o en desarrollo
+      if (!response.ok || VERBOSE_LOGS) {
+        console.log(`[DROPI] ${method} ${url} - ${response.status} (${duration}ms)`);
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -120,14 +120,18 @@ export class DropiService {
       }
 
       const data = await response.json();
-      console.log(`[DROPI] Respuesta exitosa - isSuccess: ${(data as any).isSuccess}`);
-      if ((data as any).objects) {
-        console.log(`[DROPI] Cantidad de objetos: ${(data as any).objects.length}`);
+      
+      // ❌ REMOVIDO: Logs excesivos de respuesta exitosa
+      // Solo log en desarrollo
+      if (VERBOSE_LOGS && (data as any).objects) {
+        console.log(`[DROPI] Respuesta exitosa - ${(data as any).objects.length} objetos`);
       }
+      
       return data as Promise<T>;
     } catch (error: any) {
       const duration = Date.now() - startTime;
-      console.error(`[DROPI] Error después de ${duration}ms:`, error.message || error);
+      // ✅ SOLO log de errores (siempre)
+      console.error(`[DROPI] Error después de ${duration}ms: ${method} ${url} - ${error.message || error}`);
       if (error.message?.includes('Timeout')) {
         throw new BadRequestError(`La petición a Dropi tardó más de 60 segundos. URL: ${url}`);
       }

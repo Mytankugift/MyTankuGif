@@ -4,6 +4,7 @@ import {
   extractWarehouseProductFromPayload,
   extractCategoryDropiIdsFromPayload,
   calculateTotalStockFromPayload,
+  extractVariationsFromPayload,
 } from '../../shared/utils/dropi-warehouse-helper'
 
 export class DropiNormalizeService {
@@ -31,6 +32,8 @@ export class DropiNormalizeService {
       });
     }
 
+    const totalPending = pendingRaw.length;
+    
     // Si processAll es true, ignoramos offset y batchSize
     const batch = processAll
       ? pendingRaw
@@ -42,19 +45,46 @@ export class DropiNormalizeService {
       try {
         const payload = raw.payload as any;
 
-        // Aquí va todo tu código de normalización (precios, warehouse, variations, etc.)
+        // 1. Extraer categorías
+        const categoryDropiIds = extractCategoryDropiIdsFromPayload(payload);
+        const categoryDropiId = categoryDropiIds.length > 0 ? categoryDropiIds[0] : null;
+
+        // 2. Extraer precios
+        const salePrice = payload.sale_price ? Math.round(parseFloat(payload.sale_price)) : 0;
+        const suggestedPrice = payload.suggested_price ? Math.round(parseFloat(payload.suggested_price)) : null;
+        const finalPrice = salePrice > 0 ? salePrice : (suggestedPrice || 0);
+
+        // 3. Extraer stock
+        const stock = calculateTotalStockFromPayload(payload);
+
+        // 4. Extraer warehouseProduct (solo para SIMPLE)
+        const warehouseProduct = extractWarehouseProductFromPayload(payload);
+
+        // 5. Extraer variationsData (solo para VARIABLE)
+        const variationsData = extractVariationsFromPayload(payload);
+
+        // 6. Extraer imagen principal
+        const mainImageS3Path = payload.main_image_s3_path || payload.mainImageS3Path || null;
+
+        // 7. SKU compuesto
         const compositeSku = payload.sku
           ? `${payload.sku}-DP-${payload.id}`
           : `DP-${payload.id}`;
-        const finalPrice = parseFloat(payload.sale_price || payload.suggested_price || 0);
 
         const existing = await prisma.dropiProduct.findUnique({ where: { dropiId: payload.id } });
-        const productData = {
+        const productData: any = {
           dropiId: payload.id,
           name: payload.name || "",
           type: payload.type || "SIMPLE",
           sku: compositeSku,
           price: finalPrice,
+          suggestedPrice: suggestedPrice, // ✅ AGREGADO
+          categoryDropiId: categoryDropiId, // ✅ AGREGADO
+          categoryDropiIds: categoryDropiIds.length > 0 ? categoryDropiIds : null, // ✅ AGREGADO
+          stock: stock, // ✅ AGREGADO
+          warehouseProduct: warehouseProduct.length > 0 ? warehouseProduct : undefined, // ✅ AGREGADO (undefined para campos JSON vacíos)
+          variationsData: variationsData && variationsData.length > 0 ? variationsData : undefined, // ✅ AGREGADO (undefined para campos JSON vacíos)
+          mainImageS3Path: mainImageS3Path, // ✅ AGREGADO
           lastSyncedAt: new Date(),
         };
 
@@ -75,15 +105,24 @@ export class DropiNormalizeService {
       }
     }
 
+    // ✅ CALCULAR next_offset correctamente
+    const nextOffset = processAll 
+      ? null  // Si processAll, no hay siguiente offset
+      : (offset + batchSize < totalPending 
+          ? offset + batchSize  // Hay más productos
+          : null);  // Ya procesamos todos
+
+    const remaining = Math.max(0, totalPending - (offset + batch.length));
+
     return {
       success: true,
       message: "Normalización ejecutada",
       normalized: normalizedTotal,
       errors: errors.length,
       error_details: errors.slice(0, 10),
-      next_offset: null, // null porque ya procesamos todos.
-      remaining: 0,
-      total_pending: pendingRaw.length,
+      next_offset: nextOffset, // ✅ Ahora calcula correctamente
+      remaining: remaining,
+      total_pending: totalPending,
     };
   }
 }

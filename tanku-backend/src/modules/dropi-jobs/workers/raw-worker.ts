@@ -65,12 +65,14 @@ export class RawWorker extends BaseWorker {
           : 0;
         await this.updateProgress(jobId, progress);
         
+        // ✅ Log solo en primera página
         console.log(`[RAW WORKER] ✅ Página ${pageNumber + 1}: ${firstPageProducts.length} productos | Progreso: ${progress}%`);
         pageNumber++;
       }
 
       // Loop para las siguientes páginas
       startData += pageSize;
+      let lastLoggedProgress = 0;
       while (startData < totalCount) {
         // ⚠️ VERIFICAR CANCELACIÓN ANTES DE CADA PÁGINA
         if (await this.isJobCancelled(jobId)) {
@@ -99,10 +101,20 @@ export class RawWorker extends BaseWorker {
           : 0;
         await this.updateProgress(jobId, progress);
 
-        const remaining = totalCount - totalProcessed;
-        const pagesRemaining = Math.ceil(remaining / pageSize);
+        // ✅ SOLO log cada 10 páginas o en hitos importantes (10%, 25%, 50%, 75%, 100%)
+        const shouldLog = (pageNumber % 10 === 0) || 
+                          (progress >= 10 && lastLoggedProgress < 10) ||
+                          (progress >= 25 && lastLoggedProgress < 25) ||
+                          (progress >= 50 && lastLoggedProgress < 50) ||
+                          (progress >= 75 && lastLoggedProgress < 75) ||
+                          (progress >= 100 && lastLoggedProgress < 100);
 
-        console.log(`[RAW WORKER] ✅ Página ${pageNumber + 1}: ${page.objects.length} productos | Total: ${totalProcessed}/${totalCount} | Progreso: ${progress}% | Faltan: ${pagesRemaining} páginas`);
+        if (shouldLog) {
+          const remaining = totalCount - totalProcessed;
+          const pagesRemaining = Math.ceil(remaining / pageSize);
+          console.log(`[RAW WORKER] ✅ Página ${pageNumber + 1}: ${page.objects.length} productos | Total: ${totalProcessed}/${totalCount} | Progreso: ${progress}% | Faltan: ${pagesRemaining} páginas`);
+          lastLoggedProgress = progress;
+        }
 
         startData += pageSize;
         pageNumber++;

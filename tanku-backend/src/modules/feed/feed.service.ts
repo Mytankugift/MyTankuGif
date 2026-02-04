@@ -219,6 +219,21 @@ export class FeedService {
 
       console.log(`📰 [FEED-SERVICE] Mapas creados: ${productMap.size} productos, ${posterMap.size} posters`);
 
+      // ✅ DIAGNÓSTICO: Verificar productos faltantes en productMap
+      const missingProducts: string[] = [];
+      const productItems = intercalated.items.filter(item => item.itemType === 'product');
+      for (const item of productItems) {
+        if (!productMap.has(item.itemId)) {
+          missingProducts.push(item.itemId);
+        }
+      }
+      if (missingProducts.length > 0) {
+        console.warn(`⚠️ [FEED-SERVICE] ${missingProducts.length} productos en ranking no encontrados en BD (de ${productItems.length} productos en ranking)`);
+        console.warn(`⚠️ [FEED-SERVICE] Primeros 10 IDs faltantes:`, missingProducts.slice(0, 10));
+      } else {
+        console.log(`✅ [FEED-SERVICE] Todos los productos del ranking existen en BD`);
+      }
+
       // Obtener métricas de likes para productos (batch query)
       const productIdsForMetrics = Array.from(productMap.keys());
       const itemMetricsMap = new Map<string, { likesCount: number }>();
@@ -265,15 +280,45 @@ export class FeedService {
 
       // Mapear items en el orden correcto (mantener orden de intercalación)
       const feedItems: FeedItemDTO[] = [];
+      let skippedProducts = 0;
+      let skippedPosters = 0;
+      const skipReasons: { [key: string]: number } = {
+        'product_not_found': 0,
+        'product_no_title': 0,
+        'product_no_image': 0,
+        'poster_not_found': 0,
+      };
+
       for (const item of intercalated.items) {
       if (item.itemType === 'product') {
         const product = productMap.get(item.itemId);
-        if (!product) continue; // Saltar si no se encontró el producto
+        if (!product) {
+          skipReasons['product_not_found']++;
+          skippedProducts++;
+          console.warn(`⚠️ [FEED-SERVICE] Producto ${item.itemId} no encontrado en productMap, omitiendo`);
+          continue; // Saltar si no se encontró el producto
+        }
+        
+        // ✅ VALIDAR: Verificar que tenga title
+        if (!product.title || product.title.trim() === '') {
+          skipReasons['product_no_title']++;
+          skippedProducts++;
+          console.warn(`⚠️ [FEED-SERVICE] Producto ${product.id} no tiene title o está vacío, omitiendo`);
+          continue;
+        }
         
         const firstVariant = product.variants[0];
         const imageUrl = (product.images && product.images.length > 0
           ? this.normalizeImageUrl(product.images[0]) || ''
           : '') || '';
+        
+        // ✅ VALIDAR: Verificar que tenga imagen
+        if (!imageUrl || imageUrl.trim() === '') {
+          skipReasons['product_no_image']++;
+          skippedProducts++;
+          console.warn(`⚠️ [FEED-SERVICE] Producto ${product.id} (${product.title}) no tiene imagen, omitiendo`);
+          continue;
+        }
         
         // Usar tankuPrice directamente (ya calculado en sync)
         const finalPrice = firstVariant?.tankuPrice || undefined;
@@ -301,7 +346,12 @@ export class FeedService {
         });
       } else {
         const poster = posterMap.get(item.itemId);
-        if (!poster) continue; // Saltar si no se encontró el poster
+        if (!poster) {
+          skipReasons['poster_not_found']++;
+          skippedPosters++;
+          console.warn(`⚠️ [FEED-SERVICE] Poster ${item.itemId} no encontrado en posterMap, omitiendo`);
+          continue; // Saltar si no se encontró el poster
+        }
         
         feedItems.push({
           id: poster.id,
@@ -323,7 +373,14 @@ export class FeedService {
       }
       }
 
-      console.log(`📰 [FEED-SERVICE] Feed items mapeados: ${feedItems.length}`);
+      // ✅ LOGGING DETALLADO: Resumen de items omitidos
+      if (skippedProducts > 0 || skippedPosters > 0) {
+        console.warn(`⚠️ [FEED-SERVICE] Items omitidos: ${skippedProducts} productos, ${skippedPosters} posters`);
+        console.warn(`⚠️ [FEED-SERVICE] Razones de omisión:`, skipReasons);
+      }
+
+      console.log(`📰 [FEED-SERVICE] Feed items mapeados: ${feedItems.length} (de ${intercalated.items.length} items intercalados)`);
+      console.log(`📰 [FEED-SERVICE] Desglose: ${feedItems.filter(i => i.type === 'product').length} productos, ${feedItems.filter(i => i.type === 'poster').length} posters`);
 
       // Crear cursor híbrido para siguiente página
       console.log(`📰 [FEED-SERVICE] Creando cursor híbrido...`);
