@@ -16,22 +16,43 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
   const [profilePublic, setProfilePublic] = useState(true)
   const [allowGiftShipping, setAllowGiftShipping] = useState(false)
   const [useMainAddressForGifts, setUseMainAddressForGifts] = useState(false)
+  const [hasAddress, setHasAddress] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  // Cargar configuración actual del perfil
+  // Cargar configuración actual del perfil y direcciones
   useEffect(() => {
     const loadProfile = async () => {
       if (!user?.id) return
       setIsLoading(true)
       try {
-        const response = await apiClient.get<import('@/types/api-responses').UserProfileResponse>(API_ENDPOINTS.USERS.PROFILE.GET)
-        if (response.success && response.data) {
-          setProfilePublic(response.data.isPublic ?? true)
-          setAllowGiftShipping(response.data.allowGiftShipping ?? false)
-          setUseMainAddressForGifts(response.data.useMainAddressForGifts ?? false)
+        // Cargar perfil
+        const profileResponse = await apiClient.get<import('@/types/api-responses').UserProfileResponse>(API_ENDPOINTS.USERS.PROFILE.GET)
+        
+        // Cargar direcciones para verificar si hay alguna configurada
+        const addressesResponse = await apiClient.get<Array<{ id: string; isGiftAddress: boolean; isDefaultShipping: boolean }>>(
+          API_ENDPOINTS.USERS.ADDRESSES.LIST
+        )
+        
+        const hasAnyAddress = addressesResponse.success && addressesResponse.data && addressesResponse.data.length > 0
+        setHasAddress(hasAnyAddress || false)
+        
+        if (profileResponse.success && profileResponse.data) {
+          // isPublic: true por defecto
+          setProfilePublic(profileResponse.data.isPublic ?? true)
+          
+          // allowGiftShipping: true por defecto solo si hay dirección, sino usar el valor del perfil
+          // Si no hay dirección, no puede estar activado
+          if (hasAnyAddress) {
+            setAllowGiftShipping(profileResponse.data.allowGiftShipping ?? true)
+          } else {
+            setAllowGiftShipping(false)
+          }
+          
+          // useMainAddressForGifts: true por defecto si se configuró en el onboarding
+          setUseMainAddressForGifts(profileResponse.data.useMainAddressForGifts ?? false)
         }
       } catch (error) {
         console.error('Error cargando perfil:', error)
@@ -152,9 +173,16 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
               <div>
                 <label className="text-sm font-medium text-white">Permitir recibir regalos</label>
                 <p className="text-xs text-gray-400">Permite que tus amigos te envíen regalos desde tus wishlists</p>
+                {!hasAddress && (
+                  <p className="text-xs text-yellow-400 mt-1">⚠️ Necesitas configurar una dirección primero</p>
+                )}
               </div>
               <button
                 onClick={async () => {
+                  if (!hasAddress) {
+                    setError('Necesitas configurar una dirección antes de permitir recibir regalos')
+                    return
+                  }
                   const newValue = !allowGiftShipping
                   setAllowGiftShipping(newValue)
                   setIsSaving(true)
@@ -163,9 +191,12 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
                     const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
                       isPublic: profilePublic,
                       allowGiftShipping: newValue,
-                      useMainAddressForGifts,
+                      useMainAddressForGifts: newValue ? useMainAddressForGifts : false, // Si se desactiva, también desactivar useMainAddressForGifts
                     })
                     if (response.success) {
+                      if (!newValue) {
+                        setUseMainAddressForGifts(false) // Si se desactiva allowGiftShipping, también desactivar useMainAddressForGifts
+                      }
                       await checkAuth()
                       if (onUpdate) {
                         onUpdate()
@@ -181,13 +212,13 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
                     setIsSaving(false)
                   }
                 }}
-                disabled={isSaving}
+                disabled={isSaving || !hasAddress}
                 className={`relative w-12 h-6 rounded-full transition-colors ${
-                  allowGiftShipping ? 'bg-[#73FFA2]' : 'bg-gray-600'
+                  allowGiftShipping && hasAddress ? 'bg-[#73FFA2]' : 'bg-gray-600'
                 } disabled:opacity-50`}
               >
                 <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                  allowGiftShipping ? 'translate-x-6' : 'translate-x-0'
+                  allowGiftShipping && hasAddress ? 'translate-x-6' : 'translate-x-0'
                 }`} />
               </button>
             </div>

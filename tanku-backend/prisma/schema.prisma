@@ -9,7 +9,6 @@ datasource db {
 model User {
   id                       String                    @id @default(cuid())
   email                    String                    @unique
-  username                 String?                   @unique // Username único para menciones
   password                 String?
   firstName                String?                   @map("first_name")
   lastName                 String?                   @map("last_name")
@@ -17,30 +16,31 @@ model User {
   emailVerified            Boolean                   @default(false) @map("email_verified")
   createdAt                DateTime                  @default(now()) @map("created_at")
   updatedAt                DateTime                  @updatedAt @map("updated_at")
+  username                 String?                   @unique
   addresses                Address[]
   carts                    Cart[]
+  conversationParticipants ConversationParticipant[]
+  friendOf                 Friend[]                  @relation("FriendOf")
+  friends                  Friend[]                  @relation("UserFriends")
+  groupMembers             GroupMember[]
+  groups                   Group[]                   @relation("GroupOwner")
+  messages                 Message[]
+  notifications            Notification[]
   orders                   Order[]
   personalInfo             PersonalInformation?
   posterComments           PosterComment[]
   posterReactions          PosterReaction[]
   posters                  Poster[]
-  stalkerGifts             StalkerGift[]             @relation("Giver")
+  productLikes             ProductLike[]
+  savedWishlists           SavedWishlist[]
   stalkerGiftsReceived     StalkerGift[]             @relation("Recipient")
+  stalkerGifts             StalkerGift[]             @relation("Giver")
   stories                  StoriesUser[]
+  categoryInterests        UserCategoryInterest[]    @relation("UserCategoryInterests")
+  consents                 UserConsent[]
   profile                  UserProfile?
   wishLists                WishList[]
-  savedWishlists           SavedWishlist[]
   wishlistAccessRequests   WishlistAccessRequest[]   @relation("WishlistAccessRequests")
-  categoryInterests        UserCategoryInterest[]    @relation("UserCategoryInterests")
-  friends                  Friend[]                  @relation("UserFriends")
-  friendOf                 Friend[]                  @relation("FriendOf")
-  notifications            Notification[]
-  groups                   Group[]                   @relation("GroupOwner")
-  groupMembers             GroupMember[]
-  conversationParticipants ConversationParticipant[]
-  messages                 Message[]
-  consents                 UserConsent[]
-  productLikes             ProductLike[]
 
   @@map("users")
 }
@@ -51,12 +51,12 @@ model UserProfile {
   avatar                 String?
   banner                 String?
   bio                    String?
-  isPublic               Boolean  @default(true) @map("is_public") // Perfil público por defecto
-  socialLinks            Json?    @map("social_links") // Array de { platform: string, url: string }
-  allowGiftShipping      Boolean  @default(false) @map("allow_gift_shipping") // Permite recibir regalos
-  useMainAddressForGifts Boolean  @default(false) @map("use_main_address_for_gifts") // Usa dirección principal para regalos
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
+  isPublic               Boolean  @default(true) @map("is_public")
+  socialLinks            Json?    @map("social_links")
+  allowGiftShipping      Boolean  @default(true) @map("allow_gift_shipping")
+  useMainAddressForGifts Boolean  @default(false) @map("use_main_address_for_gifts")
   user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_profiles")
@@ -67,10 +67,10 @@ model PersonalInformation {
   userId        String    @unique @map("user_id")
   pseudonym     String?
   statusMessage String?   @map("status_message")
-  birthDate     DateTime? @map("birth_date")
-  metadata      Json?
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
+  birthDate     DateTime? @map("birth_date")
+  metadata      Json?
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("personal_information")
@@ -82,9 +82,8 @@ model UserCategoryInterest {
   categoryId String   @map("category_id")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
-
-  user     User     @relation("UserCategoryInterests", fields: [userId], references: [id], onDelete: Cascade)
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user       User     @relation("UserCategoryInterests", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, categoryId])
   @@index([userId])
@@ -98,9 +97,9 @@ model Category {
   handle        String                 @unique
   description   String?
   parentId      String?                @map("parent_id")
-  dropiId       Int?                   @unique @map("dropi_id")
   createdAt     DateTime               @default(now()) @map("created_at")
   updatedAt     DateTime               @updatedAt @map("updated_at")
+  dropiId       Int?                   @unique @map("dropi_id")
   parent        Category?              @relation("CategoryTree", fields: [parentId], references: [id])
   children      Category[]             @relation("CategoryTree")
   products      Product[]
@@ -121,11 +120,11 @@ model Product {
   createdAt     DateTime         @default(now()) @map("created_at")
   updatedAt     DateTime         @updatedAt @map("updated_at")
   orderItems    OrderItem[]
+  productLikes  ProductLike[]
   variants      ProductVariant[]
   category      Category?        @relation(fields: [categoryId], references: [id])
-  wishListItems WishListItem[]
   stalkerGifts  StalkerGift[]
-  productLikes  ProductLike[]
+  wishListItems WishListItem[]
 
   @@map("products")
 }
@@ -140,15 +139,15 @@ model ProductVariant {
   active            Boolean            @default(true)
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
+  attributes        Json?
   suggestedPrice    Int?               @map("suggested_price")
-  tankuPrice        Int?               @map("tanku_price") // Precio final calculado: (basePrice * 1.15) + 10000
-  attributes        Json? // Atributos de la variante: [{ attribute_name, value }]
+  tankuPrice        Int?               @map("tanku_price")
   cartItems         CartItem[]
   orderItems        OrderItem[]
   product           Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stalkerGifts      StalkerGift[]
   warehouseVariants WarehouseVariant[]
   wishListItems     WishListItem[]
-  stalkerGifts      StalkerGift[]
 
   @@map("product_variants")
 }
@@ -156,11 +155,11 @@ model ProductVariant {
 model Cart {
   id              String     @id @default(cuid())
   userId          String?    @map("user_id")
-  giftRecipientId String?    @map("gift_recipient_id") // ID del usuario que recibirá el regalo
-  isGiftCart      Boolean    @default(false) @map("is_gift_cart") // Indica si es carrito de regalos
-  metadata        Json? // Para almacenar datos temporales de checkout (Epayco)
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
+  metadata        Json?
+  giftRecipientId String?    @map("gift_recipient_id")
+  isGiftCart      Boolean    @default(false) @map("is_gift_cart")
   items           CartItem[]
   user            User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -192,14 +191,14 @@ model Order {
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
   email           String         @default("")
-  subtotal        Int            @default(0)
-  shippingTotal   Int            @default(0) @map("shipping_total")
   isStalkerGift   Boolean        @default(false) @map("is_stalker_gift")
-  isGiftOrder     Boolean        @default(false) @map("is_gift_order") // Indica si es orden de regalo
-  giftSenderId    String?        @map("gift_sender_id") // Usuario que envió el regalo
-  giftRecipientId String?        @map("gift_recipient_id") // Usuario que recibe el regalo
-  transactionId   String?        @map("transaction_id")
   metadata        Json?
+  shippingTotal   Int            @default(0) @map("shipping_total")
+  subtotal        Int            @default(0)
+  transactionId   String?        @map("transaction_id")
+  giftRecipientId String?        @map("gift_recipient_id")
+  giftSenderId    String?        @map("gift_sender_id")
+  isGiftOrder     Boolean        @default(false) @map("is_gift_order")
   orderAddresses  OrderAddress[]
   items           OrderItem[]
   user            User           @relation(fields: [userId], references: [id])
@@ -220,15 +219,15 @@ model OrderItem {
   productId           String         @map("product_id")
   variantId           String         @map("variant_id")
   quantity            Int
-  price               Int // Precio base del producto
-  finalPrice          Int            @default(0) @map("final_price") // Precio con incremento: (precio * 1.15) + $10,000
-  dropiOrderId        Int?           @map("dropi_order_id")
-  dropiShippingCost   Int?           @default(0) @map("dropi_shipping_cost") // discounted_amount (costo de envío)
-  dropiDropshipperWin Int?           @default(0) @map("dropi_dropshipper_win") // dropshipper_amount_to_win (ganancia)
-  dropiStatus         String?        @map("dropi_status")
-  dropiWebhookData    Json?          @map("dropi_webhook_data") // Payload completo del webhook de Dropi
+  price               Int
   createdAt           DateTime       @default(now()) @map("created_at")
+  dropiOrderId        Int?           @map("dropi_order_id")
+  dropiShippingCost   Int?           @default(0) @map("dropi_shipping_cost")
+  dropiStatus         String?        @map("dropi_status")
+  finalPrice          Int            @default(0) @map("final_price")
   updatedAt           DateTime       @updatedAt @map("updated_at")
+  dropiDropshipperWin Int?           @default(0) @map("dropi_dropshipper_win")
+  dropiWebhookData    Json?          @map("dropi_webhook_data")
   order               Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product             Product        @relation(fields: [productId], references: [id])
   variant             ProductVariant @relation(fields: [variantId], references: [id])
@@ -243,8 +242,8 @@ model OrderAddress {
   addressId String   @map("address_id")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   address   Address  @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@unique([orderId, addressId])
   @@index([orderId])
@@ -258,17 +257,17 @@ model Address {
   firstName         String         @map("first_name")
   lastName          String         @map("last_name")
   phone             String?
-  address1          String         @map("address_1")
-  detail            String? // Detalle opcional de la dirección (antes address2)
   city              String
   state             String
   postalCode        String         @map("postal_code")
   country           String         @default("CO")
-  isDefaultShipping Boolean        @default(false) @map("is_default_shipping")
-  isGiftAddress     Boolean        @default(false) @map("is_gift_address") // Nueva dirección específica para regalos
-  metadata          Json? // Para almacenar alias y otros datos
   createdAt         DateTime       @default(now()) @map("created_at")
   updatedAt         DateTime       @updatedAt @map("updated_at")
+  address1          String         @map("address_1")
+  detail            String?
+  isDefaultShipping Boolean        @default(false) @map("is_default_shipping")
+  metadata          Json?
+  isGiftAddress     Boolean        @default(false) @map("is_gift_address")
   user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   orderAddresses    OrderAddress[]
 
@@ -280,15 +279,15 @@ model WishList {
   userId          String                  @map("user_id")
   name            String
   public          Boolean                 @default(false)
-  shareToken      String?                 @unique @map("share_token") // Token para compartir por link público
-  isAutoGenerated Boolean                 @default(false) @map("is_auto_generated") // Wishlist automática (Me gusta)
-  maxItems        Int?                    @map("max_items") // Límite de items (opcional, para wishlist automática)
   createdAt       DateTime                @default(now()) @map("created_at")
   updatedAt       DateTime                @updatedAt @map("updated_at")
-  items           WishListItem[]
+  shareToken      String?                 @unique @map("share_token")
+  isAutoGenerated Boolean                 @default(false) @map("is_auto_generated")
+  maxItems        Int?                    @map("max_items")
   savedBy         SavedWishlist[]
-  accessRequests  WishlistAccessRequest[]
+  items           WishListItem[]
   user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessRequests  WishlistAccessRequest[]
 
   @@map("wish_lists")
 }
@@ -297,8 +296,8 @@ model WishListItem {
   id         String          @id @default(cuid())
   wishListId String          @map("wish_list_id")
   productId  String          @map("product_id")
-  variantId  String?         @map("variant_id") // Variante seleccionada (opcional)
   createdAt  DateTime        @default(now()) @map("created_at")
+  variantId  String?         @map("variant_id")
   product    Product         @relation(fields: [productId], references: [id])
   variant    ProductVariant? @relation(fields: [variantId], references: [id])
   wishList   WishList        @relation(fields: [wishListId], references: [id], onDelete: Cascade)
@@ -308,28 +307,27 @@ model WishListItem {
 
 model SavedWishlist {
   id         String   @id @default(cuid())
-  userId     String   @map("user_id") // Usuario que guardó la wishlist
-  wishListId String   @map("wish_list_id") // Wishlist guardada
+  userId     String   @map("user_id")
+  wishListId String   @map("wish_list_id")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   wishList   WishList @relation(fields: [wishListId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, wishListId]) // Un usuario no puede guardar la misma wishlist dos veces
+  @@unique([userId, wishListId])
   @@map("saved_wishlists")
 }
 
 model WishlistAccessRequest {
   id          String    @id @default(cuid())
   wishlistId  String    @map("wishlist_id")
-  requesterId String    @map("requester_id") // Usuario que solicita acceso
-  status      String    @default("pending") // pending, approved, rejected
+  requesterId String    @map("requester_id")
+  status      String    @default("pending")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   respondedAt DateTime? @map("responded_at")
-
-  wishlist  WishList @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
-  requester User     @relation("WishlistAccessRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  requester   User      @relation("WishlistAccessRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  wishlist    WishList  @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
 
   @@unique([wishlistId, requesterId])
   @@index([wishlistId])
@@ -343,56 +341,44 @@ model ProductLike {
   userId    String   @map("user_id")
   productId String   @map("product_id")
   createdAt DateTime @default(now()) @map("created_at")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, productId]) // Un usuario solo puede dar like una vez
+  @@unique([userId, productId])
   @@index([productId])
   @@index([userId])
   @@map("product_likes")
 }
 
 model StalkerGift {
-  id                   String  @id @default(cuid())
-  senderId             String  @map("sender_id")
-  receiverId           String? @map("receiver_id") // Nullable si es externo
-  externalReceiverData Json?   @map("external_receiver_data") // { instagram, email, phone, name }
-  productId            String  @map("product_id")
-  variantId            String? @map("variant_id")
-  quantity             Int     @default(1)
-
-  estado        StalkerGiftStatus @default(CREATED)
-  paymentId     String?           @map("payment_id") // ePayco ref_payco
-  paymentStatus String            @default("pending") @map("payment_status")
-  paymentMethod String            @default("epayco") @map("payment_method")
-  transactionId String?           @map("transaction_id")
-
-  // Datos del sender (anonimato)
-  senderAlias   String  @map("sender_alias")
-  senderMessage String? @map("sender_message")
-
-  // Link único para receptor externo
-  uniqueLink String? @unique @map("unique_link")
-  linkToken  String? @unique @map("link_token")
-
-  // Orden Dropi (solo después de aceptación)
-  orderId String? @unique @map("order_id")
-  order   Order?  @relation("OrderStalkerGift", fields: [orderId], references: [id])
-
-  // Chat
-  chatEnabled    Boolean       @default(false) @map("chat_enabled")
-  conversationId String?       @unique @map("conversation_id")
-  conversation   Conversation? @relation(fields: [conversationId], references: [id])
-
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-  acceptedAt DateTime? @map("accepted_at")
-
-  sender   User            @relation("Giver", fields: [senderId], references: [id])
-  receiver User?           @relation("Recipient", fields: [receiverId], references: [id])
-  product  Product         @relation(fields: [productId], references: [id])
-  variant  ProductVariant? @relation(fields: [variantId], references: [id])
+  id                   String            @id @default(cuid())
+  orderId              String?           @unique @map("order_id")
+  paymentStatus        String            @default("pending") @map("payment_status")
+  paymentMethod        String            @default("epayco") @map("payment_method")
+  transactionId        String?           @map("transaction_id")
+  chatEnabled          Boolean           @default(false) @map("chat_enabled")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+  conversationId       String?           @unique @map("conversation_id")
+  acceptedAt           DateTime?         @map("accepted_at")
+  estado               StalkerGiftStatus @default(CREATED)
+  externalReceiverData Json?             @map("external_receiver_data")
+  linkToken            String?           @unique @map("link_token")
+  paymentId            String?           @map("payment_id")
+  productId            String            @map("product_id")
+  quantity             Int               @default(1)
+  receiverId           String?           @map("receiver_id")
+  senderAlias          String            @map("sender_alias")
+  senderId             String            @map("sender_id")
+  senderMessage        String?           @map("sender_message")
+  uniqueLink           String?           @unique @map("unique_link")
+  variantId            String?           @map("variant_id")
+  conversation         Conversation?     @relation(fields: [conversationId], references: [id])
+  order                Order?            @relation("OrderStalkerGift", fields: [orderId], references: [id])
+  product              Product           @relation(fields: [productId], references: [id])
+  receiver             User?             @relation("Recipient", fields: [receiverId], references: [id])
+  sender               User              @relation("Giver", fields: [senderId], references: [id])
+  variant              ProductVariant?   @relation(fields: [variantId], references: [id])
 
   @@index([senderId])
   @@index([receiverId])
@@ -410,7 +396,6 @@ model DropiProduct {
   sku                  String    @unique
   categoryDropiId      Int?      @map("category_dropi_id")
   description          String?
-  images               Json?
   price                Int
   stock                Int       @default(0)
   warehouseProduct     Json?     @map("warehouse_product")
@@ -419,12 +404,13 @@ model DropiProduct {
   synced_at            DateTime?
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
-  mainImageS3Path      String?   @map("main_image_s3_path")
   categoryDropiIds     Json?     @map("category_dropi_ids")
-  lastSyncedAt         DateTime? @map("last_synced_at")
-  lastPriceStockSyncAt DateTime? @map("last_price_stock_sync_at")
   descriptionSyncedAt  DateTime? @map("description_synced_at")
+  lastPriceStockSyncAt DateTime? @map("last_price_stock_sync_at")
+  lastSyncedAt         DateTime? @map("last_synced_at")
+  mainImageS3Path      String?   @map("main_image_s3_path")
   suggestedPrice       Int?      @map("suggested_price")
+  images               Json?
 
   @@index([categoryDropiId])
   @@map("dropi_products")
@@ -519,9 +505,9 @@ model PosterComment {
   parentId   String?         @map("parent_id")
   likesCount Int             @default(0) @map("likes_count")
   isActive   Boolean         @default(true) @map("is_active")
-  mentions   Json? // Array de userIds mencionados: ["userId1", "userId2"]
   createdAt  DateTime        @default(now()) @map("created_at")
   updatedAt  DateTime        @updatedAt @map("updated_at")
+  mentions   Json?
   customer   User            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   parent     PosterComment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies    PosterComment[] @relation("CommentReplies")
@@ -578,7 +564,7 @@ model DropiJob {
   status     DropiJobStatus @default(PENDING)
   progress   Int            @default(0)
   attempts   Int            @default(0)
-  error      String?        @db.Text
+  error      String?
   lockedBy   String?        @map("locked_by")
   lockedAt   DateTime?      @map("locked_at")
   createdAt  DateTime       @default(now()) @map("created_at")
@@ -589,6 +575,197 @@ model DropiJob {
   @@index([status])
   @@index([lockedBy])
   @@map("dropi_jobs")
+}
+
+model GlobalRanking {
+  id          String   @id @default(cuid())
+  itemId      String   @map("item_id")
+  itemType    String   @map("item_type")
+  globalScore Float    @map("global_score")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([itemId, itemType])
+  @@index([globalScore, createdAt])
+  @@index([itemType])
+  @@map("global_ranking")
+}
+
+model ItemMetric {
+  id            String   @id @default(cuid())
+  itemId        String   @map("item_id")
+  itemType      String   @map("item_type")
+  wishlistCount Int      @default(0) @map("wishlist_count")
+  ordersCount   Int      @default(0) @map("orders_count")
+  likesCount    Int      @default(0) @map("likes_count")
+  commentsCount Int      @default(0) @map("comments_count")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([itemId, itemType])
+  @@index([itemType])
+  @@map("item_metrics")
+}
+
+model Friend {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  friendId  String   @map("friend_id")
+  status    String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  friend    User     @relation("FriendOf", fields: [friendId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@index([userId, status])
+  @@index([friendId, status])
+  @@map("friends")
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  type      String
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean   @default(false) @map("is_read")
+  createdAt DateTime  @default(now()) @map("created_at")
+  readAt    DateTime? @map("read_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model Group {
+  id          String        @id @default(cuid())
+  userId      String        @map("user_id")
+  name        String
+  description String?
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  members     GroupMember[]
+  owner       User          @relation("GroupOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("groups")
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String   @map("group_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+  @@map("group_members")
+}
+
+model Conversation {
+  id           String                    @id @default(cuid())
+  type         ConversationType          @default(FRIENDS)
+  status       ConversationStatus        @default(ACTIVE)
+  createdAt    DateTime                  @default(now()) @map("created_at")
+  updatedAt    DateTime                  @updatedAt @map("updated_at")
+  participants ConversationParticipant[]
+  messages     Message[]
+  stalkerGift  StalkerGift?
+
+  @@index([type, status])
+  @@index([status])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String       @map("conversation_id")
+  userId         String       @map("user_id")
+  alias          String?
+  isRevealed     Boolean      @default(false) @map("is_revealed")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String        @map("conversation_id")
+  senderId       String        @map("sender_id")
+  senderAlias    String?       @map("sender_alias")
+  content        String
+  type           MessageType   @default(TEXT)
+  status         MessageStatus @default(SENT)
+  readAt         DateTime?     @map("read_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User          @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@index([status])
+  @@map("messages")
+}
+
+model UserConsent {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  consentType   String   @map("consent_type")
+  policyVersion String   @map("policy_version")
+  acceptedAt    DateTime @default(now()) @map("accepted_at")
+  ipHash        String?  @map("ip_hash")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, consentType, policyVersion])
+  @@index([userId])
+  @@index([consentType])
+  @@map("user_consents")
+}
+
+model Department {
+  id             Int      @id
+  name           String
+  departmentCode String?  @map("department_code")
+  countryId      Int?     @map("country_id")
+  dropiId        Int      @unique @map("dropi_id")
+  payload        Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  cities         City[]
+
+  @@index([dropiId])
+  @@map("departments")
+}
+
+model City {
+  id             Int        @id
+  name           String
+  departmentId   Int        @map("department_id")
+  rateType       String?    @map("rate_type")
+  trajectoryType String?    @map("trajectory_type")
+  code           String?
+  dropiId        Int        @unique @map("dropi_id")
+  payload        Json?
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  department     Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@index([departmentId])
+  @@index([dropiId])
+  @@map("cities")
 }
 
 enum DropiJobType {
@@ -644,203 +821,4 @@ enum MessageStatus {
   SENT
   DELIVERED
   READ
-}
-
-model GlobalRanking {
-  id          String   @id @default(cuid())
-  itemId      String   @map("item_id")
-  itemType    String   @map("item_type") // 'product' | 'poster'
-  globalScore Float    @map("global_score")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@unique([itemId, itemType])
-  @@index([globalScore, createdAt])
-  @@index([itemType])
-  @@map("global_ranking")
-}
-
-model ItemMetric {
-  id            String   @id @default(cuid())
-  itemId        String   @map("item_id")
-  itemType      String   @map("item_type") // 'product' | 'poster'
-  wishlistCount Int      @default(0) @map("wishlist_count")
-  ordersCount   Int      @default(0) @map("orders_count")
-  likesCount    Int      @default(0) @map("likes_count")
-  commentsCount Int      @default(0) @map("comments_count")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  @@unique([itemId, itemType])
-  @@index([itemType])
-  @@map("item_metrics")
-}
-
-model Friend {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  friendId  String   @map("friend_id")
-  status    String // 'pending' | 'accepted' | 'blocked'
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  user   User @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
-  friend User @relation("FriendOf", fields: [friendId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, friendId])
-  @@index([userId, status])
-  @@index([friendId, status])
-  @@map("friends")
-}
-
-model Notification {
-  id        String    @id @default(cuid())
-  userId    String    @map("user_id")
-  type      String // 'like' | 'comment' | 'friend_request' | 'friend_accepted' | 'order_update' | 'group_member_added' | etc.
-  title     String
-  message   String
-  data      Json? // Datos adicionales: { postId, orderId, groupId, fromUserId, etc. }
-  isRead    Boolean   @default(false) @map("is_read")
-  createdAt DateTime  @default(now()) @map("created_at")
-  readAt    DateTime? @map("read_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, isRead])
-  @@index([userId, createdAt])
-  @@map("notifications")
-}
-
-model Group {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id") // Dueño del grupo
-  name        String
-  description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  owner   User          @relation("GroupOwner", fields: [userId], references: [id], onDelete: Cascade)
-  members GroupMember[]
-
-  @@index([userId])
-  @@map("groups")
-}
-
-model GroupMember {
-  id        String   @id @default(cuid())
-  groupId   String   @map("group_id")
-  userId    String   @map("user_id") // Amigo agregado al grupo
-  createdAt DateTime @default(now()) @map("created_at")
-
-  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, userId])
-  @@index([groupId])
-  @@index([userId])
-  @@map("group_members")
-}
-
-model Conversation {
-  id        String             @id @default(cuid())
-  type      ConversationType   @default(FRIENDS)
-  status    ConversationStatus @default(ACTIVE)
-  createdAt DateTime           @default(now()) @map("created_at")
-  updatedAt DateTime           @updatedAt @map("updated_at")
-
-  participants ConversationParticipant[]
-  messages     Message[]
-  stalkerGift  StalkerGift?
-
-  @@index([type, status])
-  @@index([status])
-  @@map("conversations")
-}
-
-model ConversationParticipant {
-  id             String   @id @default(cuid())
-  conversationId String   @map("conversation_id")
-  userId         String   @map("user_id")
-  alias          String? // Para anonimato en StalkerGift
-  isRevealed     Boolean  @default(false) @map("is_revealed")
-  createdAt      DateTime @default(now()) @map("created_at")
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([conversationId, userId])
-  @@index([conversationId])
-  @@index([userId])
-  @@map("conversation_participants")
-}
-
-model Message {
-  id             String        @id @default(cuid())
-  conversationId String        @map("conversation_id")
-  senderId       String        @map("sender_id")
-  senderAlias    String?       @map("sender_alias") // Para anonimato
-  content        String        @db.Text
-  type           MessageType   @default(TEXT)
-  status         MessageStatus @default(SENT)
-  readAt         DateTime?     @map("read_at")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender       User         @relation(fields: [senderId], references: [id])
-
-  @@index([conversationId, createdAt])
-  @@index([senderId])
-  @@index([status])
-  @@map("messages")
-}
-
-model UserConsent {
-  id            String   @id @default(cuid())
-  userId        String   @map("user_id")
-  consentType   String   @map("consent_type") // 'DATA_TREATMENT'
-  policyVersion String   @map("policy_version") // Versión de la política (ej: '1.0')
-  acceptedAt    DateTime @default(now()) @map("accepted_at")
-  ipHash        String?  @map("ip_hash") // Hash de la IP (SHA256)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, consentType, policyVersion])
-  @@index([userId])
-  @@index([consentType])
-  @@map("user_consents")
-}
-
-model Department {
-  id             Int      @id
-  name           String
-  departmentCode String?  @map("department_code")
-  countryId      Int?     @map("country_id")
-  dropiId        Int      @unique @map("dropi_id") // ID de Dropi
-  payload        Json? // Payload completo de Dropi
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  cities         City[]
-
-  @@index([dropiId])
-  @@map("departments")
-}
-
-model City {
-  id             Int        @id
-  name           String
-  departmentId   Int        @map("department_id")
-  rateType       String?    @map("rate_type") // JSON string: "[\"CON RECAUDO\",\"SIN RECAUDO\"]"
-  trajectoryType String?    @map("trajectory_type") // "NACIONAL" | "TRAYECTO ESPECIAL" | null
-  code           String? // Código de la ciudad
-  dropiId        Int        @unique @map("dropi_id") // ID de Dropi
-  payload        Json? // Payload completo de Dropi
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @updatedAt @map("updated_at")
-  department     Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-
-  @@index([departmentId])
-  @@index([dropiId])
-  @@map("cities")
 }
