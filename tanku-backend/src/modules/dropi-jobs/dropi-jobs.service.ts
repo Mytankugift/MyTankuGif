@@ -77,6 +77,9 @@ export class DropiJobsService {
       });
 
       return result[0];
+    }, {
+      maxWait: 10000, // Esperar máximo 10s para iniciar transacción
+      timeout: 30000, // Timeout de 30s para la transacción completa
     });
 
     if (!job) {
@@ -187,6 +190,19 @@ export class DropiJobsService {
     return await prisma.dropiJob.findUnique({
       where: { id: jobId },
     });
+  }
+
+  /**
+   * Verificar si un job fue cancelado o falló
+   * Retorna true si el job está en estado FAILED
+   */
+  async isJobCancelled(jobId: string): Promise<boolean> {
+    const job = await prisma.dropiJob.findUnique({
+      where: { id: jobId },
+      select: { status: true },
+    });
+
+    return job?.status === DropiJobStatus.FAILED;
   }
 
   /**

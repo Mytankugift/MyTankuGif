@@ -44,7 +44,15 @@ export abstract class BaseWorker {
         }
       } catch (error: any) {
         console.error(`❌ [WORKER ${this.type}] Error en loop:`, error?.message);
-        await this.sleep(5000); // Esperar antes de reintentar
+        
+        // Si es error de transacción, esperar más tiempo antes de reintentar
+        if (error?.message?.includes('Unable to start a transaction') || 
+            error?.message?.includes('Transaction API error')) {
+          console.log(`⏳ [WORKER ${this.type}] Error de transacción, esperando 30s antes de reintentar...`);
+          await this.sleep(30000); // Esperar 30 segundos
+        } else {
+          await this.sleep(5000); // Esperar 5 segundos para otros errores
+        }
       }
     }
   }
@@ -66,5 +74,12 @@ export abstract class BaseWorker {
    */
   protected async updateProgress(jobId: string, progress: number): Promise<void> {
     await this.dropiJobsService.updateProgress(jobId, progress);
+  }
+
+  /**
+   * Verificar si el job fue cancelado
+   */
+  protected async isJobCancelled(jobId: string): Promise<boolean> {
+    return await this.dropiJobsService.isJobCancelled(jobId);
   }
 }

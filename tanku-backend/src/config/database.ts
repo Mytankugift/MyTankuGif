@@ -13,6 +13,12 @@ import { env } from './env';
  */
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
+  max: 20, // Máximo de conexiones en el pool
+  min: 2, // Mínimo de conexiones
+  idleTimeoutMillis: 30000, // Cerrar conexiones inactivas después de 30s
+  connectionTimeoutMillis: 10000, // Timeout para obtener conexión del pool (10s)
+  statement_timeout: 30000, // Timeout para queries (30s)
+  query_timeout: 30000, // Timeout para queries
 });
 
 const adapter = new PrismaPg(pool);
