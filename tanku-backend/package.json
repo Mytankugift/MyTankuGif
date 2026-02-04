@@ -26,7 +26,8 @@
     "fix:global-ranking": "tsx scripts/fix-missing-global-ranking.ts",
     "diagnose:feed": "tsx scripts/diagnose-feed.ts",
     "diagnose:invalid-products": "tsx scripts/diagnose-invalid-products.ts",
-    "clean:invalid-products-from-ranking": "tsx scripts/clean-invalid-products-from-ranking.ts"
+    "clean:invalid-products-from-ranking": "tsx scripts/clean-invalid-products-from-ranking.ts",
+    "update:global-score-to-one": "tsx scripts/update-global-score-to-one.ts"
   },
   "keywords": [
     "ecommerce",

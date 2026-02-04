@@ -14,21 +14,22 @@ export function useFeed(filters: FeedFilters = {}) {
   const [hasMore, setHasMore] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  // Filtrar items sin imágenes
-  const filterItemsWithImages = (items: FeedItem[]): FeedItem[] => {
-    return items.filter(item => {
-      if (!item.imageUrl || item.imageUrl.trim() === '') {
-        return false
-      }
-      // Verificar que la URL sea válida
-      try {
-        new URL(item.imageUrl)
-        return true
-      } catch {
-        return false
-      }
-    })
-  }
+  // ✅ REMOVIDO: Ya no filtramos items sin imágenes
+  // El backend ahora permite productos sin imágenes (se mostrarán con placeholder)
+  // const filterItemsWithImages = (items: FeedItem[]): FeedItem[] => {
+  //   return items.filter(item => {
+  //     if (!item.imageUrl || item.imageUrl.trim() === '') {
+  //       return false
+  //     }
+  //     // Verificar que la URL sea válida
+  //     try {
+  //       new URL(item.imageUrl)
+  //       return true
+  //     } catch {
+  //       return false
+  //     }
+  //   })
+  // }
 
   // Cargar feed inicial
   const loadFeed = useCallback(async () => {
@@ -69,8 +70,8 @@ export function useFeed(filters: FeedFilters = {}) {
           nextCursorTokenValue: response.data.nextCursorToken,
         })
 
-        // Filtrar items sin imágenes
-        const validItems = filterItemsWithImages(response.data.items || [])
+        // ✅ REMOVIDO: Ya no filtramos items sin imágenes, el frontend manejará el placeholder
+        const validItems = response.data.items || []
         
         // Asegurar que nextCursorToken sea string | null
         const safeCursor = typeof response.data.nextCursorToken === 'string' 
@@ -140,8 +141,8 @@ export function useFeed(filters: FeedFilters = {}) {
           nextCursorTokenValue: response.data.nextCursorToken,
         })
 
-        // Filtrar items sin imágenes
-        const validItems = filterItemsWithImages(response.data.items || [])
+        // ✅ REMOVIDO: Ya no filtramos items sin imágenes, el frontend manejará el placeholder
+        const validItems = response.data.items || []
         
         // Si no hay items nuevos, no actualizar nada
         if (validItems.length === 0) {

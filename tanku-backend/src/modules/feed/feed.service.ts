@@ -58,11 +58,7 @@ export class FeedService {
     categoryId?: string,
     search?: string
   ): Promise<FeedResponseDTO> {
-    console.log(`\n📰 [FEED-SERVICE] ========== INICIANDO GET FEED ==========`);
-    console.log(`📰 [FEED-SERVICE] Cursor Token: ${cursorToken || 'No proporcionado'}`);
-    console.log(`📰 [FEED-SERVICE] User ID: ${userId || 'No autenticado'}`);
-    console.log(`📰 [FEED-SERVICE] Category ID: ${categoryId || 'No especificado'}`);
-    console.log(`📰 [FEED-SERVICE] Search: ${search || 'No especificado'}`);
+    // Logs reducidos - solo información esencial
 
     try {
       // Limpiar tokens expirados
@@ -71,20 +67,17 @@ export class FeedService {
       // Obtener cursor del token si existe
       const cursor = cursorToken ? this.getCursorFromToken(cursorToken) : undefined;
       if (cursor) {
-        console.log(`📰 [FEED-SERVICE] Cursor extraído del token exitosamente`);
       }
 
       // Valores hardcodeados
       const limit = this.DEFAULT_LIMIT;
       const postsPerProducts = this.DEFAULT_POSTS_PER_PRODUCTS;
-      console.log(`📰 [FEED-SERVICE] Limit: ${limit}, Posts per Products: ${postsPerProducts}`);
       
       // Aplicar boost temporal si hay userId (onboarding)
       let boostFactor = 1.0;
       if (userId) {
         try {
           boostFactor = await this.getBoostFactor(userId);
-          console.log(`📰 [FEED-SERVICE] Boost factor obtenido: ${boostFactor}`);
         } catch (boostError: any) {
           console.warn(`⚠️ [FEED-SERVICE] Error obteniendo boost factor:`, boostError?.message);
           boostFactor = 1.0; // Usar valor por defecto si falla
@@ -95,14 +88,12 @@ export class FeedService {
       // Si limit=20 y postsPerProducts=5, necesitamos ~17 productos y ~3 posts
       const estimatedProducts = Math.ceil((limit * postsPerProducts) / (postsPerProducts + 1));
       const estimatedPosts = Math.ceil(limit / (postsPerProducts + 1));
-      console.log(`📰 [FEED-SERVICE] Productos estimados: ${estimatedProducts + 5}, Posts estimados: ${estimatedPosts + 2}`);
       
       // Obtener productos por ranking o búsqueda (solo productos)
       let products: any[] = [];
       try {
         // Si hay búsqueda, usar método de búsqueda que busca en todos los productos
         if (search && search.trim()) {
-          console.log(`📰 [FEED-SERVICE] Obteniendo productos por búsqueda: "${search.trim()}"...`);
           products = await this.getProductsBySearch(
             search.trim(),
             cursor,
@@ -110,7 +101,6 @@ export class FeedService {
             categoryId
           );
         } else {
-          console.log(`📰 [FEED-SERVICE] Obteniendo productos por ranking...`);
           products = await this.getProductsByRanking(
             cursor,
             estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
@@ -118,7 +108,6 @@ export class FeedService {
             categoryId
           );
         }
-        console.log(`📰 [FEED-SERVICE] Productos obtenidos: ${products.length}`);
       } catch (productsError: any) {
         // Si es error de tabla no existente, continuar solo con posts
         if (productsError?.code === 'P2021' || productsError?.message?.includes('does not exist')) {
@@ -136,13 +125,11 @@ export class FeedService {
       // Obtener posts por fecha (solo posts, filtrados por amigos + propio si hay userId)
       let posts: any[] = [];
       try {
-        console.log(`📰 [FEED-SERVICE] Obteniendo posts por fecha...`);
         posts = await this.getPostsByDate(
           cursor,
           estimatedPosts + 2, // Buffer extra
           userId // Pasar userId para filtrar por amigos + propio
         );
-        console.log(`📰 [FEED-SERVICE] Posts obtenidos: ${posts.length}`);
       } catch (postsError: any) {
         console.error(`❌ [FEED-SERVICE] Error obteniendo posts:`, postsError?.message);
         console.error(`❌ [FEED-SERVICE] Stack:`, postsError?.stack);
@@ -151,9 +138,7 @@ export class FeedService {
       }
 
       // Intercalar productos y posts según la regla
-      console.log(`📰 [FEED-SERVICE] Intercalando productos y posts...`);
       const intercalated = this.intercalateItems(products, posts, limit, postsPerProducts);
-      console.log(`📰 [FEED-SERVICE] Items intercalados: ${intercalated.items.length}`);
 
       // Separar productos y posters para batch queries
       const productIds = intercalated.items
@@ -164,14 +149,11 @@ export class FeedService {
         .filter(item => item.itemType === 'poster')
         .map(item => item.itemId);
 
-      console.log(`📰 [FEED-SERVICE] Product IDs para batch query: ${productIds.length}`);
-      console.log(`📰 [FEED-SERVICE] Poster IDs para batch query: ${posterIds.length}`);
 
       // Batch query para productos (una sola query en lugar de N queries)
       let productsData: any[] = [];
       try {
         if (productIds.length > 0) {
-          console.log(`📰 [FEED-SERVICE] Ejecutando batch query para productos...`);
           productsData = await prisma.product.findMany({
             where: { id: { in: productIds } },
             include: {
@@ -183,7 +165,6 @@ export class FeedService {
               },
             },
           });
-          console.log(`📰 [FEED-SERVICE] Productos obtenidos de BD: ${productsData.length}`);
         }
       } catch (productsDataError: any) {
         console.error(`❌ [FEED-SERVICE] Error en batch query de productos:`, productsDataError?.message);
@@ -195,7 +176,6 @@ export class FeedService {
       let postersData: any[] = [];
       try {
         if (posterIds.length > 0) {
-          console.log(`📰 [FEED-SERVICE] Ejecutando batch query para posters...`);
           postersData = await prisma.poster.findMany({
             where: { id: { in: posterIds } },
             include: {
@@ -206,7 +186,6 @@ export class FeedService {
               },
             },
           });
-          console.log(`📰 [FEED-SERVICE] Posters obtenidos de BD: ${postersData.length}`);
         }
       } catch (postersDataError: any) {
         console.error(`❌ [FEED-SERVICE] Error en batch query de posters:`, postersDataError?.message);
@@ -218,7 +197,6 @@ export class FeedService {
       const productMap = new Map(productsData.map(p => [p.id, p]));
       const posterMap = new Map(postersData.map(p => [p.id, p]));
 
-      console.log(`📰 [FEED-SERVICE] Mapas creados: ${productMap.size} productos, ${posterMap.size} posters`);
 
       // ✅ DIAGNÓSTICO: Verificar productos faltantes en productMap
       const missingProducts: string[] = [];
@@ -232,7 +210,6 @@ export class FeedService {
         console.warn(`⚠️ [FEED-SERVICE] ${missingProducts.length} productos en ranking no encontrados en BD (de ${productItems.length} productos en ranking)`);
         console.warn(`⚠️ [FEED-SERVICE] Primeros 10 IDs faltantes:`, missingProducts.slice(0, 10));
       } else {
-        console.log(`✅ [FEED-SERVICE] Todos los productos del ranking existen en BD`);
       }
 
       // Obtener métricas de likes para productos (batch query)
@@ -343,7 +320,6 @@ export class FeedService {
         // Las imágenes se agregarán cuando se ejecute ENRICH y SYNC
         if (!imageUrl || imageUrl.trim() === '') {
           imageUrl = ''; // Frontend manejará el placeholder
-          console.log(`ℹ️ [FEED-SERVICE] Producto ${product.id} (${product.title}) sin imagen, frontend manejará placeholder`);
         }
         
         // Usar tankuPrice directamente (ya calculado en sync)
@@ -399,17 +375,12 @@ export class FeedService {
       }
       }
 
-      // ✅ LOGGING DETALLADO: Resumen de items omitidos
+      // Resumen solo si hay problemas
       if (skippedProducts > 0 || skippedPosters > 0) {
-        console.warn(`⚠️ [FEED-SERVICE] Items omitidos: ${skippedProducts} productos, ${skippedPosters} posters`);
-        console.warn(`⚠️ [FEED-SERVICE] Razones de omisión:`, skipReasons);
+        console.warn(`⚠️ [FEED] Items omitidos: ${skippedProducts} productos, ${skippedPosters} posters`);
       }
 
-      console.log(`📰 [FEED-SERVICE] Feed items mapeados: ${feedItems.length} (de ${intercalated.items.length} items intercalados)`);
-      console.log(`📰 [FEED-SERVICE] Desglose: ${feedItems.filter(i => i.type === 'product').length} productos, ${feedItems.filter(i => i.type === 'poster').length} posters`);
-
       // Crear cursor híbrido para siguiente página
-      console.log(`📰 [FEED-SERVICE] Creando cursor híbrido...`);
       const nextCursor = this.createHybridCursor(
         intercalated,
         products,
@@ -421,9 +392,6 @@ export class FeedService {
 
       // Generar token para siguiente página si hay más items
       const nextCursorToken = nextCursor ? this.generateCursorToken(nextCursor) : null;
-
-      console.log(`📰 [FEED-SERVICE] Cursor token generado: ${nextCursorToken ? 'Sí' : 'No'}`);
-      console.log(`📰 [FEED-SERVICE] ========== FEED OBTENIDO EXITOSAMENTE ==========\n`);
 
       return {
         items: feedItems,
@@ -729,7 +697,6 @@ export class FeedService {
     limit: number,
     categoryId?: string
   ) {
-    console.log(`🔍 [FEED-SERVICE] Buscando productos con query: "${searchQuery}"`);
     
     // Construir la query de búsqueda directamente en Prisma
     // para tener mejor control sobre la paginación con cursor
@@ -799,7 +766,6 @@ export class FeedService {
       take: limit,
     });
     
-    console.log(`🔍 [FEED-SERVICE] Productos encontrados en búsqueda: ${products.length}`);
     
     // Convertir productos a formato compatible con ranking items
     const productsWithDates = products.map((product) => ({
@@ -1559,7 +1525,7 @@ export class FeedService {
         create: {
           itemId,
           itemType,
-          globalScore: 0,
+          globalScore: 1, // ✅ Cambiar de 0 a 1 para que aparezcan en el feed
           createdAt,
         },
       });
@@ -1582,7 +1548,7 @@ export class FeedService {
         create: {
           itemId,
           itemType,
-          globalScore: 0,
+          globalScore: 0, // Posters mantienen 0
           createdAt,
         },
       });

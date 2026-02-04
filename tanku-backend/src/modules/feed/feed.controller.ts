@@ -21,12 +21,6 @@ export class FeedController {
    */
   getFeed = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log(`\n📰 [FEED-CONTROLLER] ========== SOLICITUD DE FEED ==========`);
-      console.log(`📰 [FEED-CONTROLLER] User ID: ${(req as RequestWithUser).user?.id || 'No autenticado'}`);
-      console.log(`📰 [FEED-CONTROLLER] Cursor Token: ${req.headers['x-feed-cursor'] || 'No proporcionado'}`);
-      console.log(`📰 [FEED-CONTROLLER] Category ID: ${req.query.categoryId || 'No especificado'}`);
-      console.log(`📰 [FEED-CONTROLLER] Search: ${req.query.search || 'No especificado'}`);
-      
       const userId = (req as RequestWithUser).user?.id;
       
       // Leer cursor token del header (case-insensitive)
@@ -38,13 +32,7 @@ export class FeedController {
       // Leer search de query params (opcional)
       const search = req.query.search as string | undefined;
 
-      console.log(`📰 [FEED-CONTROLLER] Obteniendo feed...`);
       const feed = await this.feedService.getFeed(cursorToken, userId, categoryId, search);
-
-      console.log(`📰 [FEED-CONTROLLER] Feed obtenido exitosamente:`);
-      console.log(`📰 [FEED-CONTROLLER] - Items: ${feed.items?.length || 0}`);
-      console.log(`📰 [FEED-CONTROLLER] - Next Cursor Token: ${feed.nextCursorToken ? 'Sí' : 'No'}`);
-      console.log(`📰 [FEED-CONTROLLER] ==========================================\n`);
 
       res.status(200).json(successResponse(feed));
     } catch (error: any) {

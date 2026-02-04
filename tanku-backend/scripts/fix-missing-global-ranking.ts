@@ -152,22 +152,22 @@ async function fixMissingGlobalRanking() {
           },
         });
 
-        // Insertar en global_ranking
-        await (prisma as any).globalRanking.upsert({
-          where: {
-            itemId_itemType: {
-              itemId: product.id,
-              itemType: 'product',
-            },
-          },
-          update: {},
-          create: {
-            itemId: product.id,
-            itemType: 'product',
-            globalScore: 0,
-            createdAt: product.createdAt,
-          },
-        });
+            // Insertar en global_ranking
+            await (prisma as any).globalRanking.upsert({
+              where: {
+                itemId_itemType: {
+                  itemId: product.id,
+                  itemType: 'product',
+                },
+              },
+              update: {},
+              create: {
+                itemId: product.id,
+                itemType: 'product',
+                globalScore: 1, // ✅ Cambiar de 0 a 1 para que aparezcan en el feed
+                createdAt: product.createdAt,
+              },
+            });
 
         inserted++;
         if (inserted % 10 === 0) {
