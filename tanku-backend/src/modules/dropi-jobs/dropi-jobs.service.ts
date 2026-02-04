@@ -136,6 +136,51 @@ export class DropiJobsService {
   }
 
   /**
+   * Listar jobs con filtros opcionales
+   */
+  async listJobs(options?: {
+    limit?: number;
+    type?: DropiJobType;
+    status?: DropiJobStatus;
+  }): Promise<Array<{
+    id: string;
+    type: DropiJobType;
+    status: DropiJobStatus;
+    progress: number;
+    attempts: number;
+    error: string | null;
+    createdAt: Date;
+    startedAt: Date | null;
+    finishedAt: Date | null;
+  }>> {
+    const { limit = 50, type, status } = options || {};
+
+    const where: any = {};
+    if (type) where.type = type;
+    if (status) where.status = status;
+
+    const jobs = await prisma.dropiJob.findMany({
+      where,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+    });
+
+    return jobs.map(job => ({
+      id: job.id,
+      type: job.type,
+      status: job.status,
+      progress: job.progress,
+      attempts: job.attempts,
+      error: job.error,
+      createdAt: job.createdAt,
+      startedAt: job.startedAt,
+      finishedAt: job.finishedAt,
+    }));
+  }
+
+  /**
    * Obtener job por ID
    */
   async getJob(jobId: string) {

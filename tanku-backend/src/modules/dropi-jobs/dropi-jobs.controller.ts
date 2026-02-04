@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { DropiJobsService } from './dropi-jobs.service';
-import { DropiJobType } from '@prisma/client';
+import { DropiJobType, DropiJobStatus } from '@prisma/client';
 
 export class DropiJobsController {
   private dropiJobsService: DropiJobsService;
@@ -93,6 +93,31 @@ export class DropiJobsController {
         jobId: job.id,
         status: 'queued',
         type: job.type,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/dropi/jobs
+   * Listar jobs con filtros opcionales
+   */
+  listJobs = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const type = req.query.type as DropiJobType | undefined;
+      const status = req.query.status as DropiJobStatus | undefined;
+
+      const jobs = await this.dropiJobsService.listJobs({
+        limit,
+        type,
+        status,
+      });
+
+      res.status(200).json({
+        jobs,
+        count: jobs.length,
       });
     } catch (error) {
       next(error);

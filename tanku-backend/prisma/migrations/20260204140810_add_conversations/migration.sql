@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS "conversations" (
     "type" "ConversationType" NOT NULL DEFAULT 'FRIENDS',
     "status" "ConversationStatus" NOT NULL DEFAULT 'ACTIVE',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "conversations_pkey" PRIMARY KEY ("id")
 );
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS "messages" (
     "status" "MessageStatus" NOT NULL DEFAULT 'SENT',
     "read_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "messages_pkey" PRIMARY KEY ("id")
 );

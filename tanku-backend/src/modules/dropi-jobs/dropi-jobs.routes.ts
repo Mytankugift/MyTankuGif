@@ -35,6 +35,12 @@ router.post('/sync-product', dropiJobsController.createSyncProductJob);
 router.post('/stock', dropiJobsController.createSyncStockJob);
 
 /**
+ * GET /api/v1/dropi/jobs
+ * Listar jobs (debe ir ANTES de /:id para evitar conflictos)
+ */
+router.get('/', dropiJobsController.listJobs);
+
+/**
  * GET /api/v1/dropi/jobs/:id
  * Obtener estado de un job
  */
