@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
 import { FeedItemDTO, FeedCursorDTO, FeedResponseDTO } from '../../shared/dto/feed.dto';
+import { Prisma } from '@prisma/client';
 import type { Product, ProductVariant, Category, Poster, User, UserProfile } from '@prisma/client';
 
 /**
@@ -308,15 +309,45 @@ export class FeedService {
         }
         
         const firstVariant = product.variants[0];
-        const imageUrl = (product.images && product.images.length > 0
-          ? this.normalizeImageUrl(product.images[0]) || ''
-          : '') || '';
+        
+        // ✅ MEJORAR: Extraer imágenes de forma robusta (campo JSON puede venir en diferentes formatos)
+        let imagesArray: string[] = [];
+        if (product.images) {
+          if (Array.isArray(product.images)) {
+            // Si es array, extraer strings directamente o desde objetos
+            imagesArray = product.images.map((img: any) => {
+              if (typeof img === 'string') return img;
+              if (typeof img === 'object' && img !== null) {
+                return img.url || img.urlS3 || img;
+              }
+              return img;
+            }).filter((img: any) => img && typeof img === 'string');
+          } else if (typeof product.images === 'string') {
+            // Si es string, intentar parsear como JSON
+            try {
+              const parsed = JSON.parse(product.images);
+              if (Array.isArray(parsed)) {
+                imagesArray = parsed.filter((img: any) => typeof img === 'string');
+              }
+            } catch (e) {
+              // No es JSON válido, ignorar
+            }
+          }
+        }
+        
+        // Obtener primera imagen válida
+        const firstImage = imagesArray.length > 0 ? imagesArray[0] : null;
+        const imageUrl = firstImage ? (this.normalizeImageUrl(firstImage) || '') : '';
         
         // ✅ VALIDAR: Verificar que tenga imagen
         if (!imageUrl || imageUrl.trim() === '') {
           skipReasons['product_no_image']++;
           skippedProducts++;
-          console.warn(`⚠️ [FEED-SERVICE] Producto ${product.id} (${product.title}) no tiene imagen, omitiendo`);
+          console.warn(`⚠️ [FEED-SERVICE] Producto ${product.id} (${product.title}) no tiene imagen válida, omitiendo`);
+          console.warn(`⚠️ [FEED-SERVICE]   - images type: ${typeof product.images}, isArray: ${Array.isArray(product.images)}`);
+          if (product.images) {
+            console.warn(`⚠️ [FEED-SERVICE]   - images value (primeros 100 chars): ${JSON.stringify(product.images).substring(0, 100)}`);
+          }
           continue;
         }
         
@@ -381,6 +412,124 @@ export class FeedService {
 
       console.log(`📰 [FEED-SERVICE] Feed items mapeados: ${feedItems.length} (de ${intercalated.items.length} items intercalados)`);
       console.log(`📰 [FEED-SERVICE] Desglose: ${feedItems.filter(i => i.type === 'product').length} productos, ${feedItems.filter(i => i.type === 'poster').length} posters`);
+
+      // ✅ MEJORAR: Si no hay productos válidos del ranking y no hay búsqueda/categoría, consultar directamente desde product
+      const productFeedItems = feedItems.filter(i => i.type === 'product');
+      if (productFeedItems.length === 0 && !search && !categoryId) {
+        console.log(`📰 [FEED-SERVICE] No hay productos válidos del ranking, consultando directamente desde product...`);
+        try {
+          // Consultar productos con imágenes directamente desde la tabla product
+          const productsWithImages = await prisma.product.findMany({
+            where: {
+              active: true,
+              // Filtrar productos que tienen imágenes (array no vacío)
+              images: { isEmpty: false },
+            },
+            orderBy: [
+              { createdAt: 'desc' }, // Más recientes primero
+            ],
+            take: limit,
+            include: {
+              category: true,
+              variants: {
+                where: { active: true },
+                orderBy: { price: 'asc' },
+                take: 1,
+              },
+            },
+          });
+
+          console.log(`📰 [FEED-SERVICE] Productos con imágenes encontrados: ${productsWithImages.length}`);
+
+          // Mapear estos productos a FeedItemDTO
+          for (const product of productsWithImages) {
+            if (!product.title || product.title.trim() === '') continue;
+
+            // Extraer imágenes de forma robusta
+            let imagesArray: string[] = [];
+            if (product.images) {
+              if (Array.isArray(product.images)) {
+                imagesArray = product.images.map((img: any) => {
+                  if (typeof img === 'string') return img;
+                  if (typeof img === 'object' && img !== null) {
+                    return img.url || img.urlS3 || img;
+                  }
+                  return img;
+                }).filter((img: any) => img && typeof img === 'string');
+              } else if (typeof product.images === 'string') {
+                try {
+                  const parsed = JSON.parse(product.images);
+                  if (Array.isArray(parsed)) {
+                    imagesArray = parsed.filter((img: any) => typeof img === 'string');
+                  }
+                } catch (e) {
+                  // No es JSON válido
+                }
+              }
+            }
+
+            const firstImage = imagesArray.length > 0 ? imagesArray[0] : null;
+            const imageUrl = firstImage ? (this.normalizeImageUrl(firstImage) || '') : '';
+            
+            if (!imageUrl || imageUrl.trim() === '') continue;
+
+            const firstVariant = product.variants[0];
+            const finalPrice = firstVariant?.tankuPrice || undefined;
+
+            // Obtener métricas de likes
+            let likesCount = 0;
+            try {
+              const metrics = await (prisma as any).itemMetric.findFirst({
+                where: {
+                  itemId: product.id,
+                  itemType: 'product',
+                },
+                select: { likesCount: true },
+              });
+              likesCount = metrics?.likesCount || 0;
+            } catch (error) {
+              // Ignorar errores de métricas
+            }
+
+            // Obtener isLiked si hay usuario
+            let isLiked = false;
+            if (userId) {
+              try {
+                const userLike = await prisma.productLike.findFirst({
+                  where: {
+                    userId,
+                    productId: product.id,
+                  },
+                });
+                isLiked = !!userLike;
+              } catch (error) {
+                // Ignorar errores de likes
+              }
+            }
+
+            feedItems.push({
+              id: product.id,
+              type: 'product',
+              createdAt: product.createdAt.toISOString(),
+              title: product.title,
+              imageUrl,
+              price: finalPrice,
+              handle: product.handle,
+              category: product.category ? {
+                id: product.category.id,
+                name: product.category.name,
+                handle: product.category.handle,
+              } : undefined,
+              likesCount,
+              isLiked,
+            });
+          }
+
+          console.log(`📰 [FEED-SERVICE] Productos agregados desde fallback: ${feedItems.filter(i => i.type === 'product').length}`);
+        } catch (fallbackError: any) {
+          console.error(`❌ [FEED-SERVICE] Error en fallback de productos:`, fallbackError?.message);
+        }
+      }
 
       // Crear cursor híbrido para siguiente página
       console.log(`📰 [FEED-SERVICE] Creando cursor híbrido...`);

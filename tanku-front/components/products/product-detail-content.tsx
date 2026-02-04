@@ -129,8 +129,12 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
 
   // Obtener imágenes
   const images = fullProduct.images || []
-  const allImages = fullProduct.thumbnail
-    ? [fullProduct.thumbnail, ...images]
+  // ✅ CORREGIR: Evitar duplicar thumbnail si ya está en images[0]
+  const thumbnail = fullProduct.thumbnail
+  const firstImage = images.length > 0 ? images[0] : null
+
+  const allImages = thumbnail && thumbnail !== firstImage
+    ? [thumbnail, ...images]  // Solo agregar thumbnail si es diferente
     : images.length > 0
     ? images
     : product.imageUrl

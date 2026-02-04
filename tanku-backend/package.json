@@ -22,7 +22,9 @@
     "check:migrations": "tsx check-migrations.ts",
     "fix:feed:tables": "tsx scripts/create-feed-tables.ts",
     "init:feed": "tsx scripts/init-feed-metrics.ts",
-    "clean:migrations": "tsx scripts/clean-failed-migrations.ts"
+    "clean:migrations": "tsx scripts/clean-failed-migrations.ts",
+    "fix:global-ranking": "tsx scripts/fix-missing-global-ranking.ts",
+    "diagnose:feed": "tsx scripts/diagnose-feed.ts"
   },
   "keywords": [
     "ecommerce",
