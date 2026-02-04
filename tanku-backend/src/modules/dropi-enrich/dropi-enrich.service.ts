@@ -28,6 +28,8 @@ export class DropiEnrichService {
     enriched: number;
     errors: number;
     error_details: Array<{ dropi_id: number; error: string }>;
+    total_pending?: number; // ✅ AGREGADO: Total de productos pendientes
+    remaining?: number; // ✅ AGREGADO: Productos restantes por enriquecer
   }> {
     console.log(`\n🔍 [ENRICH] Iniciando enriquecimiento`);
     console.log(`🔍 [ENRICH] limit: ${limit}, priority: ${priority}, batch_size: ${batchSize}, force: ${force}`);
@@ -77,6 +79,9 @@ export class DropiEnrichService {
         console.log(`[ENRICH] Modo force: enriqueciendo todos los productos seleccionados`);
       }
 
+      // ✅ AGREGADO: Guardar total pendiente para calcular progreso
+      const totalPending = productsToEnrich.length;
+
       if (productsToEnrich.length === 0) {
         return {
           success: true,
@@ -84,6 +89,8 @@ export class DropiEnrichService {
           enriched: 0,
           errors: 0,
           error_details: [],
+          total_pending: 0, // ✅ AGREGADO
+          remaining: 0, // ✅ AGREGADO
         };
       }
 
@@ -194,12 +201,17 @@ export class DropiEnrichService {
 
       console.log(`✅ [ENRICH] Enriquecimiento completado: ${enrichedCount} productos, ${errors.length} errores`);
 
+      // ✅ AGREGADO: Calcular remaining
+      const remaining = Math.max(0, totalPending - enrichedCount);
+
       return {
         success: true,
         message: 'Enriquecimiento ejecutado',
         enriched: enrichedCount,
         errors: errors.length,
         error_details: errors.slice(0, 10), // Solo primeros 10 errores
+        total_pending: totalPending, // ✅ AGREGADO
+        remaining: remaining, // ✅ AGREGADO
       };
     } catch (error: any) {
       console.error(`❌ [ENRICH] Error fatal:`, error);

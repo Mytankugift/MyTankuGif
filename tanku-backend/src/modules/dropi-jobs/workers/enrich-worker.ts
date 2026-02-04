@@ -22,6 +22,7 @@ export class EnrichWorker extends BaseWorker {
     let limit = 1000;
     let enriched = 0;
     let totalErrors = 0;
+    let totalPending = 0; // ✅ AGREGADO: Para calcular progreso
 
     try {
       // Verificar cancelación antes de empezar
@@ -43,10 +44,23 @@ export class EnrichWorker extends BaseWorker {
           false
         );
 
+        // ✅ AGREGADO: Guardar total_pending en la primera iteración
+        if (totalPending === 0 && result.total_pending !== undefined) {
+          totalPending = result.total_pending;
+        }
+
         enriched += result.enriched;
         totalErrors += result.errors;
 
-        console.log(`[ENRICH WORKER] Lote enriquecido: ${result.enriched} productos`);
+        // ✅ AGREGADO: Calcular y actualizar progreso
+        if (totalPending > 0) {
+          const remaining = result.remaining !== undefined ? result.remaining : Math.max(0, totalPending - enriched);
+          const progress = Math.round(((totalPending - remaining) / totalPending) * 100);
+          await this.updateProgress(jobId, progress);
+          console.log(`[ENRICH WORKER] Lote enriquecido: ${result.enriched} productos | Progreso: ${progress}%`);
+        } else {
+          console.log(`[ENRICH WORKER] Lote enriquecido: ${result.enriched} productos`);
+        }
 
         // Si no hay más productos para enriquecer, salir
         if (result.enriched === 0) {
@@ -58,6 +72,9 @@ export class EnrichWorker extends BaseWorker {
       if (await this.isJobCancelled(jobId)) {
         throw new Error('Job cancelado antes de finalizar');
       }
+
+      // ✅ AGREGADO: Actualizar progreso a 100% al finalizar
+      await this.updateProgress(jobId, 100);
 
       console.log(`[ENRICH WORKER] Enriquecimiento completado: ${enriched} productos, ${totalErrors} errores`);
 
