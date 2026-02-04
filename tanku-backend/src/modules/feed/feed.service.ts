@@ -413,124 +413,6 @@ export class FeedService {
       console.log(`📰 [FEED-SERVICE] Feed items mapeados: ${feedItems.length} (de ${intercalated.items.length} items intercalados)`);
       console.log(`📰 [FEED-SERVICE] Desglose: ${feedItems.filter(i => i.type === 'product').length} productos, ${feedItems.filter(i => i.type === 'poster').length} posters`);
 
-      // ✅ MEJORAR: Si no hay productos válidos del ranking y no hay búsqueda/categoría, consultar directamente desde product
-      const productFeedItems = feedItems.filter(i => i.type === 'product');
-      if (productFeedItems.length === 0 && !search && !categoryId) {
-        console.log(`📰 [FEED-SERVICE] No hay productos válidos del ranking, consultando directamente desde product...`);
-        try {
-          // Consultar productos con imágenes directamente desde la tabla product
-          const productsWithImages = await prisma.product.findMany({
-            where: {
-              active: true,
-              // Filtrar productos que tienen imágenes (array no vacío)
-              images: { isEmpty: false },
-            },
-            orderBy: [
-              { createdAt: 'desc' }, // Más recientes primero
-            ],
-            take: limit,
-            include: {
-              category: true,
-              variants: {
-                where: { active: true },
-                orderBy: { price: 'asc' },
-                take: 1,
-              },
-            },
-          });
-
-          console.log(`📰 [FEED-SERVICE] Productos con imágenes encontrados: ${productsWithImages.length}`);
-
-          // Mapear estos productos a FeedItemDTO
-          for (const product of productsWithImages) {
-            if (!product.title || product.title.trim() === '') continue;
-
-            // Extraer imágenes de forma robusta
-            let imagesArray: string[] = [];
-            if (product.images) {
-              if (Array.isArray(product.images)) {
-                imagesArray = product.images.map((img: any) => {
-                  if (typeof img === 'string') return img;
-                  if (typeof img === 'object' && img !== null) {
-                    return img.url || img.urlS3 || img;
-                  }
-                  return img;
-                }).filter((img: any) => img && typeof img === 'string');
-              } else if (typeof product.images === 'string') {
-                try {
-                  const parsed = JSON.parse(product.images);
-                  if (Array.isArray(parsed)) {
-                    imagesArray = parsed.filter((img: any) => typeof img === 'string');
-                  }
-                } catch (e) {
-                  // No es JSON válido
-                }
-              }
-            }
-
-            const firstImage = imagesArray.length > 0 ? imagesArray[0] : null;
-            const imageUrl = firstImage ? (this.normalizeImageUrl(firstImage) || '') : '';
-            
-            if (!imageUrl || imageUrl.trim() === '') continue;
-
-            const firstVariant = product.variants[0];
-            const finalPrice = firstVariant?.tankuPrice || undefined;
-
-            // Obtener métricas de likes
-            let likesCount = 0;
-            try {
-              const metrics = await (prisma as any).itemMetric.findFirst({
-                where: {
-                  itemId: product.id,
-                  itemType: 'product',
-                },
-                select: { likesCount: true },
-              });
-              likesCount = metrics?.likesCount || 0;
-            } catch (error) {
-              // Ignorar errores de métricas
-            }
-
-            // Obtener isLiked si hay usuario
-            let isLiked = false;
-            if (userId) {
-              try {
-                const userLike = await prisma.productLike.findFirst({
-                  where: {
-                    userId,
-                    productId: product.id,
-                  },
-                });
-                isLiked = !!userLike;
-              } catch (error) {
-                // Ignorar errores de likes
-              }
-            }
-
-            feedItems.push({
-              id: product.id,
-              type: 'product',
-              createdAt: product.createdAt.toISOString(),
-              title: product.title,
-              imageUrl,
-              price: finalPrice,
-              handle: product.handle,
-              category: product.category ? {
-                id: product.category.id,
-                name: product.category.name,
-                handle: product.category.handle,
-              } : undefined,
-              likesCount,
-              isLiked,
-            });
-          }
-
-          console.log(`📰 [FEED-SERVICE] Productos agregados desde fallback: ${feedItems.filter(i => i.type === 'product').length}`);
-        } catch (fallbackError: any) {
-          console.error(`❌ [FEED-SERVICE] Error en fallback de productos:`, fallbackError?.message);
-        }
-      }
-
       // Crear cursor híbrido para siguiente página
       console.log(`📰 [FEED-SERVICE] Creando cursor híbrido...`);
       const nextCursor = this.createHybridCursor(
@@ -1611,6 +1493,39 @@ export class FeedService {
     itemId: string,
     itemType: 'product' | 'poster'
   ) {
+    // ✅ VALIDAR: Para productos, verificar que tengan título e imágenes válidos
+    if (itemType === 'product') {
+      const product = await prisma.product.findUnique({
+        where: { id: itemId },
+        select: {
+          title: true,
+          images: true,
+          active: true,
+        },
+      });
+
+      if (!product) {
+        console.warn(`[FEED-SERVICE] Producto ${itemId} no encontrado, omitiendo inicialización de métricas`);
+        return;
+      }
+
+      // Validar que tenga título válido
+      const hasValidTitle = product.title && 
+                           product.title.trim() !== '' && 
+                           product.title !== 'Sin nombre';
+      
+      // Validar que tenga imágenes
+      const hasValidImages = product.images && 
+                            Array.isArray(product.images) && 
+                            product.images.length > 0;
+
+      if (!hasValidTitle || !hasValidImages || !product.active) {
+        console.warn(`[FEED-SERVICE] Producto ${itemId} no cumple requisitos para ranking (title: ${hasValidTitle}, images: ${hasValidImages}, active: ${product.active}), omitiendo`);
+        return; // No agregar al ranking si no cumple requisitos
+      }
+    }
+
+    // Inicializar métricas (siempre, incluso si no se agrega al ranking)
     await (prisma as any).itemMetric.upsert({
       where: {
         itemId_itemType: {
@@ -1629,37 +1544,54 @@ export class FeedService {
       },
     });
 
-    // Inicializar ranking global con score 0
-    let createdAt: Date;
+    // Solo agregar al ranking si es producto válido o es poster
     if (itemType === 'product') {
+      // Ya validamos arriba, así que podemos agregar
       const product = await prisma.product.findUnique({
         where: { id: itemId },
         select: { createdAt: true },
       });
-      createdAt = product?.createdAt || new Date();
+      const createdAt = product?.createdAt || new Date();
+
+      await (prisma as any).globalRanking.upsert({
+        where: {
+          itemId_itemType: {
+            itemId,
+            itemType,
+          },
+        },
+        update: {},
+        create: {
+          itemId,
+          itemType,
+          globalScore: 0,
+          createdAt,
+        },
+      });
     } else {
+      // Para posters, mantener lógica original
       const poster = await prisma.poster.findUnique({
         where: { id: itemId },
         select: { createdAt: true },
       });
-      createdAt = poster?.createdAt || new Date();
-    }
+      const createdAt = poster?.createdAt || new Date();
 
-    await (prisma as any).globalRanking.upsert({
-      where: {
-        itemId_itemType: {
+      await (prisma as any).globalRanking.upsert({
+        where: {
+          itemId_itemType: {
+            itemId,
+            itemType,
+          },
+        },
+        update: {},
+        create: {
           itemId,
           itemType,
+          globalScore: 0,
+          createdAt,
         },
-      },
-      update: {},
-      create: {
-        itemId,
-        itemType,
-        globalScore: 0,
-        createdAt,
-      },
-    });
+      });
+    }
   }
 }
 

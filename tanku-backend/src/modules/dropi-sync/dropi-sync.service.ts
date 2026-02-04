@@ -240,6 +240,37 @@ export class DropiSyncService {
             });
             productsUpdated++;
             console.log(`[SYNC TO BACKEND] ✅ Producto actualizado: ${product.id}`);
+
+            // ✅ VALIDAR: Verificar si el producto actualizado cumple requisitos para ranking
+            const hasValidTitle = productData.title && 
+                                 productData.title.trim() !== '' && 
+                                 productData.title !== 'Sin nombre';
+            const hasValidImages = productData.images && 
+                                  Array.isArray(productData.images) && 
+                                  productData.images.length > 0;
+
+            if (hasValidTitle && hasValidImages && productData.active) {
+              // Producto válido: asegurar que esté en el ranking
+              const feedService = new FeedService();
+              feedService.initializeItemMetrics(product.id, 'product').catch((error) => {
+                console.error(`Error inicializando métricas del feed para producto ${product.id}:`, error);
+              });
+            } else {
+              // Producto inválido: eliminar del ranking si existe
+              console.warn(`[SYNC TO BACKEND] ⚠️ Producto ${product.id} no cumple requisitos (title: ${hasValidTitle}, images: ${hasValidImages}, active: ${productData.active}), eliminando del ranking si existe`);
+              try {
+                await (prisma as any).globalRanking.deleteMany({
+                  where: {
+                    itemId: product.id,
+                    itemType: 'product',
+                  },
+                });
+                console.log(`[SYNC TO BACKEND] ✅ Producto ${product.id} eliminado del ranking`);
+              } catch (error) {
+                // Ignorar errores (puede que no exista en el ranking)
+                console.log(`[SYNC TO BACKEND] ℹ️ Producto ${product.id} no estaba en el ranking`);
+              }
+            }
           } else {
             product = await prisma.product.create({
               data: productData,
@@ -248,6 +279,7 @@ export class DropiSyncService {
             console.log(`[SYNC TO BACKEND] ✅ Producto creado: ${product.id}`);
 
             // Inicializar métricas del feed para el nuevo producto (asíncrono, no bloquea)
+            // initializeItemMetrics ahora valida internamente antes de agregar al ranking
             const feedService = new FeedService();
             feedService.initializeItemMetrics(product.id, 'product').catch((error) => {
               console.error(`Error inicializando métricas del feed para producto ${product.id}:`, error);
