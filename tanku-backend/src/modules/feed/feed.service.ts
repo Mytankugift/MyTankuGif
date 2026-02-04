@@ -337,18 +337,13 @@ export class FeedService {
         
         // Obtener primera imagen válida
         const firstImage = imagesArray.length > 0 ? imagesArray[0] : null;
-        const imageUrl = firstImage ? (this.normalizeImageUrl(firstImage) || '') : '';
+        let imageUrl = firstImage ? (this.normalizeImageUrl(firstImage) || '') : '';
         
-        // ✅ VALIDAR: Verificar que tenga imagen
+        // ✅ MEJORAR: Si no hay imagen, dejar cadena vacía para que el frontend lo maneje
+        // Las imágenes se agregarán cuando se ejecute ENRICH y SYNC
         if (!imageUrl || imageUrl.trim() === '') {
-          skipReasons['product_no_image']++;
-          skippedProducts++;
-          console.warn(`⚠️ [FEED-SERVICE] Producto ${product.id} (${product.title}) no tiene imagen válida, omitiendo`);
-          console.warn(`⚠️ [FEED-SERVICE]   - images type: ${typeof product.images}, isArray: ${Array.isArray(product.images)}`);
-          if (product.images) {
-            console.warn(`⚠️ [FEED-SERVICE]   - images value (primeros 100 chars): ${JSON.stringify(product.images).substring(0, 100)}`);
-          }
-          continue;
+          imageUrl = ''; // Frontend manejará el placeholder
+          console.log(`ℹ️ [FEED-SERVICE] Producto ${product.id} (${product.title}) sin imagen, frontend manejará placeholder`);
         }
         
         // Usar tankuPrice directamente (ya calculado en sync)
