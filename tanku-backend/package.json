@@ -20,7 +20,8 @@
     "migrate:db": "tsx migrate-database.ts",
     "check:migrations": "tsx check-migrations.ts",
     "fix:feed:tables": "tsx scripts/create-feed-tables.ts",
-    "init:feed": "tsx scripts/init-feed-metrics.ts"
+    "init:feed": "tsx scripts/init-feed-metrics.ts",
+    "clean:migrations": "tsx scripts/clean-failed-migrations.ts"
   },
   "keywords": [
     "ecommerce",
