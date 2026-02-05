@@ -15,13 +15,15 @@ export class DropiEnrichService {
    * @param priority "active" | "high_stock" | "all" (default: "active")
    * @param batchSize Número de productos a procesar en paralelo (default: 50)
    * @param force Si es true, enriquece incluso productos que ya tienen descripción (default: false)
+   * @param onProgress Callback opcional para reportar progreso durante el procesamiento (progress: 0-100)
    * @returns Estadísticas de enriquecimiento
    */
   async enrichProducts(
     limit: number = 1000,
     priority: 'active' | 'high_stock' | 'all' = 'active',
     batchSize: number = 50,
-    force: boolean = false
+    force: boolean = false,
+    onProgress?: (progress: number) => void | Promise<void>
   ): Promise<{
     success: boolean;
     message: string;
@@ -30,6 +32,7 @@ export class DropiEnrichService {
     error_details: Array<{ dropi_id: number; error: string }>;
     total_pending?: number; // ✅ AGREGADO: Total de productos pendientes
     remaining?: number; // ✅ AGREGADO: Productos restantes por enriquecer
+    block_progress?: number; // ✅ AGREGADO: Progreso del bloque actual (0-100%)
   }> {
     console.log(`\n🔍 [ENRICH] Iniciando enriquecimiento (limit: ${limit}, priority: ${priority}, force: ${force})`);
 
@@ -246,8 +249,27 @@ export class DropiEnrichService {
         const batchSkipped = batchResults.filter(r => r.type === 'skipped').length;
         const batchErrors = batchResults.filter(r => r.type === 'error').length;
 
-        // Resumen del lote
-        console.log(`[ENRICH] Lote ${batchNumber}/${totalBatches}: ✅ ${batchEnriched} enriquecidos | ⏭️ ${batchSkipped} ya completos | ❌ ${batchErrors} errores | 📦 ${remaining} restantes`);
+        // ✅ AGREGADO: Calcular progreso del bloque (0-100%)
+        const processedInBlock = i + batch.length; // Productos procesados hasta ahora
+        const blockProgress = totalPending > 0 
+          ? Math.round((processedInBlock / totalPending) * 100)
+          : 100;
+        
+        // Asegurar que no exceda 100%
+        const finalProgress = Math.min(100, Math.max(0, blockProgress));
+
+        // ✅ AGREGADO: Reportar progreso si hay callback
+        if (onProgress) {
+          try {
+            await onProgress(finalProgress);
+          } catch (error) {
+            // Ignorar errores en el callback
+            console.warn(`[ENRICH] Error en callback de progreso:`, error);
+          }
+        }
+
+        // Resumen del lote con progreso
+        console.log(`[ENRICH] Lote ${batchNumber}/${totalBatches}: ✅ ${batchEnriched} enriquecidos | ⏭️ ${batchSkipped} ya completos | ❌ ${batchErrors} errores | 📦 ${remaining} restantes | 📊 Progreso: ${finalProgress}%`);
 
         // Rate limiting: esperar entre lotes (excepto en el último lote)
         if (i + RATE_LIMIT_BATCH < productsToEnrich.length) {
@@ -260,6 +282,9 @@ export class DropiEnrichService {
 
       // ✅ AGREGADO: Calcular remaining
       const remaining = Math.max(0, totalPending - enrichedCount);
+      
+      // ✅ AGREGADO: Calcular progreso final del bloque (100% si se completó)
+      const blockProgress = totalPending > 0 ? 100 : 0;
 
       return {
         success: true,
@@ -269,6 +294,7 @@ export class DropiEnrichService {
         error_details: errors.slice(0, 10), // Solo primeros 10 errores
         total_pending: totalPending, // ✅ AGREGADO
         remaining: remaining, // ✅ AGREGADO
+        block_progress: blockProgress, // ✅ AGREGADO: Progreso del bloque (0-100%)
       };
     } catch (error: any) {
       console.error(`❌ [ENRICH] Error fatal:`, error);
