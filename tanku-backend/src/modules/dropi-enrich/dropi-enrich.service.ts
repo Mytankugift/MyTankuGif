@@ -31,53 +31,68 @@ export class DropiEnrichService {
     total_pending?: number; // ✅ AGREGADO: Total de productos pendientes
     remaining?: number; // ✅ AGREGADO: Productos restantes por enriquecer
   }> {
-    console.log(`\n🔍 [ENRICH] Iniciando enriquecimiento`);
-    console.log(`🔍 [ENRICH] limit: ${limit}, priority: ${priority}, batch_size: ${batchSize}, force: ${force}`);
+    console.log(`\n🔍 [ENRICH] Iniciando enriquecimiento (limit: ${limit}, priority: ${priority}, force: ${force})`);
 
     try {
-      // Buscar productos
+      // Buscar todos los productos
       const allProducts = await prisma.dropiProduct.findMany({
         orderBy: {
           createdAt: 'asc',
         },
       });
 
-      console.log(`[ENRICH] Total de productos en dropi_product: ${allProducts.length}`);
+      // ✅ MEJORA 1: Filtrar PRIMERO los que necesitan enriquecimiento
+      // Validar que NO tenga description E images (ambos deben estar presentes para omitir)
+      let productsToEnrich = allProducts;
+      let alreadyComplete = 0;
+      
+      if (!force) {
+        const beforeFilter = allProducts.length;
+        productsToEnrich = allProducts.filter((p) => {
+          const hasDescription = p.description && p.descriptionSyncedAt;
+          const hasImages = p.images && Array.isArray(p.images) && p.images.length > 0;
+          // Solo omitir si tiene AMBOS (description e images)
+          return !(hasDescription && hasImages);
+        });
+        alreadyComplete = beforeFilter - productsToEnrich.length;
+      }
 
-      // Aplicar prioridad ANTES de filtrar por descripción
-      let productsToProcess = allProducts;
+      // ✅ MEJORA 2: Evitar productos que fallaron recientemente
+      // Si un producto tiene lastSyncedAt muy reciente pero no tiene description,
+      // puede ser que falló recientemente (especialmente con 429)
+      const RECENT_FAILURE_THRESHOLD = 1000 * 60 * 60; // 1 hora
+      const beforeRecentFilter = productsToEnrich.length;
+      productsToEnrich = productsToEnrich.filter((p) => {
+        // Si no tiene description pero tiene lastSyncedAt reciente, probablemente falló
+        if (!p.description && p.lastSyncedAt) {
+          const timeSinceLastSync = Date.now() - p.lastSyncedAt.getTime();
+          // Si se intentó hace menos de 1 hora y no tiene description, probablemente falló
+          if (timeSinceLastSync < RECENT_FAILURE_THRESHOLD) {
+            return false; // Omitir este producto por ahora
+          }
+        }
+        return true;
+      });
+      const skippedRecentFailures = beforeRecentFilter - productsToEnrich.length;
 
-      if (priority === 'active') {
-        // En Prisma, no tenemos campo 'active', pero podemos filtrar por otros criterios
-        // Por ahora, procesamos todos
-        productsToProcess = productsToProcess;
-        console.log(`[ENRICH] Productos activos: ${productsToProcess.length}`);
-      } else if (priority === 'high_stock') {
-        productsToProcess = productsToProcess.sort((a, b) => {
+      // ✅ MEJORA 3: Aplicar prioridad a los productos pendientes
+      if (priority === 'high_stock') {
+        productsToEnrich = productsToEnrich.sort((a, b) => {
           const stockA = a.stock || 0;
           const stockB = b.stock || 0;
           return stockB - stockA;
         });
       }
 
-      // Limitar cantidad ANTES de filtrar por descripción
-      productsToProcess = productsToProcess.slice(0, limit);
-      console.log(`[ENRICH] Primeros ${limit} productos seleccionados (según prioridad): ${productsToProcess.length}`);
-
-      // Filtrar cuáles necesitan enriquecimiento
-      // Validar que NO tenga description E images (ambos deben estar presentes para omitir)
-      let productsToEnrich = productsToProcess;
-      if (!force) {
-        productsToEnrich = productsToProcess.filter((p) => {
-          const hasDescription = p.description && p.descriptionSyncedAt;
-          const hasImages = p.images && Array.isArray(p.images) && p.images.length > 0;
-          // Solo omitir si tiene AMBOS (description e images)
-          return !(hasDescription && hasImages);
-        });
-        console.log(`[ENRICH] Productos sin descripción o imágenes: ${productsToEnrich.length}`);
-      } else {
-        console.log(`[ENRICH] Modo force: enriqueciendo todos los productos seleccionados`);
+      // ✅ MEJORA 4: Seleccionar aleatoriamente en lugar de siempre los primeros
+      // Mezclar el array aleatoriamente (Fisher-Yates shuffle)
+      for (let i = productsToEnrich.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [productsToEnrich[i], productsToEnrich[j]] = [productsToEnrich[j], productsToEnrich[i]];
       }
+
+      // Limitar cantidad DESPUÉS de filtrar y mezclar
+      productsToEnrich = productsToEnrich.slice(0, limit);
 
       // ✅ AGREGADO: Guardar total pendiente para calcular progreso
       const totalPending = productsToEnrich.length;
@@ -96,15 +111,21 @@ export class DropiEnrichService {
 
       let enrichedCount = 0;
       const errors: Array<{ dropi_id: number; error: string }> = [];
-      const MAX_RETRIES = 3;
-      const RATE_LIMIT_BATCH = 10; // Procesar de a 10 productos
-      const RATE_LIMIT_DELAY = 60000; // Esperar 60 segundos cada 10 productos
+      const MAX_RETRIES = 1;
+      const RATE_LIMIT_BATCH = 10; // Procesar de a 10 producto
+      const RATE_LIMIT_DELAY = 61000; // Esperar 61 segundos entre lotes
 
-      // Procesar por lotes de 10 (rate limiting)
+      // ✅ MEJORA 5: Trackear productos que fallan con 429 para no reintentarlos
+      const failed429Products = new Set<number>();
+
+      console.log(`[ENRICH] Pendientes: ${productsToEnrich.length} | Ya completos: ${alreadyComplete} | Omitidos recientes: ${skippedRecentFailures} | Config: ${RATE_LIMIT_BATCH} productos/lote, ${RATE_LIMIT_DELAY / 1000}s entre lotes`);
+
+      // Procesar por lotes
       for (let i = 0; i < productsToEnrich.length; i += RATE_LIMIT_BATCH) {
         const batch = productsToEnrich.slice(i, i + RATE_LIMIT_BATCH);
         const batchNumber = Math.floor(i / RATE_LIMIT_BATCH) + 1;
-        console.log(`[ENRICH] Procesando lote ${batchNumber} (${batch.length} productos)`);
+        const totalBatches = Math.ceil(productsToEnrich.length / RATE_LIMIT_BATCH);
+        const remaining = productsToEnrich.length - (i + batch.length);
 
         // Procesar en paralelo dentro del lote
         const batchPromises = batch.map(async (product) => {
@@ -119,17 +140,19 @@ export class DropiEnrichService {
           const hasImages = currentProduct?.images && Array.isArray(currentProduct.images) && currentProduct.images.length > 0;
 
           if (hasDescription && hasImages && !force) {
-            console.log(`[ENRICH]   ⏭️  Producto ${product.dropiId} ya tiene description e images, omitiendo...`);
-            return; // Omitir este producto
+            return { type: 'skipped' as const, dropiId: product.dropiId };
           }
 
           let retryCount = 0;
           let success = false;
 
+          // ✅ MEJORA 6: Si este producto ya falló con 429, no intentarlo
+          if (failed429Products.has(product.dropiId)) {
+            return { type: 'error' as const, dropiId: product.dropiId, error: '429 - Skipped (already failed)' };
+          }
+
           while (retryCount <= MAX_RETRIES && !success) {
             try {
-              console.log(`[ENRICH]   Procesando producto ${product.dropiId} (intento ${retryCount + 1})`);
-
               // Llamar a /products/v2/{id} para obtener información detallada
               const detailData = await this.dropiService.getProductDetail(product.dropiId);
 
@@ -168,38 +191,72 @@ export class DropiEnrichService {
                 },
               });
 
-              console.log(`[ENRICH]   ✅ Producto ${product.dropiId} enriquecido`);
               enrichedCount++;
               success = true;
+              return { type: 'success' as const, dropiId: product.dropiId };
             } catch (error: any) {
+              // ✅ MEJORA 7: Si es error 429, marcarlo y no reintentar
+              const is429Error = error?.message?.includes('429') || 
+                                error?.message?.includes('Too Many Attempts') ||
+                                error?.status === 429;
+              
+              if (is429Error) {
+                failed429Products.add(product.dropiId);
+                // Actualizar lastSyncedAt para que no se intente de nuevo pronto
+                try {
+                  await prisma.dropiProduct.update({
+                    where: { id: product.id },
+                    data: { lastSyncedAt: new Date() },
+                  });
+                } catch (e) { /* ignore */ }
+                
+                const errorDetail = {
+                  dropi_id: product.dropiId,
+                  error: '429 - Too Many Attempts (skipped)',
+                };
+                errors.push(errorDetail);
+                console.error(`[ENRICH] ❌ Producto ${product.dropiId}: 429 - Marcado para omitir`);
+                return { type: 'error' as const, dropiId: product.dropiId, error: '429 - Too Many Attempts' };
+              }
+
               retryCount++;
               if (retryCount > MAX_RETRIES) {
-                console.error(`[ENRICH]   ❌ Error después de ${MAX_RETRIES} intentos para producto ${product.dropiId}:`, error?.message);
-                errors.push({
+                const errorDetail = {
                   dropi_id: product.dropiId,
                   error: error?.message || 'Error desconocido',
-                });
+                };
+                errors.push(errorDetail);
+                console.error(`[ENRICH] ❌ Producto ${product.dropiId}: ${error?.message}`);
+                return { type: 'error' as const, dropiId: product.dropiId, error: error?.message };
               } else {
                 // Esperar antes de reintentar (exponential backoff)
                 const delay = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
-                console.warn(`[ENRICH]   ⚠️ Error en intento ${retryCount}, reintentando en ${delay}ms...`);
                 await new Promise((resolve) => setTimeout(resolve, delay));
               }
             }
           }
+          return { type: 'error' as const, dropiId: product.dropiId, error: 'Max retries exceeded' };
         });
 
         // Esperar a que termine el lote antes de continuar
-        await Promise.all(batchPromises);
+        const batchResults = await Promise.all(batchPromises);
 
-        // Rate limiting: esperar 60 segundos cada 10 productos (excepto en el último lote)
+        // Contar resultados del lote
+        const batchEnriched = batchResults.filter(r => r.type === 'success').length;
+        const batchSkipped = batchResults.filter(r => r.type === 'skipped').length;
+        const batchErrors = batchResults.filter(r => r.type === 'error').length;
+
+        // Resumen del lote
+        console.log(`[ENRICH] Lote ${batchNumber}/${totalBatches}: ✅ ${batchEnriched} enriquecidos | ⏭️ ${batchSkipped} ya completos | ❌ ${batchErrors} errores | 📦 ${remaining} restantes`);
+
+        // Rate limiting: esperar entre lotes (excepto en el último lote)
         if (i + RATE_LIMIT_BATCH < productsToEnrich.length) {
-          console.log(`[ENRICH] ⏸️  Esperando ${RATE_LIMIT_DELAY / 1000} segundos antes del siguiente lote (rate limiting)...`);
+          console.log(`[ENRICH] ⏸️ Esperando ${RATE_LIMIT_DELAY / 1000}s antes del siguiente lote...`);
           await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY));
         }
       }
 
-      console.log(`✅ [ENRICH] Enriquecimiento completado: ${enrichedCount} productos, ${errors.length} errores`);
+      console.log(`✅ [ENRICH] Completado: ${enrichedCount} enriquecidos | ${errors.length} errores | ${alreadyComplete} ya completos`);
 
       // ✅ AGREGADO: Calcular remaining
       const remaining = Math.max(0, totalPending - enrichedCount);

@@ -124,7 +124,9 @@ export class DropiService {
       // ❌ REMOVIDO: Logs excesivos de respuesta exitosa
       // Solo log en desarrollo
       if (VERBOSE_LOGS && (data as any).objects) {
-        console.log(`[DROPI] Respuesta exitosa - ${(data as any).objects.length} objetos`);
+        const objects = (data as any).objects;
+        const count = Array.isArray(objects) ? objects.length : (objects ? 1 : 0);
+        console.log(`[DROPI] Respuesta exitosa - ${count} objeto(s)`);
       }
       
       return data as Promise<T>;
