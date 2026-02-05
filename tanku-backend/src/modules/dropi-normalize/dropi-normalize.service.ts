@@ -63,8 +63,28 @@ export class DropiNormalizeService {
         // 5. Extraer variationsData (solo para VARIABLE)
         const variationsData = extractVariationsFromPayload(payload);
 
-        // 6. Extraer imagen principal
-        const mainImageS3Path = payload.main_image_s3_path || payload.mainImageS3Path || null;
+        // 6. Extraer imagen principal (buscar en múltiples lugares)
+        let mainImageS3Path: string | null = null;
+
+        // Opción 1: Campos directos (si existen)
+        if (payload.main_image_s3_path) {
+          mainImageS3Path = payload.main_image_s3_path;
+        } else if (payload.mainImageS3Path) {
+          mainImageS3Path = payload.mainImageS3Path;
+        }
+
+        // Opción 2: Buscar en gallery (la marcada como main o la primera)
+        if (!mainImageS3Path && payload.gallery && Array.isArray(payload.gallery) && payload.gallery.length > 0) {
+          // Buscar la imagen marcada como main
+          const mainImage = payload.gallery.find((img: any) => img.main === true);
+          if (mainImage) {
+            mainImageS3Path = mainImage.urlS3 || mainImage.url || null;
+          } else {
+            // Si no hay main, usar la primera imagen
+            const firstImage = payload.gallery[0];
+            mainImageS3Path = firstImage.urlS3 || firstImage.url || null;
+          }
+        }
 
         // 7. SKU compuesto
         const compositeSku = payload.sku
@@ -91,7 +111,13 @@ export class DropiNormalizeService {
         if (existing) {
           await prisma.dropiProduct.update({
             where: { id: existing.id },
-            data: { ...productData, description: existing.description },
+            data: { 
+              ...productData, 
+              // ✅ Preservar campos del enrich para no perder el trabajo realizado
+              description: existing.description,
+              descriptionSyncedAt: existing.descriptionSyncedAt,
+              images: existing.images, // Preservar imágenes del enrich
+            },
           });
         } else {
           await prisma.dropiProduct.create({ data: productData });
