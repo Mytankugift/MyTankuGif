@@ -81,9 +81,9 @@ function GiftDirectCheckoutContent() {
     try {
       // Cargar información del destinatario
       if (recipientId) {
-        const recipientResponse = await apiClient.get(API_ENDPOINTS.USERS.BY_ID(recipientId))
+        const recipientResponse = await apiClient.get<any>(API_ENDPOINTS.USERS.BY_ID(recipientId))
         if (recipientResponse.success && recipientResponse.data) {
-          const user = recipientResponse.data.user || recipientResponse.data
+          const user = (recipientResponse.data as any).user || recipientResponse.data
           const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
           setRecipientInfo({
             id: user.id,
@@ -123,7 +123,7 @@ function GiftDirectCheckoutContent() {
 
     try {
       // Llamar al nuevo endpoint directo (sin carrito)
-      const response = await apiClient.post(API_ENDPOINTS.CHECKOUT.GIFT_DIRECT, {
+      const response = await apiClient.post<any>(API_ENDPOINTS.CHECKOUT.GIFT_DIRECT, {
         variant_id: variantId,
         quantity,
         recipient_id: recipientId,
@@ -132,15 +132,16 @@ function GiftDirectCheckoutContent() {
       })
 
       if (response.success && response.data) {
+        const data = response.data as any
         // Guardar información del producto desde la respuesta
-        if (response.data.productInfo) {
-          setProductInfo(response.data.productInfo)
-          setTotal(response.data.total)
+        if (data.productInfo) {
+          setProductInfo(data.productInfo)
+          setTotal(data.total)
         }
         
         // Si es Epayco, abrir pasarela de pago
-        if (response.data.orderId) {
-          await openEpaycoCheckout(response.data)
+        if (data.orderId) {
+          await openEpaycoCheckout(data)
         }
       } else {
         setError(response.error?.message || 'Error al procesar el regalo')

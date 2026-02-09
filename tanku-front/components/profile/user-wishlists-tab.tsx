@@ -307,7 +307,7 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
 
     // Validar destinatario antes de continuar
     try {
-      const eligibility = await apiClient.get(API_ENDPOINTS.GIFTS.RECIPIENT_ELIGIBILITY(userId))
+      const eligibility = await apiClient.get<any>(API_ENDPOINTS.GIFTS.RECIPIENT_ELIGIBILITY(userId))
       if (!eligibility.success || !eligibility.data?.canReceive) {
         alert(eligibility.data?.reason || 'Este usuario no puede recibir regalos')
         return

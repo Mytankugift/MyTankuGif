@@ -515,7 +515,13 @@ export class CheckoutService {
     const variant = await prisma.productVariant.findUnique({
       where: { id: input.variantId },
       include: {
-        product: true,
+        product: {
+          select: {
+            id: true,
+            title: true,
+            images: true,
+          },
+        },
         warehouseVariants: {
           select: { stock: true },
         },
@@ -634,7 +640,7 @@ export class CheckoutService {
           product: {
             id: variant.product.id,
             title: variant.product.title,
-            thumbnail: variant.product.thumbnail,
+            thumbnail: variant.product.images?.[0] || null,
           },
           variant: {
             id: variant.id,

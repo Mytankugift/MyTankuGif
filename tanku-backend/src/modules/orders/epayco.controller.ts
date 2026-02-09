@@ -98,6 +98,37 @@ export class EpaycoController {
       console.log(`💰 [EPAYCO-WEBHOOK] Datos combinados:`, JSON.stringify(webhookData, null, 2));
       console.log(`💰 [EPAYCO-WEBHOOK] ======================================\n`);
 
+      // 3. MAPEAR ESTADO DE EPAYCO (hacerlo antes de verificar orden existente)
+      // ✅ ePayco puede enviar estados como strings ("Rechazada") o números ("3")
+      let finalPaymentStatus: string;
+      const xResponseStr = String(xResponseValue || '').trim();
+
+      switch (xResponseStr) {
+        case 'Aceptada':
+        case 'Aprobada':
+        case '1':  // ✅ Valor numérico para pago exitoso
+          finalPaymentStatus = 'paid';
+          break;
+        case 'Rechazada':
+        case 'Rechazado':
+        case '3':  // ✅ Valor numérico para pago rechazado
+          finalPaymentStatus = 'cancelled';
+          break;
+        case 'Pendiente':
+        case '2':  // ✅ Valor numérico para pago pendiente
+          finalPaymentStatus = 'pending';
+          break;
+        case 'Fallida':
+        case '4':  // ✅ Valor numérico para pago fallido
+          finalPaymentStatus = 'cancelled';
+          break;
+        default:
+          console.warn(`⚠️ [EPAYCO-WEBHOOK] Estado desconocido: "${xResponseStr}" (raw: ${xResponseValue}), usando 'cancelled'`);
+          finalPaymentStatus = 'cancelled';
+      }
+
+      console.log(`💰 [EPAYCO-WEBHOOK] Estado mapeado: "${xResponseStr}" -> ${finalPaymentStatus}`);
+
       // ✅ NUEVO: Intentar primero si es un orderId (orden ya creada, como en regalos directos)
       const existingOrder = await prisma.order.findUnique({
         where: { id: identifier },
@@ -223,56 +254,8 @@ export class EpaycoController {
       //   return res.status(200).json({ success: true, message: 'Transacción ya procesada' });
       // }
 
-      // 3. MAPEAR ESTADO DE EPAYCO
-      // ✅ ePayco puede enviar estados como strings ("Rechazada") o números ("3")
-      let finalPaymentStatus: string;
-      const xResponseStr = String(xResponseValue || '').trim();
-
-      switch (xResponseStr) {
-        case 'Aceptada':
-        case 'Aprobada':
-        case '1':  // ✅ Valor numérico para pago exitoso
-          finalPaymentStatus = 'paid';
-          break;
-        case 'Rechazada':
-        case 'Rechazado':
-        case '3':  // ✅ Valor numérico para pago rechazado
-          finalPaymentStatus = 'cancelled';
-          break;
-        case 'Pendiente':
-        case '2':  // ✅ Valor numérico para pago pendiente
-          finalPaymentStatus = 'pending';
-          break;
-        case 'Fallida':
-        case '4':  // ✅ Valor numérico para pago fallido
-          finalPaymentStatus = 'cancelled';
-          break;
-        default:
-          // Fallback para otros formatos
-          const paymentStatusStr = String(paymentStatus || '').trim();
-          switch (paymentStatusStr) {
-            case 'captured':
-            case 'paid':
-            case '1':
-              finalPaymentStatus = 'paid';
-              break;
-            case 'cancelled':
-            case '3':
-            case '4':
-              finalPaymentStatus = 'cancelled';
-              break;
-            case 'pending':
-            case '2':
-              finalPaymentStatus = 'pending';
-              break;
-            default:
-              // ✅ Si no reconoce el estado, loguear y usar cancelled por defecto (más seguro)
-              console.warn(`⚠️ [EPAYCO-WEBHOOK] Estado desconocido: "${xResponseStr}" (raw: ${xResponseValue}), usando 'cancelled'`);
-              finalPaymentStatus = 'cancelled';
-          }
-      }
-      
-      console.log(`💰 [EPAYCO-WEBHOOK] Estado mapeado: "${xResponseStr}" -> ${finalPaymentStatus}`);
+      // NOTA: finalPaymentStatus ya fue calculado arriba (línea 103-130)
+      // No es necesario recalcularlo aquí, ya está disponible para el flujo normal
 
       // Si el pago NO fue exitoso, no crear orden y retornar
       if (finalPaymentStatus !== 'paid') {

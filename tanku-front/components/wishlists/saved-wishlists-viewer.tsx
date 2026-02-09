@@ -307,7 +307,7 @@ export function SavedWishlistsViewer() {
 
     // Validar destinatario antes de continuar
     try {
-      const eligibility = await apiClient.get(API_ENDPOINTS.GIFTS.RECIPIENT_ELIGIBILITY(wishlistOwnerId))
+      const eligibility = await apiClient.get<any>(API_ENDPOINTS.GIFTS.RECIPIENT_ELIGIBILITY(wishlistOwnerId))
       if (!eligibility.success || !eligibility.data?.canReceive) {
         alert(eligibility.data?.reason || 'Este usuario no puede recibir regalos')
         return
