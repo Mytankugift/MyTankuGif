@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { QueryProvider } from "@/lib/providers/query-provider";
+import { ToastProvider } from "@/lib/contexts/toast-context";
+import { ToastContainer } from "@/components/ui/toast-container";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -23,7 +25,10 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${poppins.variable} antialiased`} style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}>
         <QueryProvider>
-          {children}
+          <ToastProvider>
+            {children}
+            <ToastContainer />
+          </ToastProvider>
         </QueryProvider>
       </body>
     </html>

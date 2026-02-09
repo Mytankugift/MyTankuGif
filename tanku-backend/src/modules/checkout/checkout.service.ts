@@ -536,10 +536,16 @@ export class CheckoutService {
       throw new NotFoundError('Producto no encontrado');
     }
 
-    // 4. Validar stock
-    const stock = variant.warehouseVariants?.[0]?.stock || 0;
-    if (stock < input.quantity) {
-      throw new BadRequestError(`Stock insuficiente. Disponible: ${stock}, Solicitado: ${input.quantity}`);
+    // 4. Validar stock (sumar todos los warehouseVariants)
+    const totalStock = variant.warehouseVariants?.reduce(
+      (sum, wv) => sum + (wv.stock || 0),
+      0
+    ) || 0;
+    if (totalStock <= 0) {
+      throw new BadRequestError('Este producto está agotado y no está disponible para regalo');
+    }
+    if (totalStock < input.quantity) {
+      throw new BadRequestError(`Stock insuficiente. Disponible: ${totalStock}, Solicitado: ${input.quantity}`);
     }
 
     // 5. Obtener dirección del destinatario

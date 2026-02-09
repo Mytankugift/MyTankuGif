@@ -658,6 +658,76 @@ export class ProductsService {
   }
 
   /**
+   * Obtener información de una variante por su ID (incluye producto)
+   */
+  async getVariantById(variantId: string): Promise<{
+    id: string;
+    title: string;
+    sku: string;
+    price: number;
+    tankuPrice: number | null;
+    stock: number;
+    product: {
+      id: string;
+      title: string;
+      handle: string;
+      images: string[];
+    };
+  }> {
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: variantId },
+      include: {
+        product: {
+          select: {
+            id: true,
+            title: true,
+            handle: true,
+            images: true,
+          },
+        },
+        warehouseVariants: {
+          select: { stock: true },
+        },
+      },
+    });
+
+    if (!variant) {
+      throw new NotFoundError('Variante no encontrada');
+    }
+
+    // Calcular stock total
+    const totalStock = variant.warehouseVariants?.reduce(
+      (sum, wv) => sum + (wv.stock || 0),
+      0
+    ) || 0;
+
+    // Normalizar URLs de imágenes
+    const cdnBase = env.DROPI_CDN_BASE || 'https://d39ru7awumhhs2.cloudfront.net';
+    const normalizeImageUrl = (imagePath: string): string => {
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        return imagePath;
+      }
+      const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+      return `${cdnBase}/${cleanPath}`;
+    };
+
+    return {
+      id: variant.id,
+      title: variant.title,
+      sku: variant.sku,
+      price: variant.price,
+      tankuPrice: variant.tankuPrice,
+      stock: totalStock,
+      product: {
+        id: variant.product.id,
+        title: variant.product.title,
+        handle: variant.product.handle,
+        images: variant.product.images.map(normalizeImageUrl),
+      },
+    };
+  }
+
+  /**
    * Obtener top 50 productos para StalkerGift (usuarios externos)
    * Ordenados por popularidad/ventas
    */

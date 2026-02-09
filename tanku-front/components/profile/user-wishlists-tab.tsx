@@ -7,6 +7,7 @@ import { useCartStore } from '@/lib/stores/cart-store'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
+import { useToast } from '@/lib/contexts/toast-context'
 import { WishlistProductsModal } from '@/components/wishlists/wishlist-products-modal'
 import { ShareWishlistModal } from '@/components/wishlists/share-wishlist-modal'
 import Image from 'next/image'
@@ -295,7 +296,7 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
 
   const handleSendAsGift = async (item: WishListDTO['items'][0]) => {
     if (!item.variantId) {
-      alert('Este producto no tiene variante seleccionada')
+      showError('Este producto no tiene variante seleccionada')
       return
     }
 
@@ -305,19 +306,41 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
       return
     }
 
+    // Validar stock antes de continuar
+    try {
+      const variantResponse = await apiClient.get<any>(API_ENDPOINTS.PRODUCTS.VARIANT_BY_ID(item.variantId))
+      if (variantResponse.success && variantResponse.data) {
+        const stock = variantResponse.data.stock || 0
+        if (stock <= 0) {
+          showError('Este producto está agotado y no está disponible para regalo')
+          return
+        }
+        if (stock < 1) {
+          showError(`Stock insuficiente. Solo hay ${stock} unidad(es) disponible(s)`)
+          return
+        }
+      } else {
+        showError('No se pudo verificar el stock del producto')
+        return
+      }
+    } catch (error: any) {
+      showError(error.message || 'Error verificando disponibilidad del producto')
+      return
+    }
+
     // Validar destinatario antes de continuar
     try {
       const eligibility = await apiClient.get<any>(API_ENDPOINTS.GIFTS.RECIPIENT_ELIGIBILITY(userId))
       if (!eligibility.success || !eligibility.data?.canReceive) {
-        alert(eligibility.data?.reason || 'Este usuario no puede recibir regalos')
+        showError(eligibility.data?.reason || 'Este usuario no puede recibir regalos')
         return
       }
       if (eligibility.data?.canSendGift === false) {
-        alert(eligibility.data?.sendGiftReason || 'No puedes enviar regalos a este usuario')
+        showError(eligibility.data?.sendGiftReason || 'No puedes enviar regalos a este usuario')
         return
       }
     } catch (error: any) {
-      alert(error.message || 'Error validando destinatario')
+      showError(error.message || 'Error validando destinatario')
       return
     }
 
@@ -483,18 +506,18 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
                             style={{ width: 'auto', height: 'auto' }}
                           />
                         </button>
-                        {/* Enviar como regalo - solo si no es tu propia wishlist */}
+                        {/* Dar Tanku - solo si no es tu propia wishlist */}
                         {!isOwnWishlist && (
                           <button
                             onClick={async (e) => {
                               e.stopPropagation()
                               await handleSendAsGift(item)
                             }}
-                            className="p-1.5 rounded bg-black/30 hover:bg-black/50 transition-colors flex-shrink-0"
-                            aria-label="Enviar como regalo"
-                            title="Enviar como regalo"
+                            className="px-2.5 py-1 rounded bg-[#3B9BC3] hover:bg-[#2a8ba8] transition-colors flex-shrink-0"
+                            aria-label="Dar Tanku"
+                            title="Dar Tanku"
                           >
-                            <span className="text-[10px] text-[#66DEDB]">🎁</span>
+                            <span className="text-[10px] font-semibold text-white">Dar Tanku</span>
                           </button>
                         )}
                       </div>

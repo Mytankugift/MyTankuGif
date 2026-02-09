@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { useToast } from '@/lib/contexts/toast-context'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useCartStore } from '@/lib/stores/cart-store'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
@@ -305,19 +306,41 @@ export function SavedWishlistsViewer() {
       return
     }
 
+    // Validar stock antes de continuar
+    try {
+      const variantResponse = await apiClient.get<any>(API_ENDPOINTS.PRODUCTS.VARIANT_BY_ID(item.variantId))
+      if (variantResponse.success && variantResponse.data) {
+        const stock = variantResponse.data.stock || 0
+        if (stock <= 0) {
+          showError('Este producto está agotado y no está disponible para regalo')
+          return
+        }
+        if (stock < 1) {
+          showError(`Stock insuficiente. Solo hay ${stock} unidad(es) disponible(s)`)
+          return
+        }
+      } else {
+        showError('No se pudo verificar el stock del producto')
+        return
+      }
+    } catch (error: any) {
+      showError(error.message || 'Error verificando disponibilidad del producto')
+      return
+    }
+
     // Validar destinatario antes de continuar
     try {
       const eligibility = await apiClient.get<any>(API_ENDPOINTS.GIFTS.RECIPIENT_ELIGIBILITY(wishlistOwnerId))
       if (!eligibility.success || !eligibility.data?.canReceive) {
-        alert(eligibility.data?.reason || 'Este usuario no puede recibir regalos')
+        showError(eligibility.data?.reason || 'Este usuario no puede recibir regalos')
         return
       }
       if (eligibility.data?.canSendGift === false) {
-        alert(eligibility.data?.sendGiftReason || 'No puedes enviar regalos a este usuario')
+        showError(eligibility.data?.sendGiftReason || 'No puedes enviar regalos a este usuario')
         return
       }
     } catch (error: any) {
-      alert(error.message || 'Error validando destinatario')
+      showError(error.message || 'Error validando destinatario')
       return
     }
 
@@ -522,17 +545,17 @@ export function SavedWishlistsViewer() {
                               style={{ width: 'auto', height: 'auto' }}
                             />
                           </button>
-                          {/* Enviar como regalo */}
+                          {/* Dar Tanku */}
                           <button
                             onClick={async (e) => {
                               e.stopPropagation()
                               await handleSendAsGift(item, wishlist.userId)
                             }}
-                            className="p-1.5 rounded bg-black/30 hover:bg-black/50 transition-colors flex-shrink-0"
-                            aria-label="Enviar como regalo"
-                            title="Enviar como regalo"
+                            className="px-2.5 py-1 rounded bg-[#3B9BC3] hover:bg-[#2a8ba8] transition-colors flex-shrink-0"
+                            aria-label="Dar Tanku"
+                            title="Dar Tanku"
                           >
-                            <span className="text-[10px] text-[#66DEDB]">🎁</span>
+                            <span className="text-[10px] font-semibold text-white">Dar Tanku</span>
                           </button>
                         </div>
                       </div>

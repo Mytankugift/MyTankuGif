@@ -79,6 +79,43 @@ function GiftDirectCheckoutContent() {
     setError(null)
 
     try {
+      // Cargar información del producto/variante
+      if (variantId) {
+        const variantResponse = await apiClient.get<any>(API_ENDPOINTS.PRODUCTS.VARIANT_BY_ID(variantId))
+        if (variantResponse.success && variantResponse.data) {
+          const variant = variantResponse.data
+          
+          // Validar stock
+          const stock = variant.stock || 0
+          if (stock <= 0) {
+            setError('Este producto está agotado y no está disponible para regalo')
+            return
+          }
+          if (stock < quantity) {
+            setError(`Stock insuficiente. Solo hay ${stock} unidad(es) disponible(s)`)
+            return
+          }
+          
+          const price = variant.tankuPrice || variant.price || 0
+          setProductInfo({
+            variant: {
+              id: variant.id,
+              title: variant.title,
+            },
+            product: {
+              id: variant.product.id,
+              title: variant.product.title,
+              thumbnail: variant.product.images?.[0] || null,
+            },
+            price,
+          })
+          // Calcular total inmediatamente
+          setTotal(price * quantity)
+        } else {
+          throw new Error('No se pudo cargar la información del producto')
+        }
+      }
+
       // Cargar información del destinatario
       if (recipientId) {
         const recipientResponse = await apiClient.get<any>(API_ENDPOINTS.USERS.BY_ID(recipientId))
@@ -93,10 +130,6 @@ function GiftDirectCheckoutContent() {
           })
         }
       }
-
-      // La información del producto se obtendrá cuando se cree la orden
-      // Por ahora, solo mostramos un placeholder
-      // El precio se calculará en el backend
     } catch (err: any) {
       console.error('Error cargando información:', err)
       setError(err.message || 'Error al cargar la información')
@@ -133,11 +166,6 @@ function GiftDirectCheckoutContent() {
 
       if (response.success && response.data) {
         const data = response.data as any
-        // Guardar información del producto desde la respuesta
-        if (data.productInfo) {
-          setProductInfo(data.productInfo)
-          setTotal(data.total)
-        }
         
         // Si es Epayco, abrir pasarela de pago
         if (data.orderId) {
@@ -281,9 +309,9 @@ function GiftDirectCheckoutContent() {
             )}
 
             {/* Información del producto */}
-            <div className="bg-gray-800/50 rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Producto</h2>
-              {productInfo ? (
+            {productInfo && (
+              <div className="bg-gray-800/50 rounded-lg p-6">
+                <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Producto</h2>
                 <div className="flex gap-4">
                   {productInfo.product?.thumbnail && (
                     <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-700/30 flex-shrink-0">
@@ -297,7 +325,7 @@ function GiftDirectCheckoutContent() {
                     </div>
                   )}
                   <div className="flex-1">
-                    <h3 className="text-white font-semibold mb-1">{productInfo.product?.title || 'Producto'}</h3>
+                    <h3 className="text-white font-semibold mb-1">{productInfo.product?.title}</h3>
                     {productInfo.variant?.title && (
                       <p className="text-sm text-gray-400 mb-2">{productInfo.variant.title}</p>
                     )}
@@ -311,10 +339,8 @@ function GiftDirectCheckoutContent() {
                     <p className="text-sm text-gray-400 mt-2">Cantidad: {quantity}</p>
                   </div>
                 </div>
-              ) : (
-                <p className="text-gray-400">La información del producto se cargará al procesar el pedido</p>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Información de contacto */}
             <div className="bg-gray-800/50 rounded-lg p-6">
@@ -347,40 +373,33 @@ function GiftDirectCheckoutContent() {
             <div className="sticky top-8 space-y-6">
               <div className="bg-gray-800/50 rounded-lg p-6">
                 <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Resumen</h2>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Subtotal</span>
-                    <span className="text-white">
-                      {total > 0 ? (
-                        new Intl.NumberFormat('es-CO', {
+                {productInfo ? (
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Subtotal</span>
+                      <span className="text-white">
+                        {new Intl.NumberFormat('es-CO', {
                           style: 'currency',
                           currency: 'COP',
                           minimumFractionDigits: 0,
-                        }).format(total)
-                      ) : (
-                        'Se calculará'
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Envío</span>
-                    <span className="text-white">Se calculará después</span>
-                  </div>
-                  <div className="border-t border-gray-700 pt-3 flex justify-between">
-                    <span className="font-semibold text-white">Total</span>
-                    <span className="font-semibold text-[#3B9BC3]">
-                      {total > 0 ? (
-                        new Intl.NumberFormat('es-CO', {
+                        }).format(total)}
+                      </span>
+                    </div>
+                    <div className="border-t border-gray-700 pt-3 flex justify-between">
+                      <span className="font-semibold text-white">Total</span>
+                      <span className="font-semibold text-[#3B9BC3]">
+                        {new Intl.NumberFormat('es-CO', {
                           style: 'currency',
                           currency: 'COP',
                           minimumFractionDigits: 0,
-                        }).format(total)
-                      ) : (
-                        'Se calculará'
-                      )}
-                    </span>
+                        }).format(total)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">* El envío está incluido en el precio</p>
                   </div>
-                </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">Cargando información...</p>
+                )}
               </div>
 
               {/* Método de pago */}
@@ -401,10 +420,10 @@ function GiftDirectCheckoutContent() {
         <div className="mt-8 flex justify-end">
           <Button
             type="submit"
-            disabled={isSubmitting || !epaycoReady}
-            className="bg-[#66DEDB] hover:bg-[#5accc9] text-black font-semibold px-8 py-3"
+            disabled={isSubmitting || !epaycoReady || !productInfo || isLoading}
+            className="bg-[#66DEDB] hover:bg-[#5accc9] text-black font-semibold px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Procesando...' : 'Completar pedido de regalo'}
+            {isLoading ? 'Cargando...' : isSubmitting ? 'Procesando...' : 'Completar pedido de regalo'}
           </Button>
         </div>
       </form>

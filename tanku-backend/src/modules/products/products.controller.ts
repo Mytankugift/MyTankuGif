@@ -339,4 +339,25 @@ export class ProductsController {
       next(error);
     }
   };
+
+  /**
+   * GET /api/v1/products/variant/:variantId
+   * Obtener información de una variante por su ID
+   */
+  getVariantById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { variantId } = req.params;
+
+      if (!variantId) {
+        throw new BadRequestError('variantId es requerido');
+      }
+
+      const variant = await this.productsService.getVariantById(variantId);
+
+      res.status(200).json(successResponse(variant));
+    } catch (error) {
+      console.error(`❌ [PRODUCTS] Error obteniendo variante:`, error);
+      next(error);
+    }
+  };
 }

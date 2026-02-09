@@ -51,6 +51,13 @@ router.get('/:productId/likes', productsController.getProductLikesCount);
 router.get('/:productId/liked', authenticate, productsController.isProductLiked);
 
 /**
+ * GET /api/v1/products/variant/:variantId
+ * Obtener información de una variante por su ID
+ * IMPORTANTE: Esta ruta debe ir antes de /:handle para evitar conflictos
+ */
+router.get('/variant/:variantId', productsController.getVariantById);
+
+/**
  * GET /api/v1/products/:handle
  * Obtener producto por handle
  * IMPORTANTE: Esta ruta debe ir al final para evitar conflictos con /:productId/like

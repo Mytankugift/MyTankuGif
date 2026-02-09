@@ -17,6 +17,7 @@ export const API_ENDPOINTS = {
     LIST: '/api/v1/products',
     TOP: '/api/v1/products/top',
     BY_HANDLE: (handle: string) => `/api/v1/products/${handle}`,
+    VARIANT_BY_ID: (variantId: string) => `/api/v1/products/variant/${variantId}`,
     LIKE: (productId: string) => `/api/v1/products/${productId}/like`,
     UNLIKE: (productId: string) => `/api/v1/products/${productId}/like`,
     LIKES_COUNT: (productId: string) => `/api/v1/products/${productId}/likes`,

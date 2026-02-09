@@ -353,6 +353,23 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                   className="w-6 h-6"
                 />
               </button>
+              {isAuthenticated && stock > 0 && (
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isAddingToCart || isCartLoading}
+                  className="p-2 hover:opacity-80 transition-opacity disabled:opacity-50"
+                  title="Agregar al carrito"
+                >
+                  <Image
+                    src="/feed/Icons/Shopping_Cart_Green.png"
+                    alt="Carrito"
+                    width={24}
+                    height={24}
+                    className="w-6 h-6"
+                    unoptimized
+                  />
+                </button>
+              )}
             </div>
           </div>
 
@@ -466,7 +483,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
           {stock > 0 && isAuthenticated && (
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
-                onClick={handleAddToCart}
+                onClick={handleBuyNow}
                 disabled={isAddingToCart || isCartLoading}
                 className="flex-1 font-semibold py-3"
                 style={{ 
@@ -475,10 +492,12 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                   borderRadius: '25px'
                 }}
               >
-                {isAddingToCart ? 'Agregando...' : 'Guardar en el Carrito'}
+                Comprar este Tanku
               </Button>
               <Button
-                onClick={handleBuyNow}
+                onClick={() => {
+                  // TODO: Implementar funcionalidad de regalar
+                }}
                 disabled={isAddingToCart || isCartLoading}
                 className="flex-1 font-semibold py-3"
                 style={{ 
@@ -487,7 +506,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                   borderRadius: '25px'
                 }}
               >
-                Comprar este TANKU
+                Regalar este Tanku
               </Button>
             </div>
           )}
