@@ -186,7 +186,16 @@ export class DropiSyncService {
           if (dropiProduct.images && Array.isArray(dropiProduct.images) && dropiProduct.images.length > 0) {
             for (const img of dropiProduct.images) {
               if (typeof img === 'object' && img !== null) {
-                const imgUrl = (img as any).url || (img as any).urlS3;
+                // ✅ CORREGIDO: Priorizar urlS3 sobre url (urlS3 tiene colombia/products/)
+                // Si urlS3 existe, usarlo; si no, usar url pero solo si no contiene uploads/images/products
+                let imgUrl: string | null = null;
+                
+                if ((img as any).urlS3) {
+                  imgUrl = (img as any).urlS3;
+                } else if ((img as any).url && !(img as any).url.includes('/uploads/images/products')) {
+                  imgUrl = (img as any).url;
+                }
+                
                 if (imgUrl && imgUrl.trim()) {
                   const fullUrl = imgUrl.startsWith('http') ? imgUrl : buildImageUrl(imgUrl);
                   if (fullUrl) {
@@ -195,10 +204,13 @@ export class DropiSyncService {
                   }
                 }
               } else if (typeof img === 'string' && img.trim()) {
-                const fullUrl = img.startsWith('http') ? img : buildImageUrl(img);
-                if (fullUrl) {
-                  imageSet.add(fullUrl);
-                  hasImagesFromEnrich = true;
+                // ✅ AGREGADO: Filtrar URLs que contengan uploads/images/products
+                if (!img.includes('/uploads/images/products')) {
+                  const fullUrl = img.startsWith('http') ? img : buildImageUrl(img);
+                  if (fullUrl) {
+                    imageSet.add(fullUrl);
+                    hasImagesFromEnrich = true;
+                  }
                 }
               }
             }

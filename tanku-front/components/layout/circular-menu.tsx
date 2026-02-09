@@ -5,25 +5,7 @@ import { CreatePostModal } from '@/components/posters/create-post-modal'
 
 const CircularMenu = () => {
   const [hoveredText, setHoveredText] = useState<string | null>(null)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalContent, setModalContent] = useState<string | null>(null)
   const [createPostModalOpen, setCreatePostModalOpen] = useState(false)
-
-  const menuItems = [
-    { id: 'new-event', label: 'NEW EVENT', href: '/events/new', position: 'top' },
-    { id: 'calendar', label: 'CALENDAR', href: '/calendar', position: 'left' },
-    { id: 'new-post', label: 'NEW POST', href: '/posts/new', position: 'right' },
-  ]
-
-  const handleItemClick = (href: string) => {
-    setModalContent(href)
-    setModalOpen(true)
-  }
-
-  const handleCloseModal = () => {
-    setModalOpen(false)
-    setModalContent(null)
-  }
 
   return (
     <div className="relative flex-shrink-0" style={{ width: '256px', height: '256px' }}>
@@ -37,7 +19,7 @@ const CircularMenu = () => {
           top: '38.4px',
         }}
       ></div>
-      {/* SVG for curved text */}
+      {/* SVG for curved text - Solo NUEVO POST arriba */}
       <svg
         className="absolute pointer-events-none z-50"
         viewBox="0 0 256 256"
@@ -46,47 +28,7 @@ const CircularMenu = () => {
       >
         <defs>
           <path id="top-arc-text" d="M 53 128 A 75 75 0 0 1 203 128" fill="none" />
-          <path id="right-arc-text" d="M 128 203 A 75 75 0 0 1 128 53" fill="none" />
-          <path id="left-arc-text" d="M 128 53 A 75 75 0 0 1 128 203" fill="none" />
         </defs>
-
-        <text
-          className={`font-semibold tracking-wider transition-all duration-300 ${
-            hoveredText === 'new-event' ? 'fill-white' : 'fill-gray-400'
-          }`}
-          fontSize="14"
-          style={{
-            filter:
-              hoveredText === 'new-event'
-                ? 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(255, 255, 255, 0.4))'
-                : 'none',
-            transform: hoveredText === 'new-event' ? 'scale(1.2)' : 'scale(1)',
-            transformOrigin: 'center',
-          }}
-        >
-          <textPath href="#top-arc-text" startOffset="50%" textAnchor="middle">
-            NUEVO EVENTO
-          </textPath>
-        </text>
-
-        <text
-          className={`font-semibold tracking-wider transition-all duration-300 ${
-            hoveredText === 'calendar' ? 'fill-white' : 'fill-gray-400'
-          }`}
-          fontSize="14"
-          style={{
-            filter:
-              hoveredText === 'calendar'
-                ? 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(255, 255, 255, 0.4))'
-                : 'none',
-            transform: hoveredText === 'calendar' ? 'scale(1.2)' : 'scale(1)',
-            transformOrigin: 'center',
-          }}
-        >
-          <textPath href="#right-arc-text" startOffset="50%" textAnchor="middle">
-            CALENDARIO
-          </textPath>
-        </text>
 
         <text
           className={`font-semibold tracking-wider transition-all duration-300 ${
@@ -102,31 +44,15 @@ const CircularMenu = () => {
             transformOrigin: 'center',
           }}
         >
-          <textPath href="#left-arc-text" startOffset="50%" textAnchor="middle">
+          <textPath href="#top-arc-text" startOffset="50%" textAnchor="middle">
             NUEVO POST
           </textPath>
         </text>
       </svg>
 
-      {/* Invisible clickable button overlays */}
+      {/* Invisible clickable button overlay - Solo NUEVO POST arriba */}
       <button
         className="absolute top-4 left-1/2 transform -translate-x-1/2 w-24 h-12 cursor-pointer z-50"
-        onClick={() => handleItemClick('/events/new')}
-        onMouseEnter={() => setHoveredText('new-event')}
-        onMouseLeave={() => setHoveredText(null)}
-        aria-label="New Event"
-      />
-
-      <button
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-24 cursor-pointer z-50"
-        onClick={() => handleItemClick('/calendar')}
-        onMouseEnter={() => setHoveredText('calendar')}
-        onMouseLeave={() => setHoveredText(null)}
-        aria-label="Calendar"
-      />
-
-      <button
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-24 cursor-pointer z-50"
         onClick={() => setCreatePostModalOpen(true)}
         onMouseEnter={() => setHoveredText('new-post')}
         onMouseLeave={() => setHoveredText(null)}
@@ -158,29 +84,6 @@ const CircularMenu = () => {
           </div>
         </div>
       </div>
-
-      {/* Modal placeholder para otros items */}
-      {modalOpen && modalContent !== '/posts/new' && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
-          onClick={handleCloseModal}
-        >
-          <div
-            className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white text-lg font-semibold">TANKU</h3>
-              <button onClick={handleCloseModal} className="text-gray-400 hover:text-white">
-                ✕
-              </button>
-            </div>
-            <div className="text-gray-400 text-center py-8">
-              Funcionalidad en desarrollo...
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal de creación de post */}
       <CreatePostModal

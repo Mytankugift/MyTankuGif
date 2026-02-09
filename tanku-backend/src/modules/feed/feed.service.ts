@@ -791,7 +791,7 @@ export class FeedService {
       isActive: true,
     };
 
-    // Si hay userId, filtrar por amigos + propio
+    // Si hay userId, filtrar por amigos + propio y excluir bloqueados
     if (userId) {
       try {
         // Obtener lista de amigos aceptados (bidireccional)
@@ -815,7 +815,40 @@ export class FeedService {
           if (f.friendId === userId) friendIds.add(f.userId);
         });
 
-        // Si hay cursor, combinar con filtro de amigos
+        // Obtener IDs de usuarios bloqueados (que el usuario bloqueó)
+        const blockedUserIds = await prisma.friend.findMany({
+          where: {
+            userId,
+            status: 'blocked',
+          },
+          select: {
+            friendId: true,
+          },
+        });
+
+        // Obtener IDs de usuarios que bloquearon al usuario actual
+        const blockedByUserIds = await prisma.friend.findMany({
+          where: {
+            friendId: userId,
+            status: 'blocked',
+          },
+          select: {
+            userId: true,
+          },
+        });
+
+        // Combinar todos los IDs bloqueados (bidireccional)
+        const allBlockedIds = new Set<string>([
+          ...blockedUserIds.map(b => b.friendId),
+          ...blockedByUserIds.map(b => b.userId),
+        ]);
+
+        // Excluir usuarios bloqueados de los friendIds
+        allBlockedIds.forEach(blockedId => {
+          friendIds.delete(blockedId);
+        });
+
+        // Si hay cursor, combinar con filtro de amigos (sin bloqueados)
         if (cursor?.lastPostCreatedAt) {
           where.AND = [
             {
@@ -844,7 +877,7 @@ export class FeedService {
             },
           ];
         } else {
-          // Sin cursor, solo filtrar por amigos
+          // Sin cursor, solo filtrar por amigos (sin bloqueados)
           where.customerId = { in: Array.from(friendIds) };
         }
       } catch (friendsError: any) {

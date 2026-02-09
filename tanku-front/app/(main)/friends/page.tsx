@@ -138,31 +138,50 @@ export default function FriendsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredFriends, setFilteredFriends] = useState<typeof friends>([])
   const [filteredSuggestions, setFilteredSuggestions] = useState<typeof suggestions>([])
+  const [filteredBlockedUsers, setFilteredBlockedUsers] = useState<typeof blockedUsers>([])
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     
+    // Buscar según el tab activo
     if (activeTab === 'friends') {
-      // Buscar en amigos
+      // Buscar en amigos por nombre completo y username
       if (!query.trim()) {
         setFilteredFriends(friends)
       } else {
+        const queryLower = query.toLowerCase()
         const filtered = friends.filter((friend) => {
           const fullName = `${friend.friend.firstName || ''} ${friend.friend.lastName || ''}`.trim().toLowerCase()
-          return fullName.includes(query.toLowerCase())
+          const username = (friend.friend.username || '').toLowerCase()
+          return fullName.includes(queryLower) || username.includes(queryLower)
         })
         setFilteredFriends(filtered)
       }
     } else if (activeTab === 'suggestions') {
-      // Buscar en sugerencias (cualquier persona)
+      // Buscar en sugerencias por nombre completo y username
       if (!query.trim()) {
         setFilteredSuggestions(suggestions)
       } else {
+        const queryLower = query.toLowerCase()
         const filtered = suggestions.filter((suggestion) => {
           const fullName = `${suggestion.user.firstName || ''} ${suggestion.user.lastName || ''}`.trim().toLowerCase()
-          return fullName.includes(query.toLowerCase())
+          const username = (suggestion.user.username || '').toLowerCase()
+          return fullName.includes(queryLower) || username.includes(queryLower)
         })
         setFilteredSuggestions(filtered)
+      }
+    } else if (activeTab === 'blocked') {
+      // Buscar en bloqueados por nombre completo y username
+      if (!query.trim()) {
+        setFilteredBlockedUsers(blockedUsers)
+      } else {
+        const queryLower = query.toLowerCase()
+        const filtered = blockedUsers.filter((blockedUser) => {
+          const fullName = `${blockedUser.blockedUser.firstName || ''} ${blockedUser.blockedUser.lastName || ''}`.trim().toLowerCase()
+          const username = (blockedUser.blockedUser.username || '').toLowerCase()
+          return fullName.includes(queryLower) || username.includes(queryLower)
+        })
+        setFilteredBlockedUsers(filtered)
       }
     }
   }
@@ -173,9 +192,11 @@ export default function FriendsPage() {
       if (!searchQuery.trim()) {
         setFilteredFriends(friends)
       } else {
+        const queryLower = searchQuery.toLowerCase()
         const filtered = friends.filter((friend) => {
           const fullName = `${friend.friend.firstName || ''} ${friend.friend.lastName || ''}`.trim().toLowerCase()
-          return fullName.includes(searchQuery.toLowerCase())
+          const username = (friend.friend.username || '').toLowerCase()
+          return fullName.includes(queryLower) || username.includes(queryLower)
         })
         setFilteredFriends(filtered)
       }
@@ -183,14 +204,28 @@ export default function FriendsPage() {
       if (!searchQuery.trim()) {
         setFilteredSuggestions(suggestions)
       } else {
+        const queryLower = searchQuery.toLowerCase()
         const filtered = suggestions.filter((suggestion) => {
           const fullName = `${suggestion.user.firstName || ''} ${suggestion.user.lastName || ''}`.trim().toLowerCase()
-          return fullName.includes(searchQuery.toLowerCase())
+          const username = (suggestion.user.username || '').toLowerCase()
+          return fullName.includes(queryLower) || username.includes(queryLower)
         })
         setFilteredSuggestions(filtered)
       }
+    } else if (activeTab === 'blocked') {
+      if (!searchQuery.trim()) {
+        setFilteredBlockedUsers(blockedUsers)
+      } else {
+        const queryLower = searchQuery.toLowerCase()
+        const filtered = blockedUsers.filter((blockedUser) => {
+          const fullName = `${blockedUser.blockedUser.firstName || ''} ${blockedUser.blockedUser.lastName || ''}`.trim().toLowerCase()
+          const username = (blockedUser.blockedUser.username || '').toLowerCase()
+          return fullName.includes(queryLower) || username.includes(queryLower)
+        })
+        setFilteredBlockedUsers(filtered)
+      }
     }
-  }, [friends, suggestions, activeTab, searchQuery])
+  }, [friends, suggestions, blockedUsers, activeTab, searchQuery])
 
   return (
     <>
@@ -260,7 +295,7 @@ export default function FriendsPage() {
 
           {activeTab === 'blocked' && (
             <BlockedUsersList
-              blockedUsers={blockedUsers}
+              blockedUsers={searchQuery ? filteredBlockedUsers : blockedUsers}
               isLoading={isLoading}
               onRefresh={async () => {
                 await fetchBlockedUsers()

@@ -1,9 +1,8 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import React from 'react'
 import { ProductDetailContent } from './product-detail-content'
-import { EllipsisVerticalIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 import type { FeedItemDTO } from '@/types/api'
 
 interface ProductModalProps {
@@ -13,72 +12,63 @@ interface ProductModalProps {
 }
 
 export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
-  const router = useRouter()
-  const [showMenu, setShowMenu] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  // Cerrar menú al hacer click fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [menuRef])
-
   if (!isOpen || !product) return null
 
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4"
       onClick={onClose}
+      onMouseDown={(e) => {
+        // Solo cerrar si el click es directamente en el overlay, no en un hijo
+        if (e.target === e.currentTarget) {
+          onClose()
+        }
+      }}
+      style={{ 
+        zIndex: 9999, 
+        cursor: 'default',
+        userSelect: 'none'
+      }}
     >
       <div
-        className="bg-gray-900 rounded-lg sm:rounded-2xl w-full max-w-6xl h-full max-h-[95vh] sm:max-h-[92vh] overflow-hidden flex flex-col relative"
+        className="w-full max-w-6xl h-full max-h-[95vh] sm:max-h-[92vh] overflow-hidden flex flex-col relative"
+        style={{ 
+          backgroundColor: '#2C3137',
+          border: '2px solid #66DEDB',
+          borderRadius: '25px',
+          cursor: 'default',
+          userSelect: 'auto'
+        }}
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Header con menú de 3 puntos y botón cerrar */}
-        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-700">
-          <div></div>
-          <div className="flex items-center gap-2">
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setShowMenu(!showMenu)}
-                className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800"
-                aria-label="Opciones"
-              >
-                <EllipsisVerticalIcon className="w-6 h-6" />
-              </button>
-            {showMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg z-10 border border-gray-700">
-                <button
-                  onClick={() => {
-                    router.push(`/products/${product.handle}`)
-                    setShowMenu(false)
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                >
-                  Ir a publicación
-                </button>
-              </div>
-            )}
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800"
-              aria-label="Cerrar"
-            >
-              <XMarkIcon className="w-5 h-5" />
-            </button>
-          </div>
+        {/* Header con nombre del producto y botón cerrar */}
+        <div className="flex-shrink-0 flex items-center justify-between p-4">
+          <h2 
+            className="text-2xl font-semibold pl-4 pt-2"
+            style={{ color: '#66DEDB' }}
+          >
+            {product.title}
+          </h2>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onClose()
+            }}
+            className="p-2 hover:opacity-80 transition-opacity"
+            aria-label="Cerrar"
+            style={{ color: '#66DEDB' }}
+          >
+            <XMarkIcon className="w-6 h-6" />
+          </button>
         </div>
 
         {/* Contenido usando componente compartido */}
-        <div className="flex-1 overflow-y-auto min-h-0 p-6">
+        <div 
+          className="flex-1 overflow-y-auto min-h-0"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <ProductDetailContent
             product={product}
             isPageView={false}

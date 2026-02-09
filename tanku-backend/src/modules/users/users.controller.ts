@@ -583,11 +583,13 @@ export class UsersController {
     try {
       const { q } = req.query;
       const limit = parseInt(req.query.limit as string) || 10;
+      const requestWithUser = req as RequestWithUser;
+      const viewerUserId = requestWithUser.user?.id;
 
       // Permitir query vacío para mostrar usuarios recientes
       const query = typeof q === 'string' ? q : '';
 
-      const users = await this.usersService.searchUsers(query, limit);
+      const users = await this.usersService.searchUsers(query, limit, viewerUserId);
 
       res.status(200).json(successResponse(users));
     } catch (error) {

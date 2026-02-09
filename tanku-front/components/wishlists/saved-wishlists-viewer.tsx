@@ -5,15 +5,14 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useCartStore } from '@/lib/stores/cart-store'
-import { useGiftCart } from '@/lib/hooks/use-gift-cart'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { WishlistProductsModal } from './wishlist-products-modal'
-import { GiftCartConfirmationModal } from '@/components/gifts/gift-cart-confirmation-modal'
 import type { WishListDTO } from '@/types/api'
 
 interface UserAvatarWithHexagonProps {
@@ -108,9 +107,9 @@ interface SavedWishlist extends WishListDTO {
 }
 
 export function SavedWishlistsViewer() {
+  const router = useRouter()
   const { isAuthenticated, user } = useAuthStore()
   const { addItem } = useCartStore()
-  const { addToGiftCart, clearGiftCart } = useGiftCart()
   const { cart } = useCartStore()
   const [savedWishlists, setSavedWishlists] = useState<SavedWishlist[]>([])
   const [selectedWishlist, setSelectedWishlist] = useState<SavedWishlist | null>(null)
@@ -118,10 +117,6 @@ export function SavedWishlistsViewer() {
   const [isLoading, setIsLoading] = useState(false)
   const [confirmingUnsave, setConfirmingUnsave] = useState<string | null>(null)
   const confirmRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const [showGiftConfirmation, setShowGiftConfirmation] = useState(false)
-  const [pendingGiftItem, setPendingGiftItem] = useState<{ variantId: string; recipientId: string } | null>(null)
-  const [currentRecipientName, setCurrentRecipientName] = useState<string | null>(null)
-  const [newRecipientName, setNewRecipientName] = useState<string | null>(null)
 
   const fetchSavedWishlists = useCallback(async () => {
     if (!isAuthenticated || !user?.id) return
@@ -298,72 +293,38 @@ export function SavedWishlistsViewer() {
     }
   }
 
-  const handleSendAsGift = async (item: SavedWishlist['items'][0], wishlistOwnerId: string, skipConfirmation = false) => {
+  const handleSendAsGift = async (item: SavedWishlist['items'][0], wishlistOwnerId: string) => {
     if (!item.variantId) {
       alert('Este producto no tiene variante seleccionada')
       return
     }
 
+    // Validar que el usuario esté autenticado
+    if (!user?.id) {
+      router.push('/feed')
+      return
+    }
+
+    // Validar destinatario antes de continuar
     try {
-      await addToGiftCart(item.variantId, wishlistOwnerId, 1)
-      alert('Producto agregado al carrito de regalos')
-      setShowGiftConfirmation(false)
-      setPendingGiftItem(null)
-    } catch (error: any) {
-      // Si el error es por tener otro destinatario, mostrar confirmación (no es un error real)
-      if (error.message === 'DIFFERENT_RECIPIENT' && !skipConfirmation) {
-        setPendingGiftItem({ variantId: item.variantId, recipientId: wishlistOwnerId })
-        setShowGiftConfirmation(true)
+      const eligibility = await apiClient.get(API_ENDPOINTS.GIFTS.RECIPIENT_ELIGIBILITY(wishlistOwnerId))
+      if (!eligibility.success || !eligibility.data?.canReceive) {
+        alert(eligibility.data?.reason || 'Este usuario no puede recibir regalos')
         return
       }
-      
-      // Solo loggear errores reales (no los esperados)
-      if (!error.isExpected) {
-        console.error('Error enviando como regalo:', error)
+      if (eligibility.data?.canSendGift === false) {
+        alert(eligibility.data?.sendGiftReason || 'No puedes enviar regalos a este usuario')
+        return
       }
-      
-      alert(error.message || 'Error al enviar como regalo')
+    } catch (error: any) {
+      alert(error.message || 'Error validando destinatario')
+      return
     }
+
+    // ✅ NUEVO: Ir directamente al checkout de regalo sin carrito
+    router.push(`/checkout/gift-direct?variantId=${item.variantId}&recipientId=${wishlistOwnerId}&quantity=1`)
   }
 
-  const handleConfirmClearCart = async () => {
-    if (!pendingGiftItem) return
-    
-    try {
-      // Limpiar carrito primero
-      await clearGiftCart()
-      
-      // Esperar un momento para que el estado se actualice
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      // Verificar que el carrito esté limpio antes de agregar
-      const { cart: currentCart } = useCartStore.getState()
-      if (currentCart && currentCart.isGiftCart && currentCart.giftRecipientId) {
-        // Si todavía tiene isGiftCart, forzar la limpieza del estado
-        useCartStore.getState().setCart(null)
-        // Esperar un momento más
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
-      
-      // Luego agregar el nuevo producto
-      await handleSendAsGift(
-        { variantId: pendingGiftItem.variantId } as SavedWishlist['items'][0],
-        pendingGiftItem.recipientId,
-        true
-      )
-      setShowGiftConfirmation(false)
-      setPendingGiftItem(null)
-      setCurrentRecipientName(null)
-      setNewRecipientName(null)
-    } catch (error: any) {
-      console.error('Error al limpiar y agregar:', error)
-      alert(error.message || 'Error al procesar el regalo')
-      setShowGiftConfirmation(false)
-      setPendingGiftItem(null)
-      setCurrentRecipientName(null)
-      setNewRecipientName(null)
-    }
-  }
 
   if (isLoading) {
     return (
@@ -607,21 +568,6 @@ export function SavedWishlistsViewer() {
         />
       )}
 
-      {/* Modal de confirmación para carrito de regalos con otro destinatario */}
-      <GiftCartConfirmationModal
-        isOpen={showGiftConfirmation}
-        onConfirm={handleConfirmClearCart}
-        onCancel={() => {
-          setShowGiftConfirmation(false)
-          setPendingGiftItem(null)
-        }}
-        onGoToCart={() => {
-          // Navegar al carrito y cambiar al tab de regalos
-          window.location.href = '/cart'
-        }}
-        currentRecipientName={currentRecipientName || undefined}
-        newRecipientName={newRecipientName || undefined}
-      />
     </div>
   )
 }

@@ -472,4 +472,180 @@ export class CheckoutService {
 
     return order;
   }
+
+  /**
+   * Crear orden de regalo directamente sin carrito (desde wishlist)
+   * 
+   * @param input - Datos del regalo directo
+   * @returns Datos preparados para Epayco o orden creada
+   */
+  async createDirectGiftOrder(input: {
+    variantId: string;
+    quantity: number;
+    recipientId: string;
+    senderId: string;
+    email: string;
+    paymentMethod: string;
+  }) {
+    console.log(`🎁 [CHECKOUT] Creando orden de regalo directa desde wishlist...`);
+    console.log(`🎁 [CHECKOUT] Variant ID: ${input.variantId}`);
+    console.log(`🎁 [CHECKOUT] Recipient ID: ${input.recipientId}`);
+    console.log(`🎁 [CHECKOUT] Sender ID: ${input.senderId}`);
+
+    // 1. Validar que el destinatario puede recibir regalos
+    const eligibility = await this.giftService.validateGiftRecipient(
+      input.recipientId, 
+      input.senderId
+    );
+    
+    if (!eligibility.canReceive) {
+      throw new BadRequestError(eligibility.reason || 'El destinatario no puede recibir regalos');
+    }
+    
+    if (eligibility.canSendGift === false) {
+      throw new BadRequestError(eligibility.sendGiftReason || 'No puedes enviar regalos a este usuario');
+    }
+
+    // 2. Validar método de pago (solo Epayco para regalos)
+    if (input.paymentMethod !== 'epayco') {
+      throw new BadRequestError('Los regalos solo se pueden pagar con Epayco');
+    }
+
+    // 3. Obtener información del producto/variante
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: input.variantId },
+      include: {
+        product: true,
+        warehouseVariants: {
+          select: { stock: true },
+        },
+      },
+    });
+
+    if (!variant) {
+      throw new NotFoundError('Variante no encontrada');
+    }
+
+    if (!variant.product) {
+      throw new NotFoundError('Producto no encontrado');
+    }
+
+    // 4. Validar stock
+    const stock = variant.warehouseVariants?.[0]?.stock || 0;
+    if (stock < input.quantity) {
+      throw new BadRequestError(`Stock insuficiente. Disponible: ${stock}, Solicitado: ${input.quantity}`);
+    }
+
+    // 5. Obtener dirección del destinatario
+    const giftAddress = await this.giftService.getGiftAddress(input.recipientId);
+    if (!giftAddress) {
+      throw new BadRequestError('El destinatario no tiene una dirección configurada para recibir regalos');
+    }
+
+    // 6. Calcular precio (tankuPrice)
+    const tankuPrice = variant.tankuPrice || variant.price || 0;
+    if (tankuPrice <= 0) {
+      throw new BadRequestError('El producto no tiene un precio válido');
+    }
+
+    const subtotal = Math.round(tankuPrice * input.quantity);
+    const shippingTotal = 0; // Se calculará después con Dropi
+    const total = subtotal + shippingTotal;
+
+    console.log(`💰 [CHECKOUT] Precio calculado:`, {
+      tankuPrice,
+      quantity: input.quantity,
+      subtotal,
+      total,
+    });
+
+    // 7. Crear orden directamente (sin carrito)
+    const orderInput: CreateOrderInput = {
+      userId: input.senderId,
+      email: input.email,
+      paymentMethod: input.paymentMethod,
+      total: Math.round(total),
+      subtotal: Math.round(subtotal),
+      shippingTotal: Math.round(shippingTotal),
+      address: {
+        firstName: giftAddress.firstName,
+        lastName: giftAddress.lastName,
+        phone: giftAddress.phone || '',
+        address1: giftAddress.address1,
+        detail: giftAddress.address2 || undefined,
+        city: giftAddress.city,
+        state: giftAddress.state,
+        postalCode: giftAddress.postalCode,
+        country: giftAddress.country,
+      },
+      items: [{
+        productId: variant.productId,
+        variantId: variant.id,
+        quantity: input.quantity,
+        price: Math.round(tankuPrice),
+      }],
+      isGiftOrder: true, // ✅ Marcar como regalo
+      giftSenderId: input.senderId, // ✅ Quien compra
+      giftRecipientId: input.recipientId, // ✅ Dueño de la wishlist
+      metadata: {
+        source: 'wishlist_direct', // Para identificar que vino de wishlist
+        wishlist_purchase: true,
+      },
+    };
+
+    // 8. Crear orden
+    console.log(`📝 [CHECKOUT] Creando orden de regalo directa...`);
+    const order = await this.ordersService.createOrder(orderInput);
+
+    console.log(`✅ [CHECKOUT] Orden de regalo creada: ${order.id}`, {
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      isGiftOrder: true,
+      giftSenderId: input.senderId,
+      giftRecipientId: input.recipientId,
+    });
+
+    // 9. Crear notificación para el destinatario
+    try {
+      console.log(`🎁 [CHECKOUT] Creando notificación de regalo para destinatario: ${input.recipientId}`);
+      await this.notificationsService.createGiftNotification(
+        input.recipientId,
+        order.id,
+        input.senderId
+      );
+      console.log(`✅ [CHECKOUT] Notificación de regalo creada exitosamente`);
+    } catch (notificationError: any) {
+      // No fallar la creación de la orden si la notificación falla
+      console.error(`⚠️ [CHECKOUT] Error creando notificación de regalo:`, notificationError?.message);
+    }
+
+    // 10. Si es Epayco, retornar datos para el checkout
+    // La orden ya está creada con paymentStatus: 'awaiting'
+    // El webhook actualizará el paymentStatus cuando se confirme el pago
+    if (input.paymentMethod === 'epayco') {
+      return {
+        orderId: order.id, // ✅ Usar orderId en lugar de cartId
+        total: order.total,
+        subtotal: order.subtotal,
+        shippingTotal: order.shippingTotal,
+        paymentMethod: 'epayco',
+        message: 'Orden de regalo creada. El pago se procesará a través de Epayco.',
+        productInfo: {
+          product: {
+            id: variant.product.id,
+            title: variant.product.title,
+            thumbnail: variant.product.thumbnail,
+          },
+          variant: {
+            id: variant.id,
+            title: variant.title,
+          },
+          price: Math.round(tankuPrice),
+        },
+      };
+    }
+
+    // Para contra entrega (aunque no debería llegar aquí para regalos)
+    return order;
+  }
 }

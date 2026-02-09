@@ -87,8 +87,8 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* Menú vertical - 45% del espacio */}
-        <div className="flex flex-col gap-1.5 w-full px-2 pt-2 pb-2 overflow-y-auto" style={{ height: '45%', minHeight: '300px' }}>
+        {/* Menú vertical - 55% del espacio */}
+        <div className="flex flex-col gap-1.5 w-full px-2 pt-2 pb-2 overflow-y-auto flex-shrink-0" style={{ height: '55%', minHeight: '300px' }}>
           {/* Sección GivE-Commerce */}
           <div className="mb-0.5">
             <h3 
@@ -348,40 +348,19 @@ export default function Sidebar() {
               )}
             </div>
           </div>
+
+          {/* Línea divisoria después de StalkerGift */}
+          <div className="flex-shrink-0 border-t border-gray-600 mt-2"></div>
         </div>
 
-        {/* Área fija inferior - 40% del espacio (15% cerrar sesión + 25% circular + 5% footer) */}
-        <div className="flex-shrink-0 border-t border-gray-600 flex flex-col" style={{ height: '40%', minHeight: '200px' }}>
-          {/* Botón de Logout - 15% del espacio total */}
-          {isAuthenticated && user && (
-            <div className="px-4 py-2 flex items-center" style={{ height: '37.5%', minHeight: '60px' }}>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 text-red-400 hover:text-red-300 transition-colors w-full text-left px-2 py-1.5 rounded-lg hover:bg-red-500/10"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                  <polyline points="16 17 21 12 16 7"></polyline>
-                  <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                <span 
-                  className="font-normal"
-                  style={{ fontFamily: 'Poppins, sans-serif', fontSize: '18px' }}
-                >
-                  Cerrar sesión
-                </span>
-              </button>
-            </div>
-          )}
+        {/* Circular Menu - máximo 40% del espacio total, encima del footer */}
+        <div className="flex-shrink-0 flex items-center justify-center w-full" style={{ height: '25%', minHeight: '150px', maxHeight: '40%', position: 'relative', zIndex: 0 }}>
+          <CircularMenu />
+        </div>
 
-          {/* Circular Menu - 25% del espacio total (62.5% del área inferior) */}
-          <div className="flex items-center justify-center w-full" style={{ height: '62.5%', minHeight: '120px', position: 'relative', zIndex: 1 }}>
-            <CircularMenu />
-          </div>
-
-          {/* Footer con información de contacto - 5% del espacio total (12.5% del área inferior) */}
-          <div className="px-4 py-1.5 flex items-center justify-center" style={{ height: '12.5%', minHeight: '50px', position: 'relative', zIndex: 10 }}>
-            <div className="flex items-center gap-3 justify-center flex-wrap">
+        {/* Footer con información de contacto - 5% del espacio total, siempre visible */}
+        <div className="px-4 py-2 flex items-center justify-center flex-shrink-0" style={{ height: '5%', minHeight: '40px', position: 'relative', zIndex: 10 }}>
+          <div className="flex items-center gap-3 justify-center flex-wrap">
               <a 
                 href="mailto:contacto@mytanku.com" 
                 className="hover:opacity-80 transition-opacity flex items-center justify-center p-2 cursor-pointer"
@@ -417,7 +396,6 @@ export default function Sidebar() {
                   <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
               </Link>
-            </div>
           </div>
         </div>
       </div>

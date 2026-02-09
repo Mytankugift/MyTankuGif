@@ -965,11 +965,47 @@ export class WishListsService {
       }
     });
 
+    // Verificar bloqueo bidireccional si hay viewerUserId
+    let blockedUserIds = new Set<string>();
+    if (viewerUserId) {
+      // Usuarios que el viewer bloqueó
+      const blockedByViewer = await prisma.friend.findMany({
+        where: {
+          userId: viewerUserId,
+          status: 'blocked',
+        },
+        select: {
+          friendId: true,
+        },
+      });
+      blockedByViewer.forEach(b => blockedUserIds.add(b.friendId));
+
+      // Usuarios que bloquearon al viewer
+      const blockedViewer = await prisma.friend.findMany({
+        where: {
+          friendId: viewerUserId,
+          status: 'blocked',
+        },
+        select: {
+          userId: true,
+        },
+      });
+      blockedViewer.forEach(b => blockedUserIds.add(b.userId));
+    }
+
     // SIEMPRE aplicar las mismas reglas:
-    // - Públicas: siempre visibles con items
+    // - Públicas: siempre visibles con items (excepto si el dueño está bloqueado)
     // - Privadas con acceso aprobado: visibles con items
     // - Privadas sin acceso: solo nombre (sin items)
-    const publicWishlists = wishLists.filter((w) => w.public);
+    // Filtrar wishlists públicas de usuarios bloqueados
+    const publicWishlists = wishLists.filter((w) => {
+      if (!w.public) return false;
+      // Si hay bloqueo, excluir wishlists públicas del usuario bloqueado
+      if (viewerUserId && blockedUserIds.has(targetUserId)) {
+        return false;
+      }
+      return true;
+    });
     
     // Wishlists privadas con acceso aprobado (mostrar con items) - INDEPENDIENTE DE AMISTAD
     const privateWithAccess = wishLists

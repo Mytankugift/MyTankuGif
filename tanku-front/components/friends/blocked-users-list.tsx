@@ -15,6 +15,7 @@ interface BlockedUserDTO {
     firstName: string | null
     lastName: string | null
     email: string
+    username: string | null
     profile?: {
       avatar: string | null
     } | null

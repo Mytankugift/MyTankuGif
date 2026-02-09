@@ -6,7 +6,7 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useChat } from '@/lib/hooks/use-chat'
 import { useSocket } from '@/lib/hooks/use-socket'
 import { UserAvatar } from '@/components/shared/user-avatar'
-import { XMarkIcon, LinkIcon } from '@heroicons/react/24/outline'
+import { LinkIcon } from '@heroicons/react/24/outline'
 
 interface ShareProductModalProps {
   isOpen: boolean
@@ -138,44 +138,69 @@ export function ShareProductModal({ isOpen, productUrl, productTitle, onClose }:
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 rounded-lg w-[500px] h-[600px] overflow-hidden flex flex-col border border-gray-700 shadow-2xl"
+        className="w-[650px] h-[550px] overflow-hidden flex flex-col relative"
+        style={{ 
+          backgroundColor: '#2C3137',
+          border: '2px solid #73FFA2',
+          borderRadius: '25px'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-700">
-          <h2 className="text-white font-semibold text-lg">Compartir producto</h2>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white transition-colors"
-          >
-            <XMarkIcon className="w-5 h-5" />
-          </button>
-        </div>
+        <div className="p-6 flex flex-col flex-1 min-h-0">
+          {/* Header */}
+          <div className="flex-shrink-0 mb-4">
+            <h2 
+              className="text-xl font-semibold mb-3"
+              style={{ color: '#73FFA2' }}
+            >
+              Compartir
+            </h2>
+            <p 
+              className="text-sm leading-relaxed"
+              style={{ color: '#66DEDB' }}
+            >
+              Envíalo como una idea. El gesto puede venir después. A veces, compartir una idea ya es pensar en alguien.
+            </p>
+          </div>
 
-        {/* Botón copiar link */}
-        <div className="flex-shrink-0 p-4 border-b border-gray-700">
-          <button
-            onClick={handleCopyLink}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors"
-          >
-            <LinkIcon className="w-5 h-5" />
-            <span>Copiar enlace</span>
-          </button>
-        </div>
+          {/* Botón copiar link */}
+          <div className="flex-shrink-0 mb-4">
+            <button
+              onClick={handleCopyLink}
+              className="w-full flex items-center justify-center gap-2 px-4 transition-opacity hover:opacity-80"
+              style={{
+                backgroundColor: 'transparent',
+                border: '2px solid #73FFA2',
+                borderRadius: '25px',
+                color: '#ffffff',
+                paddingTop: '0.75rem',
+                paddingBottom: '0.75rem'
+              }}
+            >
+              <LinkIcon className="w-5 h-5" />
+              <span>Copiar Enlace</span>
+            </button>
+          </div>
 
-        {/* Search */}
-        <div className="flex-shrink-0 p-4 border-b border-gray-700">
-          <input
-            type="text"
-            placeholder="Buscar amigos..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#73FFA2]"
-          />
-        </div>
+          {/* Search */}
+          <div className="flex-shrink-0 mb-4">
+            <input
+              type="text"
+              placeholder="Buscar Amigos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-2 focus:outline-none placeholder:text-[#2C3137]"
+              style={{
+                backgroundColor: '#66DEDB',
+                borderRadius: '25px',
+                color: '#2C3137',
+                border: '2px solid #66DEDB'
+              }}
+            />
+          </div>
 
-        {/* Friends Grid */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 min-h-0">
+          {/* Friends Grid */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
           {isLoading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#73FFA2]"></div>
@@ -231,18 +256,21 @@ export function ShareProductModal({ isOpen, productUrl, productTitle, onClose }:
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex-shrink-0 p-4 border-t border-gray-700 flex items-center justify-between">
-          <span className="text-gray-400 text-sm">
-            {selectedFriends.length}/5 {selectedFriends.length === 1 ? 'amigo seleccionado' : 'amigos seleccionados'}
-          </span>
-          <button
-            onClick={handleSend}
-            disabled={selectedFriends.length === 0 || isSending}
-            className="px-6 py-2 bg-[#73FFA2] hover:bg-[#66e891] text-gray-900 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSending ? 'Enviando...' : 'Enviar'}
-          </button>
+          {/* Footer */}
+          <div className="flex-shrink-0 mt-4 flex items-center justify-end">
+            <button
+              onClick={handleSend}
+              disabled={selectedFriends.length === 0 || isSending}
+              className="px-6 py-2 font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: '#73FFA2',
+                color: '#2C3137',
+                borderRadius: '25px'
+              }}
+            >
+              {isSending ? 'Enviando...' : 'Compartir'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

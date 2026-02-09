@@ -5,8 +5,11 @@
 'use client'
 
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { useCartStore } from '@/lib/stores/cart-store'
-import { useGiftCart } from '@/lib/hooks/use-gift-cart'
+import { useAuthStore } from '@/lib/stores/auth-store'
+import { apiClient } from '@/lib/api/client'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import type { WishListDTO } from '@/types/api'
 
@@ -27,8 +30,9 @@ export function WishlistProductsModal({
   wishlistOwnerId,
   isOwnWishlist = false,
 }: WishlistProductsModalProps) {
+  const router = useRouter()
   const { addItem } = useCartStore()
-  const { addToGiftCart } = useGiftCart()
+  const { user: currentUser } = useAuthStore()
 
   if (!isOpen) return null
 
@@ -143,13 +147,30 @@ export function WishlistProductsModal({
                                 return
                               }
 
-                              try {
-                                await addToGiftCart(item.variantId, wishlistOwnerId, 1)
-                                alert('Producto agregado al carrito de regalos')
-                              } catch (error: any) {
-                                console.error('Error enviando como regalo:', error)
-                                alert(error.message || 'Error al enviar como regalo')
+                              // Validar que el usuario esté autenticado
+                              if (!currentUser?.id) {
+                                router.push('/feed')
+                                return
                               }
+
+                              // Validar destinatario antes de continuar
+                              try {
+                                const eligibility = await apiClient.get(API_ENDPOINTS.GIFTS.RECIPIENT_ELIGIBILITY(wishlistOwnerId))
+                                if (!eligibility.success || !eligibility.data?.canReceive) {
+                                  alert(eligibility.data?.reason || 'Este usuario no puede recibir regalos')
+                                  return
+                                }
+                                if (eligibility.data?.canSendGift === false) {
+                                  alert(eligibility.data?.sendGiftReason || 'No puedes enviar regalos a este usuario')
+                                  return
+                                }
+                              } catch (error: any) {
+                                alert(error.message || 'Error validando destinatario')
+                                return
+                              }
+
+                              // ✅ NUEVO: Ir directamente al checkout de regalo sin carrito
+                              router.push(`/checkout/gift-direct?variantId=${item.variantId}&recipientId=${wishlistOwnerId}&quantity=1`)
                             }}
                             className="px-4 py-2 text-sm bg-[#66DEDB] text-gray-900 font-semibold rounded-lg hover:bg-[#3B9BC3] transition-colors"
                           >

@@ -1,0 +1,3593 @@
+{
+  "summary": {
+    "totalProducts": 13824,
+    "totalImages": 17457,
+    "correctImages": 17060,
+    "incorrectImages": 397,
+    "correctPercentage": "97.73",
+    "incorrectPercentage": "2.27"
+  },
+  "bySource": {
+    "enrich": 397,
+    "raw": 0,
+    "unknown": 0
+  },
+  "byIssue": {
+    "Contiene /uploads/images/products (debería ser colombia/products/)": 397
+  },
+  "incorrectImages": [
+    {
+      "productId": "cml8ixekd22rw0pnzamxlquyr",
+      "productTitle": "X 2 TRIMMER PARA VELLOS NARIZ",
+      "productHandle": "x-2-trimmer-para-vellos-nariz-369356",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/369356/ES-999 (7).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 369356
+    },
+    {
+      "productId": "cml8ixfhq22zu0pnzg65p2ti0",
+      "productTitle": "Humificador luna y lampara difusor",
+      "productHandle": "humificador-luna-y-lampara-difusor-362502",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/362502/3hg3ToybHBWvgKDZYzQh5LZha4xX4spzwpJcRTb9.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 362502
+    },
+    {
+      "productId": "cml8ixfhq22zu0pnzg65p2ti0",
+      "productTitle": "Humificador luna y lampara difusor",
+      "productHandle": "humificador-luna-y-lampara-difusor-362502",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/362502/a2yx7B1oFYUrVyd9C3xUa34aKlCHBsmOasfd8J7h.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 362502
+    },
+    {
+      "productId": "cml8ixfhq22zu0pnzg65p2ti0",
+      "productTitle": "Humificador luna y lampara difusor",
+      "productHandle": "humificador-luna-y-lampara-difusor-362502",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/362502/WaU87XIHwXp9ewHhIl6cIIyMOBhWyAn87ml1pZKw.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 362502
+    },
+    {
+      "productId": "cml8ixpjk24l50pnzlmewhnnk",
+      "productTitle": "MINI AIRE PORTATIL",
+      "productHandle": "mini-aire-portatil-316094",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/316094/U8f6b2287cee44e739f1427b1f96e7c49D.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 316094
+    },
+    {
+      "productId": "cml8ixpjk24l50pnzlmewhnnk",
+      "productTitle": "MINI AIRE PORTATIL",
+      "productHandle": "mini-aire-portatil-316094",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/316094/U30464810b5c94f61aa08947e9262cb97u.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 316094
+    },
+    {
+      "productId": "cml8ixpjk24l50pnzlmewhnnk",
+      "productTitle": "MINI AIRE PORTATIL",
+      "productHandle": "mini-aire-portatil-316094",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/316094/Uad7825d75d4c47fcaef71604bcad86f8O.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 316094
+    },
+    {
+      "productId": "cml8ixv3a25f10pnzvhkgy6yu",
+      "productTitle": "Linterna Swat 818 Táctica Led Recargable",
+      "productHandle": "linterna-swat-818-tactica-led-recargable-281734",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/281734/4.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 281734
+    },
+    {
+      "productId": "cml8ixv3a25f10pnzvhkgy6yu",
+      "productTitle": "Linterna Swat 818 Táctica Led Recargable",
+      "productHandle": "linterna-swat-818-tactica-led-recargable-281734",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/281734/3.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 281734
+    },
+    {
+      "productId": "cml8ixv3a25f10pnzvhkgy6yu",
+      "productTitle": "Linterna Swat 818 Táctica Led Recargable",
+      "productHandle": "linterna-swat-818-tactica-led-recargable-281734",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/281734/2.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 281734
+    },
+    {
+      "productId": "cml8ixv3a25f10pnzvhkgy6yu",
+      "productTitle": "Linterna Swat 818 Táctica Led Recargable",
+      "productHandle": "linterna-swat-818-tactica-led-recargable-281734",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/281734/1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 281734
+    },
+    {
+      "productId": "cml8iy34w26ik0pnzb1t6wxpk",
+      "productTitle": "Trípode Soporte Para Celular Selfie Cama",
+      "productHandle": "tripode-soporte-para-celular-selfie-cama-242000",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242000/tripode1.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242000
+    },
+    {
+      "productId": "cml8iy34w26ik0pnzb1t6wxpk",
+      "productTitle": "Trípode Soporte Para Celular Selfie Cama",
+      "productHandle": "tripode-soporte-para-celular-selfie-cama-242000",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242000/tripode.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242000
+    },
+    {
+      "productId": "cml8iy34w26ik0pnzb1t6wxpk",
+      "productTitle": "Trípode Soporte Para Celular Selfie Cama",
+      "productHandle": "tripode-soporte-para-celular-selfie-cama-242000",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242000/Screenshot_46.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242000
+    },
+    {
+      "productId": "cml8iy3p226od0pnziawvtg4m",
+      "productTitle": "Quita Motas Removedor De Pelusas Recarga",
+      "productHandle": "quita-motas-removedor-de-pelusas-recarga-241493",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/241493/10000295_10168005_593853.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 241493
+    },
+    {
+      "productId": "cml8iy3p226od0pnziawvtg4m",
+      "productTitle": "Quita Motas Removedor De Pelusas Recarga",
+      "productHandle": "quita-motas-removedor-de-pelusas-recarga-241493",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/241493/10000295_10168005_593852.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 241493
+    },
+    {
+      "productId": "cml8iyb9h27wc0pnzl2ftwo8o",
+      "productTitle": "Organizador De 14 Huevos Soporte Nevera",
+      "productHandle": "organizador-de-14-huevos-soporte-nevera-191554",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/191554/Soporte Organizador de Huevos 8.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 191554
+    },
+    {
+      "productId": "cml8iyb9h27wc0pnzl2ftwo8o",
+      "productTitle": "Organizador De 14 Huevos Soporte Nevera",
+      "productHandle": "organizador-de-14-huevos-soporte-nevera-191554",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/191554/Soporte Organizador de Huevos 9.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 191554
+    },
+    {
+      "productId": "cml8iyb9h27wc0pnzl2ftwo8o",
+      "productTitle": "Organizador De 14 Huevos Soporte Nevera",
+      "productHandle": "organizador-de-14-huevos-soporte-nevera-191554",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/191554/Soporte Organizador de Huevos 4.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 191554
+    },
+    {
+      "productId": "cml8iyb9h27wc0pnzl2ftwo8o",
+      "productTitle": "Organizador De 14 Huevos Soporte Nevera",
+      "productHandle": "organizador-de-14-huevos-soporte-nevera-191554",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/191554/Soporte Organizador de Huevos 3.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 191554
+    },
+    {
+      "productId": "cml8iyb9h27wc0pnzl2ftwo8o",
+      "productTitle": "Organizador De 14 Huevos Soporte Nevera",
+      "productHandle": "organizador-de-14-huevos-soporte-nevera-191554",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/191554/Soporte Organizador de Huevos 1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 191554
+    },
+    {
+      "productId": "cml8iyg0r28od0pnziqrw52hv",
+      "productTitle": "Camara Para Exteriores Wifi / Caja Azul",
+      "productHandle": "camara-para-exteriores-wifi-caja-azul-146854",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/146854/3.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 146854
+    },
+    {
+      "productId": "cml8iyg0r28od0pnziqrw52hv",
+      "productTitle": "Camara Para Exteriores Wifi / Caja Azul",
+      "productHandle": "camara-para-exteriores-wifi-caja-azul-146854",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/146854/2.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 146854
+    },
+    {
+      "productId": "cml8iyg0r28od0pnziqrw52hv",
+      "productTitle": "Camara Para Exteriores Wifi / Caja Azul",
+      "productHandle": "camara-para-exteriores-wifi-caja-azul-146854",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/146854/1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 146854
+    },
+    {
+      "productId": "cml8iytrs2ayw0pnz208l1643",
+      "productTitle": "CESTA PARA AIRFRYIER 16CM",
+      "productHandle": "cesta-para-airfryier-16cm-59451",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/59451/NyqtkVqsf1XACULROGedXVEpkAylSC9FwsAhCQSy.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 59451
+    },
+    {
+      "productId": "cml8ixun025bl0pnzpadg68mp",
+      "productTitle": "BODY PARA ESCOTES",
+      "productHandle": "body-para-escotes-284579",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/284579/Untitled (45).jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 284579
+    },
+    {
+      "productId": "cml8ixv3s25f50pnzbl3buuu4",
+      "productTitle": "LAMPARA CON PANEL SOLAR CL-181-6",
+      "productHandle": "lampara-con-panel-solar-cl-181-6-281678",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/281678/CL-181-6.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 281678
+    },
+    {
+      "productId": "cml8iy69j273j0pnz2654kv4g",
+      "productTitle": "Kit Carga y Juega Pila Control Xbox 360",
+      "productHandle": "kit-carga-y-juega-pila-control-xbox-360-222964",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/222964/Kit Carga Y Juega Bateria Pila Xbox 360 2.JPG.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 222964
+    },
+    {
+      "productId": "cml8iy69j273j0pnz2654kv4g",
+      "productTitle": "Kit Carga y Juega Pila Control Xbox 360",
+      "productHandle": "kit-carga-y-juega-pila-control-xbox-360-222964",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/222964/KIT CARGA Y JUEGA 1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 222964
+    },
+    {
+      "productId": "cml8iy69j273j0pnz2654kv4g",
+      "productTitle": "Kit Carga y Juega Pila Control Xbox 360",
+      "productHandle": "kit-carga-y-juega-pila-control-xbox-360-222964",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/222964/KIT CARGA Y JUEGA.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 222964
+    },
+    {
+      "productId": "cml8iz0qv2c3z0pnzof3uv54x",
+      "productTitle": "ESTANTE GIRATORIO",
+      "productHandle": "estante-giratorio-11015",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/11015/VHFHFGHYJGHJGH.PNG",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 11015
+    },
+    {
+      "productId": "cml8ixv1w25et0pnzi8fqwrng",
+      "productTitle": "Caja de almacenamiento giratoria para co",
+      "productHandle": "caja-de-almacenamiento-giratoria-para-co-281945",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/281945/Screenshot_270.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 281945
+    },
+    {
+      "productId": "cml8ixv1w25et0pnzi8fqwrng",
+      "productTitle": "Caja de almacenamiento giratoria para co",
+      "productHandle": "caja-de-almacenamiento-giratoria-para-co-281945",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/281945/Screenshot_268.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 281945
+    },
+    {
+      "productId": "cml8ixv1w25et0pnzi8fqwrng",
+      "productTitle": "Caja de almacenamiento giratoria para co",
+      "productHandle": "caja-de-almacenamiento-giratoria-para-co-281945",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/281945/Screenshot_267.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 281945
+    },
+    {
+      "productId": "cml8ixv1w25et0pnzi8fqwrng",
+      "productTitle": "Caja de almacenamiento giratoria para co",
+      "productHandle": "caja-de-almacenamiento-giratoria-para-co-281945",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/281945/Screenshot_269.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 281945
+    },
+    {
+      "productId": "cml8ixv1w25et0pnzi8fqwrng",
+      "productTitle": "Caja de almacenamiento giratoria para co",
+      "productHandle": "caja-de-almacenamiento-giratoria-para-co-281945",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/281945/Screenshot_272.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 281945
+    },
+    {
+      "productId": "cml8ixv1w25et0pnzi8fqwrng",
+      "productTitle": "Caja de almacenamiento giratoria para co",
+      "productHandle": "caja-de-almacenamiento-giratoria-para-co-281945",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/281945/Screenshot_271.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 281945
+    },
+    {
+      "productId": "cml8ixx7525no0pnzfskrsuau",
+      "productTitle": "647447-CREMA REAFIRMANTE DE SENOS",
+      "productHandle": "647447-crema-reafirmante-de-senos-269333",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/269333/IMG_20220106_170853dd.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 269333
+    },
+    {
+      "productId": "cml8iyglw28ty0pnzjg6dkuhf",
+      "productTitle": "Dispensador De Jabón Lavaplatos Con Espo",
+      "productHandle": "dispensador-de-jabon-lavaplatos-con-espo-137873",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/137873/photo1662075562.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 137873
+    },
+    {
+      "productId": "cml8iyglw28ty0pnzjg6dkuhf",
+      "productTitle": "Dispensador De Jabón Lavaplatos Con Espo",
+      "productHandle": "dispensador-de-jabon-lavaplatos-con-espo-137873",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/137873/photo1662075562 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 137873
+    },
+    {
+      "productId": "cml8iyglw28ty0pnzjg6dkuhf",
+      "productTitle": "Dispensador De Jabón Lavaplatos Con Espo",
+      "productHandle": "dispensador-de-jabon-lavaplatos-con-espo-137873",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/137873/photo1662075562 (4).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 137873
+    },
+    {
+      "productId": "cml8iyglw28ty0pnzjg6dkuhf",
+      "productTitle": "Dispensador De Jabón Lavaplatos Con Espo",
+      "productHandle": "dispensador-de-jabon-lavaplatos-con-espo-137873",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/137873/photo1662075562 (3).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 137873
+    },
+    {
+      "productId": "cml8ixwg025l30pnzkoox8ozr",
+      "productTitle": "Almohada cervical dormir espuma viscoel",
+      "productHandle": "almohada-cervical-dormir-espuma-viscoel-273265",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/273265/Screenshot_215.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 273265
+    },
+    {
+      "productId": "cml8ixwg025l30pnzkoox8ozr",
+      "productTitle": "Almohada cervical dormir espuma viscoel",
+      "productHandle": "almohada-cervical-dormir-espuma-viscoel-273265",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/273265/Screenshot_214.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 273265
+    },
+    {
+      "productId": "cml8ixwg025l30pnzkoox8ozr",
+      "productTitle": "Almohada cervical dormir espuma viscoel",
+      "productHandle": "almohada-cervical-dormir-espuma-viscoel-273265",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/273265/Screenshot_217.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 273265
+    },
+    {
+      "productId": "cml8ixwg025l30pnzkoox8ozr",
+      "productTitle": "Almohada cervical dormir espuma viscoel",
+      "productHandle": "almohada-cervical-dormir-espuma-viscoel-273265",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/273265/Screenshot_216.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 273265
+    },
+    {
+      "productId": "cml8ixxo325rj0pnza3ps7y33",
+      "productTitle": "Kit Rotuladores doble Punta Marcador 36",
+      "productHandle": "kit-rotuladores-doble-punta-marcador-36-263957",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/263957/Screenshot_54.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 263957
+    },
+    {
+      "productId": "cml8ixxo325rj0pnza3ps7y33",
+      "productTitle": "Kit Rotuladores doble Punta Marcador 36",
+      "productHandle": "kit-rotuladores-doble-punta-marcador-36-263957",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/263957/Screenshot_51.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 263957
+    },
+    {
+      "productId": "cml8ixxo325rj0pnza3ps7y33",
+      "productTitle": "Kit Rotuladores doble Punta Marcador 36",
+      "productHandle": "kit-rotuladores-doble-punta-marcador-36-263957",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/263957/Screenshot_69.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 263957
+    },
+    {
+      "productId": "cml8ixxw925t70pnzt5j6fm6a",
+      "productTitle": "MICROFONO SOLAPA DOBLE TIPO C Y IPHONE.",
+      "productHandle": "microfono-solapa-doble-tipo-c-y-iphone-263012",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/263012/Captura de pantalla 2023-05-17 122735.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 263012
+    },
+    {
+      "productId": "cml8ixxw925t70pnzt5j6fm6a",
+      "productTitle": "MICROFONO SOLAPA DOBLE TIPO C Y IPHONE.",
+      "productHandle": "microfono-solapa-doble-tipo-c-y-iphone-263012",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/263012/Captura de pantalla 2023-05-17 122545.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 263012
+    },
+    {
+      "productId": "cml8ixxz225tv0pnzol35cwtb",
+      "productTitle": "Desmechador Trituradora de Pollo y Carne",
+      "productHandle": "desmechador-trituradora-de-pollo-y-carne-261711",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/261711/BMAF4ZYD2hrWaAkEui2x4SCqCKzUV11IGlsz9h7n.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 261711
+    },
+    {
+      "productId": "cml8ixxz225tv0pnzol35cwtb",
+      "productTitle": "Desmechador Trituradora de Pollo y Carne",
+      "productHandle": "desmechador-trituradora-de-pollo-y-carne-261711",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/261711/pollo123.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 261711
+    },
+    {
+      "productId": "cml8ixxz225tv0pnzol35cwtb",
+      "productTitle": "Desmechador Trituradora de Pollo y Carne",
+      "productHandle": "desmechador-trituradora-de-pollo-y-carne-261711",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/261711/pollo12.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 261711
+    },
+    {
+      "productId": "cml8ixxz225tv0pnzol35cwtb",
+      "productTitle": "Desmechador Trituradora de Pollo y Carne",
+      "productHandle": "desmechador-trituradora-de-pollo-y-carne-261711",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/261711/pollo1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 261711
+    },
+    {
+      "productId": "cml8ixxz225tv0pnzol35cwtb",
+      "productTitle": "Desmechador Trituradora de Pollo y Carne",
+      "productHandle": "desmechador-trituradora-de-pollo-y-carne-261711",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/261711/pollo.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 261711
+    },
+    {
+      "productId": "cml8ixz2z25xz0pnzfwz3ctfh",
+      "productTitle": "TRAPERO ESCURRIDOR MT",
+      "productHandle": "trapero-escurridor-mt-256601",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/256601/1 (5) (2).jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 256601
+    },
+    {
+      "productId": "cml8ixz2z25xz0pnzfwz3ctfh",
+      "productTitle": "TRAPERO ESCURRIDOR MT",
+      "productHandle": "trapero-escurridor-mt-256601",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/256601/1 (8) (1).jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 256601
+    },
+    {
+      "productId": "cml8ixzjv261g0pnzp1u71j32",
+      "productTitle": "VARILLAS PARA TUBERIA",
+      "productHandle": "varillas-para-tuberia-254767",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/254767/4_w1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 254767
+    },
+    {
+      "productId": "cml8ixzjv261g0pnzp1u71j32",
+      "productTitle": "VARILLAS PARA TUBERIA",
+      "productHandle": "varillas-para-tuberia-254767",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/254767/2_w1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 254767
+    },
+    {
+      "productId": "cml8ixzjv261g0pnzp1u71j32",
+      "productTitle": "VARILLAS PARA TUBERIA",
+      "productHandle": "varillas-para-tuberia-254767",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/254767/1_w1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 254767
+    },
+    {
+      "productId": "cml8iy0eh264k0pnzjymq3smz",
+      "productTitle": "319101-MASCARILLA DE HUEVO SLEEP",
+      "productHandle": "319101-mascarilla-de-huevo-sleep-253451",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/253451/319101.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 253451
+    },
+    {
+      "productId": "cml8iy0eh264k0pnzjymq3smz",
+      "productTitle": "319101-MASCARILLA DE HUEVO SLEEP",
+      "productHandle": "319101-mascarilla-de-huevo-sleep-253451",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/253451/319101.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 253451
+    },
+    {
+      "productId": "cml8iy0p9267l0pnzxp52p0p4",
+      "productTitle": "PIES PERFECTOS",
+      "productHandle": "pies-perfectos-252256",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/252256/1 (1).png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 252256
+    },
+    {
+      "productId": "cml8iy0p9267l0pnzxp52p0p4",
+      "productTitle": "PIES PERFECTOS",
+      "productHandle": "pies-perfectos-252256",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/252256/SmoothFeetPORTADA_720x720.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 252256
+    },
+    {
+      "productId": "cml8iy1k626bl0pnzckuq0xwv",
+      "productTitle": "GORRO SECADOR DE CABELLO",
+      "productHandle": "gorro-secador-de-cabello-246430",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/246430/main_image4Gorro-de-secado-de-pelo-suave-para-mujer-gorro-con-capucha-port-til-secador-de-pelo.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 246430
+    },
+    {
+      "productId": "cml8iy1k626bl0pnzckuq0xwv",
+      "productTitle": "GORRO SECADOR DE CABELLO",
+      "productHandle": "gorro-secador-de-cabello-246430",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/246430/main_image0Gorro-de-secado-de-pelo-suave-para-mujer-gorro-con-capucha-port-til-secador-de-pelo.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 246430
+    },
+    {
+      "productId": "cml8iy1k626bl0pnzckuq0xwv",
+      "productTitle": "GORRO SECADOR DE CABELLO",
+      "productHandle": "gorro-secador-de-cabello-246430",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/246430/main_image1Gorro-de-secado-de-pelo-suave-para-mujer-gorro-con-capucha-port-til-secador-de-pelo.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 246430
+    },
+    {
+      "productId": "cml8iy22v26fr0pnzor5ko2tv",
+      "productTitle": "CORRECTOR DE JUANETES",
+      "productHandle": "corrector-de-juanetes-242200",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242200/juanete7.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242200
+    },
+    {
+      "productId": "cml8iy22v26fr0pnzor5ko2tv",
+      "productTitle": "CORRECTOR DE JUANETES",
+      "productHandle": "corrector-de-juanetes-242200",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242200/juanete01.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242200
+    },
+    {
+      "productId": "cml8iy22v26fr0pnzor5ko2tv",
+      "productTitle": "CORRECTOR DE JUANETES",
+      "productHandle": "corrector-de-juanetes-242200",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242200/juanete0.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242200
+    },
+    {
+      "productId": "cml8iyblb27zv0pnz5nv3dbed",
+      "productTitle": "ALMOHADA PARA PIERNAS LEG PILLOW 1206",
+      "productHandle": "almohada-para-piernas-leg-pillow-1206-183583",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/183583/1206 (2).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 183583
+    },
+    {
+      "productId": "cml8iyblb27zv0pnz5nv3dbed",
+      "productTitle": "ALMOHADA PARA PIERNAS LEG PILLOW 1206",
+      "productHandle": "almohada-para-piernas-leg-pillow-1206-183583",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/183583/1206 (3).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 183583
+    },
+    {
+      "productId": "cml8iyblb27zv0pnz5nv3dbed",
+      "productTitle": "ALMOHADA PARA PIERNAS LEG PILLOW 1206",
+      "productHandle": "almohada-para-piernas-leg-pillow-1206-183583",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/183583/1206 (5).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 183583
+    },
+    {
+      "productId": "cml8iyblb27zv0pnz5nv3dbed",
+      "productTitle": "ALMOHADA PARA PIERNAS LEG PILLOW 1206",
+      "productHandle": "almohada-para-piernas-leg-pillow-1206-183583",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/183583/1206 (4).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 183583
+    },
+    {
+      "productId": "cml8iyblb27zv0pnz5nv3dbed",
+      "productTitle": "ALMOHADA PARA PIERNAS LEG PILLOW 1206",
+      "productHandle": "almohada-para-piernas-leg-pillow-1206-183583",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/183583/1206 (7).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 183583
+    },
+    {
+      "productId": "cml8iyblb27zv0pnz5nv3dbed",
+      "productTitle": "ALMOHADA PARA PIERNAS LEG PILLOW 1206",
+      "productHandle": "almohada-para-piernas-leg-pillow-1206-183583",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/183583/1206 (6).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 183583
+    },
+    {
+      "productId": "cml8iyblb27zv0pnz5nv3dbed",
+      "productTitle": "ALMOHADA PARA PIERNAS LEG PILLOW 1206",
+      "productHandle": "almohada-para-piernas-leg-pillow-1206-183583",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/183583/1206.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 183583
+    },
+    {
+      "productId": "cml8iy22e26fm0pnzpbb3wlo4",
+      "productTitle": "EJERCITADOR DE PIES",
+      "productHandle": "ejercitador-de-pies-242248",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242248/WhatsApp Image 2023-04-25 at 11.59.52 AM.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242248
+    },
+    {
+      "productId": "cml8iycik284e0pnzny3u1d8i",
+      "productTitle": "Medias de Compresion Zip Sox",
+      "productHandle": "medias-de-compresion-zip-sox-171818",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/171818/WhatsApp Image 2023-02-21 at 11.49.16.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 171818
+    },
+    {
+      "productId": "cml8iycik284e0pnzny3u1d8i",
+      "productTitle": "Medias de Compresion Zip Sox",
+      "productHandle": "medias-de-compresion-zip-sox-171818",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/171818/WhatsApp Image 2023-02-21 at 11.50.04.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 171818
+    },
+    {
+      "productId": "cml8iycik284e0pnzny3u1d8i",
+      "productTitle": "Medias de Compresion Zip Sox",
+      "productHandle": "medias-de-compresion-zip-sox-171818",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/171818/WhatsApp Image 2023-02-21 at 11.50.23.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 171818
+    },
+    {
+      "productId": "cml8iy24126g10pnz12m4g9at",
+      "productTitle": "CAR CAT TOY",
+      "productHandle": "car-cat-toy-242082",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242082/01 (1).gif",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242082
+    },
+    {
+      "productId": "cml8iy24126g10pnz12m4g9at",
+      "productTitle": "CAR CAT TOY",
+      "productHandle": "car-cat-toy-242082",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242082/01 (2).gif",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242082
+    },
+    {
+      "productId": "cml8iy24126g10pnz12m4g9at",
+      "productTitle": "CAR CAT TOY",
+      "productHandle": "car-cat-toy-242082",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242082/01 (6).jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242082
+    },
+    {
+      "productId": "cml8ix7h321hn0pnz8z6tmulq",
+      "productTitle": "ESTUCHE MANICURE (9 PCS) DS163",
+      "productHandle": "estuche-manicure-9-pcs-ds163-395522",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/395522/WhatsApp Image 2023-09-13 at 9.56.57 AM.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 395522
+    },
+    {
+      "productId": "cml8iys182amk0pnz74vdwmzs",
+      "productTitle": "Combo-5 unidades-Proyector Lampara Cielo",
+      "productHandle": "combo-5-unidades-proyector-lampara-cielo-67880",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/67880/WwTFBUO9AfTh5a2tqFKGQ7PHjbfUjI4SBKyoPg0f.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 67880
+    },
+    {
+      "productId": "cml8iys182amk0pnz74vdwmzs",
+      "productTitle": "Combo-5 unidades-Proyector Lampara Cielo",
+      "productHandle": "combo-5-unidades-proyector-lampara-cielo-67880",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/67880/14.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 67880
+    },
+    {
+      "productId": "cml8iys182amk0pnz74vdwmzs",
+      "productTitle": "Combo-5 unidades-Proyector Lampara Cielo",
+      "productHandle": "combo-5-unidades-proyector-lampara-cielo-67880",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/67880/13.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 67880
+    },
+    {
+      "productId": "cml8iys182amk0pnz74vdwmzs",
+      "productTitle": "Combo-5 unidades-Proyector Lampara Cielo",
+      "productHandle": "combo-5-unidades-proyector-lampara-cielo-67880",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/67880/12.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 67880
+    },
+    {
+      "productId": "cml8iys182amk0pnz74vdwmzs",
+      "productTitle": "Combo-5 unidades-Proyector Lampara Cielo",
+      "productHandle": "combo-5-unidades-proyector-lampara-cielo-67880",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/67880/lampara-2.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 67880
+    },
+    {
+      "productId": "cml8iy29126h50pnz363232rq",
+      "productTitle": "Plancha De Pelo A Vapor Profesional Styl",
+      "productHandle": "plancha-de-pelo-a-vapor-profesional-styl-242027",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242027/Screenshot_22.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242027
+    },
+    {
+      "productId": "cml8iy29126h50pnz363232rq",
+      "productTitle": "Plancha De Pelo A Vapor Profesional Styl",
+      "productHandle": "plancha-de-pelo-a-vapor-profesional-styl-242027",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242027/Screenshot_18.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242027
+    },
+    {
+      "productId": "cml8iy29126h50pnz363232rq",
+      "productTitle": "Plancha De Pelo A Vapor Profesional Styl",
+      "productHandle": "plancha-de-pelo-a-vapor-profesional-styl-242027",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242027/10000295_10038776_565187.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242027
+    },
+    {
+      "productId": "cml8iy29126h50pnz363232rq",
+      "productTitle": "Plancha De Pelo A Vapor Profesional Styl",
+      "productHandle": "plancha-de-pelo-a-vapor-profesional-styl-242027",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/242027/Screenshot_21.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 242027
+    },
+    {
+      "productId": "cml8ix6ik21cr0pnz4m1ws90j",
+      "productTitle": "CÁMARA V380 ENCHUFABLE",
+      "productHandle": "camara-v380-enchufable-403488",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/403488/a3f121f0b67c5cec765335117e700052.jfif",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 403488
+    },
+    {
+      "productId": "cml8iy35x26it0pnzq9yeg9eu",
+      "productTitle": "Guante Quita Pelo Masajeador Silicona",
+      "productHandle": "guante-quita-pelo-masajeador-silicona-241997",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/241997/Screenshot_61.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 241997
+    },
+    {
+      "productId": "cml8iy35x26it0pnzq9yeg9eu",
+      "productTitle": "Guante Quita Pelo Masajeador Silicona",
+      "productHandle": "guante-quita-pelo-masajeador-silicona-241997",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/241997/Screenshot_60.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 241997
+    },
+    {
+      "productId": "cml8iy35x26it0pnzq9yeg9eu",
+      "productTitle": "Guante Quita Pelo Masajeador Silicona",
+      "productHandle": "guante-quita-pelo-masajeador-silicona-241997",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/241997/D_NQ_NP_2X_767786-MCO26710031653_012018-F.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 241997
+    },
+    {
+      "productId": "cml8iyj07297z0pnzf32yjcw4",
+      "productTitle": "Juguete Interactivo Gatos Pluma Bola Cañ",
+      "productHandle": "juguete-interactivo-gatos-pluma-bola-can-121765",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/121765/dsf12.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 121765
+    },
+    {
+      "productId": "cml8iyj07297z0pnzf32yjcw4",
+      "productTitle": "Juguete Interactivo Gatos Pluma Bola Cañ",
+      "productHandle": "juguete-interactivo-gatos-pluma-bola-can-121765",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/121765/dsf.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 121765
+    },
+    {
+      "productId": "cml8iyj07297z0pnzf32yjcw4",
+      "productTitle": "Juguete Interactivo Gatos Pluma Bola Cañ",
+      "productHandle": "juguete-interactivo-gatos-pluma-bola-can-121765",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/121765/dsf1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 121765
+    },
+    {
+      "productId": "cml8ix7ks21io0pnzte1mgbnr",
+      "productTitle": "SOPORTE CELULAR MOTO IMPERMEABLE",
+      "productHandle": "soporte-celular-moto-impermeable-394563",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/394563/D_NQ_NP_2X_807524-MCO53586903497_022023-F.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 394563
+    },
+    {
+      "productId": "cml8ix7ks21io0pnzte1mgbnr",
+      "productTitle": "SOPORTE CELULAR MOTO IMPERMEABLE",
+      "productHandle": "soporte-celular-moto-impermeable-394563",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/394563/D_NQ_NP_2X_603710-MCO53586953327_022023-F.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 394563
+    },
+    {
+      "productId": "cml8ix7ks21io0pnzte1mgbnr",
+      "productTitle": "SOPORTE CELULAR MOTO IMPERMEABLE",
+      "productHandle": "soporte-celular-moto-impermeable-394563",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/394563/D_NQ_NP_2X_803322-MCO53586941360_022023-F.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 394563
+    },
+    {
+      "productId": "cml8ix8e021lv0pnz8d0y11w0",
+      "productTitle": "330212-CREMA MOLDEADORA DE GLUTEOS",
+      "productHandle": "330212-crema-moldeadora-de-gluteos-392100",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/392100/330212-2.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 392100
+    },
+    {
+      "productId": "cml8ix8e021lv0pnz8d0y11w0",
+      "productTitle": "330212-CREMA MOLDEADORA DE GLUTEOS",
+      "productHandle": "330212-crema-moldeadora-de-gluteos-392100",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/392100/330212.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 392100
+    },
+    {
+      "productId": "cml8ix8e021lv0pnz8d0y11w0",
+      "productTitle": "330212-CREMA MOLDEADORA DE GLUTEOS",
+      "productHandle": "330212-crema-moldeadora-de-gluteos-392100",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/392100/30212.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 392100
+    },
+    {
+      "productId": "cml8ix8e021lv0pnz8d0y11w0",
+      "productTitle": "330212-CREMA MOLDEADORA DE GLUTEOS",
+      "productHandle": "330212-crema-moldeadora-de-gluteos-392100",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/392100/Ecard Info.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 392100
+    },
+    {
+      "productId": "cml8ix8is21mz0pnzkw7xuen8",
+      "productTitle": "CUCHILLO TIJERA CLEVER CUTTER DS101",
+      "productHandle": "cuchillo-tijera-clever-cutter-ds101-390545",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/390545/DS101.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 390545
+    },
+    {
+      "productId": "cml8ixc0g22b90pnzu3pfhc9s",
+      "productTitle": "Metro nivel laser con tripode",
+      "productHandle": "metro-nivel-laser-con-tripode-379472",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/379472/Captura de pantalla 2023-09-01 172341.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 379472
+    },
+    {
+      "productId": "cml8ixc0g22b90pnzu3pfhc9s",
+      "productTitle": "Metro nivel laser con tripode",
+      "productHandle": "metro-nivel-laser-con-tripode-379472",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/379472/Captura de pantalla 2023-09-01 172415.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 379472
+    },
+    {
+      "productId": "cml8ix90u21qv0pnz87awksot",
+      "productTitle": "Mascara Halloween Luz Led",
+      "productHandle": "mascara-halloween-luz-led-389033",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/389033/WhatsApp Image 2023-09-07 at 12.02.39.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 389033
+    },
+    {
+      "productId": "cml8ix90u21qv0pnz87awksot",
+      "productTitle": "Mascara Halloween Luz Led",
+      "productHandle": "mascara-halloween-luz-led-389033",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/389033/WhatsApp Image 2023-09-08 at 09.53.24.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 389033
+    },
+    {
+      "productId": "cml8ix90u21qv0pnz87awksot",
+      "productTitle": "Mascara Halloween Luz Led",
+      "productHandle": "mascara-halloween-luz-led-389033",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/389033/WhatsApp Image 2023-09-08 at 09.53.24 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 389033
+    },
+    {
+      "productId": "cml8ix90u21qv0pnz87awksot",
+      "productTitle": "Mascara Halloween Luz Led",
+      "productHandle": "mascara-halloween-luz-led-389033",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/389033/WhatsApp Image 2023-09-08 at 09.53.24 (2).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 389033
+    },
+    {
+      "productId": "cml8ix90u21qv0pnz87awksot",
+      "productTitle": "Mascara Halloween Luz Led",
+      "productHandle": "mascara-halloween-luz-led-389033",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/389033/WhatsApp Image 2023-09-08 at 09.53.24 (3).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 389033
+    },
+    {
+      "productId": "cml8ix90u21qv0pnz87awksot",
+      "productTitle": "Mascara Halloween Luz Led",
+      "productHandle": "mascara-halloween-luz-led-389033",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/389033/WhatsApp Image 2023-09-08 at 09.53.24 (4).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 389033
+    },
+    {
+      "productId": "cml8ix90u21qv0pnz87awksot",
+      "productTitle": "Mascara Halloween Luz Led",
+      "productHandle": "mascara-halloween-luz-led-389033",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/389033/WhatsApp Image 2023-09-08 at 09.53.24 (5).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 389033
+    },
+    {
+      "productId": "cml8ix90u21qv0pnz87awksot",
+      "productTitle": "Mascara Halloween Luz Led",
+      "productHandle": "mascara-halloween-luz-led-389033",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/389033/WhatsApp Image 2023-09-08 at 09.53.24 (6).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 389033
+    },
+    {
+      "productId": "cml8ixb0w226q0pnzegww863q",
+      "productTitle": "Compresor  Aire Amarillo Llanta Carro",
+      "productHandle": "compresor-aire-amarillo-llanta-carro-383571",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/383571/heb4NWPx8Dn8cuMrKmkPYbgzs4fisfHWIrfXNIa1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 383571
+    },
+    {
+      "productId": "cml8ixb0w226q0pnzegww863q",
+      "productTitle": "Compresor  Aire Amarillo Llanta Carro",
+      "productHandle": "compresor-aire-amarillo-llanta-carro-383571",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/383571/WhatsApp Image 2023-09-04 at 21.06.48.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 383571
+    },
+    {
+      "productId": "cml8ixdnn22oh0pnzz6yvqaso",
+      "productTitle": "GUANTES SPIDER MAN",
+      "productHandle": "guantes-spider-man-373940",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/373940/11697264-3e13-442f-b26b-39d6c8ff10a9.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 373940
+    },
+    {
+      "productId": "cml8ixcmh22fr0pnzq6qhcdxf",
+      "productTitle": "Brassier levanta busto",
+      "productHandle": "brassier-levanta-busto-377985",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/377985/WhatsApp Image 2022-12-15 at 13.13.26.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 377985
+    },
+    {
+      "productId": "cml8ixcmh22fr0pnzq6qhcdxf",
+      "productTitle": "Brassier levanta busto",
+      "productHandle": "brassier-levanta-busto-377985",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/377985/WhatsApp Image 2022-12-15 at 13.53.23.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 377985
+    },
+    {
+      "productId": "cml8ixcmh22fr0pnzq6qhcdxf",
+      "productTitle": "Brassier levanta busto",
+      "productHandle": "brassier-levanta-busto-377985",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/377985/brassier cocoa.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 377985
+    },
+    {
+      "productId": "cml8ixcmh22fr0pnzq6qhcdxf",
+      "productTitle": "Brassier levanta busto",
+      "productHandle": "brassier-levanta-busto-377985",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/377985/brassierr n.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 377985
+    },
+    {
+      "productId": "cml8ixcmh22fr0pnzq6qhcdxf",
+      "productTitle": "Brassier levanta busto",
+      "productHandle": "brassier-levanta-busto-377985",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/377985/WhatsApp Image 2022-12-15 at 14.27.55 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 377985
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda Verde 11.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda Verde 10.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda Verde 5.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda verde 4.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda Verde 3.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda Verde 2.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda Verde 1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda Negra 7.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda Negra 6.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda negra 6.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda negra 5.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda negra 4.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda Negra 3.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda Negra 2.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8ixdeh22m50pnzf1z66o1l",
+      "productTitle": "Falda Short Control de abdomen",
+      "productHandle": "falda-short-control-de-abdomen-376092",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/376092/Falda Negra 1.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 376092
+    },
+    {
+      "productId": "cml8iycs628710pnzn6ie3ddu",
+      "productTitle": "BASCULA PERSONAL KB-CP203",
+      "productHandle": "bascula-personal-kb-cp203-165844",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/165844/ILQWdGBQbcs4QvbVNbWLeYm90uN3cempu7IQfq4h.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 165844
+    },
+    {
+      "productId": "cml8iycs628710pnzn6ie3ddu",
+      "productTitle": "BASCULA PERSONAL KB-CP203",
+      "productHandle": "bascula-personal-kb-cp203-165844",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/165844/RVi5cpWLg6QwRH8mVfS9OBMUdj2MD0NlBTDAZ2Ok.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 165844
+    },
+    {
+      "productId": "cml8iycs628710pnzn6ie3ddu",
+      "productTitle": "BASCULA PERSONAL KB-CP203",
+      "productHandle": "bascula-personal-kb-cp203-165844",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/165844/F20DtTDjWJSD7hksEmszcSoRD5iCbk5y5x5txCWs.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 165844
+    },
+    {
+      "productId": "cml8iycs628710pnzn6ie3ddu",
+      "productTitle": "BASCULA PERSONAL KB-CP203",
+      "productHandle": "bascula-personal-kb-cp203-165844",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/165844/J8ZzyYjuDo7O31lWjVf3F1HLple7TK3lvWR2szHk.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 165844
+    },
+    {
+      "productId": "cml8ixfam22xs0pnzw0xt9hnv",
+      "productTitle": "Parches Adelgazantes Para Abdomen",
+      "productHandle": "parches-adelgazantes-para-abdomen-366606",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/366606/10000295_10353607_1158631.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 366606
+    },
+    {
+      "productId": "cml8ixfam22xs0pnzw0xt9hnv",
+      "productTitle": "Parches Adelgazantes Para Abdomen",
+      "productHandle": "parches-adelgazantes-para-abdomen-366606",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/366606/10000295_10353607_1158632.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 366606
+    },
+    {
+      "productId": "cml8ixfam22xs0pnzw0xt9hnv",
+      "productTitle": "Parches Adelgazantes Para Abdomen",
+      "productHandle": "parches-adelgazantes-para-abdomen-366606",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/366606/10000295_10353607_1158634.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 366606
+    },
+    {
+      "productId": "cml8ixglw235j0pnz879fy85c",
+      "productTitle": "Cortador De Verduras Multifuncional De M",
+      "productHandle": "cortador-de-verduras-multifuncional-de-m-358218",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/358218/Diseño sin título - 2023-08-14T155131.706.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 358218
+    },
+    {
+      "productId": "cml8ixglw235j0pnz879fy85c",
+      "productTitle": "Cortador De Verduras Multifuncional De M",
+      "productHandle": "cortador-de-verduras-multifuncional-de-m-358218",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/358218/Diseño sin título - 2023-08-14T155110.664.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 358218
+    },
+    {
+      "productId": "cml8ixglw235j0pnz879fy85c",
+      "productTitle": "Cortador De Verduras Multifuncional De M",
+      "productHandle": "cortador-de-verduras-multifuncional-de-m-358218",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/358218/Diseño sin título - 2023-08-14T155045.711.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 358218
+    },
+    {
+      "productId": "cml8ixgsr23710pnzksac3zzj",
+      "productTitle": "ELEVADOR DE COLCHON X2",
+      "productHandle": "elevador-de-colchon-x2-357859",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/357859/H838919b3e22649619cba41b6f8b5832.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 357859
+    },
+    {
+      "productId": "cml8ixgsr23710pnzksac3zzj",
+      "productTitle": "ELEVADOR DE COLCHON X2",
+      "productHandle": "elevador-de-colchon-x2-357859",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/357859/Hec67311361d34b038612c3a7a28411c.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 357859
+    },
+    {
+      "productId": "cml8ixgsr23710pnzksac3zzj",
+      "productTitle": "ELEVADOR DE COLCHON X2",
+      "productHandle": "elevador-de-colchon-x2-357859",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/357859/H0eab7d6bc0e74473bd217edccd8e9c6.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 357859
+    },
+    {
+      "productId": "cml8ixgsr23710pnzksac3zzj",
+      "productTitle": "ELEVADOR DE COLCHON X2",
+      "productHandle": "elevador-de-colchon-x2-357859",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/357859/H3159246186ba4f30aa787d7756ebdd4.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 357859
+    },
+    {
+      "productId": "cml8ixh20238o0pnzn11n90g3",
+      "productTitle": "CEPILLO DE MASCOTAS PRO",
+      "productHandle": "cepillo-de-mascotas-pro-357670",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/357670/Untitled - 2023-08-16T114246.790.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 357670
+    },
+    {
+      "productId": "cml8iximk23gl0pnz9shbd9op",
+      "productTitle": "Almohadilla calefactora para brazo y cod",
+      "productHandle": "almohadilla-calefactora-para-brazo-y-cod-350770",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/350770/Screenshot_528.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 350770
+    },
+    {
+      "productId": "cml8iximk23gl0pnz9shbd9op",
+      "productTitle": "Almohadilla calefactora para brazo y cod",
+      "productHandle": "almohadilla-calefactora-para-brazo-y-cod-350770",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/350770/Screenshot_527.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 350770
+    },
+    {
+      "productId": "cml8iximk23gl0pnz9shbd9op",
+      "productTitle": "Almohadilla calefactora para brazo y cod",
+      "productHandle": "almohadilla-calefactora-para-brazo-y-cod-350770",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/350770/Screenshot_526.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 350770
+    },
+    {
+      "productId": "cml8iximk23gl0pnz9shbd9op",
+      "productTitle": "Almohadilla calefactora para brazo y cod",
+      "productHandle": "almohadilla-calefactora-para-brazo-y-cod-350770",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/350770/Screenshot_525.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 350770
+    },
+    {
+      "productId": "cml8iyj8m299x0pnzvkqg1ujn",
+      "productTitle": "BODY RELOJ DE ARENA PIEL",
+      "productHandle": "body-reloj-de-arena-piel-118565",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/118565/OZr8sb4xABRxOcxA9lSRMR7XCP7l57KxGxpKpSqQ.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 118565
+    },
+    {
+      "productId": "cml8ixiqx23hj0pnzi45xmq2m",
+      "productTitle": "Aspiradora De Carro Polvo Pelo De Mascot",
+      "productHandle": "aspiradora-de-carro-polvo-pelo-de-mascot-350619",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/350619/3.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 350619
+    },
+    {
+      "productId": "cml8ixiqx23hj0pnzi45xmq2m",
+      "productTitle": "Aspiradora De Carro Polvo Pelo De Mascot",
+      "productHandle": "aspiradora-de-carro-polvo-pelo-de-mascot-350619",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/350619/2.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 350619
+    },
+    {
+      "productId": "cml8ixiqx23hj0pnzi45xmq2m",
+      "productTitle": "Aspiradora De Carro Polvo Pelo De Mascot",
+      "productHandle": "aspiradora-de-carro-polvo-pelo-de-mascot-350619",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/350619/1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 350619
+    },
+    {
+      "productId": "cml8ixjei23jf0pnzabf6g4rk",
+      "productTitle": "LÁPIZ 3D DIBUJO",
+      "productHandle": "lapiz-3d-dibujo-348533",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/348533/Diseño sin título - 2023-03-04T143826.018.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 348533
+    },
+    {
+      "productId": "cml8ixjei23jf0pnzabf6g4rk",
+      "productTitle": "LÁPIZ 3D DIBUJO",
+      "productHandle": "lapiz-3d-dibujo-348533",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/348533/Diseño sin título - 2023-03-04T144459.636.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 348533
+    },
+    {
+      "productId": "cml8ixjei23jf0pnzabf6g4rk",
+      "productTitle": "LÁPIZ 3D DIBUJO",
+      "productHandle": "lapiz-3d-dibujo-348533",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/348533/Diseño sin título - 2023-03-04T143954.604.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 348533
+    },
+    {
+      "productId": "cml8ixiwz23iu0pnz61qj9ubj",
+      "productTitle": "Mini Afeitadora EléctricaProfesionalHWT8",
+      "productHandle": "mini-afeitadora-electricaprofesionalhwt8-349629",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/349629/4.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 349629
+    },
+    {
+      "productId": "cml8ixiwz23iu0pnz61qj9ubj",
+      "productTitle": "Mini Afeitadora EléctricaProfesionalHWT8",
+      "productHandle": "mini-afeitadora-electricaprofesionalhwt8-349629",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/349629/1.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 349629
+    },
+    {
+      "productId": "cml8ixiwz23iu0pnz61qj9ubj",
+      "productTitle": "Mini Afeitadora EléctricaProfesionalHWT8",
+      "productHandle": "mini-afeitadora-electricaprofesionalhwt8-349629",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/349629/2.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 349629
+    },
+    {
+      "productId": "cml8ixiwz23iu0pnz61qj9ubj",
+      "productTitle": "Mini Afeitadora EléctricaProfesionalHWT8",
+      "productHandle": "mini-afeitadora-electricaprofesionalhwt8-349629",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/349629/3.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 349629
+    },
+    {
+      "productId": "cml8ixk6m23q60pnz45exwcop",
+      "productTitle": "Reloj Smart Watch Tipo Apple Series 8",
+      "productHandle": "reloj-smart-watch-tipo-apple-series-8-339836",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/339836/WhatsApp Image 2023-06-23 at 15.26.42 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 339836
+    },
+    {
+      "productId": "cml8ixk6m23q60pnz45exwcop",
+      "productTitle": "Reloj Smart Watch Tipo Apple Series 8",
+      "productHandle": "reloj-smart-watch-tipo-apple-series-8-339836",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/339836/WhatsApp Image 2023-06-23 at 16.07.36 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 339836
+    },
+    {
+      "productId": "cml8ixlqx23y80pnz57gpgezl",
+      "productTitle": "Sarten Antiadherente Multiusos 3 En 1",
+      "productHandle": "sarten-antiadherente-multiusos-3-en-1-336235",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/336235/OieDV1kBRHM2SxMVRmjnULidreNwhOu86orrtrVS.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 336235
+    },
+    {
+      "productId": "cml8ixnib24810pnz0m1klqkz",
+      "productTitle": "Máquina Wahl Super Combo Magic Clip + De",
+      "productHandle": "maquina-wahl-super-combo-magic-clip-de-328389",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/328389/Diseño sin título - 2023-07-19T135308.562.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 328389
+    },
+    {
+      "productId": "cml8ixnib24810pnz0m1klqkz",
+      "productTitle": "Máquina Wahl Super Combo Magic Clip + De",
+      "productHandle": "maquina-wahl-super-combo-magic-clip-de-328389",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/328389/Diseño sin título - 2023-07-19T135105.432.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 328389
+    },
+    {
+      "productId": "cml8ixnib24810pnz0m1klqkz",
+      "productTitle": "Máquina Wahl Super Combo Magic Clip + De",
+      "productHandle": "maquina-wahl-super-combo-magic-clip-de-328389",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/328389/Diseño sin título - 2023-07-19T134940.617.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 328389
+    },
+    {
+      "productId": "cml8ixnib24810pnz0m1klqkz",
+      "productTitle": "Máquina Wahl Super Combo Magic Clip + De",
+      "productHandle": "maquina-wahl-super-combo-magic-clip-de-328389",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/328389/Diseño sin título - 2023-07-19T135050.533.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 328389
+    },
+    {
+      "productId": "cml8ixnib24810pnz0m1klqkz",
+      "productTitle": "Máquina Wahl Super Combo Magic Clip + De",
+      "productHandle": "maquina-wahl-super-combo-magic-clip-de-328389",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/328389/Diseño sin título - 2023-07-19T135016.624.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 328389
+    },
+    {
+      "productId": "cml8ixmfk243y0pnzi2wyexv5",
+      "productTitle": "Molinillo eléctrico  sal y pimienta pila",
+      "productHandle": "molinillo-electrico-sal-y-pimienta-pila-332642",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/332642/Screenshot_441.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 332642
+    },
+    {
+      "productId": "cml8ixmfk243y0pnzi2wyexv5",
+      "productTitle": "Molinillo eléctrico  sal y pimienta pila",
+      "productHandle": "molinillo-electrico-sal-y-pimienta-pila-332642",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/332642/Screenshot_440.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 332642
+    },
+    {
+      "productId": "cml8ixmfk243y0pnzi2wyexv5",
+      "productTitle": "Molinillo eléctrico  sal y pimienta pila",
+      "productHandle": "molinillo-electrico-sal-y-pimienta-pila-332642",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/332642/Screenshot_442.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 332642
+    },
+    {
+      "productId": "cml8ixmfk243y0pnzi2wyexv5",
+      "productTitle": "Molinillo eléctrico  sal y pimienta pila",
+      "productHandle": "molinillo-electrico-sal-y-pimienta-pila-332642",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/332642/Screenshot_436.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 332642
+    },
+    {
+      "productId": "cml8ixmfk243y0pnzi2wyexv5",
+      "productTitle": "Molinillo eléctrico  sal y pimienta pila",
+      "productHandle": "molinillo-electrico-sal-y-pimienta-pila-332642",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/332642/Screenshot_438.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 332642
+    },
+    {
+      "productId": "cml8ixmfk243y0pnzi2wyexv5",
+      "productTitle": "Molinillo eléctrico  sal y pimienta pila",
+      "productHandle": "molinillo-electrico-sal-y-pimienta-pila-332642",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/332642/Screenshot_439.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 332642
+    },
+    {
+      "productId": "cml8ixn7s245p0pnzi32d2vbj",
+      "productTitle": "Corrector de Postura Inteligente Sensor",
+      "productHandle": "corrector-de-postura-inteligente-sensor-330436",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/330436/9dSV8fngWkjXu1OviqNTIRqXqqDa0g598XD9wWgP.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 330436
+    },
+    {
+      "productId": "cml8ixn7s245p0pnzi32d2vbj",
+      "productTitle": "Corrector de Postura Inteligente Sensor",
+      "productHandle": "corrector-de-postura-inteligente-sensor-330436",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/330436/BDDDbG6IHTSL0QVH3i7X7MFh4vprvHNapAFvg9OB.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 330436
+    },
+    {
+      "productId": "cml8ixn7s245p0pnzi32d2vbj",
+      "productTitle": "Corrector de Postura Inteligente Sensor",
+      "productHandle": "corrector-de-postura-inteligente-sensor-330436",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/330436/PTyex9XR4UqLaYLtj3jA9wvX4ubly2x0YzkaelpI.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 330436
+    },
+    {
+      "productId": "cml8ixn7s245p0pnzi32d2vbj",
+      "productTitle": "Corrector de Postura Inteligente Sensor",
+      "productHandle": "corrector-de-postura-inteligente-sensor-330436",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/330436/h30FRKF6Mf6ABJB4d5SdcDB5NPIKdqCPsUUFBHEo.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 330436
+    },
+    {
+      "productId": "cml8ixn7s245p0pnzi32d2vbj",
+      "productTitle": "Corrector de Postura Inteligente Sensor",
+      "productHandle": "corrector-de-postura-inteligente-sensor-330436",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/330436/Zg6yaOiouoqo7xXGBVn0WmQvKStjCxp2A2SxthaX.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 330436
+    },
+    {
+      "productId": "cml8iy3hm26mc0pnzfpjfif0o",
+      "productTitle": "Calentador Olla Cera + Cera Depil",
+      "productHandle": "calentador-olla-cera-cera-depil-241595",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/241595/Screenshot_3.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 241595
+    },
+    {
+      "productId": "cml8iy3hm26mc0pnzfpjfif0o",
+      "productTitle": "Calentador Olla Cera + Cera Depil",
+      "productHandle": "calentador-olla-cera-cera-depil-241595",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/241595/Screenshot_4.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 241595
+    },
+    {
+      "productId": "cml8iy3hm26mc0pnzfpjfif0o",
+      "productTitle": "Calentador Olla Cera + Cera Depil",
+      "productHandle": "calentador-olla-cera-cera-depil-241595",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/241595/Screenshot_5.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 241595
+    },
+    {
+      "productId": "cml8ixoeo24fd0pnz410a4vnn",
+      "productTitle": "Molde Protector para freidora silicona",
+      "productHandle": "molde-protector-para-freidora-silicona-320449",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/320449/10000295_10386294_1305726.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 320449
+    },
+    {
+      "productId": "cml8ixoeo24fd0pnz410a4vnn",
+      "productTitle": "Molde Protector para freidora silicona",
+      "productHandle": "molde-protector-para-freidora-silicona-320449",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/320449/10000295_10386294_1305725.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 320449
+    },
+    {
+      "productId": "cml8ixoeo24fd0pnz410a4vnn",
+      "productTitle": "Molde Protector para freidora silicona",
+      "productHandle": "molde-protector-para-freidora-silicona-320449",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/320449/10000295_10386294_1305724.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 320449
+    },
+    {
+      "productId": "cml8ixp6k24hu0pnzdare9byo",
+      "productTitle": "Gallina DE HUEVOS hervidor",
+      "productHandle": "gallina-de-huevos-hervidor-317998",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/317998/KsCNyI9AmibvgK5gKF6dAhSLZePzo1Xq338whJcm.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 317998
+    },
+    {
+      "productId": "cml8ixp6k24hu0pnzdare9byo",
+      "productTitle": "Gallina DE HUEVOS hervidor",
+      "productHandle": "gallina-de-huevos-hervidor-317998",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/317998/M7LALY6jaCg0K5rcD4aYxIkMxUFu48bySlv8wYW2.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 317998
+    },
+    {
+      "productId": "cml8ixp6k24hu0pnzdare9byo",
+      "productTitle": "Gallina DE HUEVOS hervidor",
+      "productHandle": "gallina-de-huevos-hervidor-317998",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/317998/WV4VfkVbtWrkg8b28AJ5Jbx3Ogc3NrgY5GtBI3jW.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 317998
+    },
+    {
+      "productId": "cml8ixp6k24hu0pnzdare9byo",
+      "productTitle": "Gallina DE HUEVOS hervidor",
+      "productHandle": "gallina-de-huevos-hervidor-317998",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/317998/mmxK03PdNvcgtO7XTjnE9fHPo9xS3xt5yd0106sH.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 317998
+    },
+    {
+      "productId": "cml8ixp6k24hu0pnzdare9byo",
+      "productTitle": "Gallina DE HUEVOS hervidor",
+      "productHandle": "gallina-de-huevos-hervidor-317998",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/317998/U9zNfdZPs9q1nS0ASsCeoFtJQBzFZr83z6XzNkGz.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 317998
+    },
+    {
+      "productId": "cml8ixp6k24hu0pnzdare9byo",
+      "productTitle": "Gallina DE HUEVOS hervidor",
+      "productHandle": "gallina-de-huevos-hervidor-317998",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/317998/XCkNT21Xk8tybY6nNLvLkqFqSAFm0uKVGqX35uiZ.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 317998
+    },
+    {
+      "productId": "cml8ixp6k24hu0pnzdare9byo",
+      "productTitle": "Gallina DE HUEVOS hervidor",
+      "productHandle": "gallina-de-huevos-hervidor-317998",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/317998/76grBzrO8vlEMIEn62GzYTqDk7JGenIxcFgYVHzy.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 317998
+    },
+    {
+      "productId": "cml8ixpj624l00pnz7vi4ra7e",
+      "productTitle": "VAPORIZADOR FACIAL SAUNA",
+      "productHandle": "vaporizador-facial-sauna-316205",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/316205/os9Xm50845PKwIisvtUcoA2YKBM82l2gsGu9vGM3.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 316205
+    },
+    {
+      "productId": "cml8ixqm124p00pnzuiqmrcxb",
+      "productTitle": "REMOVEDOR DE CALLOS Recargables",
+      "productHandle": "removedor-de-callos-recargables-311487",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/311487/callo2.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 311487
+    },
+    {
+      "productId": "cml8ixqt724qm0pnz7an9kwlj",
+      "productTitle": "MEDIAS DE COMPRESIÓN DEPORTIVAS",
+      "productHandle": "medias-de-compresion-deportivas-310958",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/310958/WhatsApp Image 2023-07-06 at 21.20.00.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 310958
+    },
+    {
+      "productId": "cml8ixqt724qm0pnz7an9kwlj",
+      "productTitle": "MEDIAS DE COMPRESIÓN DEPORTIVAS",
+      "productHandle": "medias-de-compresion-deportivas-310958",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/310958/WhatsApp Image 2023-07-06 at 21.19.59.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 310958
+    },
+    {
+      "productId": "cml8ixqt724qm0pnz7an9kwlj",
+      "productTitle": "MEDIAS DE COMPRESIÓN DEPORTIVAS",
+      "productHandle": "medias-de-compresion-deportivas-310958",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/310958/WhatsApp Image 2023-07-06 at 21.19.59 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 310958
+    },
+    {
+      "productId": "cml8ixqt724qm0pnz7an9kwlj",
+      "productTitle": "MEDIAS DE COMPRESIÓN DEPORTIVAS",
+      "productHandle": "medias-de-compresion-deportivas-310958",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/310958/WhatsApp Image 2023-07-06 at 21.19.59 (2).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 310958
+    },
+    {
+      "productId": "cml8ixt6425550pnzf0eg384k",
+      "productTitle": "X 2 AMPLIFICADOR PARA CELULAR",
+      "productHandle": "x-2-amplificador-para-celular-293126",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/293126/AMPLIFICADOR DE PANTALLA.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 293126
+    },
+    {
+      "productId": "cml8ixtsf255s0pnzfllbldcv",
+      "productTitle": "Parche adelgazante de abdomen x 5und",
+      "productHandle": "parche-adelgazante-de-abdomen-x-5und-292816",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/292816/204.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 292816
+    },
+    {
+      "productId": "cml8ixtsf255s0pnzfllbldcv",
+      "productTitle": "Parche adelgazante de abdomen x 5und",
+      "productHandle": "parche-adelgazante-de-abdomen-x-5und-292816",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/292816/203.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 292816
+    },
+    {
+      "productId": "cml8ixtsf255s0pnzfllbldcv",
+      "productTitle": "Parche adelgazante de abdomen x 5und",
+      "productHandle": "parche-adelgazante-de-abdomen-x-5und-292816",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/292816/202.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 292816
+    },
+    {
+      "productId": "cml8ixtsf255s0pnzfllbldcv",
+      "productTitle": "Parche adelgazante de abdomen x 5und",
+      "productHandle": "parche-adelgazante-de-abdomen-x-5und-292816",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/292816/201.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 292816
+    },
+    {
+      "productId": "cml8ixtsf255s0pnzfllbldcv",
+      "productTitle": "Parche adelgazante de abdomen x 5und",
+      "productHandle": "parche-adelgazante-de-abdomen-x-5und-292816",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/292816/200.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 292816
+    },
+    {
+      "productId": "cml8iy4lj26sk0pnz0b3mcbut",
+      "productTitle": "Linterna Reflector Lampara Solar Led Cab",
+      "productHandle": "linterna-reflector-lampara-solar-led-cab-241282",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/241282/10000295_10344592_1118460.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 241282
+    },
+    {
+      "productId": "cml8iy4lj26sk0pnz0b3mcbut",
+      "productTitle": "Linterna Reflector Lampara Solar Led Cab",
+      "productHandle": "linterna-reflector-lampara-solar-led-cab-241282",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/241282/10000295_10344592_1118461.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 241282
+    },
+    {
+      "productId": "cml8iy4lj26sk0pnz0b3mcbut",
+      "productTitle": "Linterna Reflector Lampara Solar Led Cab",
+      "productHandle": "linterna-reflector-lampara-solar-led-cab-241282",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/241282/10000295_10344592_1118458.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 241282
+    },
+    {
+      "productId": "cml8iy6to274n0pnz9mcvvx7x",
+      "productTitle": "COLLAR ISABELINO",
+      "productHandle": "collar-isabelino-221808",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/221808/WhatsApp Image 2021-10-25 at 09.58.20 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 221808
+    },
+    {
+      "productId": "cml8iy6to274n0pnz9mcvvx7x",
+      "productTitle": "COLLAR ISABELINO",
+      "productHandle": "collar-isabelino-221808",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/221808/WhatsApp Image 2021-10-25 at 09.58.20 (3).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 221808
+    },
+    {
+      "productId": "cml8iy6to274n0pnz9mcvvx7x",
+      "productTitle": "COLLAR ISABELINO",
+      "productHandle": "collar-isabelino-221808",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/221808/WhatsApp Image 2021-10-25 at 09.58.20.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 221808
+    },
+    {
+      "productId": "cml8iy4p426tj0pnzk34kd0hu",
+      "productTitle": "PICADOR VERTICAL",
+      "productHandle": "picador-vertical-240968",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/240968/pLcmeAtb1146YLE8weNQA8C9CtzwXQsAtFWcDE5J.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 240968
+    },
+    {
+      "productId": "cml8iy4s126uc0pnzx4azic5t",
+      "productTitle": "ASPERSOR DE JARDIN 360",
+      "productHandle": "aspersor-de-jardin-360-238830",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/238830/818jGWU4oHL._AC_SX522_.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 238830
+    },
+    {
+      "productId": "cml8iy4s126uc0pnzx4azic5t",
+      "productTitle": "ASPERSOR DE JARDIN 360",
+      "productHandle": "aspersor-de-jardin-360-238830",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/238830/6tx0Fr7H0djniliX25OkC8kDvJtHscXxE5mef8vc.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 238830
+    },
+    {
+      "productId": "cml8iy4s126uc0pnzx4azic5t",
+      "productTitle": "ASPERSOR DE JARDIN 360",
+      "productHandle": "aspersor-de-jardin-360-238830",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/238830/bDloHxilJBp8jbo2zufe02yToZQbFvemjfhBFsdR.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 238830
+    },
+    {
+      "productId": "cml8iy8l027h80pnztt6d7xyn",
+      "productTitle": "CINTA ADHESIVA IVY GRIP TAPE",
+      "productHandle": "cinta-adhesiva-ivy-grip-tape-205258",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/205258/cinta pegamento.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 205258
+    },
+    {
+      "productId": "cml8iy8l027h80pnztt6d7xyn",
+      "productTitle": "CINTA ADHESIVA IVY GRIP TAPE",
+      "productHandle": "cinta-adhesiva-ivy-grip-tape-205258",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/205258/cinta doble faz.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 205258
+    },
+    {
+      "productId": "cml8iy8l027h80pnztt6d7xyn",
+      "productTitle": "CINTA ADHESIVA IVY GRIP TAPE",
+      "productHandle": "cinta-adhesiva-ivy-grip-tape-205258",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/205258/cinta 1.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 205258
+    },
+    {
+      "productId": "cml8iya7l27qy0pnzbmqtx39a",
+      "productTitle": "Hdmi Switch Multiplicador Selector 3x1",
+      "productHandle": "hdmi-switch-multiplicador-selector-3x1-195095",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/195095/Hdmi Switch Multiplicador 5.JPG",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 195095
+    },
+    {
+      "productId": "cml8iya7l27qy0pnzbmqtx39a",
+      "productTitle": "Hdmi Switch Multiplicador Selector 3x1",
+      "productHandle": "hdmi-switch-multiplicador-selector-3x1-195095",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/195095/Hdmi Switch Multiplicador 3.JPG",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 195095
+    },
+    {
+      "productId": "cml8iya7l27qy0pnzbmqtx39a",
+      "productTitle": "Hdmi Switch Multiplicador Selector 3x1",
+      "productHandle": "hdmi-switch-multiplicador-selector-3x1-195095",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/195095/Hdmi Switch Multiplicador 8.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 195095
+    },
+    {
+      "productId": "cml8iya7l27qy0pnzbmqtx39a",
+      "productTitle": "Hdmi Switch Multiplicador Selector 3x1",
+      "productHandle": "hdmi-switch-multiplicador-selector-3x1-195095",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/195095/Hdmi Switch Multiplicador 6.JPG",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 195095
+    },
+    {
+      "productId": "cml8iya7l27qy0pnzbmqtx39a",
+      "productTitle": "Hdmi Switch Multiplicador Selector 3x1",
+      "productHandle": "hdmi-switch-multiplicador-selector-3x1-195095",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/195095/Hdmi Switch Multiplicador 1.JPG",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 195095
+    },
+    {
+      "productId": "cml8iydgy289u0pnzfsk3z45z",
+      "productTitle": "Wahl Professional vinotinto",
+      "productHandle": "wahl-professional-vinotinto-164982",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/164982/10000295_10304952_974340.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 164982
+    },
+    {
+      "productId": "cml8iydgy289u0pnzfsk3z45z",
+      "productTitle": "Wahl Professional vinotinto",
+      "productHandle": "wahl-professional-vinotinto-164982",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/164982/10000295_10304952_974339.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 164982
+    },
+    {
+      "productId": "cml8iydgy289u0pnzfsk3z45z",
+      "productTitle": "Wahl Professional vinotinto",
+      "productHandle": "wahl-professional-vinotinto-164982",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/164982/10000295_10304952_974338.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 164982
+    },
+    {
+      "productId": "cml8iydy228dp0pnz7xfx4bof",
+      "productTitle": "KIT DE PINCHOS KEBAB MAKER",
+      "productHandle": "kit-de-pinchos-kebab-maker-159542",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/159542/04qlahnONNhd44H8JwFw4QtFK7HVgEoJaWzAwdhW.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 159542
+    },
+    {
+      "productId": "cml8iydy228dp0pnz7xfx4bof",
+      "productTitle": "KIT DE PINCHOS KEBAB MAKER",
+      "productHandle": "kit-de-pinchos-kebab-maker-159542",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/159542/ZPbWttKUF44h3zxZ50EXBET30teUp54CsisPOAZh.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 159542
+    },
+    {
+      "productId": "cml8iydoe28bl0pnzeqoa7syv",
+      "productTitle": "Plancha Mini Viajera Para Cabello De Cer",
+      "productHandle": "plancha-mini-viajera-para-cabello-de-cer-164243",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/164243/Screenshot_63.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 164243
+    },
+    {
+      "productId": "cml8iydoe28bl0pnzeqoa7syv",
+      "productTitle": "Plancha Mini Viajera Para Cabello De Cer",
+      "productHandle": "plancha-mini-viajera-para-cabello-de-cer-164243",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/164243/D_NQ_NP_2X_777221-MCO41004030323_032020-F.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 164243
+    },
+    {
+      "productId": "cml8iydoe28bl0pnzeqoa7syv",
+      "productTitle": "Plancha Mini Viajera Para Cabello De Cer",
+      "productHandle": "plancha-mini-viajera-para-cabello-de-cer-164243",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/164243/D_NQ_NP_2X_798373-MCO41003986904_032020-F.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 164243
+    },
+    {
+      "productId": "cml8iye7r28fv0pnzmpo48s9w",
+      "productTitle": "MINI SELLADOR DE BOLSAS DY520",
+      "productHandle": "mini-sellador-de-bolsas-dy520-155917",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/155917/DY520 (6).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 155917
+    },
+    {
+      "productId": "cml8iye7r28fv0pnzmpo48s9w",
+      "productTitle": "MINI SELLADOR DE BOLSAS DY520",
+      "productHandle": "mini-sellador-de-bolsas-dy520-155917",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/155917/DY520 (7).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 155917
+    },
+    {
+      "productId": "cml8iye7r28fv0pnzmpo48s9w",
+      "productTitle": "MINI SELLADOR DE BOLSAS DY520",
+      "productHandle": "mini-sellador-de-bolsas-dy520-155917",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/155917/DY520 (5).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 155917
+    },
+    {
+      "productId": "cml8iye7r28fv0pnzmpo48s9w",
+      "productTitle": "MINI SELLADOR DE BOLSAS DY520",
+      "productHandle": "mini-sellador-de-bolsas-dy520-155917",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/155917/DY520 (4).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 155917
+    },
+    {
+      "productId": "cml8iye7r28fv0pnzmpo48s9w",
+      "productTitle": "MINI SELLADOR DE BOLSAS DY520",
+      "productHandle": "mini-sellador-de-bolsas-dy520-155917",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/155917/DY520 (2).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 155917
+    },
+    {
+      "productId": "cml8iye7r28fv0pnzmpo48s9w",
+      "productTitle": "MINI SELLADOR DE BOLSAS DY520",
+      "productHandle": "mini-sellador-de-bolsas-dy520-155917",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/155917/DY520 (3).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 155917
+    },
+    {
+      "productId": "cml8iye7r28fv0pnzmpo48s9w",
+      "productTitle": "MINI SELLADOR DE BOLSAS DY520",
+      "productHandle": "mini-sellador-de-bolsas-dy520-155917",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/155917/DY520.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 155917
+    },
+    {
+      "productId": "cml8iyept28gt0pnz4k7sgqaw",
+      "productTitle": "Cepillo Secador Giratorio 3 En 1",
+      "productHandle": "cepillo-secador-giratorio-3-en-1-153069",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/153069/WhatsApp Image 2023-02-03 at 15.50.54.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 153069
+    },
+    {
+      "productId": "cml8iyept28gt0pnz4k7sgqaw",
+      "productTitle": "Cepillo Secador Giratorio 3 En 1",
+      "productHandle": "cepillo-secador-giratorio-3-en-1-153069",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/153069/WhatsApp Image 2023-02-03 at 15.50.36 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 153069
+    },
+    {
+      "productId": "cml8iyept28gt0pnz4k7sgqaw",
+      "productTitle": "Cepillo Secador Giratorio 3 En 1",
+      "productHandle": "cepillo-secador-giratorio-3-en-1-153069",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/153069/WhatsApp Image 2023-02-03 at 15.50.36.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 153069
+    },
+    {
+      "productId": "cml8iyf3j28kk0pnzasuwyd82",
+      "productTitle": "Dispensador Automatico De Crema Dental",
+      "productHandle": "dispensador-automatico-de-crema-dental-151071",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/151071/photo1674863902 (3).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 151071
+    },
+    {
+      "productId": "cml8iyf3j28kk0pnzasuwyd82",
+      "productTitle": "Dispensador Automatico De Crema Dental",
+      "productHandle": "dispensador-automatico-de-crema-dental-151071",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/151071/photo1674863902 (2).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 151071
+    },
+    {
+      "productId": "cml8iyf3j28kk0pnzasuwyd82",
+      "productTitle": "Dispensador Automatico De Crema Dental",
+      "productHandle": "dispensador-automatico-de-crema-dental-151071",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/151071/photo1674863902 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 151071
+    },
+    {
+      "productId": "cml8iyf3j28kk0pnzasuwyd82",
+      "productTitle": "Dispensador Automatico De Crema Dental",
+      "productHandle": "dispensador-automatico-de-crema-dental-151071",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/151071/photo1674863902.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 151071
+    },
+    {
+      "productId": "cml8iyf3j28kk0pnzasuwyd82",
+      "productTitle": "Dispensador Automatico De Crema Dental",
+      "productHandle": "dispensador-automatico-de-crema-dental-151071",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/151071/photo1674863901.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 151071
+    },
+    {
+      "productId": "cml8iyfza28nz0pnz464z7bth",
+      "productTitle": "Grifo Giratorio 360° 3Niveles Metalico",
+      "productHandle": "grifo-giratorio-360-3niveles-metalico-146906",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/146906/iV2dcIWzANtiN7StKQQoDTtPR3WoDDx6NjXB3Keg.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 146906
+    },
+    {
+      "productId": "cml8iyfza28nz0pnz464z7bth",
+      "productTitle": "Grifo Giratorio 360° 3Niveles Metalico",
+      "productHandle": "grifo-giratorio-360-3niveles-metalico-146906",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/146906/j2FdlNePDf2SRfU02bSucD3Qp7AdWAMLR47e3SmW.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 146906
+    },
+    {
+      "productId": "cml8iyfza28nz0pnz464z7bth",
+      "productTitle": "Grifo Giratorio 360° 3Niveles Metalico",
+      "productHandle": "grifo-giratorio-360-3niveles-metalico-146906",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/146906/4PPSCCOuNC3t4nN6m0w6CzPApr101kBtPhwM8amH.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 146906
+    },
+    {
+      "productId": "cml8iyfza28nz0pnz464z7bth",
+      "productTitle": "Grifo Giratorio 360° 3Niveles Metalico",
+      "productHandle": "grifo-giratorio-360-3niveles-metalico-146906",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/146906/zylPEgmtaLXVB2oJoml9VCMotIPoAlx4GEyExAS1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 146906
+    },
+    {
+      "productId": "cml8iyfza28nz0pnz464z7bth",
+      "productTitle": "Grifo Giratorio 360° 3Niveles Metalico",
+      "productHandle": "grifo-giratorio-360-3niveles-metalico-146906",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/146906/V356019BkChXjfME9SxRIBvfApeujgwIw8CASiWC.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 146906
+    },
+    {
+      "productId": "cml8iyfza28nz0pnz464z7bth",
+      "productTitle": "Grifo Giratorio 360° 3Niveles Metalico",
+      "productHandle": "grifo-giratorio-360-3niveles-metalico-146906",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/146906/33dngNOsgRCDg7VwfGNRM5mNmIZaayJg5WIZqeE8.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 146906
+    },
+    {
+      "productId": "cml8iygc028rc0pnzrr2e3rsu",
+      "productTitle": "Plancha Peine Cepillo Ionico Alisador De",
+      "productHandle": "plancha-peine-cepillo-ionico-alisador-de-138966",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/138966/photo_5069017091499207217_y.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 138966
+    },
+    {
+      "productId": "cml8iygc028rc0pnzrr2e3rsu",
+      "productTitle": "Plancha Peine Cepillo Ionico Alisador De",
+      "productHandle": "plancha-peine-cepillo-ionico-alisador-de-138966",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/138966/photo_5069017091499207218_y.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 138966
+    },
+    {
+      "productId": "cml8iygc028rc0pnzrr2e3rsu",
+      "productTitle": "Plancha Peine Cepillo Ionico Alisador De",
+      "productHandle": "plancha-peine-cepillo-ionico-alisador-de-138966",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/138966/photo_5069017091499207219_y.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 138966
+    },
+    {
+      "productId": "cml8iygc028rc0pnzrr2e3rsu",
+      "productTitle": "Plancha Peine Cepillo Ionico Alisador De",
+      "productHandle": "plancha-peine-cepillo-ionico-alisador-de-138966",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/138966/photo_5069017091499207220_y.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 138966
+    },
+    {
+      "productId": "cml8iygc028rc0pnzrr2e3rsu",
+      "productTitle": "Plancha Peine Cepillo Ionico Alisador De",
+      "productHandle": "plancha-peine-cepillo-ionico-alisador-de-138966",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/138966/photo_5069017091499207221_y.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 138966
+    },
+    {
+      "productId": "cml8iygeb28rs0pnzd4f0bukz",
+      "productTitle": "Mini Maquina De Coser Portati",
+      "productHandle": "mini-maquina-de-coser-portati-138765",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/138765/IBlqO5S2zRt2MI4dOXR04zkUL78kU5sLmlIhuT2y.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 138765
+    },
+    {
+      "productId": "cml8iygeb28rs0pnzd4f0bukz",
+      "productTitle": "Mini Maquina De Coser Portati",
+      "productHandle": "mini-maquina-de-coser-portati-138765",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/138765/LgeF2qsp94DxFpwIxrq6juWuogNVNI32fZYd0ztS.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 138765
+    },
+    {
+      "productId": "cml8iygeb28rs0pnzd4f0bukz",
+      "productTitle": "Mini Maquina De Coser Portati",
+      "productHandle": "mini-maquina-de-coser-portati-138765",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/138765/IMG-20230120-WA0075.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 138765
+    },
+    {
+      "productId": "cml8iyher28xc0pnzixvscnc4",
+      "productTitle": "Depilador Cejas Electrico Recargabl",
+      "productHandle": "depilador-cejas-electrico-recargabl-134691",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/134691/zPK3pM958LljDXEUaBS5oGxzKsZb1HwXTZnrTPEN.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 134691
+    },
+    {
+      "productId": "cml8iyher28xc0pnzixvscnc4",
+      "productTitle": "Depilador Cejas Electrico Recargabl",
+      "productHandle": "depilador-cejas-electrico-recargabl-134691",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/134691/KQRBWypfORdtdFX2p1MEp33k40tfqxCCwrXsuIMq.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 134691
+    },
+    {
+      "productId": "cml8iyhr5290g0pnzo613krt1",
+      "productTitle": "Rizador pestañas  Electrico",
+      "productHandle": "rizador-pestanas-electrico-130663",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/130663/WhatsApp Image 2023-01-04 at 16.36.42.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 130663
+    },
+    {
+      "productId": "cml8iyhr5290g0pnzo613krt1",
+      "productTitle": "Rizador pestañas  Electrico",
+      "productHandle": "rizador-pestanas-electrico-130663",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/130663/WhatsApp Image 2023-01-04 at 16.36.42 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 130663
+    },
+    {
+      "productId": "cml8iyhr5290g0pnzo613krt1",
+      "productTitle": "Rizador pestañas  Electrico",
+      "productHandle": "rizador-pestanas-electrico-130663",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/130663/WhatsApp Image 2023-01-04 at 16.12.49.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 130663
+    },
+    {
+      "productId": "cml8iykl929id0pnz6gghurjm",
+      "productTitle": "RULOS DE SILICONA",
+      "productHandle": "rulos-de-silicona-110659",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/110659/images (3).jfif",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 110659
+    },
+    {
+      "productId": "cml8iykl929id0pnz6gghurjm",
+      "productTitle": "RULOS DE SILICONA",
+      "productHandle": "rulos-de-silicona-110659",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/110659/QUGagRKrUwPO2U4IgabXq75K1PvBwPK8z4HeAUQ9.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 110659
+    },
+    {
+      "productId": "cml8iykl929id0pnz6gghurjm",
+      "productTitle": "RULOS DE SILICONA",
+      "productHandle": "rulos-de-silicona-110659",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/110659/xbylRHKhRgSeFDLABUcm6nSpZXRlFxuFekW0JFAX.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 110659
+    },
+    {
+      "productId": "cml8iykni29iy0pnznz7yshqf",
+      "productTitle": "Lamparas Luz Led X3 Portatil Inalambrica",
+      "productHandle": "lamparas-luz-led-x3-portatil-inalambrica-109861",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/109861/WhatsApp Image 2022-11-17 at 21.46.53 (3).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 109861
+    },
+    {
+      "productId": "cml8iykni29iy0pnznz7yshqf",
+      "productTitle": "Lamparas Luz Led X3 Portatil Inalambrica",
+      "productHandle": "lamparas-luz-led-x3-portatil-inalambrica-109861",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/109861/WhatsApp Image 2022-11-17 at 21.46.53 (2).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 109861
+    },
+    {
+      "productId": "cml8iykni29iy0pnznz7yshqf",
+      "productTitle": "Lamparas Luz Led X3 Portatil Inalambrica",
+      "productHandle": "lamparas-luz-led-x3-portatil-inalambrica-109861",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/109861/WhatsApp Image 2022-11-17 at 21.46.53.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 109861
+    },
+    {
+      "productId": "cml8iykni29iy0pnznz7yshqf",
+      "productTitle": "Lamparas Luz Led X3 Portatil Inalambrica",
+      "productHandle": "lamparas-luz-led-x3-portatil-inalambrica-109861",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/109861/WhatsApp Image 2022-11-17 at 21.46.53 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 109861
+    },
+    {
+      "productId": "cml8iyl9m29k90pnzxboewjv4",
+      "productTitle": "Luces cuerda LED Navidad",
+      "productHandle": "luces-cuerda-led-navidad-108929",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/108929/dj3CC69kbeEGbJkF0zoQhB1CD07EhpH522UnkbFX.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 108929
+    },
+    {
+      "productId": "cml8iyl9m29k90pnzxboewjv4",
+      "productTitle": "Luces cuerda LED Navidad",
+      "productHandle": "luces-cuerda-led-navidad-108929",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/108929/xm6qzPuI1zdhQJ7IgLQ9euOjs2BzhyJRPDCqQrBS.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 108929
+    },
+    {
+      "productId": "cml8iyl9m29k90pnzxboewjv4",
+      "productTitle": "Luces cuerda LED Navidad",
+      "productHandle": "luces-cuerda-led-navidad-108929",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/108929/1LbfdVG7wMFH9dp8ggXh622DpaWZbY1lwGKq3Mdd.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 108929
+    },
+    {
+      "productId": "cml8iyl9m29k90pnzxboewjv4",
+      "productTitle": "Luces cuerda LED Navidad",
+      "productHandle": "luces-cuerda-led-navidad-108929",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/108929/Eots54yckdPozLuKWCyUlYTczffCLsKPLfPtZCLW.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 108929
+    },
+    {
+      "productId": "cml8iyl9m29k90pnzxboewjv4",
+      "productTitle": "Luces cuerda LED Navidad",
+      "productHandle": "luces-cuerda-led-navidad-108929",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/108929/2a6341d6-45f0-49c4-b896-eab9d190b5cc.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 108929
+    },
+    {
+      "productId": "cml8iyl9m29k90pnzxboewjv4",
+      "productTitle": "Luces cuerda LED Navidad",
+      "productHandle": "luces-cuerda-led-navidad-108929",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/108929/5f49b980-88d6-469f-91ba-23031feec7f5.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 108929
+    },
+    {
+      "productId": "cml8iyl9m29k90pnzxboewjv4",
+      "productTitle": "Luces cuerda LED Navidad",
+      "productHandle": "luces-cuerda-led-navidad-108929",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/108929/78d77d96-a619-4200-bbfc-e17fa774584f.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 108929
+    },
+    {
+      "productId": "cml8iyl9m29k90pnzxboewjv4",
+      "productTitle": "Luces cuerda LED Navidad",
+      "productHandle": "luces-cuerda-led-navidad-108929",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/108929/2a6341d6-45f0-49c4-b896-eab9d190b5cc-removebg-preview.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 108929
+    },
+    {
+      "productId": "cml8iylua29ob0pnzdsw6jtv7",
+      "productTitle": "Pinza De Cabello Ondas De Sirena",
+      "productHandle": "pinza-de-cabello-ondas-de-sirena-105362",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/105362/G9CIVSTd8PakrsySaY4j2rd4vpcY79dJ1OfIAGZA.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 105362
+    },
+    {
+      "productId": "cml8iym3p29qr0pnzp55an8gg",
+      "productTitle": "Humidificador Cilindrico Pequeño 300ml",
+      "productHandle": "humidificador-cilindrico-pequeno-300ml-104507",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/104507/2.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 104507
+    },
+    {
+      "productId": "cml8iym3p29qr0pnzp55an8gg",
+      "productTitle": "Humidificador Cilindrico Pequeño 300ml",
+      "productHandle": "humidificador-cilindrico-pequeno-300ml-104507",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/104507/3.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 104507
+    },
+    {
+      "productId": "cml8iym3p29qr0pnzp55an8gg",
+      "productTitle": "Humidificador Cilindrico Pequeño 300ml",
+      "productHandle": "humidificador-cilindrico-pequeno-300ml-104507",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/104507/4.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 104507
+    },
+    {
+      "productId": "cml8iym3p29qr0pnzp55an8gg",
+      "productTitle": "Humidificador Cilindrico Pequeño 300ml",
+      "productHandle": "humidificador-cilindrico-pequeno-300ml-104507",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/104507/1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 104507
+    },
+    {
+      "productId": "cml8iym3p29qr0pnzp55an8gg",
+      "productTitle": "Humidificador Cilindrico Pequeño 300ml",
+      "productHandle": "humidificador-cilindrico-pequeno-300ml-104507",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/104507/Prin.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 104507
+    },
+    {
+      "productId": "cml8iym7c29ro0pnzepobfxc5",
+      "productTitle": "Pelota Voladora Juguete",
+      "productHandle": "pelota-voladora-juguete-104471",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/104471/WhatsApp Image 2022-11-02 at 13.06.01 (3).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 104471
+    },
+    {
+      "productId": "cml8iym7c29ro0pnzepobfxc5",
+      "productTitle": "Pelota Voladora Juguete",
+      "productHandle": "pelota-voladora-juguete-104471",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/104471/WhatsApp Image 2022-11-02 at 13.06.01 (2).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 104471
+    },
+    {
+      "productId": "cml8iym7c29ro0pnzepobfxc5",
+      "productTitle": "Pelota Voladora Juguete",
+      "productHandle": "pelota-voladora-juguete-104471",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/104471/WhatsApp Image 2022-11-02 at 13.06.01 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 104471
+    },
+    {
+      "productId": "cml8iym7c29ro0pnzepobfxc5",
+      "productTitle": "Pelota Voladora Juguete",
+      "productHandle": "pelota-voladora-juguete-104471",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/104471/WhatsApp Image 2022-11-02 at 13.06.01.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 104471
+    },
+    {
+      "productId": "cml8iyp4g2a750pnzudiaduhp",
+      "productTitle": "ORGANIZADOR DE COPILOTO M",
+      "productHandle": "organizador-de-copiloto-m-92063",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/92063/5.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 92063
+    },
+    {
+      "productId": "cml8iyp4g2a750pnzudiaduhp",
+      "productTitle": "ORGANIZADOR DE COPILOTO M",
+      "productHandle": "organizador-de-copiloto-m-92063",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/92063/3.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 92063
+    },
+    {
+      "productId": "cml8iyp4g2a750pnzudiaduhp",
+      "productTitle": "ORGANIZADOR DE COPILOTO M",
+      "productHandle": "organizador-de-copiloto-m-92063",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/92063/3 1.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 92063
+    },
+    {
+      "productId": "cml8iyp4g2a750pnzudiaduhp",
+      "productTitle": "ORGANIZADOR DE COPILOTO M",
+      "productHandle": "organizador-de-copiloto-m-92063",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/92063/2.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 92063
+    },
+    {
+      "productId": "cml8iypbx2a8x0pnz6nn92g1q",
+      "productTitle": "Molino Pulverizador Electrico Portatil",
+      "productHandle": "molino-pulverizador-electrico-portatil-88794",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/88794/WhatsApp Image 2022-09-17 at 06.28.26.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 88794
+    },
+    {
+      "productId": "cml8iypbx2a8x0pnz6nn92g1q",
+      "productTitle": "Molino Pulverizador Electrico Portatil",
+      "productHandle": "molino-pulverizador-electrico-portatil-88794",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/88794/WhatsApp Image 2022-09-17 at 08.53.18.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 88794
+    },
+    {
+      "productId": "cml8iypbx2a8x0pnz6nn92g1q",
+      "productTitle": "Molino Pulverizador Electrico Portatil",
+      "productHandle": "molino-pulverizador-electrico-portatil-88794",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/88794/WhatsApp Image 2022-09-17 at 06.28.26 (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 88794
+    },
+    {
+      "productId": "cml8iyq532abn0pnzb1xb9xto",
+      "productTitle": "FOAM CLEANER",
+      "productHandle": "foam-cleaner-85621",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/85621/oHDaEkCMMI2zTSZMlYVjNekH5BxgRK28cD6oox7x.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 85621
+    },
+    {
+      "productId": "cml8iyq532abn0pnzb1xb9xto",
+      "productTitle": "FOAM CLEANER",
+      "productHandle": "foam-cleaner-85621",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/85621/7TEeLVj8RQfntcR2EK2uTG2cGwnCl0das6hINnxj.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 85621
+    },
+    {
+      "productId": "cml8iyq532abn0pnzb1xb9xto",
+      "productTitle": "FOAM CLEANER",
+      "productHandle": "foam-cleaner-85621",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/85621/bvQ5vaoejSoRtYSgkaR3vX84IW5KYSNR1BupwM5I.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 85621
+    },
+    {
+      "productId": "cml8iynvq2a1g0pnziuliwpz5",
+      "productTitle": "Pesquero cinturilla Osmotex",
+      "productHandle": "pesquero-cinturilla-osmotex-100224",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/100224/qBkYS4BRZ5hN5rngmlUOAFQ3XjkmwlFSf0YmXIzQ.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 100224
+    },
+    {
+      "productId": "cml8iyovg2a5l0pnzqwvslz1d",
+      "productTitle": "CREMA DESPIGMENTANTE HUEVO KARITE",
+      "productHandle": "crema-despigmentante-huevo-karite-96925",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/96925/52V42iYQ07u9WvVjOX0hmgBHeNEdENf2mQl2cAko.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 96925
+    },
+    {
+      "productId": "cml8iyp752a7s0pnztri9l1lt",
+      "productTitle": "Mesa Ajustable Plegable TABLE MATE II",
+      "productHandle": "mesa-ajustable-plegable-table-mate-ii-91506",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/91506/mesa5.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 91506
+    },
+    {
+      "productId": "cml8iyp752a7s0pnztri9l1lt",
+      "productTitle": "Mesa Ajustable Plegable TABLE MATE II",
+      "productHandle": "mesa-ajustable-plegable-table-mate-ii-91506",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/91506/mesa 4.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 91506
+    },
+    {
+      "productId": "cml8iyp752a7s0pnztri9l1lt",
+      "productTitle": "Mesa Ajustable Plegable TABLE MATE II",
+      "productHandle": "mesa-ajustable-plegable-table-mate-ii-91506",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/91506/mesa3.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 91506
+    },
+    {
+      "productId": "cml8iyp752a7s0pnztri9l1lt",
+      "productTitle": "Mesa Ajustable Plegable TABLE MATE II",
+      "productHandle": "mesa-ajustable-plegable-table-mate-ii-91506",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/91506/mesa 2.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 91506
+    },
+    {
+      "productId": "cml8iyp752a7s0pnztri9l1lt",
+      "productTitle": "Mesa Ajustable Plegable TABLE MATE II",
+      "productHandle": "mesa-ajustable-plegable-table-mate-ii-91506",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/91506/mesa.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 91506
+    },
+    {
+      "productId": "cml8iyp752a7s0pnztri9l1lt",
+      "productTitle": "Mesa Ajustable Plegable TABLE MATE II",
+      "productHandle": "mesa-ajustable-plegable-table-mate-ii-91506",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/91506/mesa 1.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 91506
+    },
+    {
+      "productId": "cml8iysn02as40pnznzrlpngf",
+      "productTitle": "Calentador Ambiente Portátil Calefacción",
+      "productHandle": "calentador-ambiente-portatil-calefaccion-62993",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/62993/xZ57nREibpKvFcjtAHmkivgTe7Gmr1xrkGsP9PQp.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 62993
+    },
+    {
+      "productId": "cml8iysn02as40pnznzrlpngf",
+      "productTitle": "Calentador Ambiente Portátil Calefacción",
+      "productHandle": "calentador-ambiente-portatil-calefaccion-62993",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/62993/Xj4ZpYx2bNAvwixZZsxaBLnNOvplmk76k6SRSDLm.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 62993
+    },
+    {
+      "productId": "cml8iysn02as40pnznzrlpngf",
+      "productTitle": "Calentador Ambiente Portátil Calefacción",
+      "productHandle": "calentador-ambiente-portatil-calefaccion-62993",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/62993/9FB3xj0tGvQO9V7O2gS0kg68H9lnibxwFGJBORF6.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 62993
+    },
+    {
+      "productId": "cml8iytwy2b040pnzyqqov2s6",
+      "productTitle": "Irrigador Bucal Oral Recargable",
+      "productHandle": "irrigador-bucal-oral-recargable-58066",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/58066/DF1233.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 58066
+    },
+    {
+      "productId": "cml8iytwy2b040pnzyqqov2s6",
+      "productTitle": "Irrigador Bucal Oral Recargable",
+      "productHandle": "irrigador-bucal-oral-recargable-58066",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/58066/DF123.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 58066
+    },
+    {
+      "productId": "cml8iytwy2b040pnzyqqov2s6",
+      "productTitle": "Irrigador Bucal Oral Recargable",
+      "productHandle": "irrigador-bucal-oral-recargable-58066",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/58066/DF12.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 58066
+    },
+    {
+      "productId": "cml8iytwy2b040pnzyqqov2s6",
+      "productTitle": "Irrigador Bucal Oral Recargable",
+      "productHandle": "irrigador-bucal-oral-recargable-58066",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/58066/DF1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 58066
+    },
+    {
+      "productId": "cml8iytwy2b040pnzyqqov2s6",
+      "productTitle": "Irrigador Bucal Oral Recargable",
+      "productHandle": "irrigador-bucal-oral-recargable-58066",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/58066/DF.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 58066
+    },
+    {
+      "productId": "cml8iypcy2a960pnzix8nstyz",
+      "productTitle": "Candado Moto Freno Ajustable Seguro",
+      "productHandle": "candado-moto-freno-ajustable-seguro-88090",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/88090/Screenshot_400.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 88090
+    },
+    {
+      "productId": "cml8iypcy2a960pnzix8nstyz",
+      "productTitle": "Candado Moto Freno Ajustable Seguro",
+      "productHandle": "candado-moto-freno-ajustable-seguro-88090",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/88090/Screenshot_399.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 88090
+    },
+    {
+      "productId": "cml8iyq852acc0pnza61le63q",
+      "productTitle": "Tabla Marcadora Abdominal",
+      "productHandle": "tabla-marcadora-abdominal-84366",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/84366/2rCuVxDS9YeGDgpPMwaMCJp42EY6h870bHTBkQoW.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 84366
+    },
+    {
+      "productId": "cml8iyq852acc0pnza61le63q",
+      "productTitle": "Tabla Marcadora Abdominal",
+      "productHandle": "tabla-marcadora-abdominal-84366",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/84366/WhatsApp Image 2022-09-01 at 1.56.37 PM (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 84366
+    },
+    {
+      "productId": "cml8iysp02aso0pnzy3dgoz72",
+      "productTitle": "Bomba Dispensador Agua Para Botellon",
+      "productHandle": "bomba-dispensador-agua-para-botellon-62813",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/62813/9CPUr7Tt41omOdtYJgfWzHhfkHlf9asURmIuMC3T.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 62813
+    },
+    {
+      "productId": "cml8iysp02aso0pnzy3dgoz72",
+      "productTitle": "Bomba Dispensador Agua Para Botellon",
+      "productHandle": "bomba-dispensador-agua-para-botellon-62813",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/62813/8RLkG8Q3TjLPnV1TgD4Zct7TpLTzxKnJfb8fuwKk.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 62813
+    },
+    {
+      "productId": "cml8iysp02aso0pnzy3dgoz72",
+      "productTitle": "Bomba Dispensador Agua Para Botellon",
+      "productHandle": "bomba-dispensador-agua-para-botellon-62813",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/62813/dURIsRVIOSn1rMYMwyTScpH8UF3yeiaW4y48B0Tv.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 62813
+    },
+    {
+      "productId": "cml8iysp02aso0pnzy3dgoz72",
+      "productTitle": "Bomba Dispensador Agua Para Botellon",
+      "productHandle": "bomba-dispensador-agua-para-botellon-62813",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/62813/6NmgnLvvuzSVxOC6gIt6URtTGFZB8EfSz7mW1WlB.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 62813
+    },
+    {
+      "productId": "cml8iysld2aro0pnz83t7kxuu",
+      "productTitle": "TRATAMIENTO CAPILAR CON EXTRACTO DE HUE",
+      "productHandle": "tratamiento-capilar-con-extracto-de-hue-64271",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/64271/mT96lw8ByKDMZ5sGWLnPpl8XykgMePsegEki0CZw.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 64271
+    },
+    {
+      "productId": "cml8iyuys2b600pnzedtdm38t",
+      "productTitle": "Envase Dispensador de cereales 4 divisio",
+      "productHandle": "envase-dispensador-de-cereales-4-divisio-51517",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/51517/Screenshot_275.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 51517
+    },
+    {
+      "productId": "cml8iyuys2b600pnzedtdm38t",
+      "productTitle": "Envase Dispensador de cereales 4 divisio",
+      "productHandle": "envase-dispensador-de-cereales-4-divisio-51517",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/51517/Screenshot_274.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 51517
+    },
+    {
+      "productId": "cml8iytq12ayd0pnzgvp66ltb",
+      "productTitle": "DAZZLING",
+      "productHandle": "dazzling-60003",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/60003/mainimage4Kit-de-blanqueamiento-Dental-de-5-piezas-pluma-blanqueadora-de-dientes-blanca-deslumbrante-per-xido-giratorio.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 60003
+    },
+    {
+      "productId": "cml8iytq12ayd0pnzgvp66ltb",
+      "productTitle": "DAZZLING",
+      "productHandle": "dazzling-60003",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/60003/mainimage4Rotativo-de-eliminaci-n-r-pida-de-manchas-de-dientes-amarillos-dispositivo-de-blanqueamiento-de-dientes.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 60003
+    },
+    {
+      "productId": "cml8iytq12ayd0pnzgvp66ltb",
+      "productTitle": "DAZZLING",
+      "productHandle": "dazzling-60003",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/60003/mainimage5Kit-de-blanqueamiento-Dental-de-5-piezas-pluma-blanqueadora-de-dientes-blanca-deslumbrante-per-xido-giratorio.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 60003
+    },
+    {
+      "productId": "cml8iytuf2azl0pnz15ntxe6i",
+      "productTitle": "Juego Reaccion Electroshock Descarga Elé",
+      "productHandle": "juego-reaccion-electroshock-descarga-ele-59096",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/59096/Sin título1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 59096
+    },
+    {
+      "productId": "cml8iytuf2azl0pnz15ntxe6i",
+      "productTitle": "Juego Reaccion Electroshock Descarga Elé",
+      "productHandle": "juego-reaccion-electroshock-descarga-ele-59096",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/59096/Sin título12.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 59096
+    },
+    {
+      "productId": "cml8iytuf2azl0pnz15ntxe6i",
+      "productTitle": "Juego Reaccion Electroshock Descarga Elé",
+      "productHandle": "juego-reaccion-electroshock-descarga-ele-59096",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/59096/Sin título123.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 59096
+    },
+    {
+      "productId": "cml8iytuf2azl0pnz15ntxe6i",
+      "productTitle": "Juego Reaccion Electroshock Descarga Elé",
+      "productHandle": "juego-reaccion-electroshock-descarga-ele-59096",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/59096/Sin título1233.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 59096
+    },
+    {
+      "productId": "cml8iyurs2b4b0pnz4nm7q45c",
+      "productTitle": "Pelota Balón Flexible Ball P3 Disco Jugu",
+      "productHandle": "pelota-balon-flexible-ball-p3-disco-jugu-52809",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/52809/Sinsd123.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 52809
+    },
+    {
+      "productId": "cml8iyurs2b4b0pnz4nm7q45c",
+      "productTitle": "Pelota Balón Flexible Ball P3 Disco Jugu",
+      "productHandle": "pelota-balon-flexible-ball-p3-disco-jugu-52809",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/52809/Sinsd.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 52809
+    },
+    {
+      "productId": "cml8iyurs2b4b0pnz4nm7q45c",
+      "productTitle": "Pelota Balón Flexible Ball P3 Disco Jugu",
+      "productHandle": "pelota-balon-flexible-ball-p3-disco-jugu-52809",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/52809/Sinsd12.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 52809
+    },
+    {
+      "productId": "cml8iyvkq2b870pnz3h0x1hiw",
+      "productTitle": "Derma Roller 0.5 Mm",
+      "productHandle": "derma-roller-0-5-mm-48830",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/48830/Screenshot_242.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 48830
+    },
+    {
+      "productId": "cml8iyvkq2b870pnz3h0x1hiw",
+      "productTitle": "Derma Roller 0.5 Mm",
+      "productHandle": "derma-roller-0-5-mm-48830",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/48830/Screenshot_241.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 48830
+    },
+    {
+      "productId": "cml8iyuzc2b650pnzdi18o205",
+      "productTitle": "LAMPARA SOLAR CL 728 89LED",
+      "productHandle": "lampara-solar-cl-728-89led-51499",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/51499/Screenshot_271.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 51499
+    },
+    {
+      "productId": "cml8iyuzc2b650pnzdi18o205",
+      "productTitle": "LAMPARA SOLAR CL 728 89LED",
+      "productHandle": "lampara-solar-cl-728-89led-51499",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/51499/Screenshot_272.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 51499
+    },
+    {
+      "productId": "cml8iyuzc2b650pnzdi18o205",
+      "productTitle": "LAMPARA SOLAR CL 728 89LED",
+      "productHandle": "lampara-solar-cl-728-89led-51499",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/51499/Screenshot_273.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 51499
+    },
+    {
+      "productId": "cml8iyuzc2b650pnzdi18o205",
+      "productTitle": "LAMPARA SOLAR CL 728 89LED",
+      "productHandle": "lampara-solar-cl-728-89led-51499",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/51499/Screenshot_270.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 51499
+    },
+    {
+      "productId": "cml8iyx1q2bgv0pnz17x7g2u4",
+      "productTitle": "CAR COLD LIGHT LINE",
+      "productHandle": "car-cold-light-line-46881",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/46881/zcpOgJeryLEbhbNIqaVAHQg6rbTfx1p9qlXD6GiE.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 46881
+    },
+    {
+      "productId": "cml8iyvxu2bbn0pnzvw51fi8t",
+      "productTitle": "Lampara Raquet Mata Zancudosled",
+      "productHandle": "lampara-raquet-mata-zancudosled-48099",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/48099/Screenshot_172.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 48099
+    },
+    {
+      "productId": "cml8iyvxu2bbn0pnzvw51fi8t",
+      "productTitle": "Lampara Raquet Mata Zancudosled",
+      "productHandle": "lampara-raquet-mata-zancudosled-48099",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/48099/Screenshot_171.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 48099
+    },
+    {
+      "productId": "cml8iyvxu2bbn0pnzvw51fi8t",
+      "productTitle": "Lampara Raquet Mata Zancudosled",
+      "productHandle": "lampara-raquet-mata-zancudosled-48099",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/48099/Screenshot_170.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 48099
+    },
+    {
+      "productId": "cml8iyvxu2bbn0pnzvw51fi8t",
+      "productTitle": "Lampara Raquet Mata Zancudosled",
+      "productHandle": "lampara-raquet-mata-zancudosled-48099",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/48099/Screenshot_169.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 48099
+    },
+    {
+      "productId": "cml8iyvxu2bbn0pnzvw51fi8t",
+      "productTitle": "Lampara Raquet Mata Zancudosled",
+      "productHandle": "lampara-raquet-mata-zancudosled-48099",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/48099/Screenshot_168.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 48099
+    },
+    {
+      "productId": "cml8iyww42bfi0pnzvxesiaq6",
+      "productTitle": "Molino De Carne Manual Trituradora Picad",
+      "productHandle": "molino-de-carne-manual-trituradora-picad-47688",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/47688/Screenshot_105.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 47688
+    },
+    {
+      "productId": "cml8iyww42bfi0pnzvxesiaq6",
+      "productTitle": "Molino De Carne Manual Trituradora Picad",
+      "productHandle": "molino-de-carne-manual-trituradora-picad-47688",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/47688/Screenshot_104.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 47688
+    },
+    {
+      "productId": "cml8iyww42bfi0pnzvxesiaq6",
+      "productTitle": "Molino De Carne Manual Trituradora Picad",
+      "productHandle": "molino-de-carne-manual-trituradora-picad-47688",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/47688/Screenshot_103.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 47688
+    },
+    {
+      "productId": "cml8iyyhz2bqc0pnztuacnhvu",
+      "productTitle": "SHOE BOX",
+      "productHandle": "shoe-box-43401",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/43401/Captura.PNG",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 43401
+    },
+    {
+      "productId": "cml8iyvzi2bc80pnz6m3ea8k3",
+      "productTitle": "Medias De Compresión Anti",
+      "productHandle": "medias-de-compresion-anti-47991",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/47991/Screenshot_162.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 47991
+    },
+    {
+      "productId": "cml8iyvzi2bc80pnz6m3ea8k3",
+      "productTitle": "Medias De Compresión Anti",
+      "productHandle": "medias-de-compresion-anti-47991",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/47991/Screenshot_161.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 47991
+    },
+    {
+      "productId": "cml8iyvzi2bc80pnz6m3ea8k3",
+      "productTitle": "Medias De Compresión Anti",
+      "productHandle": "medias-de-compresion-anti-47991",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/47991/Screenshot_160.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 47991
+    },
+    {
+      "productId": "cml8iyx6z2bi40pnz0pwxeygs",
+      "productTitle": "Aspiradora Carro Recargable 4 EN 1",
+      "productHandle": "aspiradora-carro-recargable-4-en-1-46737",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/46737/Screenshot_66.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 46737
+    },
+    {
+      "productId": "cml8iyx6z2bi40pnz0pwxeygs",
+      "productTitle": "Aspiradora Carro Recargable 4 EN 1",
+      "productHandle": "aspiradora-carro-recargable-4-en-1-46737",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/46737/Screenshot_65.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 46737
+    },
+    {
+      "productId": "cml8iyx6z2bi40pnz0pwxeygs",
+      "productTitle": "Aspiradora Carro Recargable 4 EN 1",
+      "productHandle": "aspiradora-carro-recargable-4-en-1-46737",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/46737/Screenshot_64.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 46737
+    },
+    {
+      "productId": "cml8iz1yk2cbc0pnzm4304rnd",
+      "productTitle": "PRENSA DE CARNE",
+      "productHandle": "prensa-de-carne-10521",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10521/Bb1323z9Xex9kBNTLqyEBGd7mVaysZ4efeeaXxns.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10521
+    },
+    {
+      "productId": "cml8iz1yk2cbc0pnzm4304rnd",
+      "productTitle": "PRENSA DE CARNE",
+      "productHandle": "prensa-de-carne-10521",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10521/6O4Fp8AIKzdvvX0NCGiPTGAPNbpb2DjOKyLY3FNK.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10521
+    },
+    {
+      "productId": "cml8iz1yk2cbc0pnzm4304rnd",
+      "productTitle": "PRENSA DE CARNE",
+      "productHandle": "prensa-de-carne-10521",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10521/9Utd8OaKiSvC9wECbbtHHy9UpUcUBOSkG3lTLAmB.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10521
+    },
+    {
+      "productId": "cml8iz1yk2cbc0pnzm4304rnd",
+      "productTitle": "PRENSA DE CARNE",
+      "productHandle": "prensa-de-carne-10521",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10521/bAZ3STOYyod8tMoh8cJFmKxbPiHa2i303tUM6Ck4.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10521
+    },
+    {
+      "productId": "cml8iz1yk2cbc0pnzm4304rnd",
+      "productTitle": "PRENSA DE CARNE",
+      "productHandle": "prensa-de-carne-10521",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10521/Captura de pantalla 2021-10-22 172522g.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10521
+    },
+    {
+      "productId": "cml8iyyco2bp70pnzafinopbi",
+      "productTitle": "DESTAPADOR COMADREJA DE DRENAJE SACA PEL",
+      "productHandle": "destapador-comadreja-de-drenaje-saca-pel-44190",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/44190/a134711d-fed4-44a1-a8b5-acf39a1d1f20.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 44190
+    },
+    {
+      "productId": "cml8iyyco2bp70pnzafinopbi",
+      "productTitle": "DESTAPADOR COMADREJA DE DRENAJE SACA PEL",
+      "productHandle": "destapador-comadreja-de-drenaje-saca-pel-44190",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/44190/7de49951-5b97-47d0-900f-c3ca9758e268.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 44190
+    },
+    {
+      "productId": "cml8iyyco2bp70pnzafinopbi",
+      "productTitle": "DESTAPADOR COMADREJA DE DRENAJE SACA PEL",
+      "productHandle": "destapador-comadreja-de-drenaje-saca-pel-44190",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/44190/1c2937f7-929c-4cf6-8d72-e0d10732dd8f.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 44190
+    },
+    {
+      "productId": "cml8iyyrr2bsu0pnzldolk3c4",
+      "productTitle": "GREEN TEA MASK STICK",
+      "productHandle": "green-tea-mask-stick-39607",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/39607/HdcQRmVbzn7UXtfgAEJORSaIoQpMyCyxThpNSigN.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 39607
+    },
+    {
+      "productId": "cml8iyypt2bsa0pnzii9pmmp3",
+      "productTitle": "PESTAÑAS MAGNETICAS",
+      "productHandle": "pestanas-magneticas-42210",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/42210/1 (8).jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 42210
+    },
+    {
+      "productId": "cml8iyyr82bsp0pnzezipp2iy",
+      "productTitle": "GUANTE RESISTENTE AL CALOR",
+      "productHandle": "guante-resistente-al-calor-39608",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/39608/1.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 39608
+    },
+    {
+      "productId": "cml8iyzn12bxh0pnz7wtajzqf",
+      "productTitle": "CINTA IVY",
+      "productHandle": "cinta-ivy-20447",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/20447/CINTA-AUTO-GRIP.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 20447
+    },
+    {
+      "productId": "cml8iz0mn2c2l0pnzttgpldrp",
+      "productTitle": "BORRADOR DE ZAPATOS",
+      "productHandle": "borrador-de-zapatos-11146",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/11146/JdgDnm2nMeaJZaeEx1PSwG8XWQizVFZoeoF4CpgA.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 11146
+    },
+    {
+      "productId": "cml8iz0mn2c2l0pnzttgpldrp",
+      "productTitle": "BORRADOR DE ZAPATOS",
+      "productHandle": "borrador-de-zapatos-11146",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/11146/3gONpjHBORTicz2MGGmXjttzNxBTOMTFy4aBkPPN.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 11146
+    },
+    {
+      "productId": "cml8iyyuw2btt0pnzi81keddy",
+      "productTitle": "PARCHE DE ENFRIAMIENTO",
+      "productHandle": "parche-de-enfriamiento-30284",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/30284/mainimage3Parches-de-enfriamiento-antipir-ticos-para-aliviar-el-dolor-de-cabeza-almohadilla-para-beb-s-y (1).jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 30284
+    },
+    {
+      "productId": "cml8iyyuw2btt0pnzi81keddy",
+      "productTitle": "PARCHE DE ENFRIAMIENTO",
+      "productHandle": "parche-de-enfriamiento-30284",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/30284/lsrVB5cKqRZIpdJxV9fNWjNqYPe0uVzTNFadspPE.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 30284
+    },
+    {
+      "productId": "cml8iz1cg2c9j0pnzpix89c04",
+      "productTitle": "CAR HOME",
+      "productHandle": "car-home-10655",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10655/8028_car_home_massage_pillow_1.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10655
+    },
+    {
+      "productId": "cml8iz1cg2c9j0pnzpix89c04",
+      "productTitle": "CAR HOME",
+      "productHandle": "car-home-10655",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10655/1568996635_8b75669fd412fa677503d5d6c0d2ff0f-513281-5253f742664ef04e2915919254316459-1024-1024.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10655
+    },
+    {
+      "productId": "cml8iz1cg2c9j0pnzpix89c04",
+      "productTitle": "CAR HOME",
+      "productHandle": "car-home-10655",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10655/Untitled_480x480@2x.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10655
+    },
+    {
+      "productId": "cml8iz0p22c3e0pnzdvq6kqhq",
+      "productTitle": "ORGANIZADOR DE CAMISAS",
+      "productHandle": "organizador-de-camisas-11027",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/11027/61S3lwssvQL._SL1100_.jpg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 11027
+    },
+    {
+      "productId": "cml8iz15h2c7m0pnzvwgr0p9j",
+      "productTitle": "ANTINIEBLA PARA CASCO",
+      "productHandle": "antiniebla-para-casco-10723",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10723/WhatsApp Image 2021-09-10 at 12.48.25 PM.jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10723
+    },
+    {
+      "productId": "cml8iz15h2c7m0pnzvwgr0p9j",
+      "productTitle": "ANTINIEBLA PARA CASCO",
+      "productHandle": "antiniebla-para-casco-10723",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10723/WhatsApp Image 2021-09-10 at 12.48.25 PM (1).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10723
+    },
+    {
+      "productId": "cml8iz15h2c7m0pnzvwgr0p9j",
+      "productTitle": "ANTINIEBLA PARA CASCO",
+      "productHandle": "antiniebla-para-casco-10723",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10723/imagen-367568.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10723
+    },
+    {
+      "productId": "cml8iz15h2c7m0pnzvwgr0p9j",
+      "productTitle": "ANTINIEBLA PARA CASCO",
+      "productHandle": "antiniebla-para-casco-10723",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10723/WhatsApp Image 2021-09-10 at 12.48.25 PM (2).jpeg",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10723
+    },
+    {
+      "productId": "cml8iz1xr2cb20pnz3fmsdcxa",
+      "productTitle": "LUZ LED PARA CARRO",
+      "productHandle": "luz-led-para-carro-10523",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10523/Captura de pantalla 2021-10-22 172925.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10523
+    },
+    {
+      "productId": "cml8iz1z52cbh0pnzcb83dumi",
+      "productTitle": "LAPIZ MASAJEADOR DE OJOS",
+      "productHandle": "lapiz-masajeador-de-ojos-10517",
+      "imageUrl": "https://d39ru7awumhhs2.cloudfront.net/uploads/images/products/10517/Captura de pantalla 2021-10-22 171828fgvf.png",
+      "issue": "Contiene /uploads/images/products (debería ser colombia/products/)",
+      "source": "enrich",
+      "dropiId": 10517
+    }
+  ]
+}

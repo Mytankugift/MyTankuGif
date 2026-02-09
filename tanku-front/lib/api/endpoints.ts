@@ -56,6 +56,7 @@ export const API_ENDPOINTS = {
   // Checkout
   CHECKOUT: {
     ADD_ORDER: '/api/v1/checkout/add-order',
+    GIFT_DIRECT: '/api/v1/checkout/gift-direct',
   },
   // Users
   USERS: {

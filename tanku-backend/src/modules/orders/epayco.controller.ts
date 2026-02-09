@@ -44,7 +44,7 @@ export class EpaycoController {
     console.log(`🔍 [EPAYCO-WEBHOOK-DEBUG] ======================================\n`);
 
     try {
-      const { orderId: cartId } = req.params; // En Epayco, esto es el cartId
+      const { orderId: identifier } = req.params; // Puede ser cartId o orderId real
       
       // ✅ ePayco envía datos como query parameters O en el body
       // Combinar ambos para soportar ambos formatos
@@ -87,7 +87,7 @@ export class EpaycoController {
 
       // Log completo del webhook recibido
       console.log(`\n💰 [EPAYCO-WEBHOOK] ========== WEBHOOK RECIBIDO ==========`);
-      console.log(`💰 [EPAYCO-WEBHOOK] Cart ID: ${cartId}`);
+      console.log(`💰 [EPAYCO-WEBHOOK] Identifier: ${identifier} (puede ser cartId o orderId)`);
       console.log(`💰 [EPAYCO-WEBHOOK] Ref Payco: ${xRefPaycoValue}`);
       console.log(`💰 [EPAYCO-WEBHOOK] Transaction ID: ${transactionId}`);
       console.log(`💰 [EPAYCO-WEBHOOK] Response: ${xResponseValue}`);
@@ -97,6 +97,79 @@ export class EpaycoController {
       console.log(`💰 [EPAYCO-WEBHOOK] Body:`, JSON.stringify(req.body, null, 2));
       console.log(`💰 [EPAYCO-WEBHOOK] Datos combinados:`, JSON.stringify(webhookData, null, 2));
       console.log(`💰 [EPAYCO-WEBHOOK] ======================================\n`);
+
+      // ✅ NUEVO: Intentar primero si es un orderId (orden ya creada, como en regalos directos)
+      const existingOrder = await prisma.order.findUnique({
+        where: { id: identifier },
+        select: { id: true, paymentStatus: true, isGiftOrder: true },
+      });
+
+      if (existingOrder) {
+        console.log(`🎁 [EPAYCO-WEBHOOK] Orden ya existe (regalo directo o similar): ${identifier}`);
+        console.log(`🎁 [EPAYCO-WEBHOOK] Estado actual: ${existingOrder.paymentStatus}`);
+        
+        // Si el pago NO fue exitoso, solo actualizar estado y retornar
+        if (finalPaymentStatus !== 'paid') {
+          console.log(`⚠️ [EPAYCO-WEBHOOK] Pago NO exitoso. Estado: ${finalPaymentStatus}.`);
+          await this.ordersService.updatePaymentStatus(
+            existingOrder.id,
+            finalPaymentStatus,
+            transactionId,
+            {
+              refPayco: xRefPaycoValue || ref_payco,
+              x_transaction_id: xTransactionIdValue,
+              x_ref_payco: xRefPaycoValue,
+            }
+          );
+          return res.status(200).json({
+            success: true,
+            message: 'Estado de pago actualizado (no exitoso)',
+            paymentStatus: finalPaymentStatus,
+          });
+        }
+
+        // Pago exitoso: actualizar estado de pago
+        const refPaycoValue = xRefPaycoValue || ref_payco;
+        const updatedOrder = await this.ordersService.updatePaymentStatus(
+          existingOrder.id,
+          finalPaymentStatus,
+          transactionId,
+          {
+            refPayco: refPaycoValue,
+            x_transaction_id: xTransactionIdValue,
+            x_ref_payco: xRefPaycoValue,
+          }
+        );
+
+        console.log(`✅ [EPAYCO-WEBHOOK] Estado de pago actualizado: ${updatedOrder.id} -> ${finalPaymentStatus}`);
+
+        // Crear orden en Dropi
+        let dropiSuccess = false;
+        try {
+          console.log(`📦 [EPAYCO-WEBHOOK] Creando orden en Dropi para orden existente: ${updatedOrder.id}`);
+          const dropiResult = await this.dropiOrdersService.createOrderInDropi(updatedOrder.id);
+          
+          if (dropiResult.success && dropiResult.dropiOrderIds.length > 0) {
+            dropiSuccess = true;
+            console.log(`✅ [EPAYCO-WEBHOOK] Orden creada en Dropi: ${dropiResult.dropiOrderIds.join(', ')}`);
+          } else {
+            console.warn(`⚠️ [EPAYCO-WEBHOOK] Error creando orden en Dropi:`, dropiResult.errors);
+          }
+        } catch (dropiError: any) {
+          console.error(`❌ [EPAYCO-WEBHOOK] Error creando orden en Dropi:`, dropiError?.message);
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: 'Orden actualizada exitosamente',
+          orderId: updatedOrder.id,
+          paymentStatus: updatedOrder.paymentStatus,
+          dropiSuccess,
+        });
+      }
+
+      // Flujo normal: tratar identifier como cartId
+      const cartId = identifier;
 
       // 1. VALIDAR FIRMA DE SEGURIDAD
       const p_cust_id_cliente = process.env.EPAYCO_CUSTOMER_ID;

@@ -1,7 +1,7 @@
 import { prisma } from '../../config/database';
 import { S3Service } from '../../shared/services/s3.service';
 import { PosterDTO, PosterAuthorDTO } from '../../shared/dto/posters.dto';
-import { NotFoundError, BadRequestError } from '../../shared/errors/AppError';
+import { NotFoundError, BadRequestError, ForbiddenError } from '../../shared/errors/AppError';
 import { FeedService } from '../feed/feed.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
@@ -690,6 +690,32 @@ export class PostersService {
 
     // Extraer menciones del contenido
     const mentionedUserIds = await this.extractMentions(content);
+
+    // Verificar si algún usuario mencionado está bloqueado (bidireccional)
+    if (mentionedUserIds.length > 0) {
+      const blockedMentions: string[] = [];
+      
+      for (const mentionedUserId of mentionedUserIds) {
+        const isBlocked = await prisma.friend.findFirst({
+          where: {
+            status: 'blocked',
+            OR: [
+              { userId, friendId: mentionedUserId },
+              { userId: mentionedUserId, friendId: userId },
+            ],
+          },
+        });
+
+        if (isBlocked) {
+          blockedMentions.push(mentionedUserId);
+        }
+      }
+
+      // Si hay menciones bloqueadas, lanzar error
+      if (blockedMentions.length > 0) {
+        throw new ForbiddenError('No puedes mencionar a usuarios bloqueados');
+      }
+    }
 
     // Crear comentario con menciones (solo si hay menciones)
     const commentData: any = {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { CheckIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
@@ -12,7 +13,8 @@ interface PrivacySectionProps {
 }
 
 export function PrivacySection({ onUpdate }: PrivacySectionProps) {
-  const { user, checkAuth } = useAuthStore()
+  const { user, checkAuth, logout } = useAuthStore()
+  const router = useRouter()
   const [profilePublic, setProfilePublic] = useState(true)
   const [allowGiftShipping, setAllowGiftShipping] = useState(false)
   const [useMainAddressForGifts, setUseMainAddressForGifts] = useState(false)
@@ -297,6 +299,29 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
               </svg>
               Términos y Condiciones
             </Link>
+          </div>
+
+          {/* Botón de cerrar sesión */}
+          <div className="pt-6 border-t border-gray-600">
+            <button
+              onClick={() => {
+                logout()
+                router.push('/')
+              }}
+              className="flex items-center gap-3 text-red-400 hover:text-red-300 transition-colors w-full text-left px-2 py-2 rounded-lg hover:bg-red-500/10"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span 
+                className="font-medium"
+                style={{ fontFamily: 'Poppins, sans-serif' }}
+              >
+                Cerrar sesión
+              </span>
+            </button>
           </div>
         </>
       )}

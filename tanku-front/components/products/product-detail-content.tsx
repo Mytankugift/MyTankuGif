@@ -8,8 +8,7 @@ import { useCartStore } from '@/lib/stores/cart-store'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { Button } from '@/components/ui/button'
 import { VariantSelector } from '@/components/products/variant-selector'
-import { ShareIcon, HeartIcon, BookmarkIcon } from '@heroicons/react/24/outline'
-import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
+import { HeartIcon } from '@heroicons/react/24/outline'
 import { ShareProductModal } from './share-product-modal'
 import { WishlistSelectorModal } from '@/components/wishlists/wishlist-selector-modal'
 import { apiClient } from '@/lib/api/client'
@@ -36,6 +35,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
   const [isLiked, setIsLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
   const [isTogglingLike, setIsTogglingLike] = useState(false)
+  const [showFullDescription, setShowFullDescription] = useState(false)
 
   // Cargar producto completo usando el hook
   const { product: fullProduct, isLoading: isLoadingProduct, error: productError } = useProduct(
@@ -196,6 +196,15 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
 
   const productTitle = fullProduct.title || product.title
   const productDescription = fullProduct.description || ''
+  
+  // Calcular si la descripción tiene más de 3 líneas
+  const descriptionLines = productDescription.split('\n').filter(line => line.trim().length > 0)
+  const hasLongDescription = descriptionLines.length > 3 || productDescription.length > 200
+  const displayDescription = showFullDescription 
+    ? productDescription 
+    : hasLongDescription 
+      ? productDescription.substring(0, 200) + '...'
+      : productDescription
 
   return (
     <div className={`${isPageView ? 'bg-gray-900 rounded-lg border border-gray-700' : ''}`}>
@@ -226,20 +235,21 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row gap-8 p-6">
-        {/* Galería de imágenes */}
-        <div className="md:w-1/2 flex gap-4">
-          {/* Miniaturas a la izquierda (solo en desktop) */}
-          {allImages.length > 1 && (
-            <div className="hidden md:flex flex-col gap-2 overflow-y-auto max-h-[600px] custom-scrollbar">
-              {allImages.map((img, index) => (
+      <div className="p-6">
+        <div className="flex flex-col md:flex-row gap-6 mb-6">
+          {/* Galería de imágenes */}
+          <div className="md:w-1/2 flex gap-4">
+          {/* Miniaturas a la izquierda (solo en desktop) - siempre reservar espacio */}
+          <div className="hidden md:flex flex-col gap-2 overflow-y-auto max-h-[400px] custom-scrollbar w-16 flex-shrink-0">
+            {allImages.length > 1 ? (
+              allImages.map((img, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
                   className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
                     currentImageIndex === index
-                      ? 'border-[#73FFA2] ring-2 ring-[#73FFA2] ring-offset-2 ring-offset-gray-900'
-                      : 'border-gray-700 hover:border-gray-600'
+                      ? 'border-[#66DEDB] ring-2 ring-[#66DEDB] ring-offset-2 ring-offset-[#2C3137]'
+                      : 'border-gray-600 hover:border-gray-500'
                   }`}
                 >
                   <Image
@@ -251,16 +261,20 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                     unoptimized={img.startsWith('http')}
                   />
                 </button>
-              ))}
-            </div>
-          )}
+              ))
+            ) : (
+              <div className="w-16 h-16"></div> // Espacio reservado
+            )}
+          </div>
 
-          {/* Imagen principal */}
+          {/* Imagen principal - más pequeña */}
           {allImages.length > 0 && (
-            <div className="flex-1 relative">
+            <div className="flex-1 relative max-w-sm">
               <div
-                className="relative aspect-square bg-gray-800 rounded-lg overflow-hidden cursor-pointer group"
-                onClick={() => setIsImageLightboxOpen(true)}
+                className={`relative aspect-square bg-gray-800 rounded-lg overflow-hidden group ${
+                  isPageView ? 'cursor-pointer' : 'cursor-default'
+                }`}
+                onClick={isPageView ? () => setIsImageLightboxOpen(true) : undefined}
               >
                 <Image
                   src={allImages[currentImageIndex]}
@@ -269,24 +283,6 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                   className="object-contain group-hover:scale-105 transition-transform duration-300"
                   unoptimized={allImages[currentImageIndex].startsWith('http')}
                 />
-                {/* Botón "me gusta" discreto en la esquina superior derecha */}
-                {isAuthenticated && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleToggleLike()
-                    }}
-                    className="absolute top-2 right-2 p-2 bg-gray-900/70 hover:bg-gray-900/90 rounded-full backdrop-blur-sm transition-colors z-10"
-                    title={isLiked ? 'Quitar me gusta' : 'Me gusta'}
-                    disabled={isTogglingLike}
-                  >
-                    {isTogglingLike ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                      <HeartIcon className={`w-5 h-5 transition-colors ${isLiked ? 'text-red-500 fill-red-500' : 'text-gray-300 hover:text-red-400'}`} />
-                    )}
-                  </button>
-                )}
               </div>
               
               {/* Miniaturas abajo en móvil */}
@@ -298,8 +294,8 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                       onClick={() => setCurrentImageIndex(index)}
                       className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
                         currentImageIndex === index
-                          ? 'border-[#73FFA2] ring-2 ring-[#73FFA2]'
-                          : 'border-gray-700 hover:border-gray-600'
+                          ? 'border-[#66DEDB] ring-2 ring-[#66DEDB]'
+                          : 'border-gray-600 hover:border-gray-500'
                       }`}
                     >
                       <Image
@@ -318,70 +314,86 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
           )}
         </div>
 
-        {/* Información del producto */}
-        <div className="md:w-1/2 space-y-6">
-          {/* Header con título, wishlist y compartir */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-white mb-2">{productTitle}</h1>
-              {productDescription && (
-                <p className="text-gray-400 text-lg">{productDescription}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Botón "me gusta" */}
-              {isAuthenticated && (
-                <button
-                  onClick={handleToggleLike}
-                  disabled={isTogglingLike}
-                  className="p-2 text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
-                  title={isLiked ? 'Quitar me gusta' : 'Me gusta'}
-                >
-                  {isTogglingLike ? (
-                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <HeartIcon className={`w-6 h-6 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />
-                  )}
-                </button>
-              )}
-              {/* Botón wishlist con BookmarkIcon */}
+          {/* Información del producto */}
+          <div className="md:w-1/2 space-y-5">
+          {/* Precio con iconos de wishlist y compartir */}
+          <div className="flex items-center justify-between">
+            <span 
+              className="text-3xl font-semibold"
+              style={{ color: '#3B9BC3' }}
+            >
+              {formatPrice(finalPrice)}
+            </span>
+            <div className="flex items-center gap-2">
               {isAuthenticated && (
                 <button
                   onClick={() => setShowWishlistModal(true)}
-                  className="p-2 text-gray-400 hover:text-[#73FFA2] transition-colors"
+                  className="p-2 hover:opacity-80 transition-opacity"
                   title="Agregar a wishlist"
                 >
-                  <BookmarkIcon className="w-6 h-6" />
+                  <Image
+                    src="/icons_tanku/tanku_agregar_a_whislist_azul.svg"
+                    alt="Agregar a wishlist"
+                    width={24}
+                    height={24}
+                    className="w-6 h-6"
+                  />
                 </button>
               )}
               <button
                 onClick={handleShare}
-                className="p-2 text-gray-400 hover:text-white transition-colors"
+                className="p-2 hover:opacity-80 transition-opacity"
                 title="Compartir"
               >
-                <ShareIcon className="w-6 h-6" />
+                <Image
+                  src="/icons_tanku/tanku_compartir_publicacion_verde.svg"
+                  alt="Compartir"
+                  width={24}
+                  height={24}
+                  className="w-6 h-6"
+                />
               </button>
             </div>
           </div>
 
-          {/* Precio */}
-          <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold text-[#73FFA2]">
-              {formatPrice(finalPrice)}
-            </span>
-          </div>
-
-          {/* Contador de likes */}
+          {/* Me gusta con contador */}
           <div className="flex items-center gap-2">
             <button
               onClick={handleToggleLike}
               disabled={!isAuthenticated || isTogglingLike}
-              className="flex items-center gap-2 text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity disabled:opacity-50"
             >
-              <HeartIcon className={`w-5 h-5 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} />
-              <span className="text-sm font-medium">{likesCount}</span>
+              {isTogglingLike ? (
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Image
+                  src={isLiked ? "/icons_tanku/tanku_megusta_relleno.svg" : "/icons_tanku/tanku_megusta_lineas.svg"}
+                  alt="Me gusta"
+                  width={28}
+                  height={28}
+                  className="w-7 h-7"
+                />
+              )}
             </button>
+            <span 
+              className="text-base font-normal"
+              style={{ color: '#73FFA2' }}
+            >
+              A {likesCount} personas este producto las hace feliz.
+            </span>
           </div>
+
+          {/* Stock */}
+          {stock > 0 ? (
+            <p 
+              className="text-base font-medium"
+              style={{ color: '#66DEDB' }}
+            >
+              {stock} unidades disponibles.
+            </p>
+          ) : (
+            <p className="text-red-400 text-base">✗ Agotado</p>
+          )}
 
           {/* Selector de variantes */}
           {variants.length > 1 && (
@@ -397,30 +409,45 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
             />
           )}
 
-          {/* Stock */}
-          {stock > 0 ? (
-            <p className="text-green-400 text-sm">✓ {stock} disponibles</p>
-          ) : (
-            <p className="text-red-400 text-sm">✗ Agotado</p>
-          )}
-
           {/* Cantidad */}
           {stock > 0 && (
             <div className="flex items-center gap-4">
-              <label className="text-white font-medium">Cantidad:</label>
+              <label 
+                className="font-medium"
+                style={{ color: '#66DEDB' }}
+              >
+                Cantidad:
+              </label>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleQuantityChange(quantity - 1)}
                   disabled={quantity <= 1}
-                  className="w-10 h-10 rounded-lg bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-10 h-10 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '2px solid #66DEDB',
+                    borderRadius: '17px',
+                    color: '#66DEDB'
+                  }}
                 >
                   -
                 </button>
-                <span className="w-12 text-center text-white font-semibold">{quantity}</span>
+                <span 
+                  className="w-12 text-center font-semibold"
+                  style={{ color: '#66DEDB' }}
+                >
+                  {quantity}
+                </span>
                 <button
                   onClick={() => handleQuantityChange(quantity + 1)}
                   disabled={quantity >= maxQuantity}
-                  className="w-10 h-10 rounded-lg bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-10 h-10 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '2px solid #66DEDB',
+                    borderRadius: '17px',
+                    color: '#66DEDB'
+                  }}
                 >
                   +
                 </button>
@@ -441,16 +468,26 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
               <Button
                 onClick={handleAddToCart}
                 disabled={isAddingToCart || isCartLoading}
-                className="flex-1 bg-[#73FFA2] hover:bg-[#60D489] text-gray-900 font-semibold py-3"
+                className="flex-1 font-semibold py-3"
+                style={{ 
+                  backgroundColor: '#3B9BC3',
+                  color: '#2C3137',
+                  borderRadius: '25px'
+                }}
               >
-                {isAddingToCart ? 'Agregando...' : 'Agregar al carrito'}
+                {isAddingToCart ? 'Agregando...' : 'Guardar en el Carrito'}
               </Button>
               <Button
                 onClick={handleBuyNow}
                 disabled={isAddingToCart || isCartLoading}
-                className="flex-1 border-[#73FFA2] text-[#73FFA2] hover:bg-[#73FFA2] hover:text-gray-900 font-semibold py-3"
+                className="flex-1 font-semibold py-3"
+                style={{ 
+                  backgroundColor: '#66DEDB',
+                  color: '#2C3137',
+                  borderRadius: '25px'
+                }}
               >
-                Comprar ahora
+                Comprar este TANKU
               </Button>
             </div>
           )}
@@ -460,8 +497,52 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
               Inicia sesión para agregar productos al carrito
             </p>
           )}
+          </div>
         </div>
       </div>
+
+      {/* Descripción debajo de la imagen principal */}
+      {productDescription && (
+        <div className="px-6 pb-6 w-full">
+          <h3 
+            className="text-lg font-semibold mb-2"
+            style={{ color: '#66DEDB' }}
+          >
+            Descripción
+          </h3>
+          <div className="relative">
+            <p 
+              className={`text-gray-300 text-sm leading-relaxed whitespace-pre-wrap ${
+                !showFullDescription && hasLongDescription ? 'line-clamp-3' : ''
+              }`}
+            >
+              {displayDescription}
+            </p>
+            {hasLongDescription && !showFullDescription && (
+              <div className="flex justify-end mt-2">
+                <button
+                  onClick={() => setShowFullDescription(true)}
+                  className="text-sm font-medium hover:underline"
+                  style={{ color: '#3B9BC3' }}
+                >
+                  Ver más
+                </button>
+              </div>
+            )}
+            {hasLongDescription && showFullDescription && (
+              <div className="flex justify-end mt-2">
+                <button
+                  onClick={() => setShowFullDescription(false)}
+                  className="text-sm font-medium hover:underline"
+                  style={{ color: '#3B9BC3' }}
+                >
+                  Ver menos
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modal de compartir */}
       {product?.handle && (

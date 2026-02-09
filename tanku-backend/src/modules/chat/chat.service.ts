@@ -23,6 +23,7 @@ export interface MessageWithSender extends Message {
 export class ChatService {
   /**
    * Crear o obtener conversación entre dos usuarios
+   * Bloquea creación de conversaciones con usuarios bloqueados
    */
   async createOrGetConversation(
     userId: string,
@@ -33,6 +34,21 @@ export class ChatService {
     // Validar que no sea el mismo usuario
     if (userId === participantId) {
       throw new BadRequestError('No puedes crear una conversación contigo mismo');
+    }
+
+    // Verificar si hay bloqueo (bidireccional)
+    const isBlocked = await prisma.friend.findFirst({
+      where: {
+        status: 'blocked',
+        OR: [
+          { userId, friendId: participantId },
+          { userId: participantId, friendId: userId },
+        ],
+      },
+    });
+
+    if (isBlocked) {
+      throw new ForbiddenError('No puedes crear una conversación con este usuario');
     }
 
     // Buscar conversación existente entre estos dos usuarios
@@ -122,6 +138,7 @@ export class ChatService {
    * Incluye conversaciones tipo FRIENDS y STALKERGIFT
    * SOLO retorna conversaciones reales (NO temporales)
    * OPTIMIZADO: Reduce queries de N+1 a batch queries
+   * Filtra conversaciones con usuarios bloqueados
    */
   async getConversations(userId: string): Promise<ConversationWithParticipants[]> {
     // Obtener conversaciones existentes con UNA query optimizada
@@ -159,8 +176,42 @@ export class ChatService {
       orderBy: { updatedAt: 'desc' },
     });
 
+    // Obtener IDs de usuarios bloqueados (bidireccional)
+    const blockedUserIds = new Set<string>();
+    
+    // Usuarios que el usuario actual bloqueó
+    const blockedByMe = await prisma.friend.findMany({
+      where: {
+        userId,
+        status: 'blocked',
+      },
+      select: {
+        friendId: true,
+      },
+    });
+    blockedByMe.forEach(b => blockedUserIds.add(b.friendId));
+
+    // Usuarios que bloquearon al usuario actual
+    const blockedMe = await prisma.friend.findMany({
+      where: {
+        friendId: userId,
+        status: 'blocked',
+      },
+      select: {
+        userId: true,
+      },
+    });
+    blockedMe.forEach(b => blockedUserIds.add(b.userId));
+
+    // Filtrar conversaciones con usuarios bloqueados
+    const filteredConversations = conversations.filter(conv => {
+      // Para cada conversación, verificar si algún participante (que no sea el usuario actual) está bloqueado
+      const otherParticipants = conv.participants.filter(p => p.userId !== userId);
+      return !otherParticipants.some(p => blockedUserIds.has(p.userId));
+    });
+
     // Ordenar por última actividad
-    conversations.sort((a, b) => {
+    filteredConversations.sort((a, b) => {
       const aTime = a.messages && a.messages.length > 0
         ? new Date(a.messages[0].createdAt).getTime()
         : new Date(a.updatedAt).getTime();
@@ -170,7 +221,7 @@ export class ChatService {
       return bTime - aTime; // Más reciente primero
     });
 
-    return conversations as ConversationWithParticipants[];
+    return filteredConversations as ConversationWithParticipants[];
   }
 
   /**
@@ -252,6 +303,7 @@ export class ChatService {
 
   /**
    * Enviar mensaje
+   * Bloquea envío de mensajes a usuarios bloqueados
    */
   async sendMessage(
     conversationId: string,
@@ -279,6 +331,13 @@ export class ChatService {
     // Verificar que la conversación esté activa
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
+      include: {
+        participants: {
+          select: {
+            userId: true,
+          },
+        },
+      },
     });
 
     if (!conversation) {
@@ -287,6 +346,26 @@ export class ChatService {
 
     if (conversation.status !== 'ACTIVE') {
       throw new BadRequestError('La conversación está cerrada');
+    }
+
+    // Verificar si algún participante (que no sea el usuario actual) está bloqueado
+    const otherParticipants = conversation.participants.filter(p => p.userId !== userId);
+    
+    // Verificar bloqueo bidireccional
+    for (const otherParticipant of otherParticipants) {
+      const isBlocked = await prisma.friend.findFirst({
+        where: {
+          status: 'blocked',
+          OR: [
+            { userId, friendId: otherParticipant.userId },
+            { userId: otherParticipant.userId, friendId: userId },
+          ],
+        },
+      });
+
+      if (isBlocked) {
+        throw new ForbiddenError('No puedes enviar mensajes a este usuario');
+      }
     }
 
     // Obtener alias si existe (para anonimato)

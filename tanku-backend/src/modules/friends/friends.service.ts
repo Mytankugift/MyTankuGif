@@ -923,4 +923,62 @@ export class FriendsService {
 
     return !!friendship;
   }
+
+  /**
+   * Verificar si un usuario está bloqueado por otro
+   * Retorna true si userId bloqueó a otherUserId O si otherUserId bloqueó a userId
+   */
+  async isBlocked(userId: string, otherUserId: string): Promise<boolean> {
+    if (userId === otherUserId) {
+      return false; // No se puede bloquear a uno mismo
+    }
+
+    const blocked = await prisma.friend.findFirst({
+      where: {
+        status: 'blocked',
+        OR: [
+          { userId, friendId: otherUserId },
+          { userId: otherUserId, friendId: userId },
+        ],
+      },
+    });
+
+    return !!blocked;
+  }
+
+  /**
+   * Obtener lista de IDs de usuarios bloqueados por un usuario
+   * Más eficiente para filtros en batch queries
+   */
+  async getBlockedUserIds(userId: string): Promise<string[]> {
+    const blocked = await prisma.friend.findMany({
+      where: {
+        userId,
+        status: 'blocked',
+      },
+      select: {
+        friendId: true,
+      },
+    });
+
+    return blocked.map(b => b.friendId);
+  }
+
+  /**
+   * Obtener lista de IDs de usuarios que bloquearon a un usuario
+   * Útil para verificar si el usuario actual está bloqueado por otros
+   */
+  async getBlockedByUserIds(userId: string): Promise<string[]> {
+    const blocked = await prisma.friend.findMany({
+      where: {
+        friendId: userId,
+        status: 'blocked',
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    return blocked.map(b => b.userId);
+  }
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useCartStore } from '@/lib/stores/cart-store'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
@@ -8,8 +9,6 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
 import { WishlistProductsModal } from '@/components/wishlists/wishlist-products-modal'
 import { ShareWishlistModal } from '@/components/wishlists/share-wishlist-modal'
-import { GiftCartConfirmationModal } from '@/components/gifts/gift-cart-confirmation-modal'
-import { useGiftCart } from '@/lib/hooks/use-gift-cart'
 import Image from 'next/image'
 import { BookmarkIcon, LockClosedIcon, ShareIcon } from '@heroicons/react/24/outline'
 import type { WishListDTO } from '@/types/api'
@@ -20,9 +19,9 @@ interface UserWishlistsTabProps {
 }
 
 export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabProps) {
+  const router = useRouter()
   const { user: currentUser } = useAuthStore()
   const { addItem, cart } = useCartStore()
-  const { addToGiftCart, clearGiftCart } = useGiftCart()
   const [wishlists, setWishlists] = useState<WishListDTO[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedWishlist, setSelectedWishlist] = useState<WishListDTO | null>(null)
@@ -32,10 +31,6 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
   const [backendCanViewPrivate, setBackendCanViewPrivate] = useState(false)
   const loadingRef = useRef(false)
   const isOwnWishlist = currentUser?.id === userId
-  const [showGiftConfirmation, setShowGiftConfirmation] = useState(false)
-  const [pendingGiftItem, setPendingGiftItem] = useState<{ variantId: string; recipientId: string } | null>(null)
-  const [currentRecipientName, setCurrentRecipientName] = useState<string | null>(null)
-  const [newRecipientName, setNewRecipientName] = useState<string | null>(null)
 
   // Función para cargar wishlists (extraída para poder reutilizarla)
   const loadWishlists = useCallback(async () => {
@@ -298,96 +293,38 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
     }
   }
 
-  const handleSendAsGift = async (item: WishListDTO['items'][0], skipConfirmation = false) => {
+  const handleSendAsGift = async (item: WishListDTO['items'][0]) => {
     if (!item.variantId) {
       alert('Este producto no tiene variante seleccionada')
       return
     }
 
+    // Validar que el usuario esté autenticado
+    if (!currentUser?.id) {
+      router.push('/feed') // Redirigir al login
+      return
+    }
+
+    // Validar destinatario antes de continuar
     try {
-      await addToGiftCart(item.variantId, userId, 1)
-      alert('Producto agregado al carrito de regalos')
-      setShowGiftConfirmation(false)
-      setPendingGiftItem(null)
-      setCurrentRecipientName(null)
-      setNewRecipientName(null)
-    } catch (error: any) {
-      // Si el error es por tener otro destinatario, mostrar confirmación (no es un error real)
-      if (error.message === 'DIFFERENT_RECIPIENT' && !skipConfirmation) {
-        setPendingGiftItem({ variantId: item.variantId, recipientId: userId })
-        
-        // Obtener nombres de los destinatarios
-        const currentRecipientId = cart?.giftRecipientId
-        if (currentRecipientId) {
-          const currentName = await getUserName(currentRecipientId)
-          setCurrentRecipientName(currentName)
-        }
-        
-        const newName = await getUserName(userId)
-        setNewRecipientName(newName)
-        
-        setShowGiftConfirmation(true)
+      const eligibility = await apiClient.get(API_ENDPOINTS.GIFTS.RECIPIENT_ELIGIBILITY(userId))
+      if (!eligibility.success || !eligibility.data?.canReceive) {
+        alert(eligibility.data?.reason || 'Este usuario no puede recibir regalos')
         return
       }
-      
-      // Solo loggear errores reales (no los esperados)
-      if (!error.isExpected) {
-        console.error('Error enviando como regalo:', error)
+      if (eligibility.data?.canSendGift === false) {
+        alert(eligibility.data?.sendGiftReason || 'No puedes enviar regalos a este usuario')
+        return
       }
-      
-      alert(error.message || 'Error al enviar como regalo')
+    } catch (error: any) {
+      alert(error.message || 'Error validando destinatario')
+      return
     }
+
+    // ✅ NUEVO: Ir directamente al checkout de regalo sin carrito
+    router.push(`/checkout/gift-direct?variantId=${item.variantId}&recipientId=${userId}&quantity=1`)
   }
 
-  const handleConfirmClearCart = async () => {
-    if (!pendingGiftItem) return
-    
-    try {
-      // Obtener el carrito actual de regalos
-      const { giftCart: currentGiftCart } = useCartStore.getState()
-      
-      // Si hay items en el carrito, eliminarlos todos primero
-      if (currentGiftCart && currentGiftCart.items && currentGiftCart.items.length > 0) {
-        const itemIds = currentGiftCart.items.map(item => item.id)
-        // Eliminar todos los items del carrito de regalos
-        for (const itemId of itemIds) {
-          try {
-            await useCartStore.getState().removeItem(itemId, currentGiftCart.id)
-          } catch (err: any) {
-            // Si el error es NOT_FOUND, el item ya no existe, continuar
-            if (!err?.message?.includes('NOT_FOUND') && !err?.message?.includes('no encontrado')) {
-              console.error('Error eliminando item:', err)
-            }
-          }
-        }
-      }
-      
-      // Esperar un momento para que el backend procese la limpieza
-      // y resetee el giftRecipientId
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Recargar el carrito de regalos para obtener el estado actualizado del backend
-      await useCartStore.getState().fetchGiftCart()
-      
-      // Verificar que el carrito de regalos esté limpio
-      const { giftCart: updatedGiftCart } = useCartStore.getState()
-      
-      // Luego agregar el nuevo producto
-      // El backend detectará que el carrito está vacío y permitirá cambiar el destinatario
-      await handleSendAsGift({ variantId: pendingGiftItem.variantId } as WishListDTO['items'][0], true)
-      setShowGiftConfirmation(false)
-      setPendingGiftItem(null)
-      setCurrentRecipientName(null)
-      setNewRecipientName(null)
-    } catch (error: any) {
-      console.error('Error al limpiar y agregar:', error)
-      alert(error.message || 'Error al procesar el regalo')
-      setShowGiftConfirmation(false)
-      setPendingGiftItem(null)
-      setCurrentRecipientName(null)
-      setNewRecipientName(null)
-    }
-  }
 
   if (isLoading) {
     return (
@@ -632,23 +569,6 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
         />
       )}
 
-      {/* Modal de confirmación para carrito de regalos con otro destinatario */}
-      <GiftCartConfirmationModal
-        isOpen={showGiftConfirmation}
-        onConfirm={handleConfirmClearCart}
-        onCancel={() => {
-          setShowGiftConfirmation(false)
-          setPendingGiftItem(null)
-          setCurrentRecipientName(null)
-          setNewRecipientName(null)
-        }}
-        onGoToCart={() => {
-          // Navegar al carrito y cambiar al tab de regalos
-          window.location.href = '/cart'
-        }}
-        currentRecipientName={currentRecipientName || undefined}
-        newRecipientName={newRecipientName || undefined}
-      />
     </div>
   )
 }

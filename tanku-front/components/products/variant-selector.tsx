@@ -53,7 +53,12 @@ export function VariantSelector({
     <div className="relative w-full" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3 bg-gray-800 border-2 border-gray-600 rounded-lg text-left transition-all duration-200 flex items-center justify-between hover:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB] focus:ring-opacity-20"
+        className="w-full px-4 py-3 text-left transition-all duration-200 flex items-center justify-between hover:opacity-80 focus:outline-none"
+        style={{
+          backgroundColor: 'transparent',
+          border: '2px solid #66DEDB',
+          borderRadius: '25px'
+        }}
       >
         <div className="flex flex-col">
           <span className="text-xs text-gray-400 mb-1">Variante seleccionada:</span>
@@ -78,7 +83,14 @@ export function VariantSelector({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-full bg-gray-800 border-2 border-[#66DEDB] rounded-lg shadow-2xl z-50 p-3 max-h-64 overflow-y-auto">
+        <div 
+          className="absolute top-full left-0 mt-2 w-full shadow-2xl z-50 p-3 max-h-64 overflow-y-auto"
+          style={{
+            backgroundColor: '#2C3137',
+            border: '2px solid #66DEDB',
+            borderRadius: '25px'
+          }}
+        >
           {sortedVariants.map((variant, index) => {
             const isSelected = selectedVariant?.id === variant.id
             const variantPrice = getVariantPrice(variant)

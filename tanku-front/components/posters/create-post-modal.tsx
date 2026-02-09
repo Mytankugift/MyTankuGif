@@ -15,7 +15,6 @@ interface CreatePostModalProps {
 
 export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostModalProps) {
   const { token } = useAuthStore()
-  const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -26,7 +25,6 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
   // Resetear formulario cuando se cierra
   React.useEffect(() => {
     if (!isOpen) {
-      setTitle('')
       setDescription('')
       setSelectedFile(null)
       setPreview(null)
@@ -79,11 +77,6 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
     e.preventDefault()
 
     // Validaciones
-    if (!title?.trim() && !description?.trim()) {
-      setError('Se requiere al menos un título o descripción')
-      return
-    }
-
     if (!selectedFile) {
       setError('Se requiere al menos una imagen o video')
       return
@@ -94,7 +87,7 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
 
     try {
       const formData = new FormData()
-      formData.append('title', title.trim())
+      formData.append('title', '') // Título vacío ya que no se usa
       formData.append('description', description.trim())
       formData.append('files', selectedFile) // El backend espera 'files' (array)
 
@@ -133,82 +126,61 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/70 flex items-center justify-center p-4"
+      style={{ zIndex: 9999 }}
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-700"
+        className="max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        style={{
+          backgroundColor: '#2C3137',
+          border: '2px solid #73FFA2',
+          borderRadius: '25px',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h2 className="text-xl font-bold text-white">Crear Nuevo Post</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-            disabled={isUploading}
-          >
-            <XMarkIcon className="w-6 h-6" />
-          </button>
-        </div>
-
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Header */}
+          <div className="space-y-2">
+            <h2 
+              className="text-2xl font-bold"
+              style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}
+            >
+              Nueva Publicación
+            </h2>
+            <p 
+              className="text-base"
+              style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}
+            >
+              Comparte algo que te importa
+            </p>
+          </div>
+
           {/* Error message */}
           {error && (
-            <div className="bg-red-900/20 border border-red-400/30 text-red-400 px-4 py-2 rounded text-sm">
+            <div className="bg-red-900/20 border border-red-400/30 text-red-400 px-4 py-2 rounded-lg text-sm">
               {error}
             </div>
           )}
 
-          {/* Título */}
+          {/* File Upload - Primero */}
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-2">
-              Título (opcional)
-            </label>
-            <input
-              id="title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#73FFA2] focus:border-transparent"
-              placeholder="Escribe un título..."
-              disabled={isUploading}
-            />
-          </div>
-
-          {/* Descripción */}
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-2">
-              Descripción (opcional)
-            </label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#73FFA2] focus:border-transparent resize-none"
-              placeholder="Comparte algo con la comunidad..."
-              disabled={isUploading}
-            />
-          </div>
-
-          {/* File Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Imagen o Video (requerido)
-            </label>
             {!preview ? (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-700 rounded-lg p-8 text-center cursor-pointer hover:border-[#73FFA2] transition-colors"
+                className="w-full min-h-[200px] flex items-center justify-center cursor-pointer transition-colors"
+                style={{
+                  backgroundColor: '#2C3137',
+                  border: '2px dashed #66DEDB',
+                  borderRadius: '25px',
+                }}
               >
-                <div className="flex flex-col items-center gap-2">
-                  <PhotoIcon className="w-12 h-12 text-gray-500" />
-                  <p className="text-gray-400 text-sm">
-                    Haz clic para seleccionar una imagen o video
+                <div className="flex flex-col items-center gap-3 px-6 py-8 text-center">
+                  <PhotoIcon className="w-12 h-12" style={{ color: '#9CA3AF' }} />
+                  <p className="text-sm" style={{ color: '#9CA3AF', fontFamily: 'Poppins, sans-serif' }}>
+                    Agrega una imagen o video. Algo que te ayude a sentir lo que quieres decir.
                   </p>
-                  <p className="text-gray-500 text-xs">Máximo 50MB</p>
                 </div>
                 <input
                   ref={fileInputRef}
@@ -222,7 +194,7 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
             ) : (
               <div className="relative">
                 {isImage && (
-                  <div className="relative w-full rounded-lg overflow-hidden border border-gray-700">
+                  <div className="relative w-full rounded-[25px] overflow-hidden">
                     <Image
                       src={preview}
                       alt="Preview"
@@ -242,7 +214,7 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
                   </div>
                 )}
                 {isVideo && (
-                  <div className="relative w-full rounded-lg overflow-hidden border border-gray-700">
+                  <div className="relative w-full rounded-[25px] overflow-hidden">
                     <video
                       src={preview}
                       controls
@@ -261,7 +233,8 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="mt-2 text-sm text-[#73FFA2] hover:text-[#66e891] transition-colors"
+                  className="mt-2 text-sm transition-colors"
+                  style={{ color: '#73FFA2' }}
                   disabled={isUploading}
                 >
                   Cambiar archivo
@@ -278,24 +251,55 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
             )}
           </div>
 
-          {/* Submit Button */}
-          <div className="flex gap-3 pt-4">
+          {/* Descripción - Segundo */}
+          <div>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={6}
+              className="w-full px-4 py-4 text-white placeholder-gray-400 focus:outline-none resize-none"
+              style={{
+                backgroundColor: '#2C3137',
+                border: '2px solid #66DEDB',
+                borderRadius: '25px',
+                fontFamily: 'Poppins, sans-serif',
+              }}
+              placeholder="Si quieres decir algo más, este es el lugar. A veces, unas palabras lo cambian todo."
+              disabled={isUploading}
+            />
+          </div>
+
+          {/* Submit Buttons */}
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              className="flex-1 px-4 py-3 font-semibold transition-colors"
+              style={{
+                backgroundColor: '#3B9BC3',
+                color: 'white',
+                borderRadius: '25px',
+                fontFamily: 'Poppins, sans-serif',
+              }}
               disabled={isUploading}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-[#73FFA2] hover:bg-[#66e891] text-gray-900 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              disabled={isUploading || (!title?.trim() && !description?.trim()) || !selectedFile}
+              className="flex-1 px-4 py-3 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              style={{
+                backgroundColor: '#73FFA2',
+                color: '#2C3137',
+                borderRadius: '25px',
+                fontFamily: 'Poppins, sans-serif',
+              }}
+              disabled={isUploading || !selectedFile}
             >
               {isUploading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 border-[#2C3137] border-t-transparent rounded-full animate-spin"></div>
                   Subiendo...
                 </>
               ) : (

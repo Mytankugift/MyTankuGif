@@ -74,8 +74,9 @@ export class UsersService {
   /**
    * Buscar usuarios por nombre o email (para autocompletado de menciones)
    * Si query está vacío, retorna usuarios recientes
+   * Filtra usuarios bloqueados si se proporciona viewerUserId
    */
-  async searchUsers(query: string, limit: number = 10): Promise<Array<{
+  async searchUsers(query: string, limit: number = 10, viewerUserId?: string): Promise<Array<{
     id: string;
     email: string;
     firstName: string | null;
@@ -136,6 +137,38 @@ export class UsersService {
           },
         },
       });
+    }
+
+    // Filtrar usuarios bloqueados si hay viewerUserId
+    if (viewerUserId) {
+      const blockedUserIds = new Set<string>();
+      
+      // Usuarios que el viewer bloqueó
+      const blockedByViewer = await prisma.friend.findMany({
+        where: {
+          userId: viewerUserId,
+          status: 'blocked',
+        },
+        select: {
+          friendId: true,
+        },
+      });
+      blockedByViewer.forEach(b => blockedUserIds.add(b.friendId));
+
+      // Usuarios que bloquearon al viewer
+      const blockedViewer = await prisma.friend.findMany({
+        where: {
+          friendId: viewerUserId,
+          status: 'blocked',
+        },
+        select: {
+          userId: true,
+        },
+      });
+      blockedViewer.forEach(b => blockedUserIds.add(b.userId));
+
+      // Filtrar usuarios bloqueados
+      users = users.filter(user => !blockedUserIds.has(user.id));
     }
 
     return users.map(user => ({
@@ -1146,9 +1179,17 @@ export class UsersService {
       };
     }
 
-    // Verificar si son amigos
+    // Verificar si hay bloqueo (bidireccional)
     const { FriendsService } = await import('../friends/friends.service');
     const friendsService = new FriendsService();
+    const isBlocked = await friendsService.isBlocked(viewerUserId, userId);
+
+    // Si hay bloqueo, retornar error
+    if (isBlocked) {
+      throw new NotFoundError('Este perfil no está disponible');
+    }
+
+    // Verificar si son amigos
     const areFriends = await friendsService.areFriends(viewerUserId, userId);
 
     // Contar amigos del usuario

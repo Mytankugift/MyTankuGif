@@ -307,7 +307,7 @@ export function FeedNav({
 
   return (
     <div
-      className={`fixed top-0 left-0 lg:left-60 z-50 flex-shrink-0 shadow-lg transition-all duration-150 ease-in-out ${
+      className={`fixed top-0 left-0 lg:left-60 z-40 flex-shrink-0 shadow-lg transition-all duration-150 ease-in-out ${
         isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
       } ${isLightMode ? 'bg-white' : 'bg-[#1E1E1E]'}`}
       style={{

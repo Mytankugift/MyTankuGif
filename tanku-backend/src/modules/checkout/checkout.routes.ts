@@ -19,4 +19,11 @@ router.get('/webhook-url', checkoutController.getWebhookUrl);
  */
 router.post('/add-order', authenticate, checkoutController.addOrder);
 
+/**
+ * POST /api/v1/checkout/gift-direct
+ * Crear orden de regalo directamente desde wishlist (sin carrito)
+ * REQUIERE AUTENTICACIÓN: El usuario debe estar logueado para enviar regalos
+ */
+router.post('/gift-direct', authenticate, checkoutController.createDirectGiftOrder);
+
 export default router;

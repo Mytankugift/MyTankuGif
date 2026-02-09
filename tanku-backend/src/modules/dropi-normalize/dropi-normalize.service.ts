@@ -78,11 +78,13 @@ export class DropiNormalizeService {
           // Buscar la imagen marcada como main
           const mainImage = payload.gallery.find((img: any) => img.main === true);
           if (mainImage) {
-            mainImageS3Path = mainImage.urlS3 || mainImage.url || null;
+            // ✅ CORREGIDO: Solo usar urlS3, nunca url (que contiene uploads/images/products)
+            mainImageS3Path = mainImage.urlS3 || null;
           } else {
             // Si no hay main, usar la primera imagen
             const firstImage = payload.gallery[0];
-            mainImageS3Path = firstImage.urlS3 || firstImage.url || null;
+            // ✅ CORREGIDO: Solo usar urlS3, nunca url
+            mainImageS3Path = firstImage.urlS3 || null;
           }
         }
 
