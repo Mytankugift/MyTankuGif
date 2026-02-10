@@ -2,6 +2,8 @@ import { BaseWorker } from './base-worker';
 import { DropiJobType } from '@prisma/client';
 import { DropiRawService } from '../../dropi-raw/dropi-raw.service';
 import { DropiNormalizeService } from '../../dropi-normalize/dropi-normalize.service';
+import { DropiSyncService } from '../../dropi-sync/dropi-sync.service';
+import { prisma } from '../../../config/database';
 
 /**
  * Worker para procesar jobs SYNC_STOCK
@@ -11,11 +13,13 @@ import { DropiNormalizeService } from '../../dropi-normalize/dropi-normalize.ser
 export class SyncStockWorker extends BaseWorker {
   private dropiRawService: DropiRawService;
   private dropiNormalizeService: DropiNormalizeService;
+  private dropiSyncService: DropiSyncService;
 
   constructor() {
     super(DropiJobType.SYNC_STOCK);
     this.dropiRawService = new DropiRawService();
     this.dropiNormalizeService = new DropiNormalizeService();
+    this.dropiSyncService = new DropiSyncService();
   }
 
   protected async processJob(jobId: string): Promise<void> {
@@ -55,6 +59,45 @@ export class SyncStockWorker extends BaseWorker {
       await this.updateProgress(jobId, progress);
     }
 
-    console.log(`[SYNC_STOCK WORKER] Sincronización de stock completada`);
+    // PASO 3: Sincronizar stock actualizado al backend (actualizar warehouseVariants)
+    console.log(`[SYNC_STOCK WORKER] Sincronizando stock al backend...`);
+    await this.dropiSyncService.syncToBackend(
+      50,
+      0,
+      true, // activeOnly
+      true  // skipExisting - solo actualizar productos existentes
+    );
+
+    // PASO 4: Actualizar estados de productos y variantes según stock
+    console.log(`[SYNC_STOCK WORKER] Actualizando estados según stock...`);
+    const allProducts = await prisma.product.findMany({
+      select: { id: true },
+    });
+
+    let updatedCount = 0;
+    for (const product of allProducts) {
+      try {
+        await this.dropiSyncService.updateProductRankingStatus(product.id);
+        
+        // Actualizar estado de todas las variantes del producto
+        const variants = await prisma.productVariant.findMany({
+          where: { productId: product.id },
+          select: { id: true },
+        });
+
+        for (const variant of variants) {
+          await this.dropiSyncService.updateVariantStockStatus(variant.id);
+        }
+
+        updatedCount++;
+        if (updatedCount % 50 === 0) {
+          console.log(`[SYNC_STOCK WORKER] Actualizados ${updatedCount} productos...`);
+        }
+      } catch (error: any) {
+        console.error(`[SYNC_STOCK WORKER] Error actualizando producto ${product.id}:`, error?.message);
+      }
+    }
+
+    console.log(`[SYNC_STOCK WORKER] Sincronización de stock completada. ${updatedCount} productos actualizados.`);
   }
 }

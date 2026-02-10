@@ -617,19 +617,8 @@ export class CheckoutService {
       giftRecipientId: input.recipientId,
     });
 
-    // 9. Crear notificación para el destinatario
-    try {
-      console.log(`🎁 [CHECKOUT] Creando notificación de regalo para destinatario: ${input.recipientId}`);
-      await this.notificationsService.createGiftNotification(
-        input.recipientId,
-        order.id,
-        input.senderId
-      );
-      console.log(`✅ [CHECKOUT] Notificación de regalo creada exitosamente`);
-    } catch (notificationError: any) {
-      // No fallar la creación de la orden si la notificación falla
-      console.error(`⚠️ [CHECKOUT] Error creando notificación de regalo:`, notificationError?.message);
-    }
+    // 9. NOTA: La notificación se creará cuando el pago sea confirmado en el webhook
+    // No crear notificación aquí porque el pago aún no está confirmado
 
     // 10. Si es Epayco, retornar datos para el checkout
     // La orden ya está creada con paymentStatus: 'awaiting'

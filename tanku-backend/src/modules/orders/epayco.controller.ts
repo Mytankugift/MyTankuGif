@@ -4,6 +4,7 @@ import { OrdersService, CreateOrderInput } from './orders.service';
 import { DropiOrdersService } from './dropi-orders.service';
 import { CheckoutService, CheckoutOrderRequest, DataCart } from '../checkout/checkout.service';
 import { StalkerGiftService } from '../stalker-gift/stalker-gift.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { prisma } from '../../config/database';
 import { NotFoundError } from '../../shared/errors/AppError';
 
@@ -11,11 +12,13 @@ export class EpaycoController {
   private ordersService: OrdersService;
   private dropiOrdersService: DropiOrdersService;
   private checkoutService: CheckoutService;
+  private notificationsService: NotificationsService;
 
   constructor() {
     this.ordersService = new OrdersService();
     this.dropiOrdersService = new DropiOrdersService();
     this.checkoutService = new CheckoutService();
+    this.notificationsService = new NotificationsService();
   }
 
   /**
@@ -132,7 +135,13 @@ export class EpaycoController {
       // ✅ NUEVO: Intentar primero si es un orderId (orden ya creada, como en regalos directos)
       const existingOrder = await prisma.order.findUnique({
         where: { id: identifier },
-        select: { id: true, paymentStatus: true, isGiftOrder: true },
+        select: { 
+          id: true, 
+          paymentStatus: true, 
+          isGiftOrder: true,
+          giftRecipientId: true,
+          giftSenderId: true,
+        },
       });
 
       if (existingOrder) {
@@ -188,6 +197,22 @@ export class EpaycoController {
           }
         } catch (dropiError: any) {
           console.error(`❌ [EPAYCO-WEBHOOK] Error creando orden en Dropi:`, dropiError?.message);
+        }
+
+        // ✅ Crear notificación de regalo solo cuando el pago es exitoso
+        if (existingOrder.isGiftOrder && existingOrder.giftRecipientId && existingOrder.giftSenderId) {
+          try {
+            console.log(`🎁 [EPAYCO-WEBHOOK] Creando notificación de regalo para destinatario: ${existingOrder.giftRecipientId}`);
+            await this.notificationsService.createGiftNotification(
+              existingOrder.giftRecipientId,
+              updatedOrder.id,
+              existingOrder.giftSenderId
+            );
+            console.log(`✅ [EPAYCO-WEBHOOK] Notificación de regalo creada exitosamente`);
+          } catch (notificationError: any) {
+            // No fallar el webhook si la notificación falla
+            console.error(`⚠️ [EPAYCO-WEBHOOK] Error creando notificación de regalo:`, notificationError?.message);
+          }
         }
 
         return res.status(200).json({
@@ -393,6 +418,32 @@ export class EpaycoController {
             dropiResult.errors
           );
           console.warn(`📦 [EPAYCO-WEBHOOK] ========== ERROR AL CREAR ORDEN EN DROPI ==========\n`);
+        }
+
+        // ✅ Crear notificación de regalo solo cuando el pago es exitoso (flujo normal)
+        // Obtener la orden completa para verificar si es un regalo
+        const orderForNotification = await prisma.order.findUnique({
+          where: { id: updatedOrder.id },
+          select: {
+            isGiftOrder: true,
+            giftRecipientId: true,
+            giftSenderId: true,
+          },
+        });
+
+        if (orderForNotification?.isGiftOrder && orderForNotification.giftRecipientId && orderForNotification.giftSenderId) {
+          try {
+            console.log(`🎁 [EPAYCO-WEBHOOK] Creando notificación de regalo para destinatario: ${orderForNotification.giftRecipientId}`);
+            await this.notificationsService.createGiftNotification(
+              orderForNotification.giftRecipientId,
+              updatedOrder.id,
+              orderForNotification.giftSenderId
+            );
+            console.log(`✅ [EPAYCO-WEBHOOK] Notificación de regalo creada exitosamente`);
+          } catch (notificationError: any) {
+            // No fallar el webhook si la notificación falla
+            console.error(`⚠️ [EPAYCO-WEBHOOK] Error creando notificación de regalo:`, notificationError?.message);
+          }
         }
 
         // Vaciar carrito solo si Dropi fue exitoso y solo los items seleccionados

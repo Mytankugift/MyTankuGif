@@ -108,11 +108,12 @@ export class GiftController {
           },
         });
       } else {
-        // Regalos que he recibido
+        // Regalos que he recibido - solo mostrar los pagados
         orders = await prisma.order.findMany({
           where: {
             isGiftOrder: true,
             giftRecipientId: userId,
+            paymentStatus: 'paid', // ✅ Solo mostrar regalos pagados
           },
           include: {
             items: {

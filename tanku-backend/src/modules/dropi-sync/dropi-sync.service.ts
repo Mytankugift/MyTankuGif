@@ -64,6 +64,119 @@ function buildImageUrl(s3Path: string | null | undefined): string | null {
 
 export class DropiSyncService {
   /**
+   * Calcular stock total de una variante sumando todos sus warehouseVariants
+   */
+  private async calculateVariantStock(variantId: string): Promise<number> {
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: variantId },
+      include: {
+        warehouseVariants: {
+          select: { stock: true },
+        },
+      },
+    });
+
+    if (!variant) return 0;
+
+    return variant.warehouseVariants?.reduce(
+      (sum, wv) => sum + (wv.stock || 0),
+      0
+    ) || 0;
+  }
+
+  /**
+   * Calcular stock total de un producto sumando todas sus variantes
+   */
+  private async calculateProductStock(productId: string): Promise<number> {
+    const variants = await prisma.productVariant.findMany({
+      where: { productId },
+      include: {
+        warehouseVariants: {
+          select: { stock: true },
+        },
+      },
+    });
+
+    return variants.reduce((total, variant) => {
+      const variantStock = variant.warehouseVariants?.reduce(
+        (sum, wv) => sum + (wv.stock || 0),
+        0
+      ) || 0;
+      return total + variantStock;
+    }, 0);
+  }
+
+  /**
+   * Actualizar estado de variantes según su stock
+   * Método público para que pueda ser llamado desde otros servicios (ej: worker de stock)
+   */
+  async updateVariantStockStatus(variantId: string): Promise<void> {
+    const stock = await this.calculateVariantStock(variantId);
+    
+    if (stock <= 0) {
+      // Marcar variante como inactiva si no tiene stock
+      await prisma.productVariant.update({
+        where: { id: variantId },
+        data: { active: false },
+      });
+      console.log(`[SYNC TO BACKEND]    ⚠️ Variante ${variantId} tiene stock 0, marcada como inactiva`);
+    } else {
+      // Activar variante si tiene stock
+      await prisma.productVariant.update({
+        where: { id: variantId },
+        data: { active: true },
+      });
+    }
+  }
+
+  /**
+   * Actualizar estado del producto en el ranking según su stock
+   * Método público para que pueda ser llamado desde otros servicios (ej: worker de stock)
+   */
+  async updateProductRankingStatus(productId: string): Promise<void> {
+    const totalStock = await this.calculateProductStock(productId);
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        title: true,
+        images: true,
+        active: true,
+      },
+    });
+
+    if (!product) return;
+
+    const hasValidTitle = product.title && 
+                         product.title.trim() !== '' && 
+                         product.title !== 'Sin nombre';
+    const hasValidImages = product.images && 
+                          Array.isArray(product.images) && 
+                          product.images.length > 0;
+
+    // Si el producto tiene stock 0 o no cumple requisitos, eliminar del ranking
+    if (totalStock <= 0 || !hasValidTitle || !hasValidImages || !product.active) {
+      try {
+        await (prisma as any).globalRanking.deleteMany({
+          where: {
+            itemId: productId,
+            itemType: 'product',
+          },
+        });
+        console.log(`[SYNC TO BACKEND] ✅ Producto ${productId} eliminado del ranking (stock: ${totalStock}, válido: ${hasValidTitle && hasValidImages && product.active})`);
+      } catch (error) {
+        // Ignorar errores (puede que no exista en el ranking)
+        console.log(`[SYNC TO BACKEND] ℹ️ Producto ${productId} no estaba en el ranking`);
+      }
+    } else {
+      // Si el producto tiene stock y cumple requisitos, asegurar que esté en el ranking
+      const feedService = new FeedService();
+      feedService.initializeItemMetrics(productId, 'product').catch((error) => {
+        console.error(`Error inicializando métricas del feed para producto ${productId}:`, error);
+      });
+    }
+  }
+
+  /**
    * Sincronizar productos desde DropiProduct a Product/ProductVariant/WarehouseVariant
    * 
    * @param batchSize Número de productos a procesar por lote (default: 50)
@@ -243,44 +356,48 @@ export class DropiSyncService {
           let product: Product;
           if (existingProduct) {
             if (skipExisting) {
-              console.log(`[SYNC TO BACKEND] ⏭️ Omitiendo producto existente: ${existingProduct.id}`);
-              continue;
-            }
-            product = await prisma.product.update({
-              where: { id: existingProduct.id },
-              data: productData,
-            });
-            productsUpdated++;
-            console.log(`[SYNC TO BACKEND] ✅ Producto actualizado: ${product.id}`);
-
-            // ✅ VALIDAR: Verificar si el producto actualizado cumple requisitos para ranking
-            const hasValidTitle = productData.title && 
-                                 productData.title.trim() !== '' && 
-                                 productData.title !== 'Sin nombre';
-            const hasValidImages = productData.images && 
-                                  Array.isArray(productData.images) && 
-                                  productData.images.length > 0;
-
-            if (hasValidTitle && hasValidImages && productData.active) {
-              // Producto válido: asegurar que esté en el ranking
-              const feedService = new FeedService();
-              feedService.initializeItemMetrics(product.id, 'product').catch((error) => {
-                console.error(`Error inicializando métricas del feed para producto ${product.id}:`, error);
-              });
+              // Si skipExisting es true, usar el producto existente pero NO actualizar sus datos
+              // Sin embargo, SÍ actualizamos variantes y warehouseVariants (para worker de stock)
+              product = existingProduct;
+              console.log(`[SYNC TO BACKEND] ⏭️ Usando producto existente (skipExisting): ${existingProduct.id}`);
             } else {
-              // Producto inválido: eliminar del ranking si existe
-              console.warn(`[SYNC TO BACKEND] ⚠️ Producto ${product.id} no cumple requisitos (title: ${hasValidTitle}, images: ${hasValidImages}, active: ${productData.active}), eliminando del ranking si existe`);
-              try {
-                await (prisma as any).globalRanking.deleteMany({
-                  where: {
-                    itemId: product.id,
-                    itemType: 'product',
-                  },
+              product = await prisma.product.update({
+                where: { id: existingProduct.id },
+                data: productData,
+              });
+              productsUpdated++;
+              console.log(`[SYNC TO BACKEND] ✅ Producto actualizado: ${product.id}`);
+
+              // ✅ VALIDAR: Verificar si el producto actualizado cumple requisitos para ranking
+              // Solo validar si NO es skipExisting (porque en skipExisting no actualizamos productData)
+              const hasValidTitle = productData.title && 
+                                   productData.title.trim() !== '' && 
+                                   productData.title !== 'Sin nombre';
+              const hasValidImages = productData.images && 
+                                    Array.isArray(productData.images) && 
+                                    productData.images.length > 0;
+
+              if (hasValidTitle && hasValidImages && productData.active) {
+                // Producto válido: asegurar que esté en el ranking
+                const feedService = new FeedService();
+                feedService.initializeItemMetrics(product.id, 'product').catch((error) => {
+                  console.error(`Error inicializando métricas del feed para producto ${product.id}:`, error);
                 });
-                console.log(`[SYNC TO BACKEND] ✅ Producto ${product.id} eliminado del ranking`);
-              } catch (error) {
-                // Ignorar errores (puede que no exista en el ranking)
-                console.log(`[SYNC TO BACKEND] ℹ️ Producto ${product.id} no estaba en el ranking`);
+              } else {
+                // Producto inválido: eliminar del ranking si existe
+                console.warn(`[SYNC TO BACKEND] ⚠️ Producto ${product.id} no cumple requisitos (title: ${hasValidTitle}, images: ${hasValidImages}, active: ${productData.active}), eliminando del ranking si existe`);
+                try {
+                  await (prisma as any).globalRanking.deleteMany({
+                    where: {
+                      itemId: product.id,
+                      itemType: 'product',
+                    },
+                  });
+                  console.log(`[SYNC TO BACKEND] ✅ Producto ${product.id} eliminado del ranking`);
+                } catch (error) {
+                  // Ignorar errores (puede que no exista en el ranking)
+                  console.log(`[SYNC TO BACKEND] ℹ️ Producto ${product.id} no estaba en el ranking`);
+                }
               }
             }
           } else {
@@ -606,7 +723,13 @@ export class DropiSyncService {
               variant.id,
               dropiProduct.warehouseProduct
             );
+
+            // 7. Actualizar estado de la variante según su stock
+            await this.updateVariantStockStatus(variant.id);
           }
+
+          // 8. Actualizar estado del producto en el ranking según su stock total
+          await this.updateProductRankingStatus(product.id);
 
           console.log(`[SYNC TO BACKEND] ✅ PRODUCTO ${dropiProduct.dropiId} COMPLETADO`);
           console.log(`[SYNC TO BACKEND] ════════════════════════════════════════════════════════\n`);
