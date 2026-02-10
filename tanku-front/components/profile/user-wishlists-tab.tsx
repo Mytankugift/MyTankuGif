@@ -23,6 +23,7 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
   const router = useRouter()
   const { user: currentUser } = useAuthStore()
   const { addItem, cart } = useCartStore()
+  const { error: showError } = useToast()
   const [wishlists, setWishlists] = useState<WishListDTO[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedWishlist, setSelectedWishlist] = useState<WishListDTO | null>(null)

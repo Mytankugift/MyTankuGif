@@ -112,6 +112,7 @@ export function SavedWishlistsViewer() {
   const { isAuthenticated, user } = useAuthStore()
   const { addItem } = useCartStore()
   const { cart } = useCartStore()
+  const { error: showError } = useToast()
   const [savedWishlists, setSavedWishlists] = useState<SavedWishlist[]>([])
   const [selectedWishlist, setSelectedWishlist] = useState<SavedWishlist | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
