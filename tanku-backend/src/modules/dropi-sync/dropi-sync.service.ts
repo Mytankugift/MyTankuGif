@@ -63,6 +63,9 @@ function buildImageUrl(s3Path: string | null | undefined): string | null {
 }
 
 export class DropiSyncService {
+  // Stock mínimo requerido para que un producto aparezca en el ranking
+  private readonly MIN_STOCK_THRESHOLD = 30;
+
   /**
    * Calcular stock total de una variante sumando todos sus warehouseVariants
    */
@@ -153,8 +156,8 @@ export class DropiSyncService {
                           Array.isArray(product.images) && 
                           product.images.length > 0;
 
-    // Si el producto tiene stock 0 o no cumple requisitos, eliminar del ranking
-    if (totalStock <= 0 || !hasValidTitle || !hasValidImages || !product.active) {
+    // Si el producto tiene stock menor al mínimo (30) o no cumple requisitos, eliminar del ranking
+    if (totalStock < this.MIN_STOCK_THRESHOLD || !hasValidTitle || !hasValidImages || !product.active) {
       try {
         await (prisma as any).globalRanking.deleteMany({
           where: {
@@ -162,13 +165,16 @@ export class DropiSyncService {
             itemType: 'product',
           },
         });
-        console.log(`[SYNC TO BACKEND] ✅ Producto ${productId} eliminado del ranking (stock: ${totalStock}, válido: ${hasValidTitle && hasValidImages && product.active})`);
+        const reason = totalStock < this.MIN_STOCK_THRESHOLD 
+          ? `stock insuficiente (${totalStock} < ${this.MIN_STOCK_THRESHOLD})`
+          : `no cumple requisitos (title: ${hasValidTitle}, images: ${hasValidImages}, active: ${product.active})`;
+        console.log(`[SYNC TO BACKEND] ✅ Producto ${productId} eliminado del ranking (${reason})`);
       } catch (error) {
         // Ignorar errores (puede que no exista en el ranking)
         console.log(`[SYNC TO BACKEND] ℹ️ Producto ${productId} no estaba en el ranking`);
       }
     } else {
-      // Si el producto tiene stock y cumple requisitos, asegurar que esté en el ranking
+      // Si el producto tiene stock suficiente (>= 30) y cumple requisitos, asegurar que esté en el ranking
       const feedService = new FeedService();
       feedService.initializeItemMetrics(productId, 'product').catch((error) => {
         console.error(`Error inicializando métricas del feed para producto ${productId}:`, error);
@@ -203,6 +209,8 @@ export class DropiSyncService {
     next_offset: number | null;
     remaining: number;
     total: number;
+    products_excluded_no_stock: number;
+    products_included_with_stock: number;
   }> {
     console.log(`\n🔄 [SYNC TO BACKEND] Iniciando sincronización`);
     console.log(`🔄 [SYNC TO BACKEND] batch_size: ${batchSize}, offset: ${offset}, active_only: ${activeOnly}, skip_existing: ${skipExisting}`);
@@ -236,6 +244,8 @@ export class DropiSyncService {
           next_offset: null,
           remaining: 0,
           total: allDropiProducts.length,
+          products_excluded_no_stock: 0,
+          products_included_with_stock: 0,
         };
       }
 
@@ -245,6 +255,8 @@ export class DropiSyncService {
       let variantsUpdated = 0;
       this.warehouseVariantsCreated = 0; // Resetear contador
       const errors: Array<{ dropi_id: number; error: string }> = [];
+      let productsExcludedNoStock = 0; // Contador de productos excluidos por no tener stock
+      let productsIncludedWithStock = 0; // Contador de productos incluidos con stock
 
       // Obtener todas las categorías para mapeo rápido por dropiId
       const categories = await prisma.category.findMany({
@@ -611,6 +623,9 @@ export class DropiSyncService {
                 variation.warehouse_product_variation || [],
                 variation.stock || 0
               );
+
+              // 7. Actualizar estado de la variante según su stock (igual que SIMPLE)
+              await this.updateVariantStockStatus(variant.id);
             }
           } else {
             // PRODUCTO SIMPLE: Crear una sola variante
@@ -729,6 +744,20 @@ export class DropiSyncService {
           }
 
           // 8. Actualizar estado del producto en el ranking según su stock total
+          const totalStock = await this.calculateProductStock(product.id);
+          
+          // Contar productos excluidos/incluidos por stock (mínimo 30 unidades)
+          if (totalStock < 30) {
+            productsExcludedNoStock++;
+            const reason = totalStock === 0 
+              ? 'sin stock'
+              : `stock insuficiente (${totalStock} < 30)`;
+            console.log(`[SYNC TO BACKEND] ⚠️ Producto ${product.id} (dropiId: ${dropiProduct.dropiId}) excluido del ranking por ${reason}`);
+          } else {
+            productsIncludedWithStock++;
+            console.log(`[SYNC TO BACKEND] ✅ Producto ${product.id} (dropiId: ${dropiProduct.dropiId}) incluido en ranking con stock: ${totalStock} (>= 30)`);
+          }
+          
           await this.updateProductRankingStatus(product.id);
 
           console.log(`[SYNC TO BACKEND] ✅ PRODUCTO ${dropiProduct.dropiId} COMPLETADO`);
@@ -745,12 +774,17 @@ export class DropiSyncService {
       const nextOffset = offset + batchSize;
       const remaining = allDropiProducts.length - nextOffset;
 
+      const totalProductsProcessed = productsIncludedWithStock + productsExcludedNoStock;
+      
       console.log(`✅ [SYNC TO BACKEND] Sincronización completada`);
       console.log(`   - Productos creados: ${productsCreated}`);
       console.log(`   - Productos actualizados: ${productsUpdated}`);
       console.log(`   - Variantes creadas: ${variantsCreated}`);
       console.log(`   - Variantes actualizadas: ${variantsUpdated}`);
       console.log(`   - WarehouseVariants creados: ${this.warehouseVariantsCreated}`);
+      console.log(`   - Productos evaluados en este batch: ${totalProductsProcessed} (${productsIncludedWithStock} incluidos + ${productsExcludedNoStock} excluidos)`);
+      console.log(`   - ✅ Productos que QUEDARON en ranking (stock >= 30): ${productsIncludedWithStock}`);
+      console.log(`   - ❌ Productos que NO quedaron en ranking (stock < 30): ${productsExcludedNoStock}`);
       console.log(`   - Errores: ${errors.length}`);
 
       return {
@@ -766,6 +800,8 @@ export class DropiSyncService {
         next_offset: remaining > 0 ? nextOffset : null,
         remaining: remaining,
         total: allDropiProducts.length,
+        products_excluded_no_stock: productsExcludedNoStock,
+        products_included_with_stock: productsIncludedWithStock,
       };
     } catch (error: any) {
       console.error(`❌ [SYNC TO BACKEND] Error fatal:`, error);

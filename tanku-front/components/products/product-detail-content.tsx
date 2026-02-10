@@ -496,9 +496,10 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
               </Button>
               <Button
                 onClick={() => {
-                  // TODO: Implementar funcionalidad de regalar
+                  if (!selectedVariant?.id) return
+                  router.push(`/checkout/gift-direct?variantId=${selectedVariant.id}&quantity=${quantity}`)
                 }}
-                disabled={isAddingToCart || isCartLoading}
+                disabled={isAddingToCart || isCartLoading || !selectedVariant?.id}
                 className="flex-1 font-semibold py-3"
                 style={{ 
                   backgroundColor: '#66DEDB',

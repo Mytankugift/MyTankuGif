@@ -40,6 +40,30 @@ export class GiftController {
   };
 
   /**
+   * GET /api/v1/gifts/validate-recipient?recipientId=...&senderId=...
+   * Validar elegibilidad usando query params (para uso en checkout)
+   */
+  validateRecipient = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { recipientId, senderId } = req.query;
+      const requestWithUser = req as RequestWithUser;
+      
+      // Usar senderId del query o del usuario autenticado
+      const finalSenderId = (senderId as string) || requestWithUser.user?.id;
+
+      if (!recipientId || typeof recipientId !== 'string') {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'recipientId es requerido'));
+      }
+
+      const eligibility = await this.giftService.validateGiftRecipient(recipientId, finalSenderId);
+
+      res.status(200).json(successResponse(eligibility));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * GET /api/v1/gifts/orders?type=sent|received
    * Obtener regalos enviados o recibidos con filtros de privacidad
    */

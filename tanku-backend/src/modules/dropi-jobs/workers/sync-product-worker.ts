@@ -21,6 +21,8 @@ export class SyncProductWorker extends BaseWorker {
     let offset = 0;
     const batchSize = 50;
     let hasMore = true;
+    let totalProductsExcluded = 0;
+    let totalProductsIncluded = 0;
 
     try {
       // Verificar cancelación antes de empezar
@@ -45,6 +47,14 @@ export class SyncProductWorker extends BaseWorker {
 
         console.log(`[SYNC_PRODUCT WORKER] Batch sincronizado: ${result.products_created} creados, ${result.products_updated} actualizados`);
 
+        // Acumular contadores de productos incluidos/excluidos
+        if (result.products_excluded_no_stock !== undefined) {
+          totalProductsExcluded += result.products_excluded_no_stock;
+        }
+        if (result.products_included_with_stock !== undefined) {
+          totalProductsIncluded += result.products_included_with_stock;
+        }
+
         if (result.next_offset === null) {
           hasMore = false;
         } else {
@@ -63,7 +73,12 @@ export class SyncProductWorker extends BaseWorker {
         throw new Error('Job cancelado antes de finalizar');
       }
 
+      const totalProductsProcessed = totalProductsIncluded + totalProductsExcluded;
+      
       console.log(`[SYNC_PRODUCT WORKER] Sincronización completada`);
+      console.log(`[SYNC_PRODUCT WORKER] Total productos evaluados: ${totalProductsProcessed} (${totalProductsIncluded} incluidos + ${totalProductsExcluded} excluidos)`);
+      console.log(`[SYNC_PRODUCT WORKER] ✅ Productos que QUEDARON en ranking (stock >= 30): ${totalProductsIncluded}`);
+      console.log(`[SYNC_PRODUCT WORKER] ❌ Productos que NO quedaron en ranking (stock < 30): ${totalProductsExcluded}`);
     } catch (error: any) {
       // Si el error es por cancelación, no lanzarlo como error fatal
       if (error?.message?.includes('cancelado')) {

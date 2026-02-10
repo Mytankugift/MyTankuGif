@@ -43,6 +43,7 @@ export const API_ENDPOINTS = {
   // Gifts
   GIFTS: {
     RECIPIENT_ELIGIBILITY: (userId: string) => `/api/v1/gifts/recipient/${userId}/eligibility`,
+    VALIDATE_RECIPIENT: '/api/v1/gifts/validate-recipient',
     ORDERS: '/api/v1/gifts/orders',
   },
   // Orders

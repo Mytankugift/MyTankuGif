@@ -9,8 +9,6 @@ import Script from 'next/script'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
-import { fetchProductByHandle } from '@/lib/hooks/use-product'
-import type { ProductDTO } from '@/types/api'
 
 // Declaración para TypeScript para el objeto ePayco en window
 declare global {
@@ -43,7 +41,7 @@ function GiftDirectCheckoutContent() {
   const { user, isAuthenticated } = useAuthStore()
   
   const variantId = searchParams.get('variantId')
-  const recipientId = searchParams.get('recipientId')
+  const recipientIdParam = searchParams.get('recipientId') // Opcional ahora
   const quantityParam = searchParams.get('quantity')
   const quantity = quantityParam ? parseInt(quantityParam) : 1
   
@@ -52,34 +50,51 @@ function GiftDirectCheckoutContent() {
   const [error, setError] = useState<string | null>(null)
   const [productInfo, setProductInfo] = useState<any>(null)
   const [recipientInfo, setRecipientInfo] = useState<any>(null)
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(recipientIdParam)
+  const [recipientSearch, setRecipientSearch] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [eligibility, setEligibility] = useState<{
+    canReceive: boolean
+    reason?: string
+    canSendGift?: boolean
+    sendGiftReason?: string
+  } | null>(null)
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(false)
   const [epaycoReady, setEpaycoReady] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [total, setTotal] = useState(0)
 
   // Validar parámetros y cargar datos
   useEffect(() => {
-    if (!variantId || !recipientId) {
-      setError('Faltan parámetros requeridos')
+    // recipientId ahora es opcional
+    if (!variantId) {
+      setError('Faltan parámetros requeridos (variantId)')
       setIsLoading(false)
       return
     }
 
     if (!isAuthenticated) {
-      const redirectUrl = `/checkout/gift-direct?variantId=${variantId}&recipientId=${recipientId}&quantity=${quantity}`
+      const redirectUrl = `/checkout/gift-direct?variantId=${variantId}&quantity=${quantity}${recipientIdParam ? `&recipientId=${recipientIdParam}` : ''}`
       sessionStorage.setItem('redirect-after-login', redirectUrl)
       router.push('/feed')
       return
     }
 
-    loadProductAndRecipientInfo()
-  }, [variantId, recipientId, quantity, isAuthenticated])
+    loadProductInfo()
+    
+    // Si viene recipientId (flujo wishlist), cargar directamente
+    if (recipientIdParam) {
+      loadRecipientInfo(recipientIdParam)
+    }
+    // Si NO viene recipientId (flujo feed), mostrar selector
+  }, [variantId, recipientIdParam, quantity, isAuthenticated])
 
-  const loadProductAndRecipientInfo = async () => {
+  const loadProductInfo = async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      // Cargar información del producto/variante
       if (variantId) {
         const variantResponse = await apiClient.get<any>(API_ENDPOINTS.PRODUCTS.VARIANT_BY_ID(variantId))
         if (variantResponse.success && variantResponse.data) {
@@ -109,25 +124,9 @@ function GiftDirectCheckoutContent() {
             },
             price,
           })
-          // Calcular total inmediatamente
           setTotal(price * quantity)
         } else {
           throw new Error('No se pudo cargar la información del producto')
-        }
-      }
-
-      // Cargar información del destinatario
-      if (recipientId) {
-        const recipientResponse = await apiClient.get<any>(API_ENDPOINTS.USERS.BY_ID(recipientId))
-        if (recipientResponse.success && recipientResponse.data) {
-          const user = (recipientResponse.data as any).user || recipientResponse.data
-          const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
-          setRecipientInfo({
-            id: user.id,
-            name: fullName || user.username || 'Usuario',
-            username: user.username,
-            avatar: user.profile?.avatar || user.avatar || null,
-          })
         }
       }
     } catch (err: any) {
@@ -136,6 +135,86 @@ function GiftDirectCheckoutContent() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const loadRecipientInfo = async (recipientId: string) => {
+    try {
+      const recipientResponse = await apiClient.get<any>(API_ENDPOINTS.USERS.BY_ID(recipientId))
+      if (recipientResponse.success && recipientResponse.data) {
+        const user = (recipientResponse.data as any).user || recipientResponse.data
+        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+        setRecipientInfo({
+          id: user.id,
+          name: fullName || user.username || 'Usuario',
+          username: user.username,
+          avatar: user.profile?.avatar || user.avatar || null,
+        })
+        setSelectedRecipientId(recipientId)
+        
+        // Validar elegibilidad cuando se carga el receptor
+        await checkEligibility(recipientId)
+      }
+    } catch (err: any) {
+      console.error('Error cargando información del receptor:', err)
+      setError(err.message || 'Error al cargar la información del receptor')
+    }
+  }
+
+  const searchRecipients = async (query: string) => {
+    if (!query || query.length < 2) {
+      setSearchResults([])
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      const response = await apiClient.get<any>(`${API_ENDPOINTS.USERS.SEARCH}?q=${encodeURIComponent(query)}`)
+      if (response.success && response.data) {
+        setSearchResults(response.data.users || response.data || [])
+      }
+    } catch (err: any) {
+      console.error('Error buscando usuarios:', err)
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const checkEligibility = async (recipientId: string) => {
+    if (!recipientId || !user?.id) return
+
+    setIsCheckingEligibility(true)
+    setEligibility(null)
+    
+    try {
+      const response = await apiClient.get<any>(
+        `${API_ENDPOINTS.GIFTS.VALIDATE_RECIPIENT}?recipientId=${recipientId}&senderId=${user.id}`
+      )
+      
+      if (response.success && response.data) {
+        setEligibility(response.data)
+        
+        if (!response.data.canReceive || response.data.canSendGift === false) {
+          setError(response.data.reason || response.data.sendGiftReason || 'El destinatario no puede recibir regalos')
+        } else {
+          setError(null)
+        }
+      }
+    } catch (err: any) {
+      console.error('Error validando elegibilidad:', err)
+      setEligibility({
+        canReceive: false,
+        reason: err.message || 'Error al validar elegibilidad'
+      })
+      setError(err.message || 'Error al validar elegibilidad')
+    } finally {
+      setIsCheckingEligibility(false)
+    }
+  }
+
+  const handleRecipientSelect = async (recipient: any) => {
+    setRecipientSearch('')
+    setSearchResults([])
+    await loadRecipientInfo(recipient.id)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,19 +226,25 @@ function GiftDirectCheckoutContent() {
       return
     }
 
-    if (!variantId || !recipientId) {
-      setError('Faltan parámetros requeridos')
+    const finalRecipientId = selectedRecipientId || recipientIdParam
+    if (!variantId || !finalRecipientId) {
+      setError('Debes seleccionar un destinatario')
+      return
+    }
+
+    // Validar elegibilidad antes de continuar
+    if (!eligibility || !eligibility.canReceive || eligibility.canSendGift === false) {
+      setError(eligibility?.reason || eligibility?.sendGiftReason || 'El destinatario no puede recibir regalos')
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      // Llamar al nuevo endpoint directo (sin carrito)
       const response = await apiClient.post<any>(API_ENDPOINTS.CHECKOUT.GIFT_DIRECT, {
         variant_id: variantId,
         quantity,
-        recipient_id: recipientId,
+        recipient_id: finalRecipientId,
         email,
         payment_method: 'epayco',
       })
@@ -167,7 +252,6 @@ function GiftDirectCheckoutContent() {
       if (response.success && response.data) {
         const data = response.data as any
         
-        // Si es Epayco, abrir pasarela de pago
         if (data.orderId) {
           await openEpaycoCheckout(data)
         }
@@ -184,18 +268,15 @@ function GiftDirectCheckoutContent() {
 
   const openEpaycoCheckout = async (orderData: any) => {
     try {
-      // Verificar que Epayco esté cargado
       if (typeof window.ePayco === 'undefined') {
         throw new Error('ePayco no está cargado. Por favor, recarga la página.')
       }
 
-      // Crear contenedor para Epayco
       const container = document.createElement('div')
       container.style.display = 'none'
       container.id = 'epayco-container'
       document.body.appendChild(container)
 
-      // Configurar Epayco
       const epaycoKey = process.env.NEXT_PUBLIC_EPAYCO_KEY
       if (!epaycoKey) {
         throw new Error('NEXT_PUBLIC_EPAYCO_KEY no está configurada en las variables de entorno')
@@ -210,7 +291,6 @@ function GiftDirectCheckoutContent() {
         throw new Error('No se pudo configurar el checkout de ePayco')
       }
 
-      // Obtener URL del webhook desde el backend (usando orderId en lugar de cartId)
       const webhookResponse = await apiClient.get<{ webhookUrl: string }>(
         `/api/v1/checkout/webhook-url?orderId=${orderData.orderId}`
       )
@@ -222,7 +302,6 @@ function GiftDirectCheckoutContent() {
       const webhookUrl = webhookResponse.data.webhookUrl
       console.log('[GIFT-DIRECT-CHECKOUT] URL de webhook obtenida:', webhookUrl)
 
-      // Preparar opciones para Epayco
       const epaycoOptions = {
         amount: orderData.total,
         name: `Regalo Tanku ${orderData.orderId.slice(0, 8)}`,
@@ -245,7 +324,7 @@ function GiftDirectCheckoutContent() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading && !productInfo) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="text-center text-gray-400">Cargando...</div>
@@ -253,7 +332,7 @@ function GiftDirectCheckoutContent() {
     )
   }
 
-  if (error && (!variantId || !recipientId)) {
+  if (error && !variantId) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="text-center">
@@ -281,9 +360,88 @@ function GiftDirectCheckoutContent() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Columna izquierda: Formularios */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Información del destinatario */}
-            {recipientInfo && (
+            {/* Selector de destinatario - Solo mostrar si NO viene recipientId */}
+            {!recipientInfo && !recipientIdParam ? (
+              <div className="bg-gray-800/50 rounded-lg p-6">
+                <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Elegir destinatario</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Buscar usuario o amigo
+                    </label>
+                    <input
+                      type="text"
+                      value={recipientSearch}
+                      onChange={(e) => {
+                        setRecipientSearch(e.target.value)
+                        searchRecipients(e.target.value)
+                      }}
+                      className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                      placeholder="Buscar por nombre o username..."
+                    />
+                  </div>
+                  
+                  {isSearching && (
+                    <div className="text-center text-gray-400">Buscando...</div>
+                  )}
+                  
+                  {searchResults.length > 0 && (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {searchResults.map((result) => (
+                        <button
+                          key={result.id}
+                          type="button"
+                          onClick={() => handleRecipientSelect(result)}
+                          className="w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center gap-3 transition-colors"
+                        >
+                          {result.avatar || result.profile?.avatar ? (
+                            <img
+                              src={result.avatar || result.profile?.avatar}
+                              alt={result.name}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
+                              <span className="text-lg">👤</span>
+                            </div>
+                          )}
+                          <div className="flex-1 text-left">
+                            <p className="text-white font-medium">
+                              {result.firstName && result.lastName
+                                ? `${result.firstName} ${result.lastName}`
+                                : result.username || 'Usuario'}
+                            </p>
+                            {result.username && (
+                              <p className="text-sm text-gray-400">@{result.username}</p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : recipientInfo ? (
               <div className="bg-[#66DEDB]/10 border border-[#66DEDB]/30 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-[#66DEDB]">Destinatario</h2>
+                  {/* Solo permitir cambiar si NO vino de wishlist (sin recipientIdParam) */}
+                  {!recipientIdParam && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setRecipientInfo(null)
+                        setSelectedRecipientId(null)
+                        setEligibility(null)
+                        setError(null)
+                      }}
+                    >
+                      Cambiar
+                    </Button>
+                  )}
+                </div>
                 <div className="flex items-center gap-3">
                   {recipientInfo.avatar ? (
                     <div className="flex-shrink-0">
@@ -298,15 +456,39 @@ function GiftDirectCheckoutContent() {
                   )}
                   <div className="flex-1">
                     <p className="text-[#66DEDB] font-semibold text-lg">
-                      Enviando regalo a {recipientInfo.name}
+                      {recipientInfo.name}
                     </p>
-                    <p className="text-sm text-gray-400">
+                    {recipientInfo.username && (
+                      <p className="text-sm text-gray-400">@{recipientInfo.username}</p>
+                    )}
+                    <p className="text-sm text-gray-400 mt-1">
                       Este pedido será enviado como regalo. La dirección de envío se obtendrá automáticamente del destinatario.
                     </p>
                   </div>
                 </div>
+                
+                {/* Estado de elegibilidad */}
+                {isCheckingEligibility ? (
+                  <div className="mt-4 p-3 bg-gray-700/50 rounded-lg">
+                    <p className="text-gray-400 text-sm">Validando elegibilidad...</p>
+                  </div>
+                ) : eligibility ? (
+                  <div className={`mt-4 p-3 rounded-lg ${
+                    eligibility.canReceive && eligibility.canSendGift !== false
+                      ? 'bg-green-900/20 border border-green-500'
+                      : 'bg-red-900/20 border border-red-500'
+                  }`}>
+                    {eligibility.canReceive && eligibility.canSendGift !== false ? (
+                      <p className="text-green-400 text-sm">✓ Este usuario puede recibir regalos</p>
+                    ) : (
+                      <p className="text-red-400 text-sm">
+                        ✗ {eligibility.reason || eligibility.sendGiftReason || 'No puede recibir regalos'}
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </div>
-            )}
+            ) : null}
 
             {/* Información del producto */}
             {productInfo && (
@@ -420,7 +602,16 @@ function GiftDirectCheckoutContent() {
         <div className="mt-8 flex justify-end">
           <Button
             type="submit"
-            disabled={isSubmitting || !epaycoReady || !productInfo || isLoading}
+            disabled={
+              isSubmitting || 
+              !epaycoReady || 
+              !productInfo || 
+              isLoading || 
+              (!selectedRecipientId && !recipientIdParam) ||
+              !eligibility ||
+              !eligibility.canReceive ||
+              eligibility.canSendGift === false
+            }
             className="bg-[#66DEDB] hover:bg-[#5accc9] text-black font-semibold px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Cargando...' : isSubmitting ? 'Procesando...' : 'Completar pedido de regalo'}
@@ -464,4 +655,3 @@ export default function GiftDirectCheckoutPage() {
     </Suspense>
   )
 }
-

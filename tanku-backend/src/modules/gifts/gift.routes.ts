@@ -13,6 +13,13 @@ const giftController = new GiftController();
 router.get('/recipient/:userId/eligibility', giftController.validateRecipientEligibility);
 
 /**
+ * GET /api/v1/gifts/validate-recipient?recipientId=...&senderId=...
+ * Validar elegibilidad usando query params (para uso en checkout)
+ * Requiere autenticación
+ */
+router.get('/validate-recipient', authenticate, giftController.validateRecipient);
+
+/**
  * GET /api/v1/gifts/orders?type=sent|received
  * Obtener regalos enviados o recibidos
  * Requiere autenticación
