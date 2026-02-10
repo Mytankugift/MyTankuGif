@@ -565,12 +565,13 @@ export class OrdersService {
     total: number;
     hasMore: boolean;
   }> {
-    // EXCLUIR órdenes de StalkerGift - deben mostrarse en sección separada
+    // EXCLUIR órdenes de StalkerGift y regalos enviados (gift-direct) - deben mostrarse en sección separada
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where: { 
           userId,
           isStalkerGift: false, // Solo órdenes normales
+          isGiftOrder: false, // Excluir regalos enviados (gift-direct)
         },
         include: {
           orderAddresses: {
@@ -607,6 +608,7 @@ export class OrdersService {
         where: { 
           userId,
           isStalkerGift: false, // Solo órdenes normales
+          isGiftOrder: false, // Excluir regalos enviados (gift-direct)
         } 
       }),
     ]);

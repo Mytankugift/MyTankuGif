@@ -318,7 +318,9 @@ export function GiftsTab({ userId }: GiftsTabProps) {
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-white">
                         {gift.otherUser
-                          ? gift.otherUser.firstName || gift.otherUser.username || 'Usuario'
+                          ? (gift.otherUser.firstName && gift.otherUser.lastName
+                              ? `${gift.otherUser.firstName} ${gift.otherUser.lastName}`
+                              : gift.otherUser.firstName || gift.otherUser.username || 'Usuario')
                           : '—'}
                       </div>
                       {gift.address && (
@@ -331,9 +333,9 @@ export function GiftsTab({ userId }: GiftsTabProps) {
                       {formatDate(gift.createdAt)}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(gift.status)}`}>
-                        {getStatusIcon(gift.status)}
-                        {formatStatus(gift.status)}
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(gift.paymentStatus === 'cancelled' ? 'cancelled' : gift.status)}`}>
+                        {getStatusIcon(gift.paymentStatus === 'cancelled' ? 'cancelled' : gift.status)}
+                        {formatStatus(gift.paymentStatus === 'cancelled' ? 'cancelled' : gift.status)}
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
@@ -373,16 +375,18 @@ export function GiftsTab({ userId }: GiftsTabProps) {
                   <div>
                     <div className="text-sm font-medium text-white">
                       {gift.otherUser
-                        ? gift.otherUser.firstName || gift.otherUser.username || 'Usuario'
+                        ? (gift.otherUser.firstName && gift.otherUser.lastName
+                            ? `${gift.otherUser.firstName} ${gift.otherUser.lastName}`
+                            : gift.otherUser.firstName || gift.otherUser.username || 'Usuario')
                         : '—'}
                     </div>
                     <div className="text-xs text-gray-400">
                       {formatDate(gift.createdAt)}
                     </div>
                   </div>
-                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(gift.status)}`}>
-                    {getStatusIcon(gift.status)}
-                    {formatStatus(gift.status)}
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(gift.paymentStatus === 'cancelled' ? 'cancelled' : gift.status)}`}>
+                    {getStatusIcon(gift.paymentStatus === 'cancelled' ? 'cancelled' : gift.status)}
+                    {formatStatus(gift.paymentStatus === 'cancelled' ? 'cancelled' : gift.status)}
                   </span>
                 </div>
                 
@@ -454,7 +458,9 @@ export function GiftsTab({ userId }: GiftsTabProps) {
                       )}
                       <div>
                         <p className="text-white font-medium">
-                          {selectedGift.otherUser.firstName || selectedGift.otherUser.username || 'Usuario'}
+                          {selectedGift.otherUser.firstName && selectedGift.otherUser.lastName
+                            ? `${selectedGift.otherUser.firstName} ${selectedGift.otherUser.lastName}`
+                            : selectedGift.otherUser.firstName || selectedGift.otherUser.username || 'Usuario'}
                         </p>
                         {selectedGift.address && (
                           <p className="text-sm text-gray-400">
@@ -470,9 +476,9 @@ export function GiftsTab({ userId }: GiftsTabProps) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-800/50 rounded-lg p-4">
                     <h4 className="text-sm font-medium text-gray-400 mb-1">Estado</h4>
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedGift.status)}`}>
-                      {getStatusIcon(selectedGift.status)}
-                      {formatStatus(selectedGift.status)}
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedGift.paymentStatus === 'cancelled' ? 'cancelled' : selectedGift.status)}`}>
+                      {getStatusIcon(selectedGift.paymentStatus === 'cancelled' ? 'cancelled' : selectedGift.status)}
+                      {formatStatus(selectedGift.paymentStatus === 'cancelled' ? 'cancelled' : selectedGift.status)}
                     </span>
                   </div>
                   <div className="bg-gray-800/50 rounded-lg p-4">

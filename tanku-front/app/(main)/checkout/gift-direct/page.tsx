@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { apiClient } from '@/lib/api/client'
@@ -9,6 +9,7 @@ import Script from 'next/script'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
+import { UserAvatar } from '@/components/shared/user-avatar'
 
 // Declaración para TypeScript para el objeto ePayco en window
 declare global {
@@ -54,6 +55,8 @@ function GiftDirectCheckoutContent() {
   const [recipientSearch, setRecipientSearch] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [friends, setFriends] = useState<any[]>([])
+  const [isLoadingFriends, setIsLoadingFriends] = useState(false)
   const [eligibility, setEligibility] = useState<{
     canReceive: boolean
     reason?: string
@@ -86,8 +89,10 @@ function GiftDirectCheckoutContent() {
     // Si viene recipientId (flujo wishlist), cargar directamente
     if (recipientIdParam) {
       loadRecipientInfo(recipientIdParam)
+    } else {
+      // Si NO viene recipientId (flujo feed), cargar amigos para mostrar por defecto
+      loadFriends()
     }
-    // Si NO viene recipientId (flujo feed), mostrar selector
   }, [variantId, recipientIdParam, quantity, isAuthenticated])
 
   const loadProductInfo = async () => {
@@ -160,7 +165,34 @@ function GiftDirectCheckoutContent() {
     }
   }
 
-  const searchRecipients = async (query: string) => {
+  const loadFriends = async () => {
+    setIsLoadingFriends(true)
+    try {
+      const response = await apiClient.get<{ friends: any[]; count: number }>(API_ENDPOINTS.FRIENDS.LIST)
+      if (response.success && response.data) {
+        // Transformar la estructura de amigos al formato que necesitamos
+        const friendsList = (response.data.friends || []).map((friend: any) => {
+          const friendUser = friend.friend || friend
+          return {
+            id: friendUser.id,
+            firstName: friendUser.firstName,
+            lastName: friendUser.lastName,
+            username: friendUser.username,
+            email: friendUser.email,
+            avatar: friendUser.profile?.avatar || friendUser.avatar || null,
+            profile: friendUser.profile || null,
+          }
+        })
+        setFriends(friendsList)
+      }
+    } catch (err: any) {
+      console.error('Error cargando amigos:', err)
+    } finally {
+      setIsLoadingFriends(false)
+    }
+  }
+
+  const searchRecipients = useCallback(async (query: string) => {
     if (!query || query.length < 2) {
       setSearchResults([])
       return
@@ -177,7 +209,16 @@ function GiftDirectCheckoutContent() {
     } finally {
       setIsSearching(false)
     }
-  }
+  }, [])
+
+  // Efecto para buscar cuando cambia el texto de búsqueda
+  useEffect(() => {
+    if (recipientSearch.length >= 2) {
+      searchRecipients(recipientSearch)
+    } else {
+      setSearchResults([])
+    }
+  }, [recipientSearch, searchRecipients])
 
   const checkEligibility = async (recipientId: string) => {
     if (!recipientId || !user?.id) return
@@ -365,58 +406,118 @@ function GiftDirectCheckoutContent() {
               <div className="bg-gray-800/50 rounded-lg p-6">
                 <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Elegir destinatario</h2>
                 <div className="space-y-4">
+                  {/* Buscador más pequeño */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Buscar usuario o amigo
-                    </label>
                     <input
                       type="text"
                       value={recipientSearch}
-                      onChange={(e) => {
-                        setRecipientSearch(e.target.value)
-                        searchRecipients(e.target.value)
-                      }}
-                      className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
-                      placeholder="Buscar por nombre o username..."
+                      onChange={(e) => setRecipientSearch(e.target.value)}
+                      className="w-full px-3 py-2 text-sm bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                      placeholder="Buscar usuario o amigo..."
                     />
                   </div>
                   
-                  {isSearching && (
-                    <div className="text-center text-gray-400">Buscando...</div>
+                  {/* Mostrar amigos por defecto o resultados de búsqueda */}
+                  {isLoadingFriends && recipientSearch.length < 2 && (
+                    <div className="text-center text-gray-400 text-sm py-4">
+                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-[#66DEDB]"></div>
+                    </div>
                   )}
                   
-                  {searchResults.length > 0 && (
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {searchResults.map((result) => (
-                        <button
-                          key={result.id}
-                          type="button"
-                          onClick={() => handleRecipientSelect(result)}
-                          className="w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center gap-3 transition-colors"
-                        >
-                          {result.avatar || result.profile?.avatar ? (
-                            <img
-                              src={result.avatar || result.profile?.avatar}
-                              alt={result.name}
-                              className="w-10 h-10 rounded-full object-cover"
+                  {isSearching && recipientSearch.length >= 2 && (
+                    <div className="text-center text-gray-400 text-sm py-4">
+                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-[#66DEDB]"></div>
+                    </div>
+                  )}
+                  
+                  {/* Mostrar amigos cuando no hay búsqueda */}
+                  {!isLoadingFriends && recipientSearch.length < 2 && friends.length > 0 && (
+                    <div className="grid grid-cols-4 gap-4 max-h-80 overflow-y-auto custom-scrollbar">
+                      {friends.map((friend) => {
+                        const userName = friend.firstName && friend.lastName
+                          ? `${friend.firstName} ${friend.lastName}`
+                          : friend.username || friend.email?.split('@')[0] || 'Usuario'
+                        
+                        return (
+                          <button
+                            key={friend.id}
+                            type="button"
+                            onClick={() => handleRecipientSelect(friend)}
+                            className="flex flex-col items-center gap-2 p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors"
+                          >
+                            <UserAvatar
+                              user={{
+                                avatar: friend.avatar || friend.profile?.avatar || null,
+                                firstName: friend.firstName,
+                                lastName: friend.lastName,
+                                email: friend.email,
+                                username: friend.username,
+                              }}
+                              size={64}
                             />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
-                              <span className="text-lg">👤</span>
-                            </div>
-                          )}
-                          <div className="flex-1 text-left">
-                            <p className="text-white font-medium">
-                              {result.firstName && result.lastName
-                                ? `${result.firstName} ${result.lastName}`
-                                : result.username || 'Usuario'}
+                            <p className="text-white text-xs text-center max-w-full truncate font-medium">
+                              {userName}
+                            </p>
+                            {friend.username && (
+                              <p className="text-gray-400 text-xs text-center max-w-full truncate">
+                                @{friend.username}
+                              </p>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  
+                  {/* Mostrar resultados de búsqueda cuando hay búsqueda */}
+                  {!isSearching && recipientSearch.length >= 2 && searchResults.length > 0 && (
+                    <div className="grid grid-cols-4 gap-4 max-h-80 overflow-y-auto custom-scrollbar">
+                      {searchResults.map((result) => {
+                        const userName = result.firstName && result.lastName
+                          ? `${result.firstName} ${result.lastName}`
+                          : result.username || result.email?.split('@')[0] || 'Usuario'
+                        
+                        return (
+                          <button
+                            key={result.id}
+                            type="button"
+                            onClick={() => handleRecipientSelect(result)}
+                            className="flex flex-col items-center gap-2 p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors"
+                          >
+                            <UserAvatar
+                              user={{
+                                avatar: result.avatar || result.profile?.avatar || null,
+                                firstName: result.firstName,
+                                lastName: result.lastName,
+                                email: result.email,
+                                username: result.username,
+                              }}
+                              size={64}
+                            />
+                            <p className="text-white text-xs text-center max-w-full truncate font-medium">
+                              {userName}
                             </p>
                             {result.username && (
-                              <p className="text-sm text-gray-400">@{result.username}</p>
+                              <p className="text-gray-400 text-xs text-center max-w-full truncate">
+                                @{result.username}
+                              </p>
                             )}
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  
+                  {/* Mensajes cuando no hay resultados */}
+                  {!isLoadingFriends && !isSearching && recipientSearch.length < 2 && friends.length === 0 && (
+                    <div className="text-center text-gray-500 text-sm py-8">
+                      No tienes amigos aún. Usa el buscador para encontrar usuarios.
+                    </div>
+                  )}
+                  
+                  {!isSearching && recipientSearch.length >= 2 && searchResults.length === 0 && (
+                    <div className="text-center text-gray-500 text-sm py-8">
+                      No se encontraron usuarios
                     </div>
                   )}
                 </div>

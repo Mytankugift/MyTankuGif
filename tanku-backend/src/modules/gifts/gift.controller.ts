@@ -232,11 +232,11 @@ export class GiftController {
             ? (order.giftRecipientId
                 ? {
                     id: order.giftRecipientId,
-                    // No mostrar información del destinatario al remitente (privacidad)
-                    username: null,
-                    firstName: null,
-                    lastName: null,
-                    avatar: null,
+                    // Mostrar información del destinatario al remitente
+                    username: otherUsersMap.get(order.giftRecipientId)?.username || null,
+                    firstName: otherUsersMap.get(order.giftRecipientId)?.firstName || null,
+                    lastName: otherUsersMap.get(order.giftRecipientId)?.lastName || null,
+                    avatar: otherUsersMap.get(order.giftRecipientId)?.profile?.avatar || null,
                   }
                 : null)
             : (order.giftSenderId

@@ -294,9 +294,9 @@ export function OrdersTab({ userId, initialOrderId }: OrdersTabProps) {
                       {formatDate(order.createdAt)}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
-                        {getStatusIcon(order.status)}
-                        {formatStatus(order.status)}
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.paymentStatus === 'cancelled' ? 'cancelled' : order.status)}`}>
+                        {getStatusIcon(order.paymentStatus === 'cancelled' ? 'cancelled' : order.status)}
+                        {formatStatus(order.paymentStatus === 'cancelled' ? 'cancelled' : order.status)}
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
@@ -339,9 +339,9 @@ export function OrdersTab({ userId, initialOrderId }: OrdersTabProps) {
                       {formatDate(order.createdAt)}
                     </div>
                   </div>
-                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
-                    {getStatusIcon(order.status)}
-                    {formatStatus(order.status)}
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.paymentStatus === 'cancelled' ? 'cancelled' : order.status)}`}>
+                    {getStatusIcon(order.paymentStatus === 'cancelled' ? 'cancelled' : order.status)}
+                    {formatStatus(order.paymentStatus === 'cancelled' ? 'cancelled' : order.status)}
                   </span>
                 </div>
                 
@@ -396,9 +396,9 @@ export function OrdersTab({ userId, initialOrderId }: OrdersTabProps) {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Estado:</span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedOrder.status)}`}>
-                        {getStatusIcon(selectedOrder.status)}
-                        {formatStatus(selectedOrder.status)}
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedOrder.paymentStatus === 'cancelled' ? 'cancelled' : selectedOrder.status)}`}>
+                        {getStatusIcon(selectedOrder.paymentStatus === 'cancelled' ? 'cancelled' : selectedOrder.status)}
+                        {formatStatus(selectedOrder.paymentStatus === 'cancelled' ? 'cancelled' : selectedOrder.status)}
                       </span>
                     </div>
                     <div className="flex justify-between">
