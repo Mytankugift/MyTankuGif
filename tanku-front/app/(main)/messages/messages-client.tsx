@@ -52,7 +52,7 @@ function MessagesClientContent() {
       style={{ backgroundColor: '#1E1E1E', height: 'calc(100vh - 0px)' }}
     >
       {/* Nav con botones de carrito y notificaciones */}
-      <BaseNav />
+      <BaseNav showStories={true} />
 
       <div className="max-w-7xl mx-auto pt-16 sm:pt-20 md:pt-24">
       <div className="mb-4 px-4 sm:px-6 md:px-8 flex items-end gap-3">

@@ -11,6 +11,9 @@ import { SavedWishlistsViewer } from '@/components/wishlists/saved-wishlists-vie
 import { LikedProductsViewer } from '@/components/wishlists/liked-products-viewer'
 import { WishlistNav } from '@/components/layout/wishlist-nav'
 import { WishlistAccessRequests } from '@/components/wishlists/wishlist-access-requests'
+import { StoriesCarousel } from '@/components/stories/stories-carousel'
+import { useStories } from '@/lib/hooks/use-stories'
+import { useAuthStore } from '@/lib/stores/auth-store'
 
 // Componente interno que usa useSearchParams
 function WishlistPageContent() {

@@ -13,6 +13,7 @@ import { NotificationsButton } from '@/components/layout/notifications-button'
 import { MessagesDropdown } from '@/components/layout/messages-dropdown'
 import { useChat } from '@/lib/hooks/use-chat'
 import { useSocket } from '@/lib/hooks/use-socket'
+import { StoriesCarousel } from '@/components/stories/stories-carousel'
 
 interface BaseNavProps {
   /** Si se muestra la sección de stories */
@@ -27,6 +28,8 @@ interface BaseNavProps {
   additionalContent?: React.ReactNode
   /** Clase adicional para el contenedor */
   className?: string
+  /** Historias personalizadas para pasar al StoriesCarousel */
+  customStories?: import('@/lib/hooks/use-stories').StoryDTO[]
 }
 
 export function BaseNav({
@@ -36,6 +39,7 @@ export function BaseNav({
   showJoinButton = false,
   additionalContent,
   className = '',
+  customStories,
 }: BaseNavProps) {
   const { isAuthenticated, user } = useAuthStore()
   // ✅ Obtener total de mensajes no leídos para badge
@@ -65,12 +69,9 @@ export function BaseNav({
     >
       {/* Stories Section - Solo si showStories es true */}
       {showStories && (
-        <div className="p-2 sm:p-3 md:p-4 pb-0 flex flex-col md:flex-row justify-between items-start w-full gap-2 sm:gap-3 md:gap-4">
-          <div className="flex-1 min-w-0 md:mr-2 lg:mr-4">
-            {/* Placeholder para stories - TODO: Implementar cuando tengamos stories */}
-            <div className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto pb-0 snap-x snap-mandatory">
-              {/* Stories se implementarán más adelante */}
-            </div>
+        <div className="p-0.5 sm:p-1 md:p-1 pb-0 flex flex-col md:flex-row justify-between items-start w-full gap-0.5 sm:gap-1 md:gap-1">
+          <div className="flex-1 min-w-0 md:mr-0.5 lg:mr-1">
+            <StoriesCarousel stories={customStories} />
           </div>
 
           {/* Botón "Únete a Tanku" - Solo visible cuando no hay sesión y showJoinButton es true */}

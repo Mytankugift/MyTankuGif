@@ -6,12 +6,14 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import CircularMenu from './circular-menu'
+import { CreateStoryModal } from '@/components/stories/create-story-modal'
 
 export default function Sidebar() {
   const pathname = usePathname()
   const { user, isAuthenticated, logout } = useAuthStore()
   const initialAvatar = user?.profile?.avatar || ''
   const [imgSrc, setImgSrc] = useState<string>(initialAvatar)
+  const [createStoryModalOpen, setCreateStoryModalOpen] = useState(false)
 
   useEffect(() => {
     setImgSrc(user?.profile?.avatar || '')
@@ -40,15 +42,16 @@ export default function Sidebar() {
             loading="eager"
             unoptimized
           />
-          {/* Avatar con "¿Whats up?" - Solo visible si está autenticado */}
+          {/* Avatar con botón "+" para crear historia - Solo visible si está autenticado */}
           {isAuthenticated && user && (
             <div className="flex flex-col items-center flex-shrink-0 cursor-pointer group relative">
               <div className="relative">
                 <div 
-                  className="w-16 h-16 rounded-full p-0.5 group-hover:opacity-90 transition-opacity relative z-10"
+                  className="w-16 h-16 rounded-full p-0.5 group-hover:opacity-90 transition-opacity relative z-10 cursor-pointer"
                   style={{
                     background: 'linear-gradient(45deg, #1A485C, #73FFA2)'
                   }}
+                  onClick={() => setCreateStoryModalOpen(true)}
                 >
                   <div className="w-full h-full rounded-full overflow-hidden bg-gray-800">
                     {imgSrc ? (
@@ -70,18 +73,17 @@ export default function Sidebar() {
                     )}
                   </div>
                 </div>
-                {/* Textbox "¿Whats up?" */}
-                <div 
-                  className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 px-3 py-1.5 rounded-full min-w-[85px] group-hover:opacity-90 transition-opacity flex items-center justify-center z-0 cursor-pointer"
-                  style={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.45)',
-                    color: '#73FFA2'
+                {/* Botón "+" verde Tanku en esquina inferior derecha */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setCreateStoryModalOpen(true)
                   }}
+                  className="absolute -bottom-1 -right-1 w-6 h-6 bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] rounded-full flex items-center justify-center border-2 border-[#2D3A3A] hover:scale-110 transition-transform cursor-pointer z-20 shadow-lg"
+                  title="Crear historia"
                 >
-                  <span className="text-xs font-semibold whitespace-nowrap" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                    ¿Whats up?
-                  </span>
-                </div>
+                  <span className="text-black font-bold text-lg leading-none">+</span>
+                </button>
               </div>
             </div>
           )}
@@ -399,6 +401,15 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
+
+      {/* Modal de crear historia */}
+      <CreateStoryModal
+        isOpen={createStoryModalOpen}
+        onClose={() => setCreateStoryModalOpen(false)}
+        onStoryCreated={() => {
+          setCreateStoryModalOpen(false)
+        }}
+      />
     </aside>
   )
 }

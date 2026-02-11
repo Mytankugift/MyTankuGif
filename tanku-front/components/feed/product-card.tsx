@@ -39,6 +39,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isWishlistModalOpen, setIsWishlistModalOpen] = useState(false)
+  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined)
   const [imageError, setImageError] = useState(false)
   const [isLiked, setIsLiked] = useState(product.isLiked ?? false)
   const [likesCount, setLikesCount] = useState(product.likesCount ?? 0)
@@ -184,11 +185,52 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     }
   }
 
-  const handleAddToWishlist = (e: React.MouseEvent) => {
+  const handleAddToWishlist = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (isAuthenticated) {
-      setIsWishlistModalOpen(true)
-    } else {
+    
+    if (!isAuthenticated) {
+      setIsModalOpen(true)
+      return
+    }
+
+    // Si no hay handle, no podemos obtener el producto completo
+    if (!product.handle) {
+      console.warn('Producto no tiene handle, no se puede agregar a wishlist')
+      return
+    }
+
+    try {
+      // Obtener producto completo para verificar variantes y stock
+      const fullProduct = await fetchProductByHandle(product.handle)
+      
+      if (!fullProduct) {
+        throw new Error('No se pudo cargar el producto')
+      }
+
+      const variants = fullProduct.variants || []
+      
+      // Si tiene múltiples variantes, abrir el modal de producto para que el usuario elija
+      if (variants.length > 1) {
+        setIsModalOpen(true)
+        return
+      } 
+      
+      // Si solo tiene una variante, validar stock antes de agregar
+      if (variants.length === 1) {
+        const variant = variants[0]
+        if (variant.stock === 0) {
+          alert('Este producto no tiene stock disponible')
+          return
+        }
+        // Si tiene stock, abrir modal de wishlist con la variante seleccionada
+        setSelectedVariantId(variant.id)
+        setIsWishlistModalOpen(true)
+      } else {
+        throw new Error('El producto no tiene variantes disponibles')
+      }
+    } catch (error) {
+      console.error('Error verificando producto para wishlist:', error)
+      // Si falla, abrir el modal de producto como fallback
       setIsModalOpen(true)
     }
   }
@@ -392,10 +434,15 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
       {isAuthenticated && (
         <WishlistSelectorModal
           isOpen={isWishlistModalOpen}
-          onClose={() => setIsWishlistModalOpen(false)}
+          onClose={() => {
+            setIsWishlistModalOpen(false)
+            setSelectedVariantId(undefined)
+          }}
           productId={product.id}
+          variantId={selectedVariantId}
           onAdded={() => {
-            // Opcional: mostrar feedback
+            setIsWishlistModalOpen(false)
+            setSelectedVariantId(undefined)
           }}
         />
       )}

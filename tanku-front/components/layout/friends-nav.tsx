@@ -66,6 +66,6 @@ export function FriendsNav({ onSearch, initialSearchQuery = '' }: FriendsNavProp
     </div>
   )
 
-  return <BaseNav showStories={false} canHide={false} isVisible={true} additionalContent={searchContent} />
+  return <BaseNav showStories={true} canHide={false} isVisible={true} additionalContent={searchContent} />
 }
 

@@ -29,5 +29,10 @@ export type StoryDTO = {
     lastName: string | null;
     avatar: string | null;
   };
+  storyType?: 'NORMAL' | 'WISHLIST';
+  wishlistId?: string | null;
+  productId?: string | null;
+  variantId?: string | null;
+  productHandle?: string | null;
 };
 

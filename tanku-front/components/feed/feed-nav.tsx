@@ -8,6 +8,7 @@ import { CartButton } from '@/components/layout/cart-button'
 import { NotificationsButton } from '@/components/layout/notifications-button'
 import { MessagesDropdown } from '@/components/layout/messages-dropdown'
 import { useChat } from '@/lib/hooks/use-chat'
+import { StoriesCarousel } from '@/components/stories/stories-carousel'
 
 // Componente CategorySelector
 const CategorySelector = ({
@@ -316,13 +317,10 @@ export function FeedNav({
         right: '16px', // Aumentado de 8px a 16px para dejar espacio a la barra de scroll
       }}
     >
-      {/* Stories Section - TODO: Implementar cuando tengamos stories */}
-      <div className="p-2 sm:p-3 md:p-4 pb-0 flex flex-col md:flex-row justify-between items-start w-full gap-2 sm:gap-3 md:gap-4">
-        <div className="flex-1 min-w-0 md:mr-2 lg:mr-4">
-          {/* Placeholder para stories */}
-          <div className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto pb-0 snap-x snap-mandatory">
-            {/* Stories se implementarán más adelante */}
-          </div>
+      {/* Stories Section */}
+      <div className="p-0.5 sm:p-1 md:p-1 pb-0 flex flex-col md:flex-row justify-between items-start w-full gap-0.5 sm:gap-1 md:gap-1">
+        <div className="flex-1 min-w-0 md:mr-0.5 lg:mr-1">
+          <StoriesCarousel />
         </div>
 
         {/* Botón "Únete a Tanku" - Solo visible cuando no hay sesión */}
@@ -432,7 +430,7 @@ export function FeedNav({
       </div>
 
       {/* Buscador */}
-      <div className="px-2 sm:px-3 md:px-4 mb-1 pt-0">
+      <div className="px-2 sm:px-3 md:px-4 mb-0.5 pt-0">
         <div className="relative w-full">
           <div className="absolute left-2.5 top-1/2 transform -translate-y-1/2 z-10">
             <svg
@@ -476,8 +474,8 @@ export function FeedNav({
 
       {/* Selector de categorías, filtros y botones de categorías */}
       {categories.length > 0 && (
-        <div className="px-2 sm:px-3 md:px-4 mb-1 pt-1">
-          <div className="flex items-center gap-3 w-full">
+        <div className="px-2 sm:px-3 md:px-4 mb-0.5 pt-0.5">
+          <div className="flex items-center gap-2 w-full">
             {/* Desplegable de categorías */}
             <CategorySelector
               categories={categories}
@@ -663,8 +661,8 @@ export function FeedNav({
               </button>
             </div>
 
-            {/* Selector de filtros */}
-            <FilterSelector />
+            {/* Selector de filtros - Oculto temporalmente */}
+            {/* <FilterSelector /> */}
           </div>
         </div>
       )}

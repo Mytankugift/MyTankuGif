@@ -119,7 +119,7 @@ export default function FeedPage() {
       <div
         className="flex-1 overflow-y-auto px-2 sm:px-3 md:px-4 py-2 sm:py-4 md:py-5 custom-scrollbar transition-all duration-300 ease-in-out"
         style={{
-          paddingTop: isHeaderVisible ? '180px' : '20px',
+          paddingTop: isHeaderVisible ? '190px' : '20px',
           marginRight: '0',
           scrollBehavior: 'smooth',
         }}

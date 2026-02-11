@@ -195,10 +195,16 @@ export function useWishLists(): UseWishListsResult {
           // Refrescar wishlists para obtener los items actualizados
           await fetchWishLists()
         } else {
-          setError(response.error?.message || 'Error al agregar producto a wishlist')
+          const errorMessage = response.error?.message || 'Error al agregar producto a wishlist'
+          setError(errorMessage)
+          // Lanzar error para que el componente pueda manejarlo
+          throw new Error(errorMessage)
         }
       } catch (err: any) {
-        setError(err.message || 'Error al agregar producto a wishlist')
+        const errorMessage = err.message || err.error?.message || 'Error al agregar producto a wishlist'
+        setError(errorMessage)
+        // Re-lanzar el error para que el componente pueda manejarlo
+        throw err
       } finally {
         setIsLoading(false)
       }

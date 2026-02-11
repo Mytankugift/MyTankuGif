@@ -24,5 +24,17 @@ router.get('/user/:userId', optionalAuthenticate, storiesController.getByUserId)
  */
 router.post('/', authenticate, uploadFiles, storiesController.create);
 
+/**
+ * GET /api/v1/stories/wishlist
+ * Obtener solo historias de wishlist
+ */
+router.get('/wishlist', optionalAuthenticate, storiesController.getWishlistStories);
+
+/**
+ * POST /api/v1/stories/wishlist
+ * Crear historia de wishlist (automático)
+ */
+router.post('/wishlist', authenticate, storiesController.createWishlistStory);
+
 export default router;
 

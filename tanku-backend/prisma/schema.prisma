@@ -125,6 +125,7 @@ model Product {
   category      Category?        @relation(fields: [categoryId], references: [id])
   stalkerGifts  StalkerGift[]
   wishListItems WishListItem[]
+  stories       StoriesUser[]
 
   @@map("products")
 }
@@ -531,12 +532,20 @@ model StoriesUser {
   expiresAt   DateTime    @map("expires_at")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
+  storyType   StoryType   @default(NORMAL) @map("story_type")
+  wishlistId  String?     @map("wishlist_id")
+  productId   String?     @map("product_id")
+  variantId   String?     @map("variant_id")
   customer    User        @relation(fields: [customerId], references: [id], onDelete: Cascade)
   storyFiles  StoryFile[]
+  product     Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([customerId])
   @@index([expiresAt])
   @@index([isActive])
+  @@index([storyType])
+  @@index([wishlistId])
+  @@index([productId])
   @@map("stories_user")
 }
 
@@ -821,4 +830,9 @@ enum MessageStatus {
   SENT
   DELIVERED
   READ
+}
+
+enum StoryType {
+  NORMAL
+  WISHLIST
 }

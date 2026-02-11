@@ -52,6 +52,34 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
     }
   }, [product])
 
+  // ✅ Seleccionar automáticamente la primera variante con stock > 0
+  useEffect(() => {
+    if (fullProduct?.variants && fullProduct.variants.length > 0) {
+      // Buscar la primera variante con stock > 0
+      const variantWithStockIndex = fullProduct.variants.findIndex(v => v.stock > 0)
+      if (variantWithStockIndex !== -1 && variantWithStockIndex !== selectedVariantIndex) {
+        setSelectedVariantIndex(variantWithStockIndex)
+      } else if (variantWithStockIndex === -1) {
+        // Si ninguna variante tiene stock, mantener la selección actual pero mostrar advertencia
+        console.warn('Ninguna variante tiene stock disponible')
+      }
+    }
+  }, [fullProduct?.variants, selectedVariantIndex])
+
+  // ✅ Seleccionar automáticamente la primera variante con stock > 0
+  useEffect(() => {
+    if (fullProduct?.variants && fullProduct.variants.length > 0) {
+      // Buscar la primera variante con stock > 0
+      const variantWithStockIndex = fullProduct.variants.findIndex(v => v.stock > 0)
+      if (variantWithStockIndex !== -1 && variantWithStockIndex !== selectedVariantIndex) {
+        setSelectedVariantIndex(variantWithStockIndex)
+      } else if (variantWithStockIndex === -1) {
+        // Si ninguna variante tiene stock, mantener la selección actual pero mostrar advertencia
+        console.warn('Ninguna variante tiene stock disponible')
+      }
+    }
+  }, [fullProduct?.variants, selectedVariantIndex])
+
   // Cargar datos de likes
   useEffect(() => {
     if (!fullProduct?.id) return
@@ -328,8 +356,13 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
               {isAuthenticated && (
                 <button
                   onClick={() => setShowWishlistModal(true)}
-                  className="p-2 hover:opacity-80 transition-opacity"
-                  title="Agregar a wishlist"
+                  disabled={!selectedVariant || selectedVariant.stock === 0}
+                  className="p-2 hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={selectedVariant?.stock === 0 ? "Esta variante no tiene stock disponible" : "Agregar a wishlist"}
+                  style={{ 
+                    color: selectedVariant?.stock === 0 ? '#666' : undefined,
+                    cursor: selectedVariant?.stock === 0 ? 'not-allowed' : 'pointer'
+                  }}
                 >
                   <Image
                     src="/icons_tanku/tanku_agregar_a_whislist_azul.svg"
@@ -337,6 +370,9 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                     width={24}
                     height={24}
                     className="w-6 h-6"
+                    style={{ 
+                      opacity: selectedVariant?.stock === 0 ? 0.5 : 1 
+                    }}
                   />
                 </button>
               )}

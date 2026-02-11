@@ -15,7 +15,7 @@ export class StoriesController {
 
   /**
    * GET /api/v1/stories
-   * Obtener feed de stories del usuario autenticado
+   * Obtener feed de stories del usuario autenticado (amigos + propias)
    */
   getFeed = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -25,7 +25,7 @@ export class StoriesController {
         return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
       }
 
-      const stories = await this.storiesService.getStoriesByUserId(requestWithUser.user.id);
+      const stories = await this.storiesService.getFeedStories(requestWithUser.user.id);
 
       res.status(200).json(successResponse(stories));
     } catch (error) {
@@ -92,6 +92,58 @@ export class StoriesController {
         description: description?.trim() || undefined,
         files: uploadedFiles,
       });
+
+      res.status(201).json(successResponse(story));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/stories/wishlist
+   * Obtener solo historias de wishlist
+   */
+  getWishlistStories = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id || req.query.userId as string | undefined;
+
+      const stories = await this.storiesService.getWishlistStories(userId);
+
+      res.status(200).json(successResponse(stories));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/stories/wishlist
+   * Crear historia de wishlist (automático, llamado desde wishlists service)
+   */
+  createWishlistStory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const { wishlistId, productId, variantId } = req.body;
+
+      if (!wishlistId || !productId) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'wishlistId y productId son requeridos'));
+      }
+
+      const story = await this.storiesService.createWishlistStory({
+        userId: requestWithUser.user.id,
+        wishlistId,
+        productId,
+        variantId,
+      });
+
+      if (!story) {
+        return res.status(200).json(successResponse(null, { message: 'Límite de historias de wishlist alcanzado' }));
+      }
 
       res.status(201).json(successResponse(story));
     } catch (error) {

@@ -6,6 +6,9 @@
 
 import { useEffect, useState } from 'react'
 import { useWishLists } from '@/lib/hooks/use-wishlists'
+import { apiClient } from '@/lib/api/client'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import type { ProductVariantDTO } from '@/types/api'
 
 interface WishlistSelectorModalProps {
   isOpen: boolean
@@ -39,11 +42,41 @@ export function WishlistSelectorModal({
   const handleAddToWishlist = async (wishListId: string) => {
     setIsAdding(true)
     try {
+      // Validar que se haya seleccionado una variante si el producto tiene variantes
+      if (!variantId) {
+        alert('Por favor selecciona una variante del producto')
+        setIsAdding(false)
+        return
+      }
+
+      // Validar stock antes de agregar (validación preventiva)
+      const variantResponse = await apiClient.get<ProductVariantDTO>(API_ENDPOINTS.PRODUCTS.VARIANT_BY_ID(variantId))
+      if (variantResponse.success && variantResponse.data) {
+        const variant = variantResponse.data
+        if (variant.stock === 0) {
+          alert('Este producto no tiene stock disponible')
+          setIsAdding(false)
+          return
+        }
+      }
+
       await addItemToWishList(wishListId, productId, variantId)
       onAdded()
       onClose()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error agregando a wishlist:', error)
+      // Extraer mensaje del error
+      let errorMessage = 'Error al agregar producto a la wishlist'
+      
+      if (error?.message) {
+        errorMessage = error.message
+      } else if (error?.error?.message) {
+        errorMessage = error.error.message
+      } else if (error?.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message
+      }
+      
+      alert(errorMessage)
     } finally {
       setIsAdding(false)
     }
@@ -54,6 +87,24 @@ export function WishlistSelectorModal({
 
     setIsAdding(true)
     try {
+      // Validar que se haya seleccionado una variante
+      if (!variantId) {
+        alert('Por favor selecciona una variante del producto')
+        setIsAdding(false)
+        return
+      }
+
+      // Validar stock antes de crear y agregar
+      const variantResponse = await apiClient.get<ProductVariantDTO>(API_ENDPOINTS.PRODUCTS.VARIANT_BY_ID(variantId))
+      if (variantResponse.success && variantResponse.data) {
+        const variant = variantResponse.data
+        if (variant.stock === 0) {
+          alert('Este producto no tiene stock disponible')
+          setIsAdding(false)
+          return
+        }
+      }
+
       const newWishlist = await createWishList(newWishlistName.trim(), isPublic)
       if (newWishlist) {
         await addItemToWishList(newWishlist.id, productId, variantId)
@@ -62,8 +113,20 @@ export function WishlistSelectorModal({
         setShowCreateForm(false)
         setNewWishlistName('')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creando wishlist:', error)
+      // Extraer mensaje del error
+      let errorMessage = 'Error al crear wishlist'
+      
+      if (error?.message) {
+        errorMessage = error.message
+      } else if (error?.error?.message) {
+        errorMessage = error.error.message
+      } else if (error?.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message
+      }
+      
+      alert(errorMessage)
     } finally {
       setIsAdding(false)
     }
