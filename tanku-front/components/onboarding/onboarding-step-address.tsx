@@ -45,6 +45,7 @@ export function OnboardingStepAddress({ onSkip, onComplete }: OnboardingStepAddr
   const handleFormSubmit = async (data: CreateAddressDTO | UpdateAddressDTO) => {
     try {
       let newAddress: AddressDTO | undefined
+      const isGiftAddress = 'isGiftAddress' in data ? data.isGiftAddress : false
       
       if (editingAddress) {
         newAddress = await updateAddress(editingAddress.id, data as UpdateAddressDTO)
@@ -52,7 +53,7 @@ export function OnboardingStepAddress({ onSkip, onComplete }: OnboardingStepAddr
         newAddress = await createAddress(data as CreateAddressDTO)
         
         // Si se marcó como dirección de regalos al crear, habilitar "Permitir recibir regalos"
-        if (data.isGiftAddress) {
+        if (isGiftAddress) {
           await apiClient.put(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
             allowGiftShipping: true,
           })

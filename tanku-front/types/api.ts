@@ -269,6 +269,7 @@ export interface UpdateAddressDTO {
   postalCode?: string
   country?: string
   isDefaultShipping?: boolean
+  isGiftAddress?: boolean
   metadata?: Record<string, any>
 }
 
