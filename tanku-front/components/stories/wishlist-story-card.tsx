@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
+import { getProfileUrl } from '@/lib/utils/profile-url'
 
 interface WishlistStoryCardProps {
   story: StoryDTO
@@ -115,8 +116,21 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
   const handleVerWishlist = () => {
     if (!story.wishlistId || !story.userId) return
 
-    // Navegar a la wishlist del usuario
-    router.push(`/wishlist?userId=${story.userId}&wishlistId=${story.wishlistId}`)
+    // ✅ Si es mi propia historia, ir a mi perfil
+    // Si es de otra persona, ir al perfil de esa persona usando username
+    const isOwnStory = user?.id === story.userId
+    
+    if (isOwnStory) {
+      // Ir a mi propio perfil
+      router.push('/profile')
+    } else {
+      // Ir al perfil de la otra persona usando username
+      const profileUrl = getProfileUrl({
+        username: story.author.username,
+        id: story.author.id,
+      })
+      router.push(profileUrl)
+    }
     onClose()
   }
 

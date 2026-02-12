@@ -72,6 +72,7 @@ export class NotificationsService {
 
   /**
    * Obtener notificaciones del usuario
+   * Orden: primero no leídas, luego leídas (ambas por fecha descendente)
    */
   async getNotifications(
     userId: string,
@@ -85,9 +86,10 @@ export class NotificationsService {
 
     const notifications = await prisma.notification.findMany({
       where,
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: [
+        { isRead: 'asc' }, // false (no leídas) primero, luego true (leídas)
+        { createdAt: 'desc' }, // Más recientes primero
+      ],
       take: filters?.limit || 50,
       skip: filters?.offset || 0,
     });

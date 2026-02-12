@@ -26,7 +26,7 @@ interface OnboardingModalProps {
 }
 
 export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModalProps) {
-  const { updateOnboardingData, isLoading } = useOnboarding()
+  const { updateOnboardingData, getOnboardingData, isLoading } = useOnboarding()
   const { user } = useAuthStore()
   const [currentStep, setCurrentStep] = useState(0) // Empezar en 0 para username
   const [username, setUsername] = useState<string>('')
@@ -125,52 +125,15 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
     }
   }
 
-  const handleAddressComplete = async (addressData?: any, preferences?: { allowGiftShipping: boolean; useMainAddressForGifts: boolean }) => {
-    setAddressData(addressData)
-    setGiftPreferences(preferences || null)
-    // Guardar dirección y preferencias en el backend
-    if (addressData) {
-      await saveAddressAndPreferences(addressData, preferences)
-    }
-    // Completar onboarding
+  const handleAddressComplete = async () => {
+    // El componente OnboardingStepAddress ya maneja todo
+    // Solo completar el onboarding
     await handleComplete()
   }
 
   const handleAddressSkip = async () => {
     // Omitir dirección, completar onboarding
     await handleComplete()
-  }
-
-  const saveAddressAndPreferences = async (addressData: any, preferences?: { allowGiftShipping: boolean; useMainAddressForGifts: boolean }) => {
-    try {
-      // Crear dirección
-      if (addressData) {
-        const addressResponse = await apiClient.post(API_ENDPOINTS.USERS.ADDRESSES.CREATE, addressData)
-        if (!addressResponse.success) {
-          console.error('Error creando dirección:', addressResponse.error)
-        }
-      }
-
-      // Actualizar preferencias de regalos en el perfil
-      if (preferences) {
-        const profileResponse = await apiClient.put(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
-          allowGiftShipping: preferences.allowGiftShipping,
-          useMainAddressForGifts: preferences.useMainAddressForGifts,
-        })
-        if (!profileResponse.success) {
-          console.error('Error actualizando preferencias:', profileResponse.error)
-        }
-      }
-      
-      // Si se marcó como dirección de regalos, actualizar la dirección
-      if (addressData && preferences?.allowGiftShipping) {
-        // La dirección ya se creó, ahora actualizarla para marcarla como isGiftAddress
-        // Esto se puede hacer en el backend cuando se crea la dirección si allowGiftShipping es true
-      }
-    } catch (error) {
-      console.error('Error guardando dirección y preferencias:', error)
-      // No bloquear el flujo, solo loguear el error
-    }
   }
 
   const handleUsernameNext = (newUsername: string) => {
@@ -182,6 +145,15 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1)
     }
+  }
+
+  // Verificar si el onboarding está completo (todos los pasos obligatorios)
+  const isOnboardingComplete = () => {
+    const hasUsername = username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)
+    const hasBirthday = year !== null && month !== null && day !== null
+    const hasCategories = selectedCategorySlugs.length >= 1
+    const hasActivities = selectedActivitySlugs.length >= 1
+    return hasUsername && hasBirthday && hasCategories && hasActivities
   }
 
   const saveCurrentStep = async () => {
@@ -215,6 +187,12 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
 
   const handleComplete = async () => {
     try {
+      // Verificar que todos los pasos obligatorios estén completos antes de finalizar
+      if (!isOnboardingComplete()) {
+        console.error('No se puede completar el onboarding: faltan pasos obligatorios')
+        return
+      }
+      
       await saveCurrentStep()
       onComplete?.()
       onClose()
@@ -250,13 +228,18 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
             <h1 className="text-lg font-semibold text-[#66DEDB]">Bienvenido</h1>
             <span className="text-xs text-gray-400">Paso {currentStep + 1}/5</span>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-800 rounded"
-            aria-label="Cerrar"
-          >
-            <XMarkIcon className="w-5 h-5" />
-          </button>
+          {/* Solo permitir cerrar si el onboarding está completo */}
+          {isOnboardingComplete() ? (
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-800 rounded"
+              aria-label="Cerrar"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          ) : (
+            <div className="w-5 h-5" /> // Espaciador para mantener el layout
+          )}
         </div>
 
         {/* Barra de progreso */}

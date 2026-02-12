@@ -22,6 +22,7 @@ export class StoriesService {
     firstName: string | null;
     lastName: string | null;
     avatar: string | null;
+    username: string | null;
   } {
     return {
       id: user.id,
@@ -29,6 +30,7 @@ export class StoriesService {
       firstName: user.firstName,
       lastName: user.lastName,
       avatar: user.profile?.avatar || null,
+      username: user.username || null,
     };
   }
 

@@ -32,6 +32,7 @@ export type StoryDTO = {
     firstName: string | null
     lastName: string | null
     avatar: string | null
+    username: string | null
   }
   storyType?: 'NORMAL' | 'WISHLIST'
   wishlistId?: string | null

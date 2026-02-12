@@ -1,159 +1,112 @@
 /**
  * Paso 5: Dirección opcional para recibir regalos
+ * Muestra direcciones existentes o permite crear una nueva
  */
 
 'use client'
 
 import { useState, useEffect } from 'react'
-import type { CreateAddressDTO } from '@/types/api'
+import { useAddresses } from '@/lib/hooks/use-addresses'
+import { AddressFormModal } from '@/components/addresses/address-form-modal'
+import type { AddressDTO, CreateAddressDTO, UpdateAddressDTO } from '@/types/api'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
-
-interface Department {
-  id: number
-  name: string
-  department_code?: string | null
-}
-
-interface City {
-  id: number
-  name: string
-  department_id?: number
-}
+import { useAuthStore } from '@/lib/stores/auth-store'
 
 interface OnboardingStepAddressProps {
   onSkip: () => void
-  onComplete: (addressData?: CreateAddressDTO, preferences?: { allowGiftShipping: boolean; useMainAddressForGifts: boolean }) => void
+  onComplete: () => void
 }
 
 export function OnboardingStepAddress({ onSkip, onComplete }: OnboardingStepAddressProps) {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
-    address1: '',
-    address2: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: 'CO',
-  })
-  const [allowGiftShipping, setAllowGiftShipping] = useState(false)
-  const [useMainAddressForGifts, setUseMainAddressForGifts] = useState(false)
-  const [departments, setDepartments] = useState<Department[]>([])
-  const [cities, setCities] = useState<City[]>([])
-  const [loadingDepartments, setLoadingDepartments] = useState(false)
-  const [loadingCities, setLoadingCities] = useState(false)
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { addresses, isLoading, fetchAddresses, createAddress, updateAddress } = useAddresses()
+  const { user, checkAuth } = useAuthStore()
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false)
+  const [editingAddress, setEditingAddress] = useState<AddressDTO | null>(null)
+  const [giftAddressIds, setGiftAddressIds] = useState<Set<string>>(new Set())
+  const [isUpdating, setIsUpdating] = useState(false)
 
-  // Cargar departamentos al montar
+  // Cargar direcciones al montar
   useEffect(() => {
-    loadDepartments()
-  }, [])
+    fetchAddresses()
+  }, [fetchAddresses])
 
-  // Cargar ciudades cuando se selecciona un departamento
+  // Cargar direcciones que ya están marcadas como de regalos
   useEffect(() => {
-    if (selectedDepartmentId) {
-      loadCities(selectedDepartmentId)
-    } else {
-      setCities([])
-      setFormData(prev => ({ ...prev, city: '' }))
-    }
-  }, [selectedDepartmentId])
+    const giftIds = addresses.filter(addr => addr.isGiftAddress).map(addr => addr.id)
+    setGiftAddressIds(new Set(giftIds))
+  }, [addresses])
 
-  const loadDepartments = async () => {
-    setLoadingDepartments(true)
-    try {
-      const response = await apiClient.get<Department[]>(
-        API_ENDPOINTS.DROPI.DEPARTMENTS
-      )
-      if (response.success && response.data) {
-        setDepartments(response.data)
-      }
-    } catch (error) {
-      console.error('Error cargando departamentos:', error)
-    } finally {
-      setLoadingDepartments(false)
-    }
+  const handleCreateAddress = () => {
+    setEditingAddress(null)
+    setIsFormModalOpen(true)
   }
 
-  const loadCities = async (departmentId: number) => {
-    setLoadingCities(true)
+  const handleFormSubmit = async (data: CreateAddressDTO | UpdateAddressDTO) => {
     try {
-      const response = await apiClient.get<{ success: boolean; data: City[] | { cities?: City[] } }>(
-        `${API_ENDPOINTS.DROPI.CITIES}?department_id=${departmentId}`
-      )
-      if (response.success && response.data) {
-        let citiesArray: City[] = []
-        if (Array.isArray(response.data)) {
-          citiesArray = response.data
-        } else if (typeof response.data === 'object' && (response.data as any).cities) {
-          citiesArray = (response.data as any).cities || []
+      let newAddress: AddressDTO | undefined
+      
+      if (editingAddress) {
+        newAddress = await updateAddress(editingAddress.id, data as UpdateAddressDTO)
+      } else {
+        newAddress = await createAddress(data as CreateAddressDTO)
+        
+        // Si se marcó como dirección de regalos al crear, habilitar "Permitir recibir regalos"
+        if (data.isGiftAddress) {
+          await apiClient.put(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
+            allowGiftShipping: true,
+          })
+          await checkAuth()
         }
-        setCities(citiesArray)
       }
+      
+      setIsFormModalOpen(false)
+      setEditingAddress(null)
+      await fetchAddresses()
     } catch (error) {
-      console.error('Error cargando ciudades:', error)
-      setCities([])
-    } finally {
-      setLoadingCities(false)
+      console.error('Error al guardar dirección:', error)
+      throw error
     }
   }
 
-  const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const departmentId = e.target.value ? parseInt(e.target.value) : null
-    setSelectedDepartmentId(departmentId)
-    const department = departments.find(d => d.id === departmentId)
-    if (department) {
-      setFormData({ ...formData, state: department.name, city: '' })
-    } else {
-      setFormData({ ...formData, state: '', city: '' })
-    }
-  }
-
-  const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData({ ...formData, city: e.target.value })
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
+  const handleToggleGiftAddress = async (addressId: string, isGift: boolean) => {
+    setIsUpdating(true)
     try {
-      const addressData: CreateAddressDTO = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: formData.phone || undefined,
-        address1: formData.address1,
-        address2: formData.address2 || undefined,
-        city: formData.city,
-        state: formData.state,
-        postalCode: formData.postalCode,
-        country: formData.country,
-        isDefaultShipping: false,
-        isGiftAddress: allowGiftShipping, // Marcar como dirección de regalos si se permite
+      // Actualizar la dirección
+      await updateAddress(addressId, { isGiftAddress: isGift })
+      
+      // Actualizar estado local
+      const newGiftIds = new Set(giftAddressIds)
+      if (isGift) {
+        newGiftIds.add(addressId)
+      } else {
+        newGiftIds.delete(addressId)
+      }
+      setGiftAddressIds(newGiftIds)
+
+      // Si se marca como dirección de regalos, habilitar "Permitir recibir regalos" en el perfil
+      if (isGift) {
+        await apiClient.put(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
+          allowGiftShipping: true,
+        })
+        await checkAuth()
       }
 
-      const preferences = {
-        allowGiftShipping,
-        useMainAddressForGifts,
-      }
-
-      await onComplete(addressData, preferences)
+      await fetchAddresses()
     } catch (error) {
-      console.error('Error guardando dirección:', error)
+      console.error('Error actualizando dirección:', error)
     } finally {
-      setIsSubmitting(false)
+      setIsUpdating(false)
     }
   }
 
-  const filteredCities = selectedDepartmentId
-    ? cities.filter(city => city.department_id === selectedDepartmentId)
-    : []
+  const formatAddress = (address: AddressDTO) => {
+    return `${address.address1}${address.address2 ? `, ${address.address2}` : ''}, ${address.city}, ${address.state}`
+  }
 
-  const isFormValid = formData.firstName && formData.lastName && formData.address1 && 
-                      formData.city && formData.state && formData.postalCode
+  const getAddressAlias = (address: AddressDTO) => {
+    return address.metadata?.alias || `${address.firstName} ${address.lastName}`
+  }
 
   return (
     <div className="space-y-4">
@@ -162,190 +115,116 @@ export function OnboardingStepAddress({ onSkip, onComplete }: OnboardingStepAddr
           📦 ¿Dónde quieres recibir regalos?
         </h2>
         <p className="text-sm text-gray-400">
-          Opcional: Configura una dirección para que tus amigos puedan enviarte regalos
+          Configura una dirección para que tus amigos puedan enviarte regalos. Nadie más tendrá acceso a estos datos.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Nombre y Apellido */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">
-              Nombre *
-            </label>
-            <input
-              type="text"
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              required
-              className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-[#73FFA2] focus:outline-none text-sm"
-              placeholder="Juan"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">
-              Apellido *
-            </label>
-            <input
-              type="text"
-              value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              required
-              className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-[#73FFA2] focus:outline-none text-sm"
-              placeholder="Pérez"
-            />
-          </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#73FFA2]"></div>
+          <span className="ml-2 text-white">Cargando direcciones...</span>
         </div>
-
-        {/* Dirección */}
-        <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">
-            Dirección *
-          </label>
-          <input
-            type="text"
-            value={formData.address1}
-            onChange={(e) => setFormData({ ...formData, address1: e.target.value })}
-            required
-            className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-[#73FFA2] focus:outline-none text-sm"
-            placeholder="Calle 123 #45-67"
-          />
-        </div>
-
-        {/* Detalle adicional */}
-        <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">
-            Detalle adicional (opcional)
-          </label>
-          <input
-            type="text"
-            value={formData.address2}
-            onChange={(e) => setFormData({ ...formData, address2: e.target.value })}
-            className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-[#73FFA2] focus:outline-none text-sm"
-            placeholder="Apartamento, piso, etc."
-          />
-        </div>
-
-        {/* Departamento y Ciudad */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">
-              Departamento *
-            </label>
-            <select
-              value={selectedDepartmentId || ''}
-              onChange={handleDepartmentChange}
-              required
-              disabled={loadingDepartments}
-              className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-[#73FFA2] focus:outline-none text-sm disabled:opacity-50"
-            >
-              <option value="">Selecciona...</option>
-              {departments.map((dept) => (
-                <option key={dept.id} value={dept.id}>
-                  {dept.name}
-                </option>
-              ))}
-            </select>
+      ) : addresses.length === 0 ? (
+        <div className="space-y-4">
+          <div className="text-center py-8 text-gray-400">
+            <p className="mb-4">No tienes direcciones guardadas</p>
+            <p className="text-sm mb-6">Agrega una dirección para recibir regalos de tus amigos</p>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">
-              Ciudad *
-            </label>
-            <select
-              value={formData.city}
-              onChange={handleCityChange}
-              required
-              disabled={loadingCities || !selectedDepartmentId}
-              className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-[#73FFA2] focus:outline-none text-sm disabled:opacity-50"
-            >
-              <option value="">
-                {selectedDepartmentId ? 'Selecciona...' : 'Primero selecciona departamento'}
-              </option>
-              {filteredCities.map((city) => (
-                <option key={city.id} value={city.name}>
-                  {city.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Código postal y Teléfono */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">
-              Código postal *
-            </label>
-            <input
-              type="text"
-              value={formData.postalCode}
-              onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-              required
-              className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-[#73FFA2] focus:outline-none text-sm"
-              placeholder="110111"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">
-              Teléfono
-            </label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-[#73FFA2] focus:outline-none text-sm"
-              placeholder="3001234567"
-            />
-          </div>
-        </div>
-
-        {/* Checkboxes de preferencias */}
-        <div className="space-y-2 pt-2 border-t border-gray-700">
-          <div className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              id="allowGiftShipping"
-              checked={allowGiftShipping}
-              onChange={(e) => setAllowGiftShipping(e.target.checked)}
-              className="mt-1 w-4 h-4 text-[#73FFA2] focus:ring-[#73FFA2] rounded"
-            />
-            <label htmlFor="allowGiftShipping" className="text-sm text-gray-300 cursor-pointer">
-              Usar esta dirección para recibir regalos de amigos
-            </label>
-          </div>
-          <div className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              id="useMainAddressForGifts"
-              checked={useMainAddressForGifts}
-              onChange={(e) => setUseMainAddressForGifts(e.target.checked)}
-              className="mt-1 w-4 h-4 text-[#73FFA2] focus:ring-[#73FFA2] rounded"
-            />
-            <label htmlFor="useMainAddressForGifts" className="text-sm text-gray-300 cursor-pointer">
-              Usar mi dirección principal para regalos (si ya tengo una configurada)
-            </label>
-          </div>
-        </div>
-
-        {/* Botones */}
-        <div className="flex gap-3 pt-2">
           <button
-            type="button"
+            onClick={handleCreateAddress}
+            className="w-full px-4 py-3 bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-gray-900 rounded-lg font-semibold text-sm hover:from-[#73FFA2] hover:to-[#66DEDB] transition-all"
+          >
+            + Agregar Dirección
+          </button>
+          <button
             onClick={onSkip}
-            className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+            className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
           >
-            Omitir
-          </button>
-          <button
-            type="submit"
-            disabled={!isFormValid || isSubmitting}
-            className="flex-1 px-4 py-2 bg-[#73FFA2] hover:bg-[#66DEDB] text-gray-900 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? 'Guardando...' : 'Guardar'}
+            Omitir por ahora
           </button>
         </div>
-      </form>
+      ) : (
+        <div className="space-y-4">
+          {/* Lista de direcciones */}
+          <div className="space-y-3">
+            {addresses.map((address) => (
+              <div
+                key={address.id}
+                className="p-4 border border-gray-700 rounded-lg bg-gray-800/30 space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="text-sm font-medium text-white">
+                        {getAddressAlias(address)}
+                      </p>
+                      {address.isDefaultShipping && (
+                        <span className="text-xs bg-[#66DEDB]/20 text-[#66DEDB] px-2 py-0.5 rounded">
+                          Por defecto
+                        </span>
+                      )}
+                      {address.isGiftAddress && (
+                        <span className="text-xs bg-[#73FFA2]/20 text-[#73FFA2] px-2 py-0.5 rounded">
+                          Dirección de regalos
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 leading-tight">{formatAddress(address)}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {address.postalCode} • {address.phone || 'Sin teléfono'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Checkbox para usar como dirección de regalos */}
+                <div className="flex items-start gap-2 pt-2 border-t border-gray-700">
+                  <input
+                    type="checkbox"
+                    id={`gift-${address.id}`}
+                    checked={address.isGiftAddress || false}
+                    onChange={(e) => handleToggleGiftAddress(address.id, e.target.checked)}
+                    disabled={isUpdating}
+                    className="mt-1 w-4 h-4 text-[#73FFA2] focus:ring-[#73FFA2] rounded disabled:opacity-50"
+                  />
+                  <label htmlFor={`gift-${address.id}`} className="text-sm text-gray-300 cursor-pointer flex-1">
+                    Usar esta dirección para recibir regalos
+                    <span className="block text-xs text-gray-400 mt-0.5">
+                      Nadie más tendrá acceso a estos datos
+                    </span>
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Botones */}
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={handleCreateAddress}
+              className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              + Agregar otra dirección
+            </button>
+            <button
+              onClick={onComplete}
+              className="flex-1 px-4 py-2 bg-[#73FFA2] hover:bg-[#66DEDB] text-gray-900 rounded-lg text-sm font-semibold transition-colors"
+            >
+              Continuar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de formulario de dirección */}
+      <AddressFormModal
+        isOpen={isFormModalOpen}
+        onClose={() => {
+          setIsFormModalOpen(false)
+          setEditingAddress(null)
+        }}
+        address={editingAddress}
+        onSubmit={handleFormSubmit}
+      />
     </div>
   )
 }
-

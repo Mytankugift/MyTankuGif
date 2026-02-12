@@ -50,8 +50,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }
 
   const handleClose = () => {
-    // Permitir cerrar el modal, pero se volverá a mostrar en la próxima sesión si no está completo
-    setShowModal(false)
+    // No permitir cerrar si el onboarding no está completo
+    // El modal solo se puede cerrar cuando el usuario completa todos los pasos obligatorios
+    // Esto se maneja dentro del OnboardingModal
   }
 
   return (

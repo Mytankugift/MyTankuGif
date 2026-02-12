@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
+import { OnboardingModal } from '@/components/onboarding/onboarding-modal'
 
 interface PrivacySectionProps {
   onUpdate?: () => void
@@ -23,6 +24,7 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false)
 
   // Cargar configuración actual del perfil y direcciones
   useEffect(() => {
@@ -301,8 +303,30 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
             </Link>
           </div>
 
+          {/* Botón para relanzar onboarding */}
+          <div className="pt-4 border-t border-gray-600">
+            <button
+              onClick={() => setShowOnboardingModal(true)}
+              className="flex items-center gap-3 text-[#73FFA2] hover:text-[#66DEDB] transition-colors w-full text-left px-2 py-2 rounded-lg hover:bg-[#73FFA2]/10"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v20M2 12h20" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="12" cy="12" r="10"/>
+              </svg>
+              <span 
+                className="font-medium"
+                style={{ fontFamily: 'Poppins, sans-serif' }}
+              >
+                Rehacer onboarding completo
+              </span>
+            </button>
+            <p className="text-xs text-gray-400 mt-1 px-2">
+              Completa los 5 pasos del onboarding nuevamente
+            </p>
+          </div>
+
           {/* Botón de cerrar sesión */}
-          <div className="pt-6 border-t border-gray-600">
+          <div className="pt-4 border-t border-gray-600">
             <button
               onClick={() => {
                 logout()
@@ -326,6 +350,17 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
         </>
       )}
 
+      {/* Modal de onboarding */}
+      <OnboardingModal
+        isOpen={showOnboardingModal}
+        onClose={() => setShowOnboardingModal(false)}
+        onComplete={() => {
+          setShowOnboardingModal(false)
+          if (onUpdate) {
+            onUpdate()
+          }
+        }}
+      />
     </div>
   )
 }

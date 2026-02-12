@@ -463,17 +463,22 @@ export function AddressFormModal({
           </div>
 
           {/* Dirección de regalos */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isGiftAddress"
-              checked={formData.isGiftAddress || false}
-              onChange={(e) => setFormData({ ...formData, isGiftAddress: e.target.checked })}
-              className="w-4 h-4 text-[#73FFA2] focus:ring-[#73FFA2] focus:ring-2 rounded"
-            />
-            <label htmlFor="isGiftAddress" className="text-sm text-gray-300">
-              Usar esta dirección para recibir regalos
-            </label>
+          <div className="space-y-1">
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="isGiftAddress"
+                checked={formData.isGiftAddress || false}
+                onChange={(e) => setFormData({ ...formData, isGiftAddress: e.target.checked })}
+                className="mt-1 w-4 h-4 text-[#73FFA2] focus:ring-[#73FFA2] focus:ring-2 rounded"
+              />
+              <label htmlFor="isGiftAddress" className="text-sm text-gray-300 cursor-pointer flex-1">
+                Usar esta dirección para recibir regalos
+                <span className="block text-xs text-gray-400 mt-0.5">
+                  Nadie más tendrá acceso a estos datos
+                </span>
+              </label>
+            </div>
           </div>
 
           {/* Botones */}

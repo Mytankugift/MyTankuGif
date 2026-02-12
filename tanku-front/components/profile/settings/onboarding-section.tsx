@@ -78,12 +78,36 @@ export function OnboardingSection({ onUpdate }: OnboardingSectionProps) {
   // Inicializar datos cuando se cargan
   useEffect(() => {
     if (onboardingData && allCategories.length > 0) {
-      // Parsear fecha de nacimiento
+      // Parsear fecha de nacimiento - evitar problemas de zona horaria
       if (onboardingData.birthDate) {
-        const date = new Date(onboardingData.birthDate)
-        setYear(date.getFullYear())
-        setMonth(date.getMonth() + 1)
-        setDay(date.getDate())
+        // Si es un string en formato "YYYY-MM-DD", parsearlo manualmente
+        if (typeof onboardingData.birthDate === 'string') {
+          const parts = onboardingData.birthDate.split('-')
+          if (parts.length === 3) {
+            const [y, m, d] = parts.map(Number)
+            setYear(y)
+            setMonth(m)
+            setDay(d)
+          } else if (parts.length === 2) {
+            // Formato legacy "MM-DD"
+            const [m, d] = parts.map(Number)
+            setYear(2000) // Año por defecto para formato legacy
+            setMonth(m)
+            setDay(d)
+          } else {
+            // Intentar parsear como Date
+            const date = new Date(onboardingData.birthDate)
+            setYear(date.getFullYear())
+            setMonth(date.getMonth() + 1)
+            setDay(date.getDate())
+          }
+        } else {
+          // Si es un objeto Date o timestamp
+          const date = new Date(onboardingData.birthDate)
+          setYear(date.getFullYear())
+          setMonth(date.getMonth() + 1)
+          setDay(date.getDate())
+        }
       }
 
       // Cargar categorías seleccionadas - mapear IDs a slugs
@@ -204,11 +228,62 @@ export function OnboardingSection({ onUpdate }: OnboardingSectionProps) {
   const totalSteps = 3
   const progress = ((currentStep + 1) / totalSteps) * 100
 
+  // Formatear fecha para mostrar
+  const formatBirthDate = () => {
+    if (year && month && day) {
+      const monthName = MONTHS.find(m => m.value === month)?.label || ''
+      return `${day} de ${monthName} de ${year}`
+    }
+    return 'No configurada'
+  }
+
+  // Obtener nombres de categorías seleccionadas
+  const getSelectedCategoryNames = () => {
+    return selectedCategorySlugs
+      .map(slug => {
+        const cat = ONBOARDING_CATEGORIES.find(c => c.slug === slug)
+        return cat?.label || slug
+      })
+      .join(', ')
+  }
+
+  // Obtener nombres de actividades seleccionadas
+  const getSelectedActivityNames = () => {
+    return selectedActivitySlugs
+      .map(slug => {
+        const act = ONBOARDING_ACTIVITIES.find(a => a.slug === slug)
+        return act ? `${act.emoji} ${act.label}` : slug
+      })
+      .join(', ')
+  }
+
   return (
     <div className="bg-transparent rounded-lg p-4 border-2 border-[#73FFA2] hover:border-[#66DEDB] transition-colors space-y-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-[#73FFA2]">Datos del Onboarding</h3>
         <span className="text-xs text-gray-400">Paso {currentStep + 1}/{totalSteps}</span>
+      </div>
+
+      {/* Resumen de datos actuales */}
+      <div className="bg-gray-800/30 rounded-lg p-4 space-y-3 border border-gray-700">
+        <div>
+          <h4 className="text-sm font-medium text-[#66DEDB] mb-2">Fecha de cumpleaños</h4>
+          <p className="text-sm text-gray-300">{formatBirthDate()}</p>
+        </div>
+        
+        {selectedCategorySlugs.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-[#66DEDB] mb-2">Categorías de interés</h4>
+            <p className="text-sm text-gray-300">{getSelectedCategoryNames()}</p>
+          </div>
+        )}
+        
+        {selectedActivitySlugs.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-[#66DEDB] mb-2">Actividades favoritas</h4>
+            <p className="text-sm text-gray-300">{getSelectedActivityNames()}</p>
+          </div>
+        )}
       </div>
 
       {/* Barra de progreso */}

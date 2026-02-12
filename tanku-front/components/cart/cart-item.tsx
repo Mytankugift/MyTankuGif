@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCartStore } from '@/lib/stores/cart-store'
@@ -19,9 +19,10 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
   const { updateItem, removeItem, addItem } = useCartStore()
   const [error, setError] = useState<string | null>(null)
   const [showVariantModal, setShowVariantModal] = useState(false)
-  const [showMenu, setShowMenu] = useState(false)
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false)
   const [modalQuantity, setModalQuantity] = useState(item.quantity)
   const [selectedVariantInModal, setSelectedVariantInModal] = useState<ProductVariantDTO | null>(null)
+  const confirmDeleteRef = useRef<HTMLDivElement>(null)
 
   // Sincronizar cantidad del modal cuando cambia el item
   useEffect(() => {
@@ -71,15 +72,16 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
     onSelectChange?.(item.id, !isSelected)
   }
 
-  const handleRemove = async (e?: React.MouseEvent) => {
+  const handleRemoveClick = (e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation()
     }
-    setShowMenu(false)
-    if (!confirm('¿Estás seguro de eliminar este producto del carrito?')) {
-      return
-    }
+    setShowConfirmDelete(true)
+  }
 
+  const handleRemoveConfirm = async () => {
+    setShowConfirmDelete(false)
+    
     try {
       // Obtener el cartId del item desde el store
       // Buscar en ambos carritos (normal y de regalos)
@@ -108,6 +110,10 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
       console.error('Error eliminando item:', err)
       alert(err?.message || 'Error al eliminar producto')
     }
+  }
+
+  const handleRemoveCancel = () => {
+    setShowConfirmDelete(false)
   }
 
   const handleChangeOption = (e: React.MouseEvent) => {
@@ -195,16 +201,50 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
         className={`bg-gray-800/50 rounded-lg p-3 transition-all relative cursor-pointer ${isSelected ? 'ring-2 ring-[#73FFA2]' : ''}`}
         onClick={handleCardClick}
       >
-        {/* Menú de tres puntos en esquina superior derecha */}
+        {/* Icono de basura en esquina superior derecha */}
         <div className="absolute top-2 right-2 z-10">
-          <div className="relative">
+          <div className="relative" ref={confirmDeleteRef}>
+            {showConfirmDelete && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowConfirmDelete(false)
+                  }}
+                />
+                <div className="absolute bottom-full right-0 mb-2 z-30 bg-gray-900 border border-[#73FFA2]/50 rounded-lg p-3 shadow-xl whitespace-nowrap">
+                  <p className="text-xs text-white mb-2">¿Eliminar este producto del carrito?</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRemoveConfirm()
+                      }}
+                      className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                    >
+                      Sí
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRemoveCancel()
+                      }}
+                      className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                setShowMenu(!showMenu)
+                handleRemoveClick()
               }}
-              className="text-gray-500 hover:text-gray-300 transition-colors p-1 rounded hover:bg-gray-700/50"
-              title="Opciones"
+              className="text-red-400 hover:text-red-300 transition-colors p-1 rounded hover:bg-red-900/20"
+              title="Eliminar producto"
               data-no-select
             >
               <svg
@@ -217,29 +257,10 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                 />
               </svg>
             </button>
-            {showMenu && (
-              <>
-                <div 
-                  className="fixed inset-0 z-10" 
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowMenu(false)
-                  }}
-                />
-                <div className="absolute right-0 top-8 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-20 min-w-[150px]">
-                  <button
-                    onClick={handleRemove}
-                    className="w-full text-left px-4 py-2 text-red-400 hover:bg-red-900/20 hover:text-red-300 transition-colors text-sm"
-                  >
-                    Quitar producto
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         </div>
 

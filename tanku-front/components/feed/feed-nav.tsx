@@ -295,7 +295,6 @@ export function FeedNav({
   isHeaderVisible = true,
 }: FeedNavProps) {
   const { user, isAuthenticated } = useAuthStore()
-  const [isLightMode, setIsLightMode] = useState(false)
   const [isMessagesDropdownOpen, setIsMessagesDropdownOpen] = useState(false)
   // ✅ Obtener total de mensajes no leídos para badge
   const { getTotalUnreadCount, lastReceivedMessage } = useChat()
@@ -310,7 +309,7 @@ export function FeedNav({
     <div
       className={`fixed top-0 left-0 lg:left-60 z-40 flex-shrink-0 shadow-lg transition-all duration-150 ease-in-out ${
         isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
-      } ${isLightMode ? 'bg-white' : 'bg-[#1E1E1E]'}`}
+      } bg-[#1E1E1E]`}
       style={{
         transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)',
         willChange: 'transform',
@@ -318,7 +317,7 @@ export function FeedNav({
       }}
     >
       {/* Stories Section */}
-      <div className="p-0.5 sm:p-1 md:p-1 pb-0 flex flex-col md:flex-row justify-between items-start w-full gap-0.5 sm:gap-1 md:gap-1">
+      <div className="px-2 sm:px-3 md:px-4 pt-2 sm:pt-3 md:pt-4 pb-0 flex flex-col md:flex-row justify-between items-start w-full gap-0.5 sm:gap-1 md:gap-1">
         <div className="flex-1 min-w-0 md:mr-0.5 lg:mr-1">
           <StoriesCarousel />
         </div>
@@ -335,52 +334,7 @@ export function FeedNav({
         )}
 
         {/* Right Icons */}
-        <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center">
-          {/* Theme Toggle Button */}
-          <button
-            onClick={() => setIsLightMode(!isLightMode)}
-            className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer"
-            title={isLightMode ? 'Modo oscuro' : 'Modo claro'}
-          >
-            {isLightMode ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#73FFA2"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#73FFA2"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-              </svg>
-            )}
-          </button>
-
+        <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center pt-2 sm:pt-3 md:pt-4">
           {/* Messages Icon con Dropdown */}
           <div className="relative">
             <button
@@ -430,7 +384,7 @@ export function FeedNav({
       </div>
 
       {/* Buscador */}
-      <div className="px-2 sm:px-3 md:px-4 mb-0.5 pt-0">
+      <div className="px-2 sm:px-3 md:px-4 mb-0.5 pt-2 sm:pt-3 md:pt-4">
         <div className="relative w-full">
           <div className="absolute left-2.5 top-1/2 transform -translate-y-1/2 z-10">
             <svg
