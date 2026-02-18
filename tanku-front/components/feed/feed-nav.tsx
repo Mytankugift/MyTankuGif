@@ -322,19 +322,18 @@ export function FeedNav({
           <StoriesCarousel />
         </div>
 
-        {/* Botón "Únete a Tanku" - Solo visible cuando no hay sesión */}
-        {!isAuthenticated && (
-          <a
-            href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'}/api/v1/auth/google`}
-            className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
-            style={{ fontFamily: 'Poppins, sans-serif' }}
-          >
-            Únete a Tanku
-          </a>
-        )}
-
         {/* Right Icons */}
         <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center pt-2 sm:pt-3 md:pt-4">
+          {/* Botón "Únete a Tanku" - Solo visible cuando no hay sesión */}
+          {!isAuthenticated && (
+            <a
+              href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'}/api/v1/auth/google`}
+              className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
+              style={{ fontFamily: 'Poppins, sans-serif' }}
+            >
+              Únete a Tanku
+            </a>
+          )}
           {/* Messages Icon con Dropdown */}
           <div className="relative">
             <button

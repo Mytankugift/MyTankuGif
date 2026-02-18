@@ -16,6 +16,7 @@ export interface UserProfileResponse {
   banner: string | null
   bio: string | null
   isPublic: boolean
+  allowPublicWishlistsWhenPrivate?: boolean
   allowGiftShipping?: boolean
   useMainAddressForGifts?: boolean
   socialLinks?: Array<{ platform: string; url: string }>

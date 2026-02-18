@@ -8,6 +8,8 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
 import { OnboardingModal } from '@/components/onboarding/onboarding-modal'
+import { DeleteAccountModal } from './delete-account-modal'
+import { useDeleteAccount } from '@/lib/hooks/use-delete-account'
 
 interface PrivacySectionProps {
   onUpdate?: () => void
@@ -17,6 +19,7 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
   const { user, checkAuth, logout } = useAuthStore()
   const router = useRouter()
   const [profilePublic, setProfilePublic] = useState(true)
+  const [allowPublicWishlistsWhenPrivate, setAllowPublicWishlistsWhenPrivate] = useState(false)
   const [allowGiftShipping, setAllowGiftShipping] = useState(false)
   const [useMainAddressForGifts, setUseMainAddressForGifts] = useState(false)
   const [hasAddress, setHasAddress] = useState(false)
@@ -25,6 +28,8 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [showOnboardingModal, setShowOnboardingModal] = useState(false)
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false)
+  const { deleteAccount } = useDeleteAccount()
 
   // Cargar configuración actual del perfil y direcciones
   useEffect(() => {
@@ -47,6 +52,9 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
           // isPublic: true por defecto
           setProfilePublic(profileResponse.data.isPublic ?? true)
           
+          // allowPublicWishlistsWhenPrivate: false por defecto
+          setAllowPublicWishlistsWhenPrivate(profileResponse.data.allowPublicWishlistsWhenPrivate ?? false)
+          
           // allowGiftShipping: true por defecto solo si hay dirección, sino usar el valor del perfil
           // Si no hay dirección, no puede estar activado
           if (hasAnyAddress) {
@@ -67,6 +75,7 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
     loadProfile()
   }, [user?.id])
 
+
   const handleSave = async () => {
     if (!user?.id) return
     setIsSaving(true)
@@ -76,6 +85,7 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
     try {
       const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
         isPublic: profilePublic,
+        allowPublicWishlistsWhenPrivate,
         allowGiftShipping,
         useMainAddressForGifts,
       })
@@ -132,12 +142,17 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
               onClick={async () => {
                 const newValue = !profilePublic
                 setProfilePublic(newValue)
+                // Si se cambia a privado, desactivar allowPublicWishlistsWhenPrivate por defecto
+                if (!newValue) {
+                  setAllowPublicWishlistsWhenPrivate(false)
+                }
                 // Guardar automáticamente
                 setIsSaving(true)
                 setError(null)
                 try {
                   const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
                     isPublic: newValue,
+                    allowPublicWishlistsWhenPrivate: !newValue ? false : allowPublicWishlistsWhenPrivate,
                     allowGiftShipping,
                     useMainAddressForGifts,
                   })
@@ -149,10 +164,16 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
                   } else {
                     setError('Error al guardar configuración')
                     setProfilePublic(profilePublic) // Revertir
+                    if (!newValue) {
+                      setAllowPublicWishlistsWhenPrivate(allowPublicWishlistsWhenPrivate) // Revertir
+                    }
                   }
                 } catch (err: any) {
                   setError(err.message || 'Error al guardar configuración')
                   setProfilePublic(profilePublic) // Revertir
+                  if (!newValue) {
+                    setAllowPublicWishlistsWhenPrivate(allowPublicWishlistsWhenPrivate) // Revertir
+                  }
                 } finally {
                   setIsSaving(false)
                 }
@@ -167,6 +188,56 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
               }`} />
             </button>
           </div>
+
+          {/* Opción: Mantener wishlists públicas visibles cuando el perfil es privado */}
+          {!profilePublic && (
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <label className="text-sm font-medium text-white">Mantener wishlists públicas visibles</label>
+                <p className="text-xs text-gray-400">
+                  Los usuarios no amigos podrán ver tus wishlists públicas aunque tu perfil sea privado
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  const newValue = !allowPublicWishlistsWhenPrivate
+                  setAllowPublicWishlistsWhenPrivate(newValue)
+                  setIsSaving(true)
+                  setError(null)
+                  try {
+                    const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
+                      isPublic: profilePublic,
+                      allowPublicWishlistsWhenPrivate: newValue,
+                      allowGiftShipping,
+                      useMainAddressForGifts,
+                    })
+                    if (response.success) {
+                      await checkAuth()
+                      if (onUpdate) {
+                        onUpdate()
+                      }
+                    } else {
+                      setError('Error al guardar configuración')
+                      setAllowPublicWishlistsWhenPrivate(allowPublicWishlistsWhenPrivate)
+                    }
+                  } catch (err: any) {
+                    setError(err.message || 'Error al guardar configuración')
+                    setAllowPublicWishlistsWhenPrivate(allowPublicWishlistsWhenPrivate)
+                  } finally {
+                    setIsSaving(false)
+                  }
+                }}
+                disabled={isSaving}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  allowPublicWishlistsWhenPrivate ? 'bg-[#73FFA2]' : 'bg-gray-600'
+                } disabled:opacity-50`}
+              >
+                <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                  allowPublicWishlistsWhenPrivate ? 'translate-x-6' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+          )}
 
           {/* Preferencias de regalos */}
           <div className="pt-4 border-t border-gray-600 space-y-4">
@@ -347,6 +418,31 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
               </span>
             </button>
           </div>
+
+          {/* Botón de eliminar cuenta */}
+          <div className="pt-4 border-t border-red-500/30">
+            <button
+              onClick={() => setShowDeleteAccountModal(true)}
+              className="flex items-center gap-3 text-red-500 hover:text-red-400 transition-colors w-full text-left px-2 py-2 rounded-lg hover:bg-red-500/10"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18"></path>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+              <span 
+                className="font-medium"
+                style={{ fontFamily: 'Poppins, sans-serif' }}
+              >
+                Eliminar cuenta
+              </span>
+            </button>
+            <p className="text-xs text-gray-400 mt-1 px-2">
+              Esta acción es permanente e irreversible
+            </p>
+          </div>
         </>
       )}
 
@@ -359,6 +455,16 @@ export function PrivacySection({ onUpdate }: PrivacySectionProps) {
           if (onUpdate) {
             onUpdate()
           }
+        }}
+      />
+
+      {/* Modal de eliminar cuenta */}
+      <DeleteAccountModal
+        isOpen={showDeleteAccountModal}
+        onClose={() => setShowDeleteAccountModal(false)}
+        onConfirm={async () => {
+          await deleteAccount()
+          setShowDeleteAccountModal(false)
         }}
       />
     </div>

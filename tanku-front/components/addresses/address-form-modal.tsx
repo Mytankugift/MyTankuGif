@@ -29,6 +29,7 @@ interface AddressFormModalProps {
   onClose: () => void
   address?: AddressDTO | null // Si se proporciona, es edición
   onSubmit: (data: CreateAddressDTO | UpdateAddressDTO) => Promise<void>
+  defaultGiftAddress?: boolean // Para pre-marcar el checkbox en onboarding
 }
 
 export function AddressFormModal({
@@ -36,6 +37,7 @@ export function AddressFormModal({
   onClose,
   address,
   onSubmit,
+  defaultGiftAddress = false,
 }: AddressFormModalProps) {
   const [formData, setFormData] = useState({
     alias: '',
@@ -120,7 +122,7 @@ export function AddressFormModal({
         postalCode: '',
         country: 'CO',
         isDefaultShipping: false,
-        isGiftAddress: false,
+        isGiftAddress: defaultGiftAddress, // Usar el valor por defecto si se proporciona
       })
       setSelectedDepartmentId(null)
     }

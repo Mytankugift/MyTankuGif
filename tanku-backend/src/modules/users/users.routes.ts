@@ -100,6 +100,14 @@ router.put('/me/addresses/:addressId', authenticate, usersController.updateUserA
  */
 router.delete('/me/addresses/:addressId', authenticate, usersController.deleteUserAddress);
 
+// ==================== ACCOUNT MANAGEMENT ====================
+
+/**
+ * DELETE /api/v1/users/me/account
+ * Eliminar cuenta de usuario
+ */
+router.delete('/me/account', authenticate, usersController.deleteAccount);
+
 // ==================== USER SEARCH ====================
 
 /**

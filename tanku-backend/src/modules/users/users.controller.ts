@@ -392,6 +392,7 @@ export class UsersController {
       const updateData: UpdateUserProfileDTO = {
         bio: req.body.bio !== undefined ? req.body.bio : undefined,
         isPublic: req.body.isPublic !== undefined ? req.body.isPublic : undefined,
+        allowPublicWishlistsWhenPrivate: req.body.allowPublicWishlistsWhenPrivate !== undefined ? req.body.allowPublicWishlistsWhenPrivate : undefined,
         allowGiftShipping: req.body.allowGiftShipping !== undefined ? req.body.allowGiftShipping : undefined,
         useMainAddressForGifts: req.body.useMainAddressForGifts !== undefined ? req.body.useMainAddressForGifts : undefined,
         socialLinks: req.body.socialLinks !== undefined ? req.body.socialLinks : undefined,
@@ -662,6 +663,36 @@ export class UsersController {
       const user = await this.usersService.getUserByUsername(username, viewerUserId);
 
       res.status(200).json(successResponse(user));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * DELETE /api/v1/users/me/account
+   * Eliminar cuenta de usuario
+   * - Anonimiza órdenes (mantiene para razones legales/financieras)
+   * - Preserva conversaciones para otros participantes
+   * - Elimina grupos donde el usuario es dueño
+   * - Elimina archivos S3 (avatar, banner, posters, stories)
+   * - Elimina usuario y todos sus datos relacionados
+   */
+  deleteAccount = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      const userId = requestWithUser.user?.id;
+
+      if (!userId) {
+        throw new BadRequestError('Usuario no autenticado');
+      }
+
+      await this.usersService.deleteUserAccount(userId);
+
+      res.status(200).json(
+        successResponse({
+          message: 'Cuenta eliminada exitosamente',
+        })
+      );
     } catch (error) {
       next(error);
     }

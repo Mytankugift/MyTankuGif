@@ -143,7 +143,7 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
 
   if (isLoading || !product) {
     return (
-      <div className="relative w-full max-w-md h-full max-h-[90vh] flex items-center justify-center bg-[#2C3137] rounded-[25px]">
+      <div className="relative w-full max-w-sm h-full max-h-[600px] flex items-center justify-center bg-[#2C3137] rounded-[25px]">
         <div className="text-white">Cargando producto...</div>
       </div>
     )
@@ -164,7 +164,7 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
   }
 
   return (
-    <div className="relative w-full max-w-md h-full max-h-[90vh] flex flex-col bg-transparent overflow-visible pt-16">
+    <div className="relative w-full max-w-sm h-full max-h-[600px] flex flex-col bg-transparent overflow-visible pt-12">
       {/* Product Image - Replicando diseño de ProductCard */}
       <div
         className="w-full relative overflow-hidden flex-shrink-0"
@@ -172,7 +172,7 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
           width: '100%',
           borderTopLeftRadius: '25px',
           borderTopRightRadius: '25px',
-          maxHeight: '400px',
+          maxHeight: '280px',
           minHeight: 'auto',
         }}
       >
@@ -216,7 +216,7 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
 
       {/* Contenedor de información - Replicando diseño de ProductCard */}
       <div 
-        className="p-2 sm:p-2.5 md:p-3 flex-1 flex flex-col justify-between"
+        className="p-2.5 sm:p-3 flex-1 flex flex-col justify-between"
         style={{ 
           backgroundColor: '#2C3137',
           borderBottomLeftRadius: '25px',
@@ -226,9 +226,9 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
       >
         {/* Precio */}
         {price > 0 && (
-          <div className="mb-2">
+          <div className="mb-1.5">
             <span
-              className="text-lg sm:text-xl md:text-2xl font-medium text-[#3B9BC3]"
+              className="text-lg sm:text-xl font-medium text-[#3B9BC3]"
               style={{ fontFamily: 'Poppins, sans-serif' }}
             >
               {formatPrice(price)}
@@ -238,17 +238,17 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
 
         {/* Nombre del producto */}
         <h3
-          className="text-xs sm:text-sm md:text-base font-normal line-clamp-2 mb-4"
+          className="text-xs sm:text-sm font-normal line-clamp-2 mb-3"
           style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}
         >
           {productTitle}
         </h3>
 
         {/* Botones de acción */}
-        <div className="flex flex-col gap-3 mt-auto">
+        <div className="flex flex-col gap-2 mt-auto">
           <button
             onClick={handleRegalarTanku}
-            className="w-full bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold py-3 px-6 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105"
+            className="w-full bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold py-2.5 px-4 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-sm"
             style={{ fontFamily: 'Poppins, sans-serif' }}
           >
             Regalar Tanku
@@ -256,7 +256,7 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
           {product?.handle && (
             <button
               onClick={handleVerProducto}
-              className="w-full bg-gray-700 text-white font-semibold py-3 px-6 rounded-full hover:bg-gray-600 transition-all duration-300"
+              className="w-full bg-gray-700 text-white font-semibold py-2.5 px-4 rounded-full hover:bg-gray-600 transition-all duration-300 text-sm"
               style={{ fontFamily: 'Poppins, sans-serif' }}
             >
               Ver Producto
@@ -264,7 +264,7 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
           )}
           <button
             onClick={handleVerWishlist}
-            className="w-full bg-gray-700 text-white font-semibold py-3 px-6 rounded-full hover:bg-gray-600 transition-all duration-300"
+            className="w-full bg-gray-700 text-white font-semibold py-2.5 px-4 rounded-full hover:bg-gray-600 transition-all duration-300 text-sm"
             style={{ fontFamily: 'Poppins, sans-serif' }}
           >
             Ver Wishlist de {story.author.firstName}

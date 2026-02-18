@@ -1,7 +1,6 @@
 /**
  * Componente de panal de abejas (hexágonos) mejorado
- * Layout específico: 4-5-4 (filas alternas desplazadas)
- * Escalable para agregar más opciones
+ * Layout usando CSS Grid - más robusto y preciso
  */
 
 'use client'
@@ -22,31 +21,8 @@ interface HoneycombGridProps {
   minSelection?: number
   maxSelection?: number
   allowMultiple?: boolean
-}
-
-/**
- * Organiza los items en filas tipo panal: 4-5-4-5-4...
- * Las filas pares (índice impar) están desplazadas
- */
-function organizeInHoneycombRows<T>(items: T[]): T[][] {
-  const rows: T[][] = []
-  let currentIndex = 0
-
-  while (currentIndex < items.length) {
-    // Filas impares (0, 2, 4...) tienen 4 items
-    // Filas pares (1, 3, 5...) tienen 5 items
-    const isEvenRow = rows.length % 2 === 0
-    const itemsInRow = isEvenRow ? 4 : 5
-    const row = items.slice(currentIndex, currentIndex + itemsInRow)
-    
-    if (row.length > 0) {
-      rows.push(row)
-    }
-    
-    currentIndex += itemsInRow
-  }
-
-  return rows
+  showEmoji?: boolean
+  pattern?: '4-3' | '4-5' // Patrón: 4-3-4-3 o 4-5-4-5
 }
 
 /**
@@ -57,94 +33,126 @@ function HoneycombHexagon({
   isSelected,
   onClick,
   disabled,
+  showEmoji = true,
 }: {
   item: HoneycombItem
   isSelected: boolean
   onClick: () => void
   disabled: boolean
+  showEmoji?: boolean
 }) {
-  const [isHovered, setIsHovered] = useState(false)
-
   return (
     <motion.button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       className={`
         relative
         w-[72px] h-[88px] sm:w-[88px] sm:h-[104px]
-        flex flex-col items-center justify-center
-        transition-all duration-300
-        ${isSelected ? 'scale-105 z-10' : 'scale-100'}
+        flex items-center justify-center
+        transition-colors duration-300
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
       style={{
         clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
       }}
-      whileHover={!disabled ? { scale: 1.05 } : {}}
-      whileTap={!disabled ? { scale: 0.95 } : {}}
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{
-        opacity: 1,
-        scale: isSelected ? 1.05 : 1,
-        backgroundColor: isSelected
-          ? '#73FFA2'
-          : isHovered && !disabled
-            ? 'rgba(115, 255, 162, 0.3)'
-            : 'rgba(115, 255, 162, 0.1)',
-        borderColor: isSelected
-          ? '#73FFA2'
-          : isHovered && !disabled
-            ? 'rgba(115, 255, 162, 0.6)'
-            : 'rgba(115, 255, 162, 0.3)',
-      }}
-      transition={{ duration: 0.2 }}
     >
+      {/* Fondo del hexágono */}
       <div
         className="absolute inset-0"
         style={{
           clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-          border: '2px solid',
-          borderColor: isSelected
-            ? '#73FFA2'
-            : isHovered && !disabled
-              ? 'rgba(115, 255, 162, 0.6)'
-              : 'rgba(115, 255, 162, 0.3)',
-          borderRadius: '4px',
+          backgroundColor: isSelected ? '#73FFA2' : 'transparent',
         }}
       />
+      {/* Borde SVG completo - siempre visible con el mismo grosor */}
+      <svg
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        style={{ zIndex: 1, overflow: 'visible' }}
+      >
+        <polygon
+          points="50,0 100,25 100,75 50,100 0,75 0,25"
+          fill="none"
+          stroke="#73FFA2"
+          strokeWidth="3"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
       
-      <div className="relative z-10 flex flex-col items-center justify-center gap-0.5">
-        {item.emoji && (
-          <motion.span
+      <div 
+        className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-0.5"
+      >
+        {item.emoji && showEmoji && (
+          <span
             className="text-xl sm:text-2xl"
             role="img"
             aria-label={item.label}
-            animate={{ scale: isSelected ? 1.2 : 1 }}
-            transition={{ duration: 0.2 }}
           >
             {item.emoji}
-          </motion.span>
+          </span>
         )}
-        <motion.span
-          className={`
-            text-[10px] sm:text-xs font-medium text-center px-1 leading-tight
-            ${isSelected ? 'text-gray-900 font-bold' : 'text-[#73FFA2]'}
-          `}
-          animate={{ scale: isSelected ? 1.1 : 1 }}
-          transition={{ duration: 0.2 }}
+        <span
+          className="text-[10px] sm:text-xs font-medium text-center px-1 leading-tight"
+          style={{
+            color: isSelected ? '#262626' : '#66DEDB',
+            fontWeight: isSelected ? 'bold' : 'normal',
+          }}
         >
           {item.label}
-        </motion.span>
+        </span>
       </div>
     </motion.button>
   )
 }
 
 /**
- * Grid principal de panal
+ * Organiza los items en filas y calcula información de cada uno
+ */
+function organizeItemsInRows<T>(
+  items: T[],
+  firstRowCount: number,
+  secondRowCount: number
+): Array<{ item: T | null; index: number; rowIndex: number; shouldOffset: boolean }> {
+  const result: Array<{ item: T | null; index: number; rowIndex: number; shouldOffset: boolean }> = []
+  let currentRow = 0
+  let currentIndex = 0
+  
+  while (currentIndex < items.length) {
+    const isEvenRow = currentRow % 2 === 0
+    const itemsInRow = isEvenRow ? firstRowCount : secondRowCount
+    const rowItems = items.slice(currentIndex, currentIndex + itemsInRow)
+    
+    // Si es la última fila y tiene menos items de los esperados, agregar espacios vacíos
+    const isLastRow = currentIndex + rowItems.length >= items.length
+    if (isLastRow && rowItems.length < itemsInRow) {
+      while (rowItems.length < itemsInRow) {
+        rowItems.push(null as any)
+      }
+    }
+    
+    rowItems.forEach((item, itemIndexInRow) => {
+      result.push({
+        item,
+        index: currentIndex + itemIndexInRow,
+        rowIndex: currentRow,
+        shouldOffset: !isEvenRow, // Las filas impares (1, 3, 5...) se desplazan
+      })
+    })
+    
+    currentIndex += itemsInRow
+    currentRow++
+  }
+  
+  return result
+}
+
+/**
+ * Grid principal de panal usando CSS Grid
  */
 export function HoneycombGrid({
   items,
@@ -153,53 +161,101 @@ export function HoneycombGrid({
   minSelection = 0,
   maxSelection,
   allowMultiple = true,
+  showEmoji = true,
+  pattern = '4-3', // Por defecto 4-3-4-3
 }: HoneycombGridProps) {
   const canSelectMore = maxSelection ? selectedSlugs.length < maxSelection : true
   const canDeselect = minSelection ? selectedSlugs.length > minSelection : true
 
-  // Organizar items en filas tipo panal
-  const rows = organizeInHoneycombRows(items)
+  // Configuración del patrón
+  const [firstRowCount, secondRowCount] = pattern === '4-3' ? [4, 3] : [4, 5]
+  
+  // Calcular el ancho de cada columna (hexágono ocupa 2 columnas)
+  const hexWidth = 72 // w-[72px] en mobile
+  const columnWidth = hexWidth / 2 // 36px por columna
+  
+  // Calcular cuántas columnas necesitamos (máximo entre primera y segunda fila)
+  const maxItemsPerRow = Math.max(firstRowCount, secondRowCount)
+  const totalColumns = maxItemsPerRow * 2 // Cada hexágono ocupa 2 columnas
 
-  // 5 hexágonos * ancho (referencia visual)
-  const PANAL_COLUMNS = 5
+  // Organizar items en filas con información de posición
+  const itemsWithRowInfo = organizeItemsInRows(items, firstRowCount, secondRowCount)
+
+  // Agrupar items por fila para calcular la posición en el grid
+  const itemsByRow = itemsWithRowInfo.reduce((acc, itemInfo) => {
+    if (!acc[itemInfo.rowIndex]) {
+      acc[itemInfo.rowIndex] = []
+    }
+    acc[itemInfo.rowIndex].push(itemInfo)
+    return acc
+  }, {} as Record<number, typeof itemsWithRowInfo>)
 
   return (
-    <div className="flex flex-col items-center p-2 sm:p-4 overflow-x-auto">
-      {rows.map((row, rowIndex) => {
-        const isOddRow = rowIndex % 2 === 1
-        const isIncomplete = row.length < 4
-
-        const shouldOffset = isOddRow && !isIncomplete
-
-        const offsetX = shouldOffset
-          ? 'translate-x-[-36px] sm:translate-x-[44px]'
-          : ''
-
-        const justifyClass = isIncomplete
-          ? 'justify-start'
-          : 'justify-center'
-
+    <div 
+      className="w-full max-w-4xl mx-auto p-2 sm:p-4"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '0',
+      }}
+    >
+      {Object.entries(itemsByRow).map(([rowIndexStr, rowItems]) => {
+        const rowIndex = parseInt(rowIndexStr)
+        const shouldOffset = rowIndex % 2 === 1 // Filas impares se desplazan
+        const itemsInRow = rowItems.length
+        const isEvenRow = rowIndex % 2 === 0
+        
+        // Calcular el ancho total de la fila
+        const rowWidth = itemsInRow * hexWidth
+        
         return (
-          <motion.div
+          <div
             key={rowIndex}
-            className={`flex items-center ${justifyClass} ${offsetX}`}
             style={{
-              marginTop: rowIndex > 0 ? '-26px' : '0',
-              paddingLeft: isIncomplete ? '88px' : '0',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: rowIndex > 0 ? '-28px' : '0',
+              gap: '0',
+              width: '100%',
+              transform: shouldOffset ? `translateX(${0}px)` : 'none',
             }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: rowIndex * 0.1 }}
           >
-            {row.map((item) => {
+            {rowItems.map(({ item, index, shouldOffset: itemShouldOffset }) => {
+              // Si el item es null (espacio vacío), renderizar un div invisible
+              if (!item) {
+                return (
+                  <div
+                    key={`empty-${rowIndex}-${index}`}
+                    style={{
+                      width: '72px',
+                      height: '88px',
+                      visibility: 'hidden',
+                      margin: '0 8.5px',
+                    }}
+                  />
+                )
+              }
+              
               const isSelected = selectedSlugs.includes(item.slug)
               const disabled =
                 !allowMultiple ||
                 (!isSelected && !canSelectMore) ||
                 (isSelected && !canDeselect)
-
+              
+              // Calcular el margen para que se traslapen correctamente
+              // En filas de 4, necesitan más espacio para traslaparse
+              const margin = isEvenRow && firstRowCount === 4 ? '0 0px' : '0 0px'
+              
               return (
-                <div key={item.slug} className="relative">
+                <div
+                  key={item.slug}
+                  style={{
+                    margin,
+                  }}
+                >
                   <HoneycombHexagon
                     item={item}
                     isSelected={isSelected}
@@ -208,11 +264,12 @@ export function HoneycombGrid({
                       else if (!isSelected && canSelectMore) onToggle(item.slug)
                     }}
                     disabled={disabled}
+                    showEmoji={showEmoji}
                   />
                 </div>
               )
             })}
-          </motion.div>
+          </div>
         )
       })}
     </div>

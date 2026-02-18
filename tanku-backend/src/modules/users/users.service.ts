@@ -16,6 +16,7 @@ import {
 } from '../../shared/dto/users.dto';
 import { UserPublicDTO } from '../../shared/dto/auth.dto';
 import type { Address, UserProfile, PersonalInformation } from '@prisma/client';
+import { S3Service } from '../../shared/services/s3.service';
 
 export interface PersonalInfoResponse {
   customer_id: string;
@@ -684,6 +685,7 @@ export class UsersService {
       banner: profile.banner,
       bio: profile.bio,
       isPublic: profile.isPublic ?? true,
+      allowPublicWishlistsWhenPrivate: profile.allowPublicWishlistsWhenPrivate ?? false,
       allowGiftShipping: profile.allowGiftShipping ?? false,
       useMainAddressForGifts: profile.useMainAddressForGifts ?? false,
       socialLinks,
@@ -721,6 +723,9 @@ export class UsersService {
     if (updateData.isPublic !== undefined) {
       updatePayload.isPublic = updateData.isPublic;
     }
+    if (updateData.allowPublicWishlistsWhenPrivate !== undefined) {
+      updatePayload.allowPublicWishlistsWhenPrivate = updateData.allowPublicWishlistsWhenPrivate;
+    }
     if (updateData.allowGiftShipping !== undefined) {
       updatePayload.allowGiftShipping = updateData.allowGiftShipping;
     }
@@ -736,6 +741,7 @@ export class UsersService {
       userId,
       bio: updateData.bio || null,
       isPublic: updateData.isPublic !== undefined ? updateData.isPublic : true,
+      allowPublicWishlistsWhenPrivate: updateData.allowPublicWishlistsWhenPrivate !== undefined ? updateData.allowPublicWishlistsWhenPrivate : false,
       allowGiftShipping: updateData.allowGiftShipping !== undefined ? updateData.allowGiftShipping : false,
       useMainAddressForGifts: updateData.useMainAddressForGifts !== undefined ? updateData.useMainAddressForGifts : false,
     };
@@ -1223,5 +1229,145 @@ export class UsersService {
       areFriends,
       friendsCount,
     };
+  }
+
+  /**
+   * Eliminar cuenta de usuario
+   * - Recopila URLs S3 (avatar, banner, posters, stories)
+   * - Anonimiza órdenes (set userId a null, guarda deletedUserEmail)
+   * - Preserva conversaciones (normales y stalkergift) para otros participantes
+   * - Elimina grupos donde el usuario es dueño (cascade eliminará miembros)
+   * - Elimina archivos S3
+   * - Elimina usuario (cascade eliminará todo lo demás)
+   */
+  async deleteUserAccount(userId: string): Promise<void> {
+    const s3Service = new S3Service();
+
+    // 1. Obtener usuario con todos sus datos relacionados
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+        posters: {
+          select: {
+            imageUrl: true,
+            videoUrl: true,
+          },
+        },
+        stories: {
+          include: {
+            storyFiles: {
+              select: {
+                fileUrl: true,
+              },
+            },
+          },
+        },
+        orders: true,
+        conversationParticipants: true,
+        messages: true,
+        stalkerGifts: true,
+        stalkerGiftsReceived: true,
+        groups: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundError('Usuario no encontrado');
+    }
+
+    // 2. Recopilar URLs S3 para eliminar
+    const s3UrlsToDelete: string[] = [];
+
+    // Avatar y banner del perfil
+    if (user.profile?.avatar) {
+      s3UrlsToDelete.push(user.profile.avatar);
+    }
+    if (user.profile?.banner) {
+      s3UrlsToDelete.push(user.profile.banner);
+    }
+
+    // Imágenes y videos de posters
+    user.posters.forEach((poster) => {
+      if (poster.imageUrl) {
+        s3UrlsToDelete.push(poster.imageUrl);
+      }
+      if (poster.videoUrl) {
+        s3UrlsToDelete.push(poster.videoUrl);
+      }
+    });
+
+    // Archivos de stories
+    user.stories.forEach((story) => {
+      story.storyFiles.forEach((file) => {
+        if (file.fileUrl) {
+          s3UrlsToDelete.push(file.fileUrl);
+        }
+      });
+    });
+
+    // 3. Anonimizar órdenes (mantener para razones legales/financieras)
+    await prisma.order.updateMany({
+      where: { userId },
+      data: {
+        userId: null,
+        deletedUserEmail: user.email,
+      },
+    });
+
+    // 4. Preservar conversaciones normales
+    // Actualizar ConversationParticipant
+    await prisma.conversationParticipant.updateMany({
+      where: { userId },
+      data: {
+        userId: null,
+        deletedUserEmail: user.email,
+      },
+    });
+
+    // Actualizar Message
+    await prisma.message.updateMany({
+      where: { senderId: userId },
+      data: {
+        senderId: null,
+        deletedSenderEmail: user.email,
+      },
+    });
+
+    // 5. Preservar StalkerGifts
+    // Como sender
+    await prisma.stalkerGift.updateMany({
+      where: { senderId: userId },
+      data: {
+        senderId: null,
+        deletedSenderEmail: user.email,
+      },
+    });
+
+    // Como receiver
+    await prisma.stalkerGift.updateMany({
+      where: { receiverId: userId },
+      data: {
+        receiverId: null,
+        deletedReceiverEmail: user.email,
+      },
+    });
+
+    // 6. Eliminar grupos donde el usuario es dueño
+    // (cascade eliminará automáticamente los GroupMember)
+    await prisma.group.deleteMany({
+      where: { userId },
+    });
+
+    // 7. Eliminar archivos S3
+    // Eliminar en paralelo, ignorando errores (archivos pueden no existir)
+    await Promise.allSettled(
+      s3UrlsToDelete.map((url) => s3Service.deleteFile(url))
+    );
+
+    // 8. Eliminar usuario (cascade eliminará todo lo demás)
+    await prisma.user.delete({
+      where: { id: userId },
+    });
   }
 }

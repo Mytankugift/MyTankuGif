@@ -20,22 +20,14 @@ interface OnboardingStepAddressProps {
 
 export function OnboardingStepAddress({ onSkip, onComplete }: OnboardingStepAddressProps) {
   const { addresses, isLoading, fetchAddresses, createAddress, updateAddress } = useAddresses()
-  const { user, checkAuth } = useAuthStore()
+  const { checkAuth } = useAuthStore()
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [editingAddress, setEditingAddress] = useState<AddressDTO | null>(null)
-  const [giftAddressIds, setGiftAddressIds] = useState<Set<string>>(new Set())
-  const [isUpdating, setIsUpdating] = useState(false)
 
   // Cargar direcciones al montar
   useEffect(() => {
     fetchAddresses()
   }, [fetchAddresses])
-
-  // Cargar direcciones que ya están marcadas como de regalos
-  useEffect(() => {
-    const giftIds = addresses.filter(addr => addr.isGiftAddress).map(addr => addr.id)
-    setGiftAddressIds(new Set(giftIds))
-  }, [addresses])
 
   const handleCreateAddress = () => {
     setEditingAddress(null)
@@ -44,60 +36,40 @@ export function OnboardingStepAddress({ onSkip, onComplete }: OnboardingStepAddr
 
   const handleFormSubmit = async (data: CreateAddressDTO | UpdateAddressDTO) => {
     try {
-      let newAddress: AddressDTO | undefined
-      const isGiftAddress = 'isGiftAddress' in data ? data.isGiftAddress : false
+      const isNewAddress = !editingAddress
+      const isFirstAddress = addresses.length === 0
       
+      // Preparar datos de la dirección
+      const addressData = {
+        ...data,
+        isGiftAddress: true, // Siempre true en onboarding
+        isDefaultShipping: isFirstAddress || data.isDefaultShipping, // Primera dirección es default
+      }
+      
+      let newAddress: AddressDTO | undefined
       if (editingAddress) {
-        newAddress = await updateAddress(editingAddress.id, data as UpdateAddressDTO)
+        newAddress = await updateAddress(editingAddress.id, addressData as UpdateAddressDTO)
       } else {
-        newAddress = await createAddress(data as CreateAddressDTO)
+        newAddress = await createAddress(addressData as CreateAddressDTO)
         
-        // Si se marcó como dirección de regalos al crear, habilitar "Permitir recibir regalos"
-        if (isGiftAddress) {
-          await apiClient.put(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
-            allowGiftShipping: true,
-          })
-          await checkAuth()
-        }
+        // Si es nueva dirección, activar preferencias de regalos automáticamente
+        await apiClient.put(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
+          allowGiftShipping: true,
+          useMainAddressForGifts: true,
+        })
+        // ✅ NO llamar checkAuth aquí para evitar que se cierre el modal
+        // await checkAuth()
       }
       
       setIsFormModalOpen(false)
       setEditingAddress(null)
       await fetchAddresses()
+      
+      // ✅ NO llamar onComplete automáticamente - dejar que el usuario decida
+      // El usuario puede agregar más direcciones o hacer clic en "Finalizar"
     } catch (error) {
       console.error('Error al guardar dirección:', error)
       throw error
-    }
-  }
-
-  const handleToggleGiftAddress = async (addressId: string, isGift: boolean) => {
-    setIsUpdating(true)
-    try {
-      // Actualizar la dirección
-      await updateAddress(addressId, { isGiftAddress: isGift })
-      
-      // Actualizar estado local
-      const newGiftIds = new Set(giftAddressIds)
-      if (isGift) {
-        newGiftIds.add(addressId)
-      } else {
-        newGiftIds.delete(addressId)
-      }
-      setGiftAddressIds(newGiftIds)
-
-      // Si se marca como dirección de regalos, habilitar "Permitir recibir regalos" en el perfil
-      if (isGift) {
-        await apiClient.put(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
-          allowGiftShipping: true,
-        })
-        await checkAuth()
-      }
-
-      await fetchAddresses()
-    } catch (error) {
-      console.error('Error actualizando dirección:', error)
-    } finally {
-      setIsUpdating(false)
     }
   }
 
@@ -111,11 +83,11 @@ export function OnboardingStepAddress({ onSkip, onComplete }: OnboardingStepAddr
 
   return (
     <div className="space-y-4">
-      <div className="text-center space-y-1">
-        <h2 className="text-xl font-semibold text-[#66DEDB]">
+      <div className="pt-4">
+        <h2 className="text-xl font-semibold mb-4" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
           📦 ¿Dónde quieres recibir regalos?
         </h2>
-        <p className="text-sm text-gray-400">
+        <p className="text-base" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>
           Configura una dirección para que tus amigos puedan enviarte regalos. Nadie más tendrá acceso a estos datos.
         </p>
       </div>
@@ -123,94 +95,102 @@ export function OnboardingStepAddress({ onSkip, onComplete }: OnboardingStepAddr
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#73FFA2]"></div>
-          <span className="ml-2 text-white">Cargando direcciones...</span>
+          <span className="ml-2 text-white" style={{ fontFamily: 'Poppins, sans-serif' }}>Cargando direcciones...</span>
         </div>
       ) : addresses.length === 0 ? (
         <div className="space-y-4">
-          <div className="text-center py-8 text-gray-400">
+          <div className="text-center py-8" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>
             <p className="mb-4">No tienes direcciones guardadas</p>
             <p className="text-sm mb-6">Agrega una dirección para recibir regalos de tus amigos</p>
           </div>
           <button
             onClick={handleCreateAddress}
-            className="w-full px-4 py-3 bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-gray-900 rounded-lg font-semibold text-sm hover:from-[#73FFA2] hover:to-[#66DEDB] transition-all"
+            className="w-full px-4 py-3 font-semibold text-sm transition-all"
+            style={{
+              backgroundColor: '#73FFA2',
+              color: '#262626',
+              borderRadius: '25px',
+              fontFamily: 'Poppins, sans-serif',
+            }}
           >
             + Agregar Dirección
-          </button>
-          <button
-            onClick={onSkip}
-            className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            Omitir por ahora
           </button>
         </div>
       ) : (
         <div className="space-y-4">
+          {/* Título Direcciones */}
+          <h3 className="text-lg font-semibold" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
+            Direcciones
+          </h3>
+
           {/* Lista de direcciones */}
           <div className="space-y-3">
             {addresses.map((address) => (
               <div
                 key={address.id}
-                className="p-4 border border-gray-700 rounded-lg bg-gray-800/30 space-y-3"
+                className="p-4 space-y-2"
+                style={{
+                  backgroundColor: 'rgba(217, 217, 217, 0.2)',
+                  border: '1px solid #4A4A4A',
+                  borderRadius: '25px',
+                }}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <p className="text-sm font-medium text-white">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <p className="text-sm font-medium" style={{ color: '#ffffff', fontFamily: 'Poppins, sans-serif' }}>
                         {getAddressAlias(address)}
                       </p>
                       {address.isDefaultShipping && (
-                        <span className="text-xs bg-[#66DEDB]/20 text-[#66DEDB] px-2 py-0.5 rounded">
+                        <span 
+                          className="text-xs px-2 py-0.5 rounded"
+                          style={{
+                            backgroundColor: '#73FFA2',
+                            color: '#262626',
+                            fontFamily: 'Poppins, sans-serif',
+                          }}
+                        >
                           Por defecto
                         </span>
                       )}
                       {address.isGiftAddress && (
-                        <span className="text-xs bg-[#73FFA2]/20 text-[#73FFA2] px-2 py-0.5 rounded">
+                        <span 
+                          className="text-xs px-2 py-0.5 rounded"
+                          style={{
+                            backgroundColor: '#66DEDB',
+                            color: '#262626',
+                            fontFamily: 'Poppins, sans-serif',
+                          }}
+                        >
                           Dirección de regalos
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 leading-tight">{formatAddress(address)}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs leading-tight mb-1" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>
+                      {formatAddress(address)}
+                    </p>
+                    <p className="text-xs" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>
                       {address.postalCode} • {address.phone || 'Sin teléfono'}
                     </p>
                   </div>
-                </div>
-
-                {/* Checkbox para usar como dirección de regalos */}
-                <div className="flex items-start gap-2 pt-2 border-t border-gray-700">
-                  <input
-                    type="checkbox"
-                    id={`gift-${address.id}`}
-                    checked={address.isGiftAddress || false}
-                    onChange={(e) => handleToggleGiftAddress(address.id, e.target.checked)}
-                    disabled={isUpdating}
-                    className="mt-1 w-4 h-4 text-[#73FFA2] focus:ring-[#73FFA2] rounded disabled:opacity-50"
-                  />
-                  <label htmlFor={`gift-${address.id}`} className="text-sm text-gray-300 cursor-pointer flex-1">
-                    Usar esta dirección para recibir regalos
-                    <span className="block text-xs text-gray-400 mt-0.5">
-                      Nadie más tendrá acceso a estos datos
-                    </span>
-                  </label>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Botones */}
-          <div className="flex gap-3 pt-2">
+          {/* Botón Agregar Dirección */}
+          <div className="flex flex-col gap-3 pt-2">
             <button
               onClick={handleCreateAddress}
-              className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+              className="w-full px-4 py-2.5 text-sm font-medium transition-all"
+              style={{
+                backgroundColor: '#73FFA2',
+                color: '#262626',
+                borderRadius: '25px',
+                fontFamily: 'Poppins, sans-serif',
+              }}
             >
-              + Agregar otra dirección
-            </button>
-            <button
-              onClick={onComplete}
-              className="flex-1 px-4 py-2 bg-[#73FFA2] hover:bg-[#66DEDB] text-gray-900 rounded-lg text-sm font-semibold transition-colors"
-            >
-              Continuar
+              + Agregar Dirección
             </button>
           </div>
         </div>
@@ -225,6 +205,7 @@ export function OnboardingStepAddress({ onSkip, onComplete }: OnboardingStepAddr
         }}
         address={editingAddress}
         onSubmit={handleFormSubmit}
+        defaultGiftAddress={true}
       />
     </div>
   )

@@ -243,7 +243,7 @@ export function StoryViewer({ userId, isOpen, onClose }: StoryViewerProps) {
           onClick={(e) => e.stopPropagation()}
         >
           {currentStory.storyType === 'WISHLIST' && currentStory.productId ? (
-            <div className="w-full h-full flex items-center justify-center p-4" style={{ maxWidth: '500px', maxHeight: '90vh' }}>
+            <div className="w-full h-full flex items-center justify-center p-4" style={{ maxWidth: '380px', maxHeight: '600px' }}>
               <WishlistStoryCard
                 story={currentStory}
                 onClose={onClose}

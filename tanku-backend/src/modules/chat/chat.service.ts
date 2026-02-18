@@ -206,8 +206,8 @@ export class ChatService {
     // Filtrar conversaciones con usuarios bloqueados
     const filteredConversations = conversations.filter(conv => {
       // Para cada conversación, verificar si algún participante (que no sea el usuario actual) está bloqueado
-      const otherParticipants = conv.participants.filter(p => p.userId !== userId);
-      return !otherParticipants.some(p => blockedUserIds.has(p.userId));
+      const otherParticipants = conv.participants.filter(p => p.userId !== userId && p.userId !== null);
+      return !otherParticipants.some(p => p.userId && blockedUserIds.has(p.userId));
     });
 
     // Ordenar por última actividad
@@ -349,10 +349,12 @@ export class ChatService {
     }
 
     // Verificar si algún participante (que no sea el usuario actual) está bloqueado
-    const otherParticipants = conversation.participants.filter(p => p.userId !== userId);
+    const otherParticipants = conversation.participants.filter(p => p.userId !== userId && p.userId !== null);
     
     // Verificar bloqueo bidireccional
     for (const otherParticipant of otherParticipants) {
+      if (!otherParticipant.userId) continue;
+      
       const isBlocked = await prisma.friend.findFirst({
         where: {
           status: 'blocked',

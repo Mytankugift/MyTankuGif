@@ -74,19 +74,18 @@ export function BaseNav({
             <StoriesCarousel stories={customStories} />
           </div>
 
-          {/* Botón "Únete a Tanku" - Solo visible cuando no hay sesión y showJoinButton es true */}
-          {showJoinButton && !isAuthenticated && (
-            <a
-              href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'}/api/v1/auth/google`}
-              className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
-              style={{ fontFamily: 'Poppins, sans-serif' }}
-            >
-              Únete a Tanku
-            </a>
-          )}
-
           {/* Right Icons */}
           <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center">
+            {/* Botón "Únete a Tanku" - Solo visible cuando no hay sesión y showJoinButton es true */}
+            {showJoinButton && !isAuthenticated && (
+              <a
+                href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'}/api/v1/auth/google`}
+                className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
+                style={{ fontFamily: 'Poppins, sans-serif' }}
+              >
+                Únete a Tanku
+              </a>
+            )}
             {/* Messages Icon con Dropdown */}
             <div className="relative">
               <button
@@ -141,6 +140,16 @@ export function BaseNav({
       {/* Si no hay stories, mostrar solo los botones */}
       {!showStories && (
         <div className="p-2 sm:p-3 md:p-4 pb-2 flex justify-end items-center gap-2 lg:gap-3">
+          {/* Botón "Únete a Tanku" - Solo visible cuando no hay sesión y showJoinButton es true */}
+          {showJoinButton && !isAuthenticated && (
+            <a
+              href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'}/api/v1/auth/google`}
+              className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
+              style={{ fontFamily: 'Poppins, sans-serif' }}
+            >
+              Únete a Tanku
+            </a>
+          )}
           {/* Messages Icon con Dropdown */}
           <div className="relative">
             <button

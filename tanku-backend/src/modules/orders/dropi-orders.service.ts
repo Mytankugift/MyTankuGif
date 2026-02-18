@@ -637,6 +637,9 @@ export class DropiOrdersService {
 
     // Obtener email del receptor (si ya tiene cuenta, debe tener email porque está logueado)
     // Si no tiene cuenta aún, usar el email del sender como fallback
+    if (!stalkerGift.sender) {
+      throw new Error('El sender del regalo no está disponible');
+    }
     const receiverEmail = stalkerGift.receiver?.email || stalkerGift.sender.email;
 
     // Calcular precios
@@ -669,8 +672,13 @@ export class DropiOrdersService {
     const { OrdersService } = await import('./orders.service');
     const ordersService = new OrdersService();
 
+    const orderUserId = stalkerGift.receiverId || stalkerGift.senderId;
+    if (!orderUserId) {
+      throw new Error('No se puede crear la orden: falta userId (receiverId o senderId)');
+    }
+
     const orderInput = {
-      userId: stalkerGift.receiverId || stalkerGift.senderId, // Usar receiverId si existe, sino senderId
+      userId: orderUserId,
       email: receiverEmail,
       paymentMethod: 'epayco', // StalkerGift siempre usa ePayco
       total,

@@ -8,9 +8,10 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 interface OnboardingStepUsernameProps {
   onNext: (username: string) => void
   initialUsername?: string | null
+  onUsernameChange?: (username: string) => void // Callback para notificar cambios al padre
 }
 
-export function OnboardingStepUsername({ onNext, initialUsername }: OnboardingStepUsernameProps) {
+export function OnboardingStepUsername({ onNext, initialUsername, onUsernameChange }: OnboardingStepUsernameProps) {
   const { user, checkAuth } = useAuthStore()
   const [username, setUsername] = useState(initialUsername || '')
   const [error, setError] = useState<string | null>(null)
@@ -34,6 +35,13 @@ export function OnboardingStepUsername({ onNext, initialUsername }: OnboardingSt
       setUsername(emailUsername)
     }
   }, [user, initialUsername])
+
+  // Notificar al padre cuando el username cambia
+  useEffect(() => {
+    if (onUsernameChange) {
+      onUsernameChange(username)
+    }
+  }, [username, onUsernameChange])
 
   const validateUsername = (value: string): string | null => {
     if (!value || value.trim().length === 0) {
@@ -93,68 +101,55 @@ export function OnboardingStepUsername({ onNext, initialUsername }: OnboardingSt
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-[#73FFA2] mb-2">Elige tu username</h2>
-        <p className="text-gray-400 text-sm">
-          Tu username es único y se usará en tu perfil y para menciones. Puedes cambiarlo más tarde.
-        </p>
-      </div>
+    <>
+      <div className="space-y-6">
+        <div className="pt-4">
+          <h2 className="text-xl font-semibold mb-4" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>Elige tu Username</h2>
+          <p className="text-base" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>
+            Este será el nombre de tu perfil TANKU que podrán utilizar para conectar contigo. Tranqui, luego lo puedes cambiar.
+          </p>
+        </div>
 
-      <div className="space-y-4">
-        {suggestedUsername && suggestedUsername !== username && (
-          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-            <p className="text-gray-300 text-sm mb-2">Sugerencia basada en tu nombre:</p>
-            <button
-              onClick={handleUseSuggested}
-              className="text-[#73FFA2] hover:text-[#66DEDB] font-medium text-sm"
-            >
-              Usar: @{suggestedUsername}
-            </button>
+        <div className="space-y-6">
+          <div className="pt-8">
+            <div className="flex items-center gap-2">
+              <span style={{ color: '#73FFA2' }}>@</span>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => {
+                  const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')
+                  setUsername(value)
+                  setError(null)
+                }}
+                className="flex-1 px-4 py-3 text-white focus:outline-none"
+                style={{
+                  backgroundColor: 'rgba(217, 217, 217, 0.2)',
+                  borderRadius: '25px',
+                  border: '1px solid #4A4A4A',
+                  fontFamily: 'Poppins, sans-serif',
+                }}
+                placeholder="pepito_jimenez"
+                maxLength={30}
+                disabled={isChecking}
+              />
+            </div>
+            {error && (
+              <p className="mt-2 text-sm text-red-400">{error}</p>
+            )}
           </div>
-        )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Username
-          </label>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400">@</span>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => {
-                const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')
-                setUsername(value)
-                setError(null)
-              }}
-              className="flex-1 bg-gray-800 text-white px-4 py-3 rounded-lg border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB]"
-              placeholder="username"
-              maxLength={30}
-              disabled={isChecking}
+          {/* Personaje */}
+          <div className="flex justify-center pt-6">
+            <img
+              src="/icons_tanku/onboarding_personaje_tanku.png"
+              alt="Personaje Tanku"
+              className="w-56 h-56 object-contain"
             />
           </div>
-          {error && (
-            <p className="mt-2 text-sm text-red-400">{error}</p>
-          )}
-          {!error && username && (
-            <p className="mt-2 text-xs text-gray-400">
-              {username.length}/30 caracteres. Solo letras, números y guiones bajos.
-            </p>
-          )}
         </div>
       </div>
-
-      <div className="flex justify-end gap-3 pt-4">
-        <button
-          onClick={handleNext}
-          disabled={!username || isChecking || validateUsername(username) !== null}
-          className="px-6 py-3 bg-[#73FFA2] hover:bg-[#66DEDB] text-gray-900 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isChecking ? 'Verificando...' : 'Continuar'}
-        </button>
-      </div>
-    </div>
+    </>
   )
 }
 

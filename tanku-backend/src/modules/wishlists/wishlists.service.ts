@@ -1060,8 +1060,40 @@ export class WishListsService {
       blockedViewer.forEach(b => blockedUserIds.add(b.userId));
     }
 
+    // Obtener perfil del usuario target para verificar configuración de privacidad
+    const targetProfile = await prisma.userProfile.findUnique({
+      where: { userId: targetUserId },
+      select: {
+        isPublic: true,
+        allowPublicWishlistsWhenPrivate: true,
+      },
+    });
+
+    // Verificar si son amigos (para determinar si pueden ver wishlists cuando el perfil es privado)
+    let areFriends = false;
+    if (viewerUserId) {
+      const friendship = await prisma.friend.findFirst({
+        where: {
+          OR: [
+            { userId: targetUserId, friendId: viewerUserId, status: 'accepted' },
+            { userId: viewerUserId, friendId: targetUserId, status: 'accepted' },
+          ],
+        },
+      });
+      areFriends = !!friendship;
+    }
+
+    // Determinar si se pueden ver wishlists públicas
+    // - Si el perfil es público: siempre se pueden ver
+    // - Si el perfil es privado Y allowPublicWishlistsWhenPrivate está activado: se pueden ver
+    // - Si el perfil es privado Y son amigos: se pueden ver
+    // - Si el perfil es privado Y NO son amigos Y NO está activado: NO se pueden ver
+    const canViewPublicWishlists = targetProfile?.isPublic || 
+                                    (targetProfile?.allowPublicWishlistsWhenPrivate && !targetProfile.isPublic) ||
+                                    (!targetProfile?.isPublic && areFriends);
+
     // SIEMPRE aplicar las mismas reglas:
-    // - Públicas: siempre visibles con items (excepto si el dueño está bloqueado)
+    // - Públicas: visibles según configuración de privacidad (excepto si el dueño está bloqueado)
     // - Privadas con acceso aprobado: visibles con items
     // - Privadas sin acceso: solo nombre (sin items)
     // Filtrar wishlists públicas de usuarios bloqueados
@@ -1069,6 +1101,10 @@ export class WishListsService {
       if (!w.public) return false;
       // Si hay bloqueo, excluir wishlists públicas del usuario bloqueado
       if (viewerUserId && blockedUserIds.has(targetUserId)) {
+        return false;
+      }
+      // Si no se pueden ver wishlists públicas (perfil privado sin la opción activada y no son amigos), excluir
+      if (!canViewPublicWishlists) {
         return false;
       }
       return true;

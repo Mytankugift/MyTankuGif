@@ -19,7 +19,14 @@ const app = express();
 // Logging mínimo - solo en desarrollo
 if (env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    if (req.method !== 'OPTIONS') {
+    // No loggear endpoints de monitoreo/health check para reducir ruido
+    const skipLogging = [
+      '/health',
+      '/api/v1/admin/system/proxy/status',
+      '/api/v1/admin/test'
+    ].some(path => req.path === path || req.path.startsWith(path));
+    
+    if (req.method !== 'OPTIONS' && !skipLogging) {
       console.log(`${req.method} ${req.path}`);
     }
     next();
@@ -69,7 +76,17 @@ app.use(compression());
  * Logging - solo en desarrollo o para errores
  */
 if (env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
+  // Filtrar endpoints de monitoreo para reducir logs
+  app.use(morgan('dev', {
+    skip: (req, res) => {
+      const skipPaths = [
+        '/health',
+        '/api/v1/admin/system/proxy/status',
+        '/api/v1/admin/test'
+      ];
+      return skipPaths.some(path => req.path === path || req.path.startsWith(path));
+    }
+  }));
 } else {
   // En producción, solo loggear errores
   app.use((req, res, next) => {
@@ -135,6 +152,17 @@ app.get('/health', (_req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: env.NODE_ENV,
+  });
+});
+
+/**
+ * Test endpoint para verificar que las rutas de admin funcionen
+ */
+app.get(`${APP_CONSTANTS.API_PREFIX}/admin/test`, (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Admin routes funcionando',
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -299,6 +327,10 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/webhook/dropi`, dropiWebhookRoutes);
 // Checkout routes (mover a /api/v1/checkout)
 import checkoutRoutes from './modules/checkout/checkout.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/checkout`, checkoutRoutes);
+
+// System Admin routes
+import systemAdminRoutes from './modules/system-admin/system-admin.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/admin/system`, systemAdminRoutes);
 
 /**
  * Manejo de errores 404

@@ -17,12 +17,14 @@ export function OnboardingStepCategories({
   onToggleCategory,
 }: OnboardingStepCategoriesProps) {
   return (
-    <div className="space-y-3">
-      <div className="text-center space-y-1">
-        <h2 className="text-xl font-semibold text-[#66DEDB]">
-          🛍️ ¿Qué te gustaría ver primero?
+    <div className="space-y-4" style={{ minHeight: '450px' }}>
+      <div className="pt-4">
+        <h2 className="text-xl font-semibold mb-4" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
+          ¿Cuáles son tus gustos?
         </h2>
-        <p className="text-sm text-gray-400">Elige las categorías que más te llaman la atención.</p>
+        <p className="text-base" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>
+          Queremos conocer tus gustos para conectarte con tus productos favoritos.
+        </p>
       </div>
 
       <HoneycombGrid
@@ -33,8 +35,8 @@ export function OnboardingStepCategories({
         selectedSlugs={selectedCategorySlugs}
         onToggle={onToggleCategory}
         minSelection={1}
+        showEmoji={false}
       />
-
     </div>
   )
 }

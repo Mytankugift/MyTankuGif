@@ -6,6 +6,33 @@
 
 import { MONTHS, DAYS } from '@/lib/constants/onboarding'
 
+// Estilos para el desplegable redondeado
+const selectStyles = `
+  select[style*="borderRadius"] {
+    border-radius: 25px !important;
+  }
+  select[style*="borderRadius"] option {
+    background-color: #4A4A4A !important;
+    color: #ffffff !important;
+    padding: 8px !important;
+  }
+  select[style*="borderRadius"] option:hover,
+  select[style*="borderRadius"] option:focus,
+  select[style*="borderRadius"] option:checked,
+  select[style*="borderRadius"] option:active {
+    background-color: #73FFA2 !important;
+    color: #262626 !important;
+  }
+  select[style*="borderRadius"]:focus {
+    background-color: rgba(217, 217, 217, 0.2) !important;
+    outline: none !important;
+  }
+  /* Estilos para el dropdown nativo */
+  select[style*="borderRadius"]::-ms-expand {
+    display: none;
+  }
+`
+
 interface OnboardingStepBirthdayProps {
   year: number | null
   month: number | null
@@ -38,28 +65,41 @@ export function OnboardingStepBirthday({
   const validDays = getValidDays()
 
   return (
-    <div className="space-y-4">
-      <div className="text-center space-y-1">
-        <h2 className="text-xl font-semibold text-[#66DEDB]">
-          🎉 ¿Cuándo celebramos contigo?
-        </h2>
-        <p className="text-sm text-gray-400">Queremos sorprenderte en tu día especial.</p>
-      </div>
+    <>
+      <style>{selectStyles}</style>
+      <div className="space-y-6">
+        <div className="pt-4">
+          <h2 className="text-xl font-semibold mb-4" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
+            ¿Cuándo es tu cumpleaños?
+          </h2>
+          <p className="text-base" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>
+            Queremos celebrarlo contigo y sorprenderte en tu día especial.
+          </p>
+        </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-8">
         {/* Selector de Año */}
-        <div className="w-full sm:w-40">
-          <label className="block text-xs font-medium text-gray-400 mb-1 text-center">
+        <div className="w-full sm:w-32">
+          <label className="block text-sm font-medium mb-1 text-center" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
             Año
           </label>
           <select
             value={year || ''}
             onChange={(e) => onYearChange(Number(e.target.value))}
-            className="w-full px-3 py-2 bg-gray-800 text-white rounded-lg border border-[#73FFA2] focus:border-[#66DEDB] focus:outline-none text-center text-sm"
+            className="w-full px-4 py-3 text-white focus:outline-none text-center text-sm"
+            style={{
+              backgroundColor: 'rgba(217, 217, 217, 0.2)',
+              borderRadius: '25px',
+              border: '1px solid #4A4A4A',
+              fontFamily: 'Poppins, sans-serif',
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+            }}
           >
-            <option value="">Selecciona año</option>
+            <option value="" style={{ backgroundColor: '#4A4A4A', color: '#ffffff' }}></option>
             {years.map((y) => (
-              <option key={y} value={y}>
+              <option key={y} value={y} style={{ backgroundColor: '#4A4A4A', color: '#ffffff' }}>
                 {y}
               </option>
             ))}
@@ -68,21 +108,27 @@ export function OnboardingStepBirthday({
 
         {/* Selector de Mes */}
         <div className="w-full sm:w-40">
-          <label className="block text-xs font-medium text-gray-400 mb-1 text-center">
+          <label className="block text-sm font-medium mb-1 text-center" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
             Mes
           </label>
           <select
             value={month || ''}
             onChange={(e) => onMonthChange(Number(e.target.value))}
             disabled={!year}
-            className={`
-              w-full px-3 py-2 bg-gray-800 text-white rounded-lg border focus:outline-none text-center text-sm
-              ${year ? 'border-[#73FFA2] focus:border-[#66DEDB]' : 'border-gray-600 opacity-50 cursor-not-allowed'}
-            `}
+            className="w-full px-4 py-3 text-white focus:outline-none text-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: 'rgba(217, 217, 217, 0.2)',
+              borderRadius: '25px',
+              border: '1px solid #4A4A4A',
+              fontFamily: 'Poppins, sans-serif',
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+            }}
           >
-            <option value="">Selecciona mes</option>
+            <option value="" style={{ backgroundColor: '#4A4A4A', color: '#ffffff' }}></option>
             {MONTHS.map((m) => (
-              <option key={m.value} value={m.value}>
+              <option key={m.value} value={m.value} style={{ backgroundColor: '#4A4A4A', color: '#ffffff' }}>
                 {m.label}
               </option>
             ))}
@@ -90,22 +136,28 @@ export function OnboardingStepBirthday({
         </div>
 
         {/* Selector de Día */}
-        <div className="w-full sm:w-40">
-          <label className="block text-xs font-medium text-gray-400 mb-1 text-center">
+        <div className="w-full sm:w-32">
+          <label className="block text-sm font-medium mb-1 text-center" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
             Día
           </label>
           <select
             value={day || ''}
             onChange={(e) => onDayChange(Number(e.target.value))}
             disabled={!month || !year}
-            className={`
-              w-full px-3 py-2 bg-gray-800 text-white rounded-lg border focus:outline-none text-center text-sm
-              ${month && year ? 'border-[#73FFA2] focus:border-[#66DEDB]' : 'border-gray-600 opacity-50 cursor-not-allowed'}
-            `}
+            className="w-full px-4 py-3 text-white focus:outline-none text-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: 'rgba(217, 217, 217, 0.2)',
+              borderRadius: '25px',
+              border: '1px solid #4A4A4A',
+              fontFamily: 'Poppins, sans-serif',
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+            }}
           >
-            <option value="">Selecciona día</option>
+            <option value="" style={{ backgroundColor: '#4A4A4A', color: '#ffffff' }}></option>
             {validDays.map((d) => (
-              <option key={d} value={d}>
+              <option key={d} value={d} style={{ backgroundColor: '#4A4A4A', color: '#ffffff' }}>
                 {d}
               </option>
             ))}
@@ -113,7 +165,16 @@ export function OnboardingStepBirthday({
         </div>
       </div>
 
-    </div>
+        {/* Logo */}
+        <div className="flex justify-center pt-6">
+          <img
+            src="/icons_tanku/onboarding_logo_tanku.png"
+            alt="Logo Tanku"
+            className="w-32 h-32 object-contain"
+          />
+        </div>
+      </div>
+    </>
   )
 }
 

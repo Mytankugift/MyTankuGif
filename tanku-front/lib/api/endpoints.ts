@@ -83,6 +83,7 @@ export const API_ENDPOINTS = {
       GET: '/api/v1/users/me/onboarding-data',
       UPDATE: '/api/v1/users/me/onboarding-data',
     },
+    DELETE_ACCOUNT: '/api/v1/users/me/account',
   },
   // Posters
   POSTERS: {

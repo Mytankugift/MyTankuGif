@@ -8,7 +8,9 @@ import { config } from '@/lib/config'
 import { 
   ArrowPathIcon, 
   ServerIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline'
 
 interface DropiJob {
@@ -21,6 +23,16 @@ interface DropiJob {
   createdAt: string
   startedAt: string | null
   finishedAt: string | null
+}
+
+interface ProxyStatus {
+  status: 'active' | 'inactive' | 'not_configured' | 'active_with_errors'
+  isActive: boolean
+  proxyUrl: string | null
+  message: string
+  responseTime?: number
+  httpStatus?: number
+  timestamp: string
 }
 
 const PROCESSES = [
@@ -76,6 +88,7 @@ export default function AdminDashboard() {
   const [jobs, setJobs] = useState<DropiJob[]>([])
   const [loading, setLoading] = useState(true)
   const [activeJobs, setActiveJobs] = useState<Map<string, DropiJob>>(new Map())
+  const [proxyStatus, setProxyStatus] = useState<ProxyStatus | null>(null)
 
   // Cargar jobs
   const loadJobs = async () => {
@@ -142,11 +155,57 @@ export default function AdminDashboard() {
     return { total, completed, failed, lastRun }
   }
 
+  // Cargar estado del proxy
+  const loadProxyStatus = async () => {
+    try {
+      const response = await apiClient.get<{ success: boolean; data: ProxyStatus }>(
+        API_ENDPOINTS.ADMIN.SYSTEM.PROXY_STATUS
+      )
+      if (response.data.success) {
+        setProxyStatus(response.data.data)
+      }
+    } catch (error: any) {
+      console.error('Error cargando estado del proxy:', error)
+      // Si es 404, el endpoint no está disponible (backend no recompilado)
+      if (error.response?.status === 404) {
+        setProxyStatus({
+          status: 'inactive',
+          isActive: false,
+          proxyUrl: null,
+          message: 'Endpoint no disponible (backend necesita recompilarse)',
+          timestamp: new Date().toISOString(),
+        })
+      } else {
+        setProxyStatus({
+          status: 'inactive',
+          isActive: false,
+          proxyUrl: null,
+          message: `Error al verificar estado del proxy: ${error.message || 'Error desconocido'}`,
+          timestamp: new Date().toISOString(),
+        })
+      }
+    }
+  }
+
   // Cargar jobs al montar y cada 5 segundos
   useEffect(() => {
     loadJobs()
-    const interval = setInterval(loadJobs, 5000)
-    return () => clearInterval(interval)
+    loadProxyStatus() // Cargar inmediatamente
+    
+    // Polling para jobs (cada 5 segundos)
+    const jobsInterval = setInterval(() => {
+      loadJobs()
+    }, 5000)
+    
+    // Polling para proxy (cada 30 segundos - tiene cache de 30s en el backend)
+    const proxyInterval = setInterval(() => {
+      loadProxyStatus()
+    }, 30000)
+    
+    return () => {
+      clearInterval(jobsInterval)
+      clearInterval(proxyInterval)
+    }
   }, [])
 
   // Polling para jobs activos
@@ -188,32 +247,73 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Dashboard de Procesos Dropi
-              </h1>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <ServerIcon className="w-4 h-4" />
-                  <span>{config.apiUrl}</span>
-                </div>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                  config.isProduction 
-                    ? 'bg-red-50 text-red-700 border border-red-200' 
-                    : 'bg-green-50 text-green-700 border border-green-200'
-                }`}>
-                  {config.isProduction ? 'PRODUCCIÓN' : 'LOCAL'}
-                </span>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              Dashboard de Procesos Dropi
+            </h1>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <ServerIcon className="w-4 h-4" />
+                <span>{config.apiUrl}</span>
               </div>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                config.isProduction 
+                  ? 'bg-red-50 text-red-700 border border-red-200' 
+                  : 'bg-green-50 text-green-700 border border-green-200'
+              }`}>
+                {config.isProduction ? 'PRODUCCIÓN' : 'LOCAL'}
+              </span>
+              
+              {/* Estado del Proxy */}
+              {proxyStatus && (
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border ${
+                  proxyStatus.isActive 
+                    ? proxyStatus.status === 'active_with_errors'
+                      ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                      : 'bg-green-50 text-green-700 border-green-200'
+                    : proxyStatus.status === 'not_configured'
+                    ? 'bg-gray-50 text-gray-700 border-gray-200'
+                    : 'bg-red-50 text-red-700 border-red-200'
+                }`}>
+                  {proxyStatus.isActive ? (
+                    proxyStatus.status === 'active_with_errors' ? (
+                      <XCircleIcon className="w-4 h-4" />
+                    ) : (
+                      <CheckCircleIcon className="w-4 h-4" />
+                    )
+                  ) : (
+                    <XCircleIcon className="w-4 h-4" />
+                  )}
+                  <span className="font-medium">
+                    Proxy: {proxyStatus.status === 'not_configured' 
+                      ? 'No configurado' 
+                      : proxyStatus.status === 'active_with_errors'
+                      ? 'Activo con errores'
+                      : proxyStatus.isActive 
+                      ? 'Activo' 
+                      : 'Inactivo'}
+                  </span>
+                  {proxyStatus.responseTime && (
+                    <span className="text-xs opacity-75">
+                      ({proxyStatus.responseTime}ms)
+                    </span>
+                  )}
+                  {proxyStatus.httpStatus && (
+                    <span className="text-xs opacity-75">
+                      [HTTP {proxyStatus.httpStatus}]
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
-            <button
-              onClick={loadJobs}
-              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg flex items-center gap-2 transition-colors shadow-sm"
-            >
-              <ArrowPathIcon className="w-4 h-4" />
-              Actualizar
-            </button>
+            {proxyStatus && proxyStatus.message && (
+              <p className="mt-2 text-xs text-gray-500">
+                {proxyStatus.proxyUrl && (
+                  <span className="mr-2">URL: {proxyStatus.proxyUrl}</span>
+                )}
+                {proxyStatus.message}
+              </p>
+            )}
           </div>
         </div>
 

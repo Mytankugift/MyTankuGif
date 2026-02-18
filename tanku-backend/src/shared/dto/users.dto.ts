@@ -79,6 +79,7 @@ export type UserProfileDTO = {
   banner: string | null;
   bio: string | null;
   isPublic: boolean;
+  allowPublicWishlistsWhenPrivate?: boolean;
   allowGiftShipping?: boolean;
   useMainAddressForGifts?: boolean;
   socialLinks?: SocialLink[];
@@ -89,6 +90,7 @@ export type UserProfileDTO = {
 export type UpdateUserProfileDTO = {
   bio?: string;
   isPublic?: boolean;
+  allowPublicWishlistsWhenPrivate?: boolean;
   allowGiftShipping?: boolean;
   useMainAddressForGifts?: boolean;
   socialLinks?: SocialLink[];

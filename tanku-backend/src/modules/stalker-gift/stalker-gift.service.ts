@@ -420,25 +420,27 @@ export class StalkerGiftService {
 
     // Notificar al sender que el regalo fue aceptado
     try {
-      const { NotificationsService } = await import('../notifications/notifications.service');
-      const notificationsService = new NotificationsService();
-      
-      await notificationsService.createNotification({
-        userId: finalStalkerGift.senderId,
-        type: 'stalker_gift_accepted',
-        title: '¡Tu regalo fue aceptado!',
-        message: `${finalStalkerGift.receiver?.firstName || 'Alguien'} aceptó tu regalo. Ya puedes chatear con ${finalStalkerGift.receiver?.firstName || 'ellos'} de forma anónima.`,
-        data: {
-          stalkerGiftId: stalkerGiftId,
-          conversationId: finalStalkerGift.conversationId,
-        },
-      });
-      
-      console.log(`✅ [StalkerGift] Notificación enviada al sender: ${finalStalkerGift.senderId}`);
-    } catch (error: any) {
-      // Log error pero no fallar la aceptación
-      console.error(`⚠️ [StalkerGift] Error enviando notificación: ${error.message}`);
-    }
+      if (finalStalkerGift.senderId) {
+        const { NotificationsService } = await import('../notifications/notifications.service');
+        const notificationsService = new NotificationsService();
+        
+          await notificationsService.createNotification({
+            userId: finalStalkerGift.senderId,
+            type: 'stalker_gift_accepted',
+            title: '¡Tu regalo fue aceptado!',
+            message: `${finalStalkerGift.receiver?.firstName || 'Alguien'} aceptó tu regalo. Ya puedes chatear con ${finalStalkerGift.receiver?.firstName || 'ellos'} de forma anónima.`,
+            data: {
+              stalkerGiftId: stalkerGiftId,
+              conversationId: finalStalkerGift.conversationId,
+            },
+          });
+          
+          console.log(`✅ [StalkerGift] Notificación enviada al sender: ${finalStalkerGift.senderId}`);
+        }
+      } catch (error: any) {
+        // Log error pero no fallar la aceptación
+        console.error(`⚠️ [StalkerGift] Error enviando notificación: ${error.message}`);
+      }
 
     return finalStalkerGift as StalkerGiftWithRelations;
   }
@@ -489,21 +491,23 @@ export class StalkerGiftService {
 
     // Notificar al sender que el regalo fue rechazado
     try {
-      const { NotificationsService } = await import('../notifications/notifications.service');
-      const notificationsService = new NotificationsService();
-      
-      await notificationsService.createNotification({
-        userId: updated.senderId,
-        type: 'stalker_gift_rejected',
-        title: 'Regalo rechazado',
-        message: `${updated.receiver?.firstName || 'El receptor'} rechazó tu regalo.`,
-        data: {
-          stalkerGiftId: stalkerGiftId,
-        },
-      });
-      
-      console.log(`✅ [StalkerGift] Notificación de rechazo enviada al sender: ${updated.senderId}`);
-    } catch (error: any) {
+      if (updated.senderId) {
+        const { NotificationsService } = await import('../notifications/notifications.service');
+        const notificationsService = new NotificationsService();
+        
+          await notificationsService.createNotification({
+            userId: updated.senderId,
+            type: 'stalker_gift_rejected',
+            title: 'Regalo rechazado',
+            message: `${updated.receiver?.firstName || 'El receptor'} rechazó tu regalo.`,
+            data: {
+              stalkerGiftId: stalkerGiftId,
+            },
+          });
+          
+          console.log(`✅ [StalkerGift] Notificación de rechazo enviada al sender: ${updated.senderId}`);
+        }
+      } catch (error: any) {
       // Log error pero no fallar el rechazo
       console.error(`⚠️ [StalkerGift] Error enviando notificación de rechazo: ${error.message}`);
     }

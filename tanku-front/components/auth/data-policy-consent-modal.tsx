@@ -126,14 +126,21 @@ export function DataPolicyConsentModal({ isOpen }: DataPolicyConsentModalProps) 
           </label>
         </div>
 
-        <button
-          onClick={handleAccept}
-          disabled={!accepted || isSubmitting}
-          className="w-full px-4 py-3 bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold rounded-lg hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
-          style={{ fontFamily: 'Poppins, sans-serif' }}
-        >
-          {isSubmitting ? 'Guardando...' : 'Aceptar y Continuar'}
-        </button>
+        <div className="flex justify-center">
+          <button
+            onClick={handleAccept}
+            disabled={!accepted || isSubmitting}
+            className="font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-full px-6"
+            style={{
+              height: '40px',
+              backgroundColor: accepted && !isSubmitting ? '#73FFA2' : '#4A4A4A',
+              color: accepted && !isSubmitting ? '#262626' : '#666',
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >
+            {isSubmitting ? 'Guardando...' : 'Aceptar y Continuar'}
+          </button>
+        </div>
       </div>
     </div>
   )

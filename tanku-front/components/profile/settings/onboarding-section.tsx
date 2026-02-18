@@ -103,10 +103,10 @@ export function OnboardingSection({ onUpdate }: OnboardingSectionProps) {
           }
         } else {
           // Si es un objeto Date o timestamp
-          const date = new Date(onboardingData.birthDate)
-          setYear(date.getFullYear())
-          setMonth(date.getMonth() + 1)
-          setDay(date.getDate())
+        const date = new Date(onboardingData.birthDate)
+        setYear(date.getFullYear())
+        setMonth(date.getMonth() + 1)
+        setDay(date.getDate())
         }
       }
 

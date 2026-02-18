@@ -30,21 +30,21 @@ export const ONBOARDING_CATEGORIES = [
 // Actividades/Hobbies (12 oficiales)
 // ⬇️ AGREGAR MÁS ACTIVIDADES AQUÍ ⬇️
 export const ONBOARDING_ACTIVITIES = [
-  { slug: 'lectura', label: 'Lectura', emoji: '📚' },
-  { slug: 'running', label: 'Running', emoji: '🏃' },
-  { slug: 'arte-dibujo', label: 'Arte & Dibujo', emoji: '🎨' },
-  { slug: 'musica', label: 'Música', emoji: '🎵' },
+  { slug: 'lectura', label: 'Lectura' },
+  { slug: 'running', label: 'Running' },
+  { slug: 'arte-dibujo', label: 'Arte & Dibujo' },
+  { slug: 'musica', label: 'Música' },
 
-  { slug: 'cine-series', label: 'Cine y series', emoji: '🎬' },
-  { slug: 'entrenamiento-fisico', label: 'Entrenamiento físico', emoji: '💪' },
-  { slug: 'cocina', label: 'Cocina', emoji: '🍳' },
-  { slug: 'videojuegos', label: 'Videojuegos', emoji: '🎮' },
-  { slug: 'fotografia', label: 'Fotografía', emoji: '📸' },
+  { slug: 'cine-series', label: 'Cine y series' },
+  { slug: 'entrenamiento-fisico', label: 'Fitness' },
+  { slug: 'cocina', label: 'Cocina' },
+  { slug: 'videojuegos', label: 'Videojuegos' },
+  { slug: 'fotografia', label: 'Fotografía' },
 
-  { slug: 'bienestar-meditacion', label: 'Bienestar & Meditación', emoji: '🧘' },
-  { slug: 'moda-estilo', label: 'Moda & Estilo', emoji: '👗' },
-  { slug: 'viajes', label: 'Viajes', emoji: '✈️' },
-  { slug: 'escritura', label: 'Escritura', emoji: '✍️' },
+  { slug: 'bienestar-meditacion', label: 'Bienestar & Meditación' },
+  { slug: 'moda-estilo', label: 'Moda & Estilo' },
+  { slug: 'viajes', label: 'Viajes' },
+  { slug: 'escritura', label: 'Escritura' },
 ] as const
 
 // Meses del año

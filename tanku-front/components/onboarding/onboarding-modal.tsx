@@ -36,8 +36,10 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
   const [selectedCategorySlugs, setSelectedCategorySlugs] = useState<string[]>([])
   const [selectedActivitySlugs, setSelectedActivitySlugs] = useState<string[]>([])
   const [categoryMap, setCategoryMap] = useState<Map<string, string>>(new Map()) // slug -> id
+  const [categoryIdToSlugMap, setCategoryIdToSlugMap] = useState<Map<string, string>>(new Map()) // id -> slug
   const [addressData, setAddressData] = useState<any>(null) // Datos de dirección si se completa
   const [giftPreferences, setGiftPreferences] = useState<{ allowGiftShipping: boolean; useMainAddressForGifts: boolean } | null>(null)
+  const [hasInitialized, setHasInitialized] = useState(false) // Flag para evitar resetear cuando ya estaba abierto
 
   // Cargar categorías del backend para mapear slugs a IDs
   useEffect(() => {
@@ -48,20 +50,24 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         )
 
         if (response.success && Array.isArray(response.data)) {
-          const map = new Map<string, string>()
+          const slugToIdMap = new Map<string, string>()
+          const idToSlugMap = new Map<string, string>()
           
           // Mapear por handle (que debería coincidir con nuestros slugs)
           response.data.forEach((cat) => {
             // Normalizar handle para comparar con nuestros slugs
             const normalizedHandle = cat.handle.toLowerCase().replace(/\s+/g, '-')
-            map.set(normalizedHandle, cat.id)
+            slugToIdMap.set(normalizedHandle, cat.id)
+            idToSlugMap.set(cat.id, normalizedHandle)
             
             // También mapear por nombre normalizado como fallback
             const normalizedName = cat.name.toLowerCase().replace(/\s+/g, '-')
-            map.set(normalizedName, cat.id)
+            slugToIdMap.set(normalizedName, cat.id)
+            idToSlugMap.set(cat.id, normalizedName)
           })
 
-          setCategoryMap(map)
+          setCategoryMap(slugToIdMap)
+          setCategoryIdToSlugMap(idToSlugMap)
         }
       } catch (error) {
         console.error('Error cargando categorías:', error)
@@ -73,9 +79,77 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
     }
   }, [isOpen])
 
-  // Resetear estado cuando se abre el modal
+  // Cargar datos guardados del onboarding al abrir el modal
   useEffect(() => {
-    if (isOpen) {
+    const loadSavedData = async () => {
+      if (isOpen && categoryIdToSlugMap.size > 0) {
+        try {
+          const savedData = await getOnboardingData()
+          if (savedData) {
+            // Restaurar fecha de nacimiento
+            if (savedData.birthDate) {
+              if (typeof savedData.birthDate === 'string') {
+                const parts = savedData.birthDate.split('-')
+                if (parts.length === 3) {
+                  const [y, m, d] = parts.map(Number)
+                  setYear(y)
+                  setMonth(m)
+                  setDay(d)
+                } else if (parts.length === 2) {
+                  // Formato legacy "MM-DD"
+                  const [m, d] = parts.map(Number)
+                  setYear(2000) // Año por defecto para formato legacy
+                  setMonth(m)
+                  setDay(d)
+                }
+              } else {
+                const date = new Date(savedData.birthDate)
+                setYear(date.getFullYear())
+                setMonth(date.getMonth() + 1)
+                setDay(date.getDate())
+              }
+            }
+
+            // Restaurar categorías seleccionadas - mapear IDs a slugs
+            if (savedData.categoryIds && savedData.categoryIds.length > 0) {
+              const slugs: string[] = []
+              savedData.categoryIds.forEach((categoryId) => {
+                const slug = categoryIdToSlugMap.get(categoryId)
+                if (slug) {
+                  slugs.push(slug)
+                }
+              })
+              setSelectedCategorySlugs(slugs)
+            }
+
+            // Restaurar actividades seleccionadas
+            if (savedData.activities && savedData.activities.length > 0) {
+              setSelectedActivitySlugs(savedData.activities)
+            }
+
+            // Determinar en qué paso debería estar el usuario
+            // Si tiene username, birthday, categories y activities, ir al paso 4 (dirección)
+            if (user?.username && savedData.birthDate && savedData.categoryIds && savedData.categoryIds.length > 0 && savedData.activities && savedData.activities.length > 0) {
+              setCurrentStep(4) // Ir directamente al paso de dirección
+            } else if (user?.username && savedData.birthDate && savedData.categoryIds && savedData.categoryIds.length > 0) {
+              setCurrentStep(3) // Ir al paso de actividades
+            } else if (user?.username && savedData.birthDate) {
+              setCurrentStep(2) // Ir al paso de categorías
+            } else if (user?.username) {
+              setCurrentStep(1) // Ir al paso de birthday
+            }
+          }
+        } catch (error) {
+          console.error('Error cargando datos guardados:', error)
+        }
+      }
+    }
+    loadSavedData()
+  }, [isOpen, categoryIdToSlugMap, getOnboardingData, user?.username])
+
+  // Resetear estado solo cuando se abre por primera vez (no cuando ya estaba abierto)
+  useEffect(() => {
+    if (isOpen && !hasInitialized) {
       setCurrentStep(0) // Empezar con username
       setUsername(user?.username || '')
       setYear(null)
@@ -85,8 +159,11 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
       setSelectedActivitySlugs([])
       setAddressData(null)
       setGiftPreferences(null)
+      setHasInitialized(true)
+    } else if (!isOpen) {
+      setHasInitialized(false)
     }
-  }, [isOpen, user?.username])
+  }, [isOpen, hasInitialized, user?.username])
 
   // Validar si se puede avanzar al siguiente paso
   const canProceed = () => {
@@ -217,16 +294,25 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
   if (!isOpen) return null
 
   const totalSteps = 5 // username, birthday, categories, activities, address
-  const progress = ((currentStep + 1) / totalSteps) * 100
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-      <div className="bg-gray-900 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col border border-[#73FFA2]">
+      <div 
+        className="rounded-[25px] w-full overflow-hidden flex flex-col border-2"
+        style={{ 
+          backgroundColor: '#262626',
+          borderColor: '#73FFA2',
+          maxWidth: '600px',
+          maxHeight: '720px',
+          minHeight: '600px',
+          width: '90%'
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-gray-700">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold text-[#66DEDB]">Bienvenido</h1>
-            <span className="text-xs text-gray-400">Paso {currentStep + 1}/5</span>
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <h1 className="text-4xl font-semibold" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>Bienvenido</h1>
+            <span className="text-sm" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>Paso {currentStep + 1}/5</span>
           </div>
           {/* Solo permitir cerrar si el onboarding está completo */}
           {isOnboardingComplete() ? (
@@ -242,22 +328,28 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
           )}
         </div>
 
-        {/* Barra de progreso */}
-        <div className="px-4 py-2 bg-gray-800">
-          <div className="w-full bg-gray-700 rounded-full h-1">
-            <div
-              className="bg-[#73FFA2] h-1 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
+        {/* Barra de progreso - 5 bloques */}
+        <div className="px-4 pb-4">
+          <div className="flex gap-2">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div
+                key={index}
+                className="flex-1 h-2 rounded transition-all duration-300"
+                style={{
+                  backgroundColor: index <= currentStep ? '#73FFA2' : '#66DEDB',
+                }}
+              />
+            ))}
           </div>
         </div>
 
         {/* Contenido */}
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto px-4 pb-6 custom-scrollbar" style={{ minHeight: '520px', maxHeight: '520px' }}>
           {currentStep === 0 && (
             <OnboardingStepUsername
               onNext={handleUsernameNext}
               initialUsername={user?.username || null}
+              onUsernameChange={setUsername}
             />
           )}
 
@@ -294,31 +386,82 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
           )}
         </div>
 
-        {/* Footer con botones */}
-        <div className="flex items-center justify-between p-3 border-t border-gray-700 bg-gray-800">
-          <Button
-            variant="secondary"
-            onClick={handleBack}
-            disabled={currentStep === 0 || isLoading}
-            className="border-gray-600 text-gray-300 hover:bg-gray-700 text-sm px-4 py-2 h-8"
-          >
-            Atrás
-          </Button>
+        {/* Footer con botones fijos */}
+        <div className="flex items-center justify-between p-4">
+          {currentStep === 0 ? (
+            <div style={{ width: '120px' }} />
+          ) : (
+            <button
+              onClick={handleBack}
+              disabled={isLoading}
+              className="font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-full"
+              style={{
+                width: '120px',
+                height: '40px',
+                backgroundColor: !isLoading ? '#73FFA2' : '#4A4A4A',
+                color: !isLoading ? '#262626' : '#666',
+                fontFamily: 'Poppins, sans-serif',
+              }}
+            >
+              Atrás
+            </button>
+          )}
 
           {currentStep === 0 ? (
-            // El botón de continuar está dentro de OnboardingStepUsername
-            <div />
+            <button
+              onClick={async () => {
+                if (username && username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)) {
+                  try {
+                    const response = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.ME, { username })
+                    if (response.success) {
+                      handleUsernameNext(username)
+                    }
+                  } catch (error) {
+                    console.error('Error actualizando username:', error)
+                  }
+                }
+              }}
+              disabled={!username || username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username)}
+              className="font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-full"
+              style={{
+                width: '120px',
+                height: '40px',
+                backgroundColor: (username && username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)) ? '#73FFA2' : '#4A4A4A',
+                color: (username && username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)) ? '#262626' : '#666',
+                fontFamily: 'Poppins, sans-serif',
+              }}
+            >
+              Continuar
+            </button>
           ) : currentStep === 4 ? (
-            // El paso de dirección maneja sus propios botones
-            <div />
+            <button
+              onClick={handleAddressSkip}
+              className="font-semibold transition-all rounded-full"
+              style={{
+                width: '120px',
+                height: '40px',
+                backgroundColor: '#73FFA2',
+                color: '#262626',
+                fontFamily: 'Poppins, sans-serif',
+              }}
+            >
+              Finalizar
+            </button>
           ) : (
-            <Button
+            <button
               onClick={handleNext}
               disabled={!canProceed() || isLoading}
-              className="bg-[#73FFA2] hover:bg-[#66DEDB] text-gray-900 font-semibold px-6 py-2 h-8 text-sm"
+              className="font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-full"
+              style={{
+                width: '120px',
+                height: '40px',
+                backgroundColor: canProceed() && !isLoading ? '#73FFA2' : '#4A4A4A',
+                color: canProceed() && !isLoading ? '#262626' : '#666',
+                fontFamily: 'Poppins, sans-serif',
+              }}
             >
-              {isLoading ? 'Guardando...' : currentStep === 3 ? 'Continuar' : 'Continuar'}
-            </Button>
+              {isLoading ? 'Guardando...' : 'Continuar'}
+            </button>
           )}
         </div>
       </div>
