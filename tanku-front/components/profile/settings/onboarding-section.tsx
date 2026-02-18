@@ -252,7 +252,7 @@ export function OnboardingSection({ onUpdate }: OnboardingSectionProps) {
     return selectedActivitySlugs
       .map(slug => {
         const act = ONBOARDING_ACTIVITIES.find(a => a.slug === slug)
-        return act ? `${act.emoji} ${act.label}` : slug
+        return act ? act.label : slug
       })
       .join(', ')
   }
