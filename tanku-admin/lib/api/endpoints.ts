@@ -24,6 +24,10 @@ export const API_ENDPOINTS = {
     SYNC_STOCK: `${API_BASE}/api/v1/dropi/jobs/stock`,
   },
   ADMIN: {
+    AUTH: {
+      LOGIN: `${API_BASE}/api/v1/admin/auth/login`,
+      ME: `${API_BASE}/api/v1/admin/auth/me`,
+    },
     SYSTEM: {
       PROXY_STATUS: `${API_BASE}/api/v1/admin/system/proxy/status`,
     },

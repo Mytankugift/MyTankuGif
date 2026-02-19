@@ -46,19 +46,19 @@ model User {
 }
 
 model UserProfile {
-  id                            String   @id @default(cuid())
-  userId                        String   @unique @map("user_id")
-  avatar                        String?
-  banner                        String?
-  bio                           String?
-  createdAt                     DateTime @default(now()) @map("created_at")
-  updatedAt                     DateTime @updatedAt @map("updated_at")
-  isPublic                      Boolean  @default(true) @map("is_public")
-  allowPublicWishlistsWhenPrivate Boolean @default(false) @map("allow_public_wishlists_when_private")
-  socialLinks                   Json?    @map("social_links")
-  allowGiftShipping             Boolean  @default(true) @map("allow_gift_shipping")
-  useMainAddressForGifts        Boolean  @default(false) @map("use_main_address_for_gifts")
-  user                          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                              String   @id @default(cuid())
+  userId                          String   @unique @map("user_id")
+  avatar                          String?
+  banner                          String?
+  bio                             String?
+  createdAt                       DateTime @default(now()) @map("created_at")
+  updatedAt                       DateTime @updatedAt @map("updated_at")
+  isPublic                        Boolean  @default(true) @map("is_public")
+  allowPublicWishlistsWhenPrivate Boolean  @default(false) @map("allow_public_wishlists_when_private")
+  socialLinks                     Json?    @map("social_links")
+  allowGiftShipping               Boolean  @default(true) @map("allow_gift_shipping")
+  useMainAddressForGifts          Boolean  @default(false) @map("use_main_address_for_gifts")
+  user                            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_profiles")
 }
@@ -93,33 +93,57 @@ model UserCategoryInterest {
 }
 
 model Category {
-  id            String                 @id @default(cuid())
-  name          String
-  handle        String                 @unique
-  description   String?
-  parentId      String?                @map("parent_id")
-  createdAt     DateTime               @default(now()) @map("created_at")
-  updatedAt     DateTime               @updatedAt @map("updated_at")
-  dropiId       Int?                   @unique @map("dropi_id")
+  id          String   @id @default(cuid())
+  name        String
+  handle      String   @unique
+  description String?
+  parentId    String?  @map("parent_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  dropiId     Int?     @unique @map("dropi_id")
+
+  // Imagen de categoría
+  imageUrl String? @map("image_url")
+
+  // Bloqueo de categoría
+  blocked   Boolean   @default(false)
+  blockedAt DateTime? @map("blocked_at")
+  blockedBy String?   @map("blocked_by")
+
+  // Fórmula por defecto (simplificada)
+  defaultPriceFormulaType  PriceFormulaType? @map("default_price_formula_type")
+  defaultPriceFormulaValue Json?             @map("default_price_formula_value")
+
   parent        Category?              @relation("CategoryTree", fields: [parentId], references: [id])
   children      Category[]             @relation("CategoryTree")
   products      Product[]
   userInterests UserCategoryInterest[]
+  locker        AdminUser?             @relation("CategoryLocker", fields: [blockedBy], references: [id])
 
   @@index([dropiId])
   @@map("categories")
 }
 
 model Product {
-  id            String           @id @default(cuid())
-  title         String
-  handle        String           @unique
-  description   String?
-  images        String[]
-  categoryId    String?          @map("category_id")
-  active        Boolean          @default(true)
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt @map("updated_at")
+  id          String   @id @default(cuid())
+  title       String
+  handle      String   @unique
+  description String?
+  images      String[]
+  categoryId  String?  @map("category_id")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Bloqueo simplificado (producto completo)
+  lockedByAdmin Boolean   @default(false) @map("locked_by_admin")
+  lockedAt      DateTime? @map("locked_at")
+  lockedBy      String?   @map("locked_by")
+
+  // Fórmula de precio (simplificada)
+  priceFormulaType  PriceFormulaType? @map("price_formula_type")
+  priceFormulaValue Json?             @map("price_formula_value") // { percentage: 15 } o { fixed: 10000 } o { minMargin: 5000 }
+
   orderItems    OrderItem[]
   productLikes  ProductLike[]
   variants      ProductVariant[]
@@ -127,23 +151,28 @@ model Product {
   stalkerGifts  StalkerGift[]
   wishListItems WishListItem[]
   stories       StoriesUser[]
+  locker        AdminUser?       @relation("ProductLocker", fields: [lockedBy], references: [id])
 
   @@map("products")
 }
 
 model ProductVariant {
-  id                String             @id @default(cuid())
-  productId         String             @map("product_id")
-  sku               String             @unique
-  title             String
-  price             Int
-  stock             Int                @default(0)
-  active            Boolean            @default(true)
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
-  attributes        Json?
-  suggestedPrice    Int?               @map("suggested_price")
-  tankuPrice        Int?               @map("tanku_price")
+  id             String   @id @default(cuid())
+  productId      String   @map("product_id")
+  sku            String   @unique
+  title          String
+  price          Int
+  stock          Int      @default(0)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  attributes     Json?
+  suggestedPrice Int?     @map("suggested_price")
+  tankuPrice     Int?     @map("tanku_price")
+
+  // Bloqueo de precio (opcional, para Fase 2)
+  tankuPriceLocked Boolean @default(false) @map("tanku_price_locked")
+
   cartItems         CartItem[]
   orderItems        OrderItem[]
   product           Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -184,28 +213,28 @@ model CartItem {
 }
 
 model Order {
-  id              String         @id @default(cuid())
-  userId          String?        @map("user_id")
-  deletedUserEmail String?       @map("deleted_user_email")
-  status          OrderStatus    @default(PENDING)
-  paymentStatus   String         @default("pending") @map("payment_status")
-  paymentMethod   String?        @map("payment_method")
-  total           Int
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
-  email           String         @default("")
-  isStalkerGift   Boolean        @default(false) @map("is_stalker_gift")
-  metadata        Json?
-  shippingTotal   Int            @default(0) @map("shipping_total")
-  subtotal        Int            @default(0)
-  transactionId   String?        @map("transaction_id")
-  giftRecipientId String?        @map("gift_recipient_id")
-  giftSenderId    String?        @map("gift_sender_id")
-  isGiftOrder     Boolean        @default(false) @map("is_gift_order")
-  orderAddresses  OrderAddress[]
-  items           OrderItem[]
-  user            User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  stalkerGift     StalkerGift?   @relation("OrderStalkerGift")
+  id               String         @id @default(cuid())
+  userId           String?        @map("user_id")
+  deletedUserEmail String?        @map("deleted_user_email")
+  status           OrderStatus    @default(PENDING)
+  paymentStatus    String         @default("pending") @map("payment_status")
+  paymentMethod    String?        @map("payment_method")
+  total            Int
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  email            String         @default("")
+  isStalkerGift    Boolean        @default(false) @map("is_stalker_gift")
+  metadata         Json?
+  shippingTotal    Int            @default(0) @map("shipping_total")
+  subtotal         Int            @default(0)
+  transactionId    String?        @map("transaction_id")
+  giftRecipientId  String?        @map("gift_recipient_id")
+  giftSenderId     String?        @map("gift_sender_id")
+  isGiftOrder      Boolean        @default(false) @map("is_gift_order")
+  orderAddresses   OrderAddress[]
+  items            OrderItem[]
+  user             User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  stalkerGift      StalkerGift?   @relation("OrderStalkerGift")
 
   @@index([userId])
   @@index([email])
@@ -696,15 +725,15 @@ model Conversation {
 }
 
 model ConversationParticipant {
-  id             String       @id @default(cuid())
-  conversationId String       @map("conversation_id")
-  userId         String?      @map("user_id")
-  deletedUserEmail String?   @map("deleted_user_email")
-  alias          String?
-  isRevealed     Boolean      @default(false) @map("is_revealed")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id               String       @id @default(cuid())
+  conversationId   String       @map("conversation_id")
+  userId           String?      @map("user_id")
+  deletedUserEmail String?      @map("deleted_user_email")
+  alias            String?
+  isRevealed       Boolean      @default(false) @map("is_revealed")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user             User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@unique([conversationId, userId])
   @@index([conversationId])
@@ -713,19 +742,19 @@ model ConversationParticipant {
 }
 
 model Message {
-  id             String        @id @default(cuid())
-  conversationId String        @map("conversation_id")
-  senderId       String?       @map("sender_id")
-  deletedSenderEmail String?  @map("deleted_sender_email")
-  senderAlias    String?       @map("sender_alias")
-  content        String
-  type           MessageType   @default(TEXT)
-  status         MessageStatus @default(SENT)
-  readAt         DateTime?     @map("read_at")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
-  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User?         @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  id                 String        @id @default(cuid())
+  conversationId     String        @map("conversation_id")
+  senderId           String?       @map("sender_id")
+  deletedSenderEmail String?       @map("deleted_sender_email")
+  senderAlias        String?       @map("sender_alias")
+  content            String
+  type               MessageType   @default(TEXT)
+  status             MessageStatus @default(SENT)
+  readAt             DateTime?     @map("read_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  conversation       Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender             User?         @relation(fields: [senderId], references: [id], onDelete: SetNull)
 
   @@index([conversationId, createdAt])
   @@index([senderId])
@@ -841,4 +870,36 @@ enum MessageStatus {
 enum StoryType {
   NORMAL
   WISHLIST
+}
+
+// ============================================
+// MODELOS Y ENUMS PARA SISTEMA ADMIN (Fase 1 MVP)
+// ============================================
+
+model AdminUser {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  role      AdminRole
+  firstName String?   @map("first_name")
+  lastName  String?   @map("last_name")
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  lockedProducts   Product[]  @relation("ProductLocker")
+  lockedCategories Category[] @relation("CategoryLocker")
+
+  @@map("admin_users")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  PRODUCT_MANAGER
+}
+
+enum PriceFormulaType {
+  PERCENTAGE // Ej: +15% sobre basePrice
+  FIXED // Ej: +$10,000 fijo
+  MIN_MARGIN // Ej: mínimo $5,000 de margen
 }

@@ -25,10 +25,19 @@ export interface JwtPayload {
 }
 
 import { Request } from 'express';
+import { AdminRole } from '@prisma/client';
 
 export interface RequestWithUser extends Request {
   user?: {
     id: string;
     email: string;
+  };
+}
+
+export interface RequestWithAdminUser extends Request {
+  adminUser?: {
+    id: string;
+    email: string;
+    role: AdminRole;
   };
 }

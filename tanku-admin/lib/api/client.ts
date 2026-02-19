@@ -9,6 +9,31 @@ const apiClient: AxiosInstance = axios.create({
   },
 })
 
+// Interceptor para agregar token de autenticación admin
+apiClient.interceptors.request.use(
+  (config) => {
+    // Obtener token del localStorage (zustand persist lo guarda ahí)
+    if (typeof window !== 'undefined') {
+      const authStorage = localStorage.getItem('admin-auth-storage')
+      if (authStorage) {
+        try {
+          const parsed = JSON.parse(authStorage)
+          const token = parsed.state?.token
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`
+          }
+        } catch (error) {
+          // Si hay error parseando, continuar sin token
+        }
+      }
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
 // Interceptor para errores
 apiClient.interceptors.response.use(
   (response) => response,

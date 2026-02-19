@@ -328,6 +328,10 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/webhook/dropi`, dropiWebhookRoutes);
 import checkoutRoutes from './modules/checkout/checkout.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/checkout`, checkoutRoutes);
 
+// Admin Auth routes
+import adminAuthRoutes from './modules/admin/admin-auth/admin-auth.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/admin/auth`, adminAuthRoutes);
+
 // System Admin routes
 import systemAdminRoutes from './modules/system-admin/system-admin.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/admin/system`, systemAdminRoutes);
