@@ -107,26 +107,14 @@ export class RawWorker extends BaseWorker {
               category_id: categoryId,
             });
 
-            // Si es 429, esperar y reintentar
-            if (page?.status === 429 || (page?.message && page.message.includes('Too Many Attempts'))) {
-              retries++;
-              if (retries > MAX_RETRIES) {
-                throw new Error(`Error 429 después de ${MAX_RETRIES} reintentos. Rate limit de Dropi excedido.`);
-              }
-              const waitTime = INITIAL_RETRY_DELAY * Math.pow(2, retries - 1); // Backoff exponencial
-              console.log(`[RAW WORKER] ⚠️ Rate limit (429) detectado. Esperando ${waitTime}ms antes de reintentar (intento ${retries}/${MAX_RETRIES})...`);
-              await this.delay(waitTime);
-              continue;
-            }
-
-            // Si no es 429, salir del loop de retry
+            // Si llegamos aquí, la petición fue exitosa
             break;
           } catch (error: any) {
             // Si el error contiene 429, reintentar
             if (error?.message?.includes('429') || error?.message?.includes('Too Many Attempts')) {
               retries++;
               if (retries > MAX_RETRIES) {
-                throw error;
+                throw new Error(`Error 429 después de ${MAX_RETRIES} reintentos. Rate limit de Dropi excedido.`);
               }
               const waitTime = INITIAL_RETRY_DELAY * Math.pow(2, retries - 1);
               console.log(`[RAW WORKER] ⚠️ Error 429 capturado. Esperando ${waitTime}ms antes de reintentar (intento ${retries}/${MAX_RETRIES})...`);
