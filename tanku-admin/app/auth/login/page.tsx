@@ -19,11 +19,30 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      console.log('[LOGIN] Iniciando login...')
       await login(email, password)
-      router.push('/')
+      console.log('[LOGIN] Login exitoso, esperando guardado en localStorage...')
+      
+      // Esperar a que Zustand guarde en localStorage
+      // Zustand persist guarda de forma asíncrona, necesitamos esperar
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      // Verificar que se guardó correctamente
+      const stored = localStorage.getItem('admin-auth-storage')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        console.log('[LOGIN] Verificado en localStorage:', { 
+          isAuthenticated: parsed.state?.isAuthenticated,
+          user: parsed.state?.user?.email 
+        })
+      }
+      
+      console.log('[LOGIN] Redirigiendo...')
+      // Redirigir usando window.location para forzar recarga completa
+      window.location.href = '/'
     } catch (err: any) {
+      console.error('[LOGIN] Error:', err)
       setError(err.message || 'Error al iniciar sesión')
-    } finally {
       setLoading(false)
     }
   }

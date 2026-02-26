@@ -4,7 +4,7 @@ const normalizeUrl = (url: string): string => {
 }
 
 export const config = {
-  apiUrl: normalizeUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'),
+  apiUrl: normalizeUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'),
   isProduction: process.env.NEXT_PUBLIC_API_URL?.includes('https://') || false,
 }
 

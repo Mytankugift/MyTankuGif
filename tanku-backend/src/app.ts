@@ -332,6 +332,22 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/checkout`, checkoutRoutes);
 import adminAuthRoutes from './modules/admin/admin-auth/admin-auth.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/admin/auth`, adminAuthRoutes);
 
+// Admin Users routes
+import adminUsersRoutes from './modules/admin/admin-users/admin-users.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/admin/users`, adminUsersRoutes);
+
+// Admin Products routes
+import adminProductsRoutes from './modules/admin/admin-products/admin-products.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/admin/products`, adminProductsRoutes);
+
+// Admin Categories routes
+import adminCategoriesRoutes from './modules/admin/admin-categories/admin-categories.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/admin/categories`, adminCategoriesRoutes);
+
+// Admin Price Formulas routes
+import adminPriceFormulasRoutes from './modules/admin/admin-price-formulas/admin-price-formulas.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/admin/price-formulas`, adminPriceFormulasRoutes);
+
 // System Admin routes
 import systemAdminRoutes from './modules/system-admin/system-admin.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/admin/system`, systemAdminRoutes);

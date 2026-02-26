@@ -528,6 +528,7 @@ export function FeedNav({
                   ]
                   const colorClass = vibrantColors[index % vibrantColors.length]
                   const isSelected = selectedCategoryId === String(category.id)
+                  const hasImage = !!category.image
 
                   return (
                     <button
@@ -537,14 +538,14 @@ export function FeedNav({
                       className="flex-shrink-0 snap-start cursor-pointer group"
                     >
                       <div
-                        className={`flex items-center h-8 sm:h-9 rounded-full overflow-hidden border-2 transition-all duration-300 ${
+                        className={`flex items-center h-8 sm:h-9 rounded-full overflow-hidden border-2 transition-all duration-300 ${colorClass} ${
                           isSelected
                             ? 'border-[#73FFA2] scale-105 shadow-lg shadow-[#73FFA2]/50'
                             : 'border-gray-600 group-hover:border-[#73FFA2]'
-                        } ${colorClass}`}
+                        }`}
                       >
-                        {/* Imagen a la izquierda */}
-                        {category.image ? (
+                        {/* Imagen a la izquierda - usar imageUrl de la categoría */}
+                        {hasImage && category.image ? (
                           <div className="relative w-8 sm:w-9 h-full flex-shrink-0">
                             <Image
                               src={category.image}
@@ -552,13 +553,15 @@ export function FeedNav({
                               fill
                               className="object-cover"
                               onError={(e) => {
-                                // Si la imagen falla, ocultarla
+                                // Si la imagen falla, ocultar y mostrar placeholder
                                 e.currentTarget.style.display = 'none'
                               }}
                             />
+                            {/* Overlay oscuro para mejorar contraste */}
+                            <div className="absolute inset-0 bg-black/0" />
                           </div>
                         ) : (
-                          <div className="relative w-8 sm:w-9 h-full flex-shrink-0 bg-gray-600" />
+                          <div className="relative w-8 sm:w-9 h-full flex-shrink-0 bg-gray-600/50" />
                         )}
                         {/* Nombre a la derecha */}
                         <div className="flex items-center px-2 sm:px-3 flex-1 min-w-0">

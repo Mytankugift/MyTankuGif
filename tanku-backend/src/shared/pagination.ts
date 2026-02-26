@@ -28,7 +28,7 @@ export function normalizePagination(
   defaults: { page: number; limit: number } = { page: 1, limit: 20 }
 ): { page: number; limit: number; skip: number } {
   const page = Math.max(1, Number(query.page) || defaults.page);
-  const limit = Math.min(100, Math.max(1, Number(query.limit) || defaults.limit));
+  const limit = Math.min(500, Math.max(1, Number(query.limit) || defaults.limit)); // Aumentado a 500
   const skip = (page - 1) * limit;
 
   return { page, limit, skip };

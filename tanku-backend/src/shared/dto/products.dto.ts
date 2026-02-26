@@ -8,6 +8,7 @@ export type CategoryDTO = {
   name: string;
   handle: string;
   parentId: string | null;
+  imageUrl: string | null;
 };
 
 export type ProductVariantDTO = {

@@ -36,6 +36,8 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
   const [likesCount, setLikesCount] = useState(0)
   const [isTogglingLike, setIsTogglingLike] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const initializedProductIdRef = React.useRef<string | null>(null)
+  const productHandleRef = React.useRef<string | null>(null)
 
   // Cargar producto completo usando el hook
   const { product: fullProduct, isLoading: isLoadingProduct, error: productError } = useProduct(
@@ -44,41 +46,38 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
   )
 
   useEffect(() => {
-    if (product) {
-      setCurrentImageIndex(0)
-      setSelectedVariantIndex(0)
-      setQuantity(1)
-      setError(null)
-    }
-  }, [product])
-
-  // ✅ Seleccionar automáticamente la primera variante con stock > 0
-  useEffect(() => {
-    if (fullProduct?.variants && fullProduct.variants.length > 0) {
-      // Buscar la primera variante con stock > 0
-      const variantWithStockIndex = fullProduct.variants.findIndex(v => v.stock > 0)
-      if (variantWithStockIndex !== -1 && variantWithStockIndex !== selectedVariantIndex) {
-        setSelectedVariantIndex(variantWithStockIndex)
-      } else if (variantWithStockIndex === -1) {
-        // Si ninguna variante tiene stock, mantener la selección actual pero mostrar advertencia
-        console.warn('Ninguna variante tiene stock disponible')
+    if (product?.handle) {
+      // Solo resetear si cambió el handle del producto (producto diferente)
+      const currentHandle = product.handle
+      if (productHandleRef.current !== currentHandle) {
+        setCurrentImageIndex(0)
+        setSelectedVariantIndex(0)
+        setQuantity(1)
+        setError(null)
+        initializedProductIdRef.current = null // Resetear cuando cambia el producto
+        productHandleRef.current = currentHandle
       }
     }
-  }, [fullProduct?.variants, selectedVariantIndex])
+  }, [product?.handle]) // Solo cuando cambia el handle, no cuando cambia cualquier propiedad del objeto
 
   // ✅ Seleccionar automáticamente la primera variante con stock > 0
+  // SOLO cuando se carga el producto por primera vez (cuando cambia el ID del producto)
+  // NO cuando cambian las variantes por referencia o después de agregar al carrito
   useEffect(() => {
-    if (fullProduct?.variants && fullProduct.variants.length > 0) {
-      // Buscar la primera variante con stock > 0
-      const variantWithStockIndex = fullProduct.variants.findIndex(v => v.stock > 0)
-      if (variantWithStockIndex !== -1 && variantWithStockIndex !== selectedVariantIndex) {
-        setSelectedVariantIndex(variantWithStockIndex)
-      } else if (variantWithStockIndex === -1) {
-        // Si ninguna variante tiene stock, mantener la selección actual pero mostrar advertencia
-        console.warn('Ninguna variante tiene stock disponible')
+    if (fullProduct?.id && fullProduct?.variants && fullProduct.variants.length > 0) {
+      // Solo inicializar si es un producto diferente
+      if (initializedProductIdRef.current !== fullProduct.id) {
+        const variantWithStockIndex = fullProduct.variants.findIndex(v => v.stock > 0)
+        if (variantWithStockIndex !== -1) {
+          setSelectedVariantIndex(variantWithStockIndex)
+        } else {
+          // Si ninguna tiene stock, mantener índice 0
+          setSelectedVariantIndex(0)
+        }
+        initializedProductIdRef.current = fullProduct.id // Marcar este producto como inicializado
       }
     }
-  }, [fullProduct?.variants, selectedVariantIndex])
+  }, [fullProduct?.id]) // Solo cuando cambia el ID del producto, no cuando cambian las variantes
 
   // Cargar datos de likes
   useEffect(() => {
@@ -148,7 +147,11 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
   }
 
   const variants = fullProduct.variants || []
-  const selectedVariant = variants[selectedVariantIndex] || variants[0]
+  // Asegurar que el índice sea válido
+  const validIndex = selectedVariantIndex >= 0 && selectedVariantIndex < variants.length 
+    ? selectedVariantIndex 
+    : 0
+  const selectedVariant = variants[validIndex] || variants[0]
 
   // Usar tankuPrice directamente (ya calculado en sync)
   const finalPrice = selectedVariant?.tankuPrice || 0
@@ -454,9 +457,14 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
               variants={variants}
               selectedVariant={selectedVariant}
               onVariantChange={(variant) => {
-                const index = variants.findIndex((v) => v.id === variant.id)
-                setSelectedVariantIndex(index >= 0 ? index : 0)
-                setQuantity(1)
+                // Encontrar el índice de la variante seleccionada
+                const variantIndex = variants.findIndex((v) => v.id === variant.id)
+                if (variantIndex !== -1) {
+                  setSelectedVariantIndex(variantIndex)
+                  setQuantity(1)
+                  // Forzar re-render actualizando el estado
+                  setCurrentImageIndex(0)
+                }
               }}
               formatPrice={formatPrice}
             />

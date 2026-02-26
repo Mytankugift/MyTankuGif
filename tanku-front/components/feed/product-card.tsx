@@ -44,6 +44,8 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
   const [isLiked, setIsLiked] = useState(product.isLiked ?? false)
   const [likesCount, setLikesCount] = useState(product.likesCount ?? 0)
   const [isTogglingLike, setIsTogglingLike] = useState(false)
+  const hasUserToggledLike = useRef(false) // Rastrear si el usuario hizo un cambio manual
+  const previousProductIdRef = useRef<string | null>(null)
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
 
@@ -80,22 +82,36 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
   }, [])
 
   // Actualizar estado cuando cambian los props del feed
-  // Esto asegura que cuando se recarga el feed, los likes se actualicen correctamente
+  // Solo actualizar si el usuario NO ha hecho cambios manuales o si cambió el producto
   useEffect(() => {
-    // Siempre actualizar cuando cambia el product.id (nuevo producto o recarga)
-    // Actualizar likesCount si viene del feed
-    if (product.likesCount !== undefined) {
-      setLikesCount(product.likesCount)
-    } else {
-      // Si no viene del feed, mantener el estado actual
+    // Si cambió el producto (ID diferente), resetear el flag y actualizar
+    const currentProductId = product.id
+    
+    if (previousProductIdRef.current !== currentProductId) {
+      // Es un producto nuevo, resetear todo
+      hasUserToggledLike.current = false
+      previousProductIdRef.current = currentProductId
+      
+      // Actualizar desde las props
+      if (product.likesCount !== undefined) {
+        setLikesCount(product.likesCount)
+      }
+      if (product.isLiked !== undefined) {
+        setIsLiked(product.isLiked)
+      }
+    } else if (!hasUserToggledLike.current) {
+      // Solo actualizar desde props si el usuario no ha hecho cambios manuales
+      // Esto permite que el feed actualice los likes cuando se recarga
+      if (product.likesCount !== undefined) {
+        setLikesCount(product.likesCount)
+      }
+      if (product.isLiked !== undefined) {
+        setIsLiked(product.isLiked)
+      }
     }
-    // Actualizar isLiked si viene del feed
-    if (product.isLiked !== undefined) {
-      setIsLiked(product.isLiked)
-    } else {
-      // Si no viene del feed, mantener el estado actual
-    }
-  }, [product.id, product.likesCount, product.isLiked])
+    // Si hasUserToggledLike.current es true, NO actualizar desde props
+    // para mantener los cambios del usuario
+  }, [product.id]) // Solo cuando cambia el ID del producto, no cuando cambian likesCount/isLiked
 
   // Manejar like/unlike
   const handleToggleLike = async (e: React.MouseEvent) => {
@@ -108,16 +124,31 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
 
     if (isTogglingLike) return
 
+    // Optimistic update: actualizar inmediatamente antes de la llamada API
+    const previousLiked = isLiked
+    const previousCount = likesCount
+    const newLiked = !isLiked
+    const newCount = newLiked ? likesCount + 1 : Math.max(0, likesCount - 1)
+    
+    setIsLiked(newLiked)
+    setLikesCount(newCount)
+    hasUserToggledLike.current = true // Marcar que el usuario hizo un cambio
+
     setIsTogglingLike(true)
     try {
-      if (isLiked) {
+      if (previousLiked) {
         // Quitar like
         const response = await apiClient.delete<{ liked: boolean; likesCount: number }>(
           API_ENDPOINTS.PRODUCTS.UNLIKE(product.id)
         )
         if (response.success && response.data) {
+          // Actualizar con el valor real del servidor
           setIsLiked(false)
           setLikesCount(response.data.likesCount)
+        } else {
+          // Si falla, revertir al estado anterior
+          setIsLiked(previousLiked)
+          setLikesCount(previousCount)
         }
       } else {
         // Dar like
@@ -125,12 +156,20 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
           API_ENDPOINTS.PRODUCTS.LIKE(product.id)
         )
         if (response.success && response.data) {
+          // Actualizar con el valor real del servidor
           setIsLiked(true)
           setLikesCount(response.data.likesCount)
+        } else {
+          // Si falla, revertir al estado anterior
+          setIsLiked(previousLiked)
+          setLikesCount(previousCount)
         }
       }
     } catch (error) {
       console.error('Error toggling like:', error)
+      // Revertir al estado anterior si hay error
+      setIsLiked(previousLiked)
+      setLikesCount(previousCount)
     } finally {
       setIsTogglingLike(false)
     }

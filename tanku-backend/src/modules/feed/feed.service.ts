@@ -2,6 +2,7 @@ import { prisma } from '../../config/database';
 import { FeedItemDTO, FeedCursorDTO, FeedResponseDTO } from '../../shared/dto/feed.dto';
 import { Prisma } from '@prisma/client';
 import type { Product, ProductVariant, Category, Poster, User, UserProfile } from '@prisma/client';
+import { getBlockedCategoryIds, getAllChildrenIds } from '../../shared/utils/category.utils';
 
 /**
  * Feed Service
@@ -154,8 +155,19 @@ export class FeedService {
       let productsData: any[] = [];
       try {
         if (productIds.length > 0) {
+          // Obtener IDs de categorías bloqueadas
+          const blockedCategoryIds = await getBlockedCategoryIds();
+          
           productsData = await prisma.product.findMany({
-            where: { id: { in: productIds } },
+            where: { 
+              id: { in: productIds },
+              // Excluir productos de categorías bloqueadas
+              ...(blockedCategoryIds.length > 0 && {
+                categoryId: {
+                  notIn: blockedCategoryIds,
+                },
+              }),
+            },
             include: {
               category: true,
               variants: {
@@ -164,6 +176,7 @@ export class FeedService {
                 take: 1,
               },
             },
+            // hiddenImages se incluye automáticamente con include (todos los campos del modelo)
           });
         }
       } catch (productsDataError: any) {
@@ -311,6 +324,10 @@ export class FeedService {
             }
           }
         }
+        
+        // ✅ Filtrar imágenes bloqueadas
+        const hiddenImages = (product.hiddenImages || []) as string[];
+        imagesArray = imagesArray.filter(img => !hiddenImages.includes(img));
         
         // Obtener primera imagen válida
         const firstImage = imagesArray.length > 0 ? imagesArray[0] : null;
@@ -482,17 +499,47 @@ export class FeedService {
     boostFactor: number,
     categoryId?: string
   ) {
+    // Obtener IDs de categorías bloqueadas
+    const blockedCategoryIds = await getBlockedCategoryIds();
+    
+    // Verificar si la categoría solicitada está bloqueada
+    if (categoryId && blockedCategoryIds.includes(categoryId)) {
+      // La categoría está bloqueada, retornar vacío
+      return [];
+    }
+    
     // Primero obtener IDs de productos de la categoría si se especifica
     let productIds: string[] | undefined;
     if (categoryId) {
+      // Obtener la categoría para verificar si tiene hijos
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+        select: { id: true, parentId: true },
+      });
+      
+      if (!category) {
+        // La categoría no existe
+        return [];
+      }
+      
+      // Obtener todos los IDs de subcategorías (hijos)
+      const childrenIds = await getAllChildrenIds(categoryId);
+      
+      // Buscar productos en la categoría padre Y en todas sus subcategorías
+      const categoryIdsToSearch = [categoryId, ...childrenIds];
+      
       const productsInCategory = await prisma.product.findMany({
-        where: { categoryId },
+        where: { 
+          categoryId: {
+            in: categoryIdsToSearch,
+          },
+        },
         select: { id: true },
       });
       productIds = productsInCategory.map(p => p.id);
       
       if (productIds.length === 0) {
-        // No hay productos en esta categoría
+        // No hay productos en esta categoría ni en sus subcategorías
         return [];
       }
     }
@@ -723,9 +770,17 @@ export class FeedService {
     // Construir condiciones de where
     const conditions: any[] = [searchConditions];
     
-    // Filtro por categoría si se especifica
+    // Filtro por categoría si se especifica (incluyendo subcategorías)
     if (categoryId) {
-      conditions.push({ categoryId });
+      // Obtener todos los IDs de subcategorías
+      const childrenIds = await getAllChildrenIds(categoryId);
+      const categoryIdsToSearch = [categoryId, ...childrenIds];
+      
+      conditions.push({ 
+        categoryId: {
+          in: categoryIdsToSearch,
+        }
+      });
     }
     
     // Aplicar cursor si existe (paginación basada en fecha e ID)
@@ -743,6 +798,21 @@ export class FeedService {
       });
     }
     
+    // Obtener IDs de productos que están en el ranking global (solo estos son válidos para mostrar)
+    const productsInRanking = await (prisma as any).globalRanking.findMany({
+      where: {
+        itemType: 'product',
+      },
+      select: { itemId: true },
+    });
+
+    const validProductIds = new Set(productsInRanking.map((r: any) => r.itemId));
+
+    if (validProductIds.size === 0) {
+      // No hay productos válidos en el ranking
+      return [];
+    }
+
     // Combinar todas las condiciones
     if (conditions.length === 1) {
       Object.assign(where, searchConditions);
@@ -752,6 +822,14 @@ export class FeedService {
     } else {
       where.AND = conditions;
     }
+
+    // IMPORTANTE: Solo productos que están en el ranking global (cumplen requisitos)
+    where.id = {
+      in: Array.from(validProductIds),
+    };
+
+    // También filtrar por active: true
+    where.active = true;
     
     // Obtener productos con búsqueda y paginación
     const products = await prisma.product.findMany({
@@ -1413,6 +1491,17 @@ export class FeedService {
   }
 
   /**
+   * Recalcular ranking para un item
+   * Método público para poder llamarlo desde otros servicios
+   */
+  async recalculateRankingForItem(
+    itemId: string,
+    itemType: 'product' | 'poster'
+  ): Promise<void> {
+    await this.recalculateRanking(itemId, itemType);
+  }
+
+  /**
    * Recalcular ranking global para un item
    * Basado en métricas: wishlist_count, orders_count, likes_count, comments_count
    */
@@ -1487,14 +1576,22 @@ export class FeedService {
     itemId: string,
     itemType: 'product' | 'poster'
   ) {
-    // ✅ VALIDAR: Para productos, verificar que tengan título e imágenes válidos
+    // ✅ VALIDAR: Para productos, verificar que tengan título, imágenes, active Y stock >= 30
     if (itemType === 'product') {
       const product = await prisma.product.findUnique({
         where: { id: itemId },
         select: {
           title: true,
           images: true,
+          hiddenImages: true,
           active: true,
+          variants: {
+            include: {
+              warehouseVariants: {
+                select: { stock: true },
+              },
+            },
+          },
         },
       });
 
@@ -1508,13 +1605,25 @@ export class FeedService {
                            product.title.trim() !== '' && 
                            product.title !== 'Sin nombre';
       
-      // Validar que tenga imágenes
-      const hasValidImages = product.images && 
-                            Array.isArray(product.images) && 
-                            product.images.length > 0;
+      // Validar que tenga imágenes visibles (filtrar bloqueadas)
+      const hiddenImages = product.hiddenImages || [];
+      const visibleImages = (product.images || []).filter(img => !hiddenImages.includes(img));
+      const hasValidImages = Array.isArray(visibleImages) && visibleImages.length > 0;
 
-      if (!hasValidTitle || !hasValidImages || !product.active) {
-        console.warn(`[FEED-SERVICE] Producto ${itemId} no cumple requisitos para ranking (title: ${hasValidTitle}, images: ${hasValidImages}, active: ${product.active}), omitiendo`);
+      // Calcular stock total
+      const MIN_STOCK_THRESHOLD = 30;
+      const totalStock = product.variants.reduce((total, variant) => {
+        const variantStock = variant.warehouseVariants?.reduce(
+          (sum, wv) => sum + (wv.stock || 0),
+          0
+        ) || 0;
+        return total + variantStock;
+      }, 0);
+
+      const hasEnoughStock = totalStock >= MIN_STOCK_THRESHOLD;
+
+      if (!hasValidTitle || !hasValidImages || !product.active || !hasEnoughStock) {
+        console.warn(`[FEED-SERVICE] Producto ${itemId} no cumple requisitos para ranking (title: ${hasValidTitle}, images: ${hasValidImages}, active: ${product.active}, stock: ${totalStock} < ${MIN_STOCK_THRESHOLD}), omitiendo`);
         return; // No agregar al ranking si no cumple requisitos
       }
     }

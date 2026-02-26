@@ -2,7 +2,9 @@ import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { FeedService } from '../feed/feed.service';
 import { calculateTankuPriceFromVariant } from '../../shared/utils/price.utils';
+import { calculateTankuPriceWithFormula } from '../../shared/utils/price-formula.utils';
 import type { Product } from '@prisma/client';
+import { PriceFormulaType } from '@prisma/client';
 
 /**
  * Limpia HTML de una descripción, convirtiéndola a texto plano
@@ -114,6 +116,27 @@ export class DropiSyncService {
    * Método público para que pueda ser llamado desde otros servicios (ej: worker de stock)
    */
   async updateVariantStockStatus(variantId: string): Promise<void> {
+    // Verificar si el producto está bloqueado
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: variantId },
+      include: {
+        product: {
+          select: {
+            lockedByAdmin: true,
+          },
+        },
+      },
+    });
+
+    if (!variant) return;
+
+    // Si el producto está bloqueado, NO cambiar el estado activo/inactivo
+    if (variant.product.lockedByAdmin) {
+      console.log(`[SYNC TO BACKEND] 🔒 Producto bloqueado, no se actualiza estado de variante ${variantId}`);
+      return; // Solo actualizar stock, no el estado active
+    }
+
+    // Si no está bloqueado, actualizar estado según stock (lógica actual)
     const stock = await this.calculateVariantStock(variantId);
     
     if (stock <= 0) {
@@ -358,11 +381,15 @@ export class DropiSyncService {
             description: cleanDescription(dropiProduct.description),
             images: images,
             categoryId: categoryId,
-            active: true, // Por defecto activo
+            // NO incluir active aquí - se maneja según bloqueo
           };
 
           const existingProduct = await prisma.product.findUnique({
             where: { handle },
+            select: {
+              id: true,
+              lockedByAdmin: true,
+            },
           });
 
           let product: Product;
@@ -370,51 +397,84 @@ export class DropiSyncService {
             if (skipExisting) {
               // Si skipExisting es true, usar el producto existente pero NO actualizar sus datos
               // Sin embargo, SÍ actualizamos variantes y warehouseVariants (para worker de stock)
-              product = existingProduct;
+              product = await prisma.product.findUniqueOrThrow({
+                where: { id: existingProduct.id },
+              });
               console.log(`[SYNC TO BACKEND] ⏭️ Usando producto existente (skipExisting): ${existingProduct.id}`);
             } else {
-              product = await prisma.product.update({
-                where: { id: existingProduct.id },
-                data: productData,
-              });
-              productsUpdated++;
-              console.log(`[SYNC TO BACKEND] ✅ Producto actualizado: ${product.id}`);
-
-              // ✅ VALIDAR: Verificar si el producto actualizado cumple requisitos para ranking
-              // Solo validar si NO es skipExisting (porque en skipExisting no actualizamos productData)
-              const hasValidTitle = productData.title && 
-                                   productData.title.trim() !== '' && 
-                                   productData.title !== 'Sin nombre';
-              const hasValidImages = productData.images && 
-                                    Array.isArray(productData.images) && 
-                                    productData.images.length > 0;
-
-              if (hasValidTitle && hasValidImages && productData.active) {
-                // Producto válido: asegurar que esté en el ranking
-                const feedService = new FeedService();
-                feedService.initializeItemMetrics(product.id, 'product').catch((error) => {
-                  console.error(`Error inicializando métricas del feed para producto ${product.id}:`, error);
+              const isLocked = existingProduct.lockedByAdmin;
+              
+              if (isLocked) {
+                // Producto bloqueado: solo actualizar stock, NO tocar active ni otros campos
+                // Tampoco actualizar tankuPrice (se respeta la fórmula configurada por admin)
+                console.log(`[SYNC TO BACKEND] 🔒 Producto bloqueado, solo actualizando stock (NO precios): ${existingProduct.id}`);
+                product = await prisma.product.findUniqueOrThrow({
+                  where: { id: existingProduct.id },
+                  // No necesitamos incluir nada, solo obtener el producto con sus campos (priceFormulaType, priceFormulaValue)
                 });
+                // No actualizar el producto, solo las variantes (pero sin tocar tankuPrice)
               } else {
-                // Producto inválido: eliminar del ranking si existe
-                console.warn(`[SYNC TO BACKEND] ⚠️ Producto ${product.id} no cumple requisitos (title: ${hasValidTitle}, images: ${hasValidImages}, active: ${productData.active}), eliminando del ranking si existe`);
-                try {
-                  await (prisma as any).globalRanking.deleteMany({
-                    where: {
-                      itemId: product.id,
-                      itemType: 'product',
-                    },
+                // Producto no bloqueado: actualizar todo incluyendo active
+                product = await prisma.product.update({
+                  where: { id: existingProduct.id },
+                  data: {
+                    ...productData,
+                    active: true, // Solo si no está bloqueado
+                  },
+                });
+                productsUpdated++;
+                console.log(`[SYNC TO BACKEND] ✅ Producto actualizado: ${product.id}`);
+
+                // ✅ VALIDAR: Verificar si el producto actualizado cumple requisitos para ranking
+                // Solo validar si NO está bloqueado
+                const hasValidTitle = productData.title && 
+                                     productData.title.trim() !== '' && 
+                                     productData.title !== 'Sin nombre';
+                const hasValidImages = productData.images && 
+                                      Array.isArray(productData.images) && 
+                                      productData.images.length > 0;
+
+                // Calcular stock total ANTES de decidir si agregar al ranking
+                const totalStock = await this.calculateProductStock(product.id);
+                const hasEnoughStock = totalStock >= this.MIN_STOCK_THRESHOLD;
+
+                if (hasValidTitle && hasValidImages && product.active && hasEnoughStock) {
+                  // Producto válido: asegurar que esté en el ranking
+                  const feedService = new FeedService();
+                  feedService.initializeItemMetrics(product.id, 'product').catch((error) => {
+                    console.error(`Error inicializando métricas del feed para producto ${product.id}:`, error);
                   });
-                  console.log(`[SYNC TO BACKEND] ✅ Producto ${product.id} eliminado del ranking`);
-                } catch (error) {
-                  // Ignorar errores (puede que no exista en el ranking)
-                  console.log(`[SYNC TO BACKEND] ℹ️ Producto ${product.id} no estaba en el ranking`);
+                } else {
+                  // Producto inválido: eliminar del ranking si existe
+                  const reasons = [];
+                  if (!hasValidTitle) reasons.push('título inválido');
+                  if (!hasValidImages) reasons.push('sin imágenes');
+                  if (!product.active) reasons.push('inactivo');
+                  if (!hasEnoughStock) reasons.push(`stock insuficiente (${totalStock} < ${this.MIN_STOCK_THRESHOLD})`);
+                  
+                  console.warn(`[SYNC TO BACKEND] ⚠️ Producto ${product.id} no cumple requisitos (${reasons.join(', ')}), eliminando del ranking si existe`);
+                  try {
+                    await (prisma as any).globalRanking.deleteMany({
+                      where: {
+                        itemId: product.id,
+                        itemType: 'product',
+                      },
+                    });
+                    console.log(`[SYNC TO BACKEND] ✅ Producto ${product.id} eliminado del ranking`);
+                  } catch (error) {
+                    // Ignorar errores (puede que no exista en el ranking)
+                    console.log(`[SYNC TO BACKEND] ℹ️ Producto ${product.id} no estaba en el ranking`);
+                  }
                 }
               }
             }
           } else {
+            // Crear nuevo producto (siempre se crea activo, bloqueo no aplica)
             product = await prisma.product.create({
-              data: productData,
+              data: {
+                ...productData,
+                active: true,
+              },
             });
             productsCreated++;
             console.log(`[SYNC TO BACKEND] ✅ Producto creado: ${product.id}`);
@@ -466,11 +526,48 @@ export class DropiSyncService {
               const variationSuggestedPrice = variation.suggested_price ? Math.round(variation.suggested_price) : (dropiProduct.suggestedPrice || null);
               const variationPrice = variationSalePrice > 0 ? variationSalePrice : (variationSuggestedPrice || dropiProduct.price || 0);
               
-              // Calcular tankuPrice desde la variante
-              const variationTankuPrice = calculateTankuPriceFromVariant({
-                suggestedPrice: variationSuggestedPrice,
-                price: variationPrice,
-              });
+              // Calcular tankuPrice solo si el producto NO está bloqueado
+              // Si está bloqueado, mantener el tankuPrice existente (respetar fórmula del admin)
+              // IMPORTANTE: Las fórmulas se calculan SOLO desde suggestedPrice (no desde price)
+              let variationTankuPrice: number | undefined = undefined;
+              if (!product.lockedByAdmin) {
+                // Producto no bloqueado: calcular con fórmula del producto, fórmula por defecto, o estándar
+                // Usar SOLO suggestedPrice para fórmulas
+                const basePrice = variationSuggestedPrice;
+                if (basePrice && basePrice > 0) {
+                  if (product.priceFormulaType && product.priceFormulaValue) {
+                    // Usar fórmula personalizada del producto
+                    variationTankuPrice = calculateTankuPriceWithFormula(
+                      basePrice,
+                      product.priceFormulaType as PriceFormulaType,
+                      product.priceFormulaValue as any
+                    );
+                  } else {
+                    // Buscar fórmula por defecto global
+                    const defaultFormula = await prisma.priceFormula.findFirst({
+                      where: { isDefault: true },
+                    });
+                    
+                    if (defaultFormula) {
+                      // Usar fórmula por defecto global
+                      variationTankuPrice = calculateTankuPriceWithFormula(
+                        basePrice,
+                        defaultFormula.type,
+                        defaultFormula.value as any
+                      );
+                      console.log(`[SYNC TO BACKEND] Usando fórmula por defecto "${defaultFormula.name}" para variante ${variationSku}`);
+                    } else {
+                      // Fallback a fórmula hardcodeada estándar
+                      variationTankuPrice = calculateTankuPriceFromVariant({
+                        suggestedPrice: variationSuggestedPrice,
+                        price: variationPrice,
+                      });
+                    }
+                  }
+                }
+                // Si no hay suggestedPrice, no calcular tankuPrice
+              }
+              // Si está bloqueado, variationTankuPrice queda undefined y no se actualizará
               
               // Extraer atributos desde attribute_values (estructura real del raw)
               // attribute_values: [{ attribute_name: "Color", value: "Negro" }, { attribute_name: "Talla", value: "L" }]
@@ -538,27 +635,37 @@ export class DropiSyncService {
                   if (!existingVariant.productId || existingVariant.productId !== product.id) {
                     console.warn(`[SYNC TO BACKEND]    ⚠️ Variante ${variationSku} tiene productId diferente (${existingVariant.productId} vs ${product.id}), actualizando...`);
                     // Si el productId es diferente, actualizarlo también
+                    // Si el producto está bloqueado, NO actualizar tankuPrice
+                    const updateData: any = {
+                      productId: product.id, // Asegurar que el productId sea correcto
+                      title: variationTitle,
+                      price: variationPrice,
+                      suggestedPrice: variationSuggestedPrice,
+                      attributes: attributesData.length > 0 ? attributesData : undefined,
+                    };
+                    // Solo actualizar tankuPrice si no está bloqueado
+                    if (variationTankuPrice !== undefined) {
+                      updateData.tankuPrice = variationTankuPrice;
+                    }
                     variant = await prisma.productVariant.update({
                       where: { id: existingVariant.id },
-                      data: {
-                        productId: product.id, // Asegurar que el productId sea correcto
-                        title: variationTitle,
-                        price: variationPrice,
-                        suggestedPrice: variationSuggestedPrice,
-                        tankuPrice: variationTankuPrice,
-                        attributes: attributesData.length > 0 ? attributesData : undefined,
-                      },
+                      data: updateData,
                     });
                   } else {
+                    // Si el producto está bloqueado, NO actualizar tankuPrice
+                    const updateData: any = {
+                      title: variationTitle,
+                      price: variationPrice,
+                      suggestedPrice: variationSuggestedPrice,
+                      attributes: attributesData.length > 0 ? attributesData : undefined,
+                    };
+                    // Solo actualizar tankuPrice si no está bloqueado
+                    if (variationTankuPrice !== undefined) {
+                      updateData.tankuPrice = variationTankuPrice;
+                    }
                     variant = await prisma.productVariant.update({
                       where: { id: existingVariant.id },
-                      data: {
-                        title: variationTitle,
-                        price: variationPrice,
-                        suggestedPrice: variationSuggestedPrice,
-                        tankuPrice: variationTankuPrice,
-                        attributes: attributesData.length > 0 ? attributesData : undefined,
-                      },
+                      data: updateData,
                     });
                   }
                   variantsUpdated++;
@@ -589,23 +696,60 @@ export class DropiSyncService {
               
               // Crear variante si no existe o si falló la actualización
               if (shouldCreate && !variant) {
-                // Calcular tankuPrice para nueva variante
-                const newVariationTankuPrice = calculateTankuPriceFromVariant({
-                  suggestedPrice: variationSuggestedPrice,
+                // Calcular tankuPrice solo si el producto NO está bloqueado
+                // IMPORTANTE: Las fórmulas se calculan SOLO desde suggestedPrice (no desde price)
+                let newVariationTankuPrice: number | undefined = undefined;
+                if (!product.lockedByAdmin) {
+                  const basePrice = variationSuggestedPrice;
+                  if (basePrice && basePrice > 0) {
+                    if (product.priceFormulaType && product.priceFormulaValue) {
+                      // Usar fórmula personalizada del producto
+                      newVariationTankuPrice = calculateTankuPriceWithFormula(
+                        basePrice,
+                        product.priceFormulaType as PriceFormulaType,
+                        product.priceFormulaValue as any
+                      );
+                    } else {
+                      // Buscar fórmula por defecto global
+                      const defaultFormula = await prisma.priceFormula.findFirst({
+                        where: { isDefault: true },
+                      });
+                      
+                      if (defaultFormula) {
+                        // Usar fórmula por defecto global
+                        newVariationTankuPrice = calculateTankuPriceWithFormula(
+                          basePrice,
+                          defaultFormula.type,
+                          defaultFormula.value as any
+                        );
+                      } else {
+                        // Fallback a fórmula hardcodeada estándar
+                        newVariationTankuPrice = calculateTankuPriceFromVariant({
+                          suggestedPrice: variationSuggestedPrice,
+                          price: variationPrice,
+                        });
+                      }
+                    }
+                  }
+                  // Si no hay suggestedPrice, no calcular tankuPrice
+                }
+                
+                const createData: any = {
+                  productId: product.id,
+                  sku: variationSku,
+                  title: variationTitle,
                   price: variationPrice,
-                });
+                  suggestedPrice: variationSuggestedPrice,
+                  attributes: attributesData.length > 0 ? attributesData : undefined,
+                  active: true,
+                };
+                // Solo agregar tankuPrice si no está bloqueado
+                if (newVariationTankuPrice !== undefined) {
+                  createData.tankuPrice = newVariationTankuPrice;
+                }
                 
                 variant = await prisma.productVariant.create({
-                  data: {
-                    productId: product.id,
-                    sku: variationSku,
-                    title: variationTitle,
-                    price: variationPrice,
-                    suggestedPrice: variationSuggestedPrice,
-                    tankuPrice: newVariationTankuPrice,
-                    attributes: attributesData.length > 0 ? attributesData : undefined,
-                    active: true,
-                  },
+                  data: createData,
                 });
                 variantsCreated++;
                 console.log(`[SYNC TO BACKEND]    ✅ Variante creada: ${variationSku}`);
@@ -637,11 +781,46 @@ export class DropiSyncService {
             const finalPrice = Math.round(dropiProduct.price || 0);
             const finalSuggestedPrice = dropiProduct.suggestedPrice ? Math.round(dropiProduct.suggestedPrice) : null;
             
-            // Calcular tankuPrice para producto SIMPLE
-            const simpleTankuPrice = calculateTankuPriceFromVariant({
-              suggestedPrice: finalSuggestedPrice,
-              price: finalPrice,
-            });
+            // Calcular tankuPrice solo si el producto NO está bloqueado
+            // Si está bloqueado, mantener el tankuPrice existente (respetar fórmula del admin)
+            // IMPORTANTE: Las fórmulas se calculan SOLO desde suggestedPrice (no desde price)
+            let simpleTankuPrice: number | undefined = undefined;
+            if (!product.lockedByAdmin) {
+              const basePrice = finalSuggestedPrice;
+              if (basePrice && basePrice > 0) {
+                if (product.priceFormulaType && product.priceFormulaValue) {
+                  // Usar fórmula personalizada del producto
+                  simpleTankuPrice = calculateTankuPriceWithFormula(
+                    basePrice,
+                    product.priceFormulaType as PriceFormulaType,
+                    product.priceFormulaValue as any
+                  );
+                } else {
+                  // Buscar fórmula por defecto global
+                  const defaultFormula = await prisma.priceFormula.findFirst({
+                    where: { isDefault: true },
+                  });
+                  
+                  if (defaultFormula) {
+                    // Usar fórmula por defecto global
+                    simpleTankuPrice = calculateTankuPriceWithFormula(
+                      basePrice,
+                      defaultFormula.type,
+                      defaultFormula.value as any
+                    );
+                    console.log(`[SYNC TO BACKEND] Usando fórmula por defecto "${defaultFormula.name}" para producto SIMPLE ${uniqueSku}`);
+                  } else {
+                    // Fallback a fórmula hardcodeada estándar
+                    simpleTankuPrice = calculateTankuPriceFromVariant({
+                      suggestedPrice: finalSuggestedPrice,
+                      price: finalPrice,
+                    });
+                  }
+                }
+              }
+              // Si no hay suggestedPrice, no calcular tankuPrice
+            }
+            // Si está bloqueado, simpleTankuPrice queda undefined y no se actualizará
 
             const existingVariant = await prisma.productVariant.findUnique({
               where: { sku: uniqueSku },
@@ -665,25 +844,33 @@ export class DropiSyncService {
                 if (!existingVariant.productId || existingVariant.productId !== product.id) {
                   console.warn(`[SYNC TO BACKEND]    ⚠️ Variante ${uniqueSku} tiene productId diferente (${existingVariant.productId} vs ${product.id}), actualizando...`);
                   // Si el productId es diferente, actualizarlo también
+                  // Si el producto está bloqueado, NO actualizar tankuPrice
+                  const updateDataSimple1: any = {
+                    productId: product.id, // Asegurar que el productId sea correcto
+                    title: dropiProduct.name || 'Default',
+                    price: finalPrice,
+                    suggestedPrice: finalSuggestedPrice,
+                  };
+                  if (simpleTankuPrice !== undefined) {
+                    updateDataSimple1.tankuPrice = simpleTankuPrice;
+                  }
                   variant = await prisma.productVariant.update({
                     where: { id: existingVariant.id },
-                      data: {
-                        productId: product.id, // Asegurar que el productId sea correcto
-                        title: dropiProduct.name || 'Default',
-                        price: finalPrice,
-                        suggestedPrice: finalSuggestedPrice,
-                        tankuPrice: simpleTankuPrice,
-                      },
+                    data: updateDataSimple1,
                   });
                 } else {
+                  // Si el producto está bloqueado, NO actualizar tankuPrice
+                  const updateDataSimple2: any = {
+                    title: dropiProduct.name || 'Default',
+                    price: finalPrice,
+                    suggestedPrice: finalSuggestedPrice,
+                  };
+                  if (simpleTankuPrice !== undefined) {
+                    updateDataSimple2.tankuPrice = simpleTankuPrice;
+                  }
                   variant = await prisma.productVariant.update({
                     where: { id: existingVariant.id },
-                    data: {
-                      title: dropiProduct.name || 'Default',
-                      price: finalPrice,
-                      suggestedPrice: finalSuggestedPrice,
-                      tankuPrice: simpleTankuPrice,
-                    },
+                    data: updateDataSimple2,
                   });
                 }
                 variantsUpdated++;
@@ -711,18 +898,22 @@ export class DropiSyncService {
             }
 
             // Crear variante si no existe o si falló la actualización
-            if (shouldCreate && !variant) {
-              variant = await prisma.productVariant.create({
-                data: {
+              if (shouldCreate && !variant) {
+                const createDataSimple: any = {
                   productId: product.id,
                   sku: uniqueSku,
                   title: dropiProduct.name || 'Default',
                   price: finalPrice,
                   suggestedPrice: finalSuggestedPrice,
-                  tankuPrice: simpleTankuPrice,
                   active: true,
-                },
-              });
+                };
+                // Solo agregar tankuPrice si no está bloqueado
+                if (simpleTankuPrice !== undefined) {
+                  createDataSimple.tankuPrice = simpleTankuPrice;
+                }
+                variant = await prisma.productVariant.create({
+                  data: createDataSimple,
+                });
               variantsCreated++;
               console.log(`[SYNC TO BACKEND]    ✅ Variante creada: ${uniqueSku}`);
             }

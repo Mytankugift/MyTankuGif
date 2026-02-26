@@ -125,15 +125,17 @@ model Category {
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  title       String
-  handle      String   @unique
-  description String?
-  images      String[]
-  categoryId  String?  @map("category_id")
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  title           String
+  handle          String   @unique
+  description     String?
+  images          String[]
+  customImageUrls String[] @default([]) @map("custom_image_urls") // URLs de imágenes propias subidas a S3
+  hiddenImages    String[] @default([]) @map("hidden_images") // URLs bloqueadas (pueden ser Dropi o custom)
+  categoryId      String?  @map("category_id")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   // Bloqueo simplificado (producto completo)
   lockedByAdmin Boolean   @default(false) @map("locked_by_admin")
@@ -169,9 +171,6 @@ model ProductVariant {
   attributes     Json?
   suggestedPrice Int?     @map("suggested_price")
   tankuPrice     Int?     @map("tanku_price")
-
-  // Bloqueo de precio (opcional, para Fase 2)
-  tankuPriceLocked Boolean @default(false) @map("tanku_price_locked")
 
   cartItems         CartItem[]
   orderItems        OrderItem[]
@@ -899,7 +898,22 @@ enum AdminRole {
 }
 
 enum PriceFormulaType {
-  PERCENTAGE // Ej: +15% sobre basePrice
-  FIXED // Ej: +$10,000 fijo
-  MIN_MARGIN // Ej: mínimo $5,000 de margen
+  STANDARD // Fórmula estándar: (base * 1.15) + 10,000
+  CUSTOM_STANDARD // Fórmula personalizada: (base * multiplicador) + suma_fija (ej: 1.20 y 15000)
+  PERCENTAGE // Solo porcentaje: base + (base * porcentaje / 100)
+  FIXED // Suma fija: base + cantidad_fija
+  MIN_MARGIN // Margen mínimo garantizado: base + max(15% de base, margen_mínimo)
+}
+
+model PriceFormula {
+  id          String           @id @default(cuid())
+  name        String           @unique // Nombre de la plantilla (ej: "Estándar 15% + $10k")
+  type        PriceFormulaType
+  value       Json // { percentage: 15 } o { fixed: 10000 } o { minMargin: 5000 }
+  description String? // Descripción opcional
+  isDefault   Boolean          @default(false) @map("is_default") // Fórmula por defecto para nuevos productos
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@map("price_formulas")
 }

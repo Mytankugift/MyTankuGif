@@ -23,12 +23,12 @@ export default function FeedPage() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await apiClient.get<{ id: string; name: string; handle: string }[]>('/api/v1/categories')
+        const response = await apiClient.get<{ id: string; name: string; handle: string; imageUrl: string | null }[]>('/api/v1/categories')
         if (response.success && Array.isArray(response.data)) {
           setCategories(response.data.map((c: any) => ({
             id: c.id,
             name: c.name,
-            image: c.image || null,
+            image: c.imageUrl || null, // Usar imageUrl del backend
           })))
         }
       } catch (error) {

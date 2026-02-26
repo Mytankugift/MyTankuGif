@@ -125,37 +125,30 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
 
   const handleVariantSelect = (newVariant: ProductVariantDTO) => {
     setSelectedVariantInModal(newVariant)
-    // Si es la misma variante, mantener la cantidad actual
-    if (newVariant.id === item.variantId) {
-      setModalQuantity(item.quantity)
-    } else {
-      // Si es diferente, resetear a 1
-      setModalQuantity(1)
-    }
   }
 
   const handleUpdateQuantity = async () => {
     if (!selectedVariantInModal) return
 
     try {
-      // Si es la misma variante, actualizar cantidad
+      // Si es la misma variante, no hacer nada (solo cerrar)
       if (selectedVariantInModal.id === item.variantId) {
-        await updateItem(item.id, modalQuantity)
         setShowVariantModal(false)
-      } else {
-        // Si es diferente variante, eliminar el actual y agregar el nuevo
-        try {
-          await removeItem(item.id)
-        } catch (err: any) {
-          // Si el error es NOT_FOUND, el item ya no existe, continuar agregando el nuevo
-          if (!err?.message?.includes('NOT_FOUND') && !err?.message?.includes('no encontrado')) {
-            throw err
-          }
-          console.warn('Item ya no existe, agregando nueva variante...')
-        }
-        await addItem(selectedVariantInModal.id, modalQuantity)
-        setShowVariantModal(false)
+        return
       }
+      
+      // Si es diferente variante, eliminar el actual y agregar el nuevo con la misma cantidad
+      try {
+        await removeItem(item.id)
+      } catch (err: any) {
+        // Si el error es NOT_FOUND, el item ya no existe, continuar agregando el nuevo
+        if (!err?.message?.includes('NOT_FOUND') && !err?.message?.includes('no encontrado')) {
+          throw err
+        }
+        console.warn('Item ya no existe, agregando nueva variante...')
+      }
+      await addItem(selectedVariantInModal.id, item.quantity) // Mantener la misma cantidad
+      setShowVariantModal(false)
     } catch (err: any) {
       console.error('Error actualizando:', err)
       alert(err?.message || 'Error al actualizar')
@@ -408,7 +401,7 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
               <div className="space-y-4">
                 <p className="text-gray-400 text-sm mb-2">
                   {selectedVariantInModal?.id === item.variantId 
-                    ? 'Selecciona una opción o ajusta la cantidad:' 
+                    ? 'Selecciona una opción diferente:' 
                     : 'Selecciona una opción diferente:'}
                 </p>
                 <VariantSelector
@@ -419,33 +412,6 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
                 />
                 
                 {/* Mostrar cantidad si es la misma variante o si hay una seleccionada */}
-                {selectedVariantInModal && (
-                  <div className="space-y-2 pt-2">
-                    <label className="text-gray-400 text-sm">Cantidad:</label>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => handleQuantityChange(modalQuantity - 1)}
-                        disabled={modalQuantity <= 1}
-                        className="w-10 h-10 rounded-lg bg-gray-700 text-white hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                      >
-                        -
-                      </button>
-                      <span className="w-12 text-center text-white font-semibold">{modalQuantity}</span>
-                      <button
-                        onClick={() => handleQuantityChange(modalQuantity + 1)}
-                        disabled={modalQuantity >= Math.min(selectedVariantInModal.stock || 10, 10)}
-                        className="w-10 h-10 rounded-lg bg-gray-700 text-white hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                      >
-                        +
-                      </button>
-                      {selectedVariantInModal.stock > 0 && (
-                        <span className="text-gray-500 text-xs ml-2">
-                          Stock: {selectedVariantInModal.stock}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 <div className="flex gap-3 pt-4">
                   <button
@@ -456,19 +422,11 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
                   </button>
                   <button
                     onClick={handleUpdateQuantity}
-                    disabled={!selectedVariantInModal || modalQuantity < 1}
+                    disabled={!selectedVariantInModal || selectedVariantInModal.id === item.variantId}
                     className="flex-1 px-4 py-2 bg-[#66DEDB] hover:bg-[#5accc9] text-black font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {selectedVariantInModal?.id === item.variantId ? 'Actualizar cantidad' : 'Cambiar opción'}
+                    Cambiar opción
                   </button>
-                  {productHandle && (
-                    <Link
-                      href={`/products/${productHandle}`}
-                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-center text-sm"
-                    >
-                      Ver
-                    </Link>
-                  )}
                 </div>
               </div>
             ) : (

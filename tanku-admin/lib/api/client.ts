@@ -27,6 +27,10 @@ apiClient.interceptors.request.use(
         }
       }
     }
+    // Si es FormData, no establecer Content-Type (el navegador lo hace automáticamente con boundary)
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
     return config
   },
   (error) => {

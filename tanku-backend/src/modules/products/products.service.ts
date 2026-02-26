@@ -11,6 +11,7 @@ import { normalizePagination, createPaginatedResult } from '../../shared/paginat
 import type { Product, ProductVariant, Category } from '@prisma/client';
 import { WishListsService } from '../wishlists/wishlists.service';
 import { FeedService } from '../feed/feed.service';
+import { getBlockedCategoryIds } from '../../shared/utils/category.utils';
 
 export interface ProductListQuery {
   page?: number;
@@ -87,6 +88,7 @@ export class ProductsService {
       name: category.name,
       handle: category.handle,
       parentId: category.parentId,
+      imageUrl: category.imageUrl || null,
     };
   }
 
@@ -117,14 +119,21 @@ export class ProductsService {
     product: Product & {
       category?: Category | null;
       variants?: (ProductVariant & { warehouseVariants?: { stock: number }[] })[];
+      hiddenImages?: string[];
     }
   ): ProductDTO {
+    // Filtrar imágenes bloqueadas
+    const hiddenImages = product.hiddenImages || [];
+    const visibleImages = product.images
+      .filter(img => !hiddenImages.includes(img))
+      .map((img) => this.normalizeImageUrl(img));
+
     return {
       id: product.id,
       title: product.title,
       handle: product.handle,
       description: product.description,
-      images: product.images.map((img) => this.normalizeImageUrl(img)),
+      images: visibleImages,
       active: product.active,
       category: this.mapCategoryToDTO(product.category || null),
       variants: (product.variants || []).map((v) => this.mapVariantToDTO(v)),
@@ -138,8 +147,14 @@ export class ProductsService {
     product: Product & {
       category?: Category | null;
       variants?: ProductVariant[];
+      hiddenImages?: string[];
     }
   ): ProductListDTO {
+    // Filtrar imágenes bloqueadas y obtener la primera visible
+    const hiddenImages = product.hiddenImages || [];
+    const visibleImages = (product.images || []).filter(img => !hiddenImages.includes(img));
+    const firstVisibleImage = visibleImages.length > 0 ? visibleImages[0] : null;
+
     const minPrice = product.variants && product.variants.length > 0
       ? Math.min(...product.variants.map((v) => v.tankuPrice || 0).filter(p => p > 0))
       : 0;
@@ -148,7 +163,7 @@ export class ProductsService {
       id: product.id,
       title: product.title,
       handle: product.handle,
-      image: product.images.length > 0 ? this.normalizeImageUrl(product.images[0]) : null,
+      image: firstVisibleImage ? this.normalizeImageUrl(firstVisibleImage) : null,
       minPrice,
       active: product.active,
     };
@@ -160,11 +175,26 @@ export class ProductsService {
   async listProductsNormalized(query: ProductListQuery) {
     const { page, limit, skip } = normalizePagination(query, { page: 1, limit: 20 });
 
+    // Obtener IDs de categorías bloqueadas
+    const blockedCategoryIds = await getBlockedCategoryIds();
+
     const where: any = {};
 
     // Filtro por categoría
     if (query.category) {
+      // Verificar si la categoría solicitada está bloqueada
+      if (blockedCategoryIds.includes(query.category)) {
+        // La categoría está bloqueada, retornar lista vacía
+        return createPaginatedResult([], page, limit, 0);
+      }
       where.categoryId = query.category;
+    } else {
+      // Si no hay filtro de categoría, excluir productos de categorías bloqueadas
+      if (blockedCategoryIds.length > 0) {
+        where.categoryId = {
+          notIn: blockedCategoryIds,
+        };
+      }
     }
 
     // Filtro por active
@@ -236,10 +266,19 @@ export class ProductsService {
     const limit = Math.min(query.limit || 12, 100); // Máximo 100
     const offset = query.offset || 0;
 
+    // Obtener IDs de categorías bloqueadas
+    const blockedCategoryIds = await getBlockedCategoryIds();
+
     // Temporalmente mostrar todos los productos (activos e inactivos) para debugging
     // TODO: Volver a filtrar solo activos cuando esté listo
     const where: any = {
       // active: true, // Comentado temporalmente para ver todos los productos
+      // Excluir productos de categorías bloqueadas
+      ...(blockedCategoryIds.length > 0 && {
+        categoryId: {
+          notIn: blockedCategoryIds,
+        },
+      }),
     };
 
     // Si hay búsqueda, ignorar el filtro de categoría (buscar en todos los productos)
@@ -492,8 +531,19 @@ export class ProductsService {
    * Obtener producto por handle (NUEVO - Normalizado con DTO)
    */
   async getProductByHandleNormalized(handle: string): Promise<ProductDTO> {
+    // Obtener IDs de categorías bloqueadas
+    const blockedCategoryIds = await getBlockedCategoryIds();
+    
     const product = await prisma.product.findUnique({
-      where: { handle },
+      where: { 
+        handle,
+        // Excluir productos de categorías bloqueadas
+        ...(blockedCategoryIds.length > 0 && {
+          categoryId: {
+            notIn: blockedCategoryIds,
+          },
+        }),
+      },
       include: {
         category: true,
         variants: {
@@ -506,6 +556,7 @@ export class ProductsService {
           },
         },
       },
+      // Incluir hiddenImages para filtrar
     });
 
     if (!product) {
@@ -551,12 +602,18 @@ export class ProductsService {
       return `${cdnBase}/${cleanPath}`;
     };
 
+    // Filtrar imágenes bloqueadas
+    const hiddenImages = product.hiddenImages || [];
+    const visibleImages = (product.images || [])
+      .filter(img => !hiddenImages.includes(img))
+      .map(normalizeImageUrl);
+
     return {
       id: product.id,
       title: product.title,
       handle: product.handle,
       description: product.description || undefined,
-      images: product.images.map(normalizeImageUrl),
+      images: visibleImages,
       category: product.category
         ? {
             id: product.category.id,
@@ -622,12 +679,18 @@ export class ProductsService {
       return `${cdnBase}/${cleanPath}`;
     };
 
+    // Filtrar imágenes bloqueadas
+    const hiddenImages = product.hiddenImages || [];
+    const visibleImages = (product.images || [])
+      .filter(img => !hiddenImages.includes(img))
+      .map(normalizeImageUrl);
+
     return {
       id: product.id,
       title: product.title,
       handle: product.handle,
       description: product.description || undefined,
-      images: product.images.map(normalizeImageUrl),
+      images: visibleImages,
       category: product.category
         ? {
             id: product.category.id,

@@ -131,10 +131,10 @@ export default function WorkerPage() {
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <p className="text-gray-600">Worker no encontrado</p>
             <button
-              onClick={() => router.push('/')}
+              onClick={() => router.push('/workers')}
               className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg"
             >
-              Volver al dashboard
+              Volver a Workers
             </button>
           </div>
         </div>
@@ -314,13 +314,13 @@ export default function WorkerPage() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <button
-            onClick={() => router.push('/')}
-            className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeftIcon className="w-5 h-5" />
-            <span>Volver al dashboard</span>
-          </button>
+            <button
+              onClick={() => router.push('/workers')}
+              className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeftIcon className="w-5 h-5" />
+              <span>Volver a Workers</span>
+            </button>
           
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center gap-4 mb-2">
