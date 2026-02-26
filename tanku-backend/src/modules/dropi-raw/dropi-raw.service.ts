@@ -66,7 +66,17 @@ export class DropiRawService {
 
       // Loop para las siguientes páginas
       startData += pageSize;
-      while (startData < totalCount && (maxPages === null || pageNumber < startPage + maxPages)) {
+      while (true) {
+        // Verificar límite de páginas si está definido
+        if (maxPages !== null && pageNumber >= startPage + maxPages) {
+          break;
+        }
+        
+        // Si tenemos un total válido, verificar si ya llegamos al final
+        if (totalCount > 0 && startData >= totalCount) {
+          break;
+        }
+
         const page = await this.dropiService.listProducts({
           pageSize,
           startData,
@@ -82,10 +92,10 @@ export class DropiRawService {
         await this.saveRawProducts(page.objects, 'index');
 
         totalProcessed += page.objects.length;
-        const remaining = totalCount - totalProcessed;
-        const pagesRemaining = Math.ceil(remaining / pageSize);
+        const remaining = totalCount > 0 ? totalCount - totalProcessed : 0;
+        const pagesRemaining = totalCount > 0 ? Math.ceil(remaining / pageSize) : 0;
 
-        console.log(`[SYNC RAW] ✅ Página ${pageNumber + 1}: ${page.objects.length} productos guardados | Total: ${totalProcessed}/${totalCount} | Faltan: ${pagesRemaining} páginas (${remaining} productos)`);
+        console.log(`[SYNC RAW] ✅ Página ${pageNumber + 1}: ${page.objects.length} productos guardados | Total: ${totalProcessed}${totalCount > 0 ? `/${totalCount}` : ''} | ${totalCount > 0 ? `Faltan: ${pagesRemaining} páginas (${remaining} productos)` : 'Continuando...'}`);
 
         startData += pageSize;
         pageNumber++;
@@ -101,7 +111,7 @@ export class DropiRawService {
         total: totalCount,
         pages_processed: pageNumber - startPage,
         next_start_page: pageNumber,
-        has_more: startData < totalCount,
+        has_more: totalCount > 0 ? startData < totalCount : false, // Si totalCount es 0, asumimos que no hay más
       };
     } catch (error: any) {
       console.error(`[SYNC RAW] ❌ Error: ${error?.message}`);
