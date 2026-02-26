@@ -323,14 +323,36 @@ export default function WorkerPage() {
             </button>
           
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center gap-4 mb-2">
-              <div className={`w-16 h-16 ${process.color} rounded-xl flex items-center justify-center text-3xl shadow-sm`}>
-                {process.icon}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 flex-1">
+                <div className={`w-16 h-16 ${process.color} rounded-xl flex items-center justify-center text-3xl shadow-sm`}>
+                  {process.icon}
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">{process.name}</h1>
+                  <p className="text-sm text-gray-600">{process.description}</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{process.name}</h1>
-                <p className="text-sm text-gray-600">{process.description}</p>
-              </div>
+              {/* Botón ejecutar dentro del header */}
+              {!activeJob && (
+                <button
+                  onClick={executeProcess}
+                  disabled={executing}
+                  className={`px-4 py-2 ${process.color} hover:opacity-90 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm text-sm whitespace-nowrap`}
+                >
+                  {executing ? (
+                    <>
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                      Ejecutando...
+                    </>
+                  ) : (
+                    <>
+                      <PlayIcon className="w-4 h-4" />
+                      Ejecutar
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -393,9 +415,9 @@ export default function WorkerPage() {
                 <span>Iniciado: {activeJob.startedAt ? new Date(activeJob.startedAt).toLocaleString('es-ES') : '-'}</span>
                 <button
                   onClick={() => cancelJob(activeJob.id)}
-                  className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors border border-red-200"
+                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors border border-red-200"
                 >
-                  <StopIcon className="w-4 h-4" />
+                  <StopIcon className="w-3.5 h-3.5" />
                   Cancelar
                 </button>
               </div>
@@ -403,31 +425,8 @@ export default function WorkerPage() {
           </div>
         )}
 
-        {/* Botón ejecutar si no hay job activo */}
-        {!activeJob && (
-          <div className="mb-6 bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-            <button
-              onClick={executeProcess}
-              disabled={executing}
-              className={`w-full px-6 py-4 ${process.color} hover:opacity-90 text-white font-semibold rounded-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm text-lg`}
-            >
-              {executing ? (
-                <>
-                  <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                  Ejecutando...
-                </>
-              ) : (
-                <>
-                  <PlayIcon className="w-5 h-5" />
-                  Ejecutar Proceso
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
         {/* Historial */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
           <button
             onClick={() => setExpandedHistory(!expandedHistory)}
             className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
@@ -444,7 +443,7 @@ export default function WorkerPage() {
           </button>
 
           {expandedHistory && (
-            <div className="border-t border-gray-200">
+            <div className="border-t border-gray-200 flex-1 overflow-hidden flex flex-col">
               {loading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
@@ -453,7 +452,7 @@ export default function WorkerPage() {
               ) : jobs.length === 0 ? (
                 <p className="text-gray-500 text-center py-12">No hay historial</p>
               ) : (
-                <div className="divide-y divide-gray-200">
+                <div className="divide-y divide-gray-200 overflow-y-auto max-h-[500px]">
                   {jobs.map((job) => (
                     <div
                       key={job.id}
@@ -487,7 +486,7 @@ export default function WorkerPage() {
                         {(job.status === 'PENDING' || job.status === 'RUNNING') && (
                           <button
                             onClick={() => cancelJob(job.id)}
-                            className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-200 transition-colors"
+                            className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-200 transition-colors text-xs"
                           >
                             Cancelar
                           </button>

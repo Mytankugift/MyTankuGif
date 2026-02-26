@@ -9,6 +9,13 @@ export class DropiRawService {
   }
 
   /**
+   * Helper para hacer delay entre peticiones
+   */
+  private async delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
    * Sincronizar productos RAW desde Dropi
    * Guarda el JSON crudo en DropiRawProduct
    * 
@@ -27,6 +34,9 @@ export class DropiRawService {
   }> {
     const pageSize = 40; // Fijo según Dropi API
     const categoryId = 1; // Fijo según configuración
+    const DELAY_BETWEEN_REQUESTS = 2000; // ✅ 2 segundos entre peticiones (conservador para evitar 429)
+    const MAX_RETRIES = 5; // ✅ Más reintentos
+    const INITIAL_RETRY_DELAY = 3000; // ✅ 3 segundos inicial para retry
 
     let totalCount = 0;
     let totalProcessed = 0;
@@ -35,6 +45,7 @@ export class DropiRawService {
 
     console.log(`\n[SYNC RAW] Iniciando sincronización`);
     console.log(`[SYNC RAW] Página inicial: ${startPage}, startData: ${startData}`);
+    console.log(`[SYNC RAW] Delay entre peticiones: ${DELAY_BETWEEN_REQUESTS}ms`);
 
     try {
       // Primera llamada para obtener el total
@@ -53,8 +64,16 @@ export class DropiRawService {
       totalCount = firstPage.count || 0;
       const firstPageProducts = firstPage.objects || [];
 
+      // ✅ Calcular total de páginas estimadas
+      const estimatedTotalPages = totalCount > 0 
+        ? Math.ceil(totalCount / pageSize) 
+        : null;
+
       console.log(`[SYNC RAW] Total de productos en Dropi: ${totalCount}`);
       console.log(`[SYNC RAW] Productos en primera página: ${firstPageProducts.length}`);
+      if (estimatedTotalPages) {
+        console.log(`[SYNC RAW] Total estimado de páginas: ${estimatedTotalPages}`);
+      }
 
       // Guardar primera página
       if (firstPageProducts.length > 0) {
@@ -77,11 +96,51 @@ export class DropiRawService {
           break;
         }
 
-        const page = await this.dropiService.listProducts({
-          pageSize,
-          startData,
-          category_id: categoryId,
-        });
+        // ✅ DELAY ANTES DE CADA PETICIÓN (excepto la primera)
+        await this.delay(DELAY_BETWEEN_REQUESTS);
+
+        let page;
+        let retries = 0;
+
+        // ✅ Retry con backoff exponencial para errores 429
+        while (retries <= MAX_RETRIES) {
+          try {
+            page = await this.dropiService.listProducts({
+              pageSize,
+              startData,
+              category_id: categoryId,
+            });
+
+            // Si es 429, esperar y reintentar
+            if (page?.status === 429 || (page?.message && page.message.includes('Too Many Attempts'))) {
+              retries++;
+              if (retries > MAX_RETRIES) {
+                throw new Error(`Error 429 después de ${MAX_RETRIES} reintentos. Rate limit de Dropi excedido.`);
+              }
+              const waitTime = INITIAL_RETRY_DELAY * Math.pow(2, retries - 1); // Backoff exponencial
+              console.log(`[SYNC RAW] ⚠️ Rate limit (429) detectado. Esperando ${waitTime}ms antes de reintentar (intento ${retries}/${MAX_RETRIES})...`);
+              await this.delay(waitTime);
+              continue;
+            }
+
+            // Si no es 429, salir del loop de retry
+            break;
+          } catch (error: any) {
+            // Si el error contiene 429, reintentar
+            if (error?.message?.includes('429') || error?.message?.includes('Too Many Attempts')) {
+              retries++;
+              if (retries > MAX_RETRIES) {
+                throw error;
+              }
+              const waitTime = INITIAL_RETRY_DELAY * Math.pow(2, retries - 1);
+              console.log(`[SYNC RAW] ⚠️ Error 429 capturado. Esperando ${waitTime}ms antes de reintentar (intento ${retries}/${MAX_RETRIES})...`);
+              await this.delay(waitTime);
+              continue;
+            }
+            // Si es otro error, lanzarlo
+            throw error;
+          }
+        }
 
         if (!page?.isSuccess || !Array.isArray(page.objects) || page.objects.length === 0) {
           console.log(`[SYNC RAW] ⚠️ No hay más productos en página ${pageNumber + 1}, terminando`);
@@ -95,7 +154,12 @@ export class DropiRawService {
         const remaining = totalCount > 0 ? totalCount - totalProcessed : 0;
         const pagesRemaining = totalCount > 0 ? Math.ceil(remaining / pageSize) : 0;
 
-        console.log(`[SYNC RAW] ✅ Página ${pageNumber + 1}: ${page.objects.length} productos guardados | Total: ${totalProcessed}${totalCount > 0 ? `/${totalCount}` : ''} | ${totalCount > 0 ? `Faltan: ${pagesRemaining} páginas (${remaining} productos)` : 'Continuando...'}`);
+        // ✅ Mejorar el log para mostrar progreso más claro
+        if (estimatedTotalPages) {
+          console.log(`[SYNC RAW] ✅ Página ${pageNumber + 1}/${estimatedTotalPages}: ${page.objects.length} productos guardados | Total: ${totalProcessed}/${totalCount} | Faltan: ${pagesRemaining} páginas (${remaining} productos)`);
+        } else {
+          console.log(`[SYNC RAW] ✅ Página ${pageNumber + 1}: ${page.objects.length} productos guardados | Total: ${totalProcessed} | Continuando...`);
+        }
 
         startData += pageSize;
         pageNumber++;
