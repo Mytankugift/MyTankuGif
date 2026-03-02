@@ -25,6 +25,7 @@ interface ProductListItem {
   id: string
   title: string
   handle: string
+  image: string | null
   category: {
     id: string
     name: string
@@ -52,6 +53,101 @@ interface ProductsResponse {
     total: number
     totalPages: number
   }
+}
+
+// Componente para mostrar miniatura con tooltip
+function ProductImageThumbnail({ image, title }: { image: string | null; title: string }) {
+  const [imageError, setImageError] = useState(false)
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setImageError(false)
+  }, [image])
+
+  useEffect(() => {
+    if (showTooltip && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const spaceOnRight = window.innerWidth - rect.right
+      const spaceOnLeft = rect.left
+      
+      // Calcular posición del tooltip
+      let left: number
+      if (spaceOnRight >= 300) {
+        // Mostrar a la derecha
+        left = rect.right + 8
+      } else if (spaceOnLeft >= 300) {
+        // Mostrar a la izquierda
+        left = rect.left - 272 // 256px (w-64) + 16px (padding)
+      } else {
+        // Centrar si no hay espacio suficiente
+        left = (window.innerWidth - 272) / 2
+      }
+      
+      const top = rect.top + (rect.height / 2) - 128 // Centrar verticalmente (128 = mitad de 256)
+      
+      setTooltipPosition({ top, left })
+    } else {
+      setTooltipPosition(null)
+    }
+  }, [showTooltip])
+
+  if (!image || imageError) {
+    return (
+      <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+        <span className="text-xs text-gray-400">Sin imagen</span>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div 
+        className="relative inline-block" 
+        ref={containerRef}
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        <img
+          src={image}
+          alt={title}
+          className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+          onError={() => {
+            setImageError(true)
+          }}
+          loading="lazy"
+        />
+      </div>
+      {/* Tooltip con imagen ampliada - usando fixed positioning */}
+      {showTooltip && !imageError && tooltipPosition && (
+        <div 
+          ref={tooltipRef}
+          className="fixed z-[9999] pointer-events-none"
+          style={{
+            top: `${tooltipPosition.top}px`,
+            left: `${tooltipPosition.left}px`,
+            transform: 'translateY(-50%)'
+          }}
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+        >
+          <div className="bg-white rounded-lg shadow-2xl border border-gray-200 p-2 pointer-events-auto">
+            <img
+              src={image}
+              alt={title}
+              className="w-64 h-64 object-cover rounded block"
+              onError={() => {
+                console.error('Error cargando imagen en tooltip:', image)
+                setImageError(true)
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  )
 }
 
 export default function ProductsPage() {
@@ -1153,6 +1249,9 @@ export default function ProductsPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
                         #
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                        Imagen
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Producto
                       </th>
@@ -1202,6 +1301,9 @@ export default function ProductsPage() {
                         )}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
                           {productNumber}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <ProductImageThumbnail image={product.image} title={product.title} />
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">

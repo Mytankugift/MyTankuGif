@@ -84,6 +84,7 @@ export interface ProductListItem {
   id: string;
   title: string;
   handle: string;
+  image: string | null; // Imagen principal (primera imagen visible)
   category: {
     id: string;
     name: string;
@@ -416,10 +417,16 @@ export class AdminProductService {
       // Un producto está activo si tiene al menos una variante activa
       const hasActiveVariants = activeVariants.length > 0;
 
+      // Obtener la primera imagen visible (excluyendo las ocultas)
+      const hiddenImages = product.hiddenImages || [];
+      const visibleImages = (product.images || []).filter(img => !hiddenImages.includes(img));
+      const mainImage = visibleImages.length > 0 ? visibleImages[0] : null;
+
       return {
         id: product.id,
         title: product.title,
         handle: product.handle,
+        image: mainImage,
         category: product.category
           ? {
               id: product.category.id,

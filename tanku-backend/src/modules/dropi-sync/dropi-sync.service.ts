@@ -116,7 +116,7 @@ export class DropiSyncService {
    * Método público para que pueda ser llamado desde otros servicios (ej: worker de stock)
    */
   async updateVariantStockStatus(variantId: string): Promise<void> {
-    // Verificar si el producto está bloqueado
+    // ✅ OPCIÓN 1: El bloqueo NO protege el estado active, siempre actualizar según stock
     const variant = await prisma.productVariant.findUnique({
       where: { id: variantId },
       include: {
@@ -130,13 +130,7 @@ export class DropiSyncService {
 
     if (!variant) return;
 
-    // Si el producto está bloqueado, NO cambiar el estado activo/inactivo
-    if (variant.product.lockedByAdmin) {
-      console.log(`[SYNC TO BACKEND] 🔒 Producto bloqueado, no se actualiza estado de variante ${variantId}`);
-      return; // Solo actualizar stock, no el estado active
-    }
-
-    // Si no está bloqueado, actualizar estado según stock (lógica actual)
+    // Actualizar estado según stock (el bloqueo NO afecta el estado active)
     const stock = await this.calculateVariantStock(variantId);
     
     if (stock <= 0) {
@@ -145,7 +139,8 @@ export class DropiSyncService {
         where: { id: variantId },
         data: { active: false },
       });
-      console.log(`[SYNC TO BACKEND]    ⚠️ Variante ${variantId} tiene stock 0, marcada como inactiva`);
+      const lockNote = variant.product.lockedByAdmin ? ' (producto bloqueado, pero estado active se actualiza)' : '';
+      console.log(`[SYNC TO BACKEND]    ⚠️ Variante ${variantId} tiene stock 0, marcada como inactiva${lockNote}`);
     } else {
       // Activar variante si tiene stock
       await prisma.productVariant.update({
@@ -156,10 +151,90 @@ export class DropiSyncService {
   }
 
   /**
+   * Actualizar estado del producto basándose en el estado de sus variantes
+   * Si todas las variantes están inactivas, el producto también debe estar inactivo
+   * Si al menos una variante está activa, el producto debe estar activo
+   * ✅ OPCIÓN 1: El bloqueo NO protege el estado active, siempre actualizar según variantes
+   */
+  async updateProductStatusFromVariants(productId: string): Promise<void> {
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        lockedByAdmin: true,
+        active: true,
+      },
+    });
+
+    if (!product) return;
+
+    // Contar variantes activas del producto
+    const activeVariantsCount = await prisma.productVariant.count({
+      where: {
+        productId: productId,
+        active: true,
+      },
+    });
+
+    // Contar total de variantes del producto
+    const totalVariantsCount = await prisma.productVariant.count({
+      where: {
+        productId: productId,
+      },
+    });
+
+    // Si no hay variantes, no hacer nada
+    if (totalVariantsCount === 0) {
+      console.log(`[SYNC TO BACKEND] ⚠️ Producto ${productId} no tiene variantes, no se actualiza estado`);
+      return;
+    }
+
+    // ✅ OPCIÓN 1: El bloqueo NO protege el estado active, siempre actualizar según variantes
+    // Si todas las variantes están inactivas, desactivar el producto
+    if (activeVariantsCount === 0) {
+      if (product.active) {
+        await prisma.product.update({
+          where: { id: productId },
+          data: { active: false },
+        });
+        const lockNote = product.lockedByAdmin ? ' (producto bloqueado, pero estado active se actualiza)' : '';
+        console.log(`[SYNC TO BACKEND] ⚠️ Producto ${productId} desactivado (todas las variantes están inactivas)${lockNote}`);
+      }
+    } else {
+      // Si al menos una variante está activa, activar el producto
+      if (!product.active) {
+        await prisma.product.update({
+          where: { id: productId },
+          data: { active: true },
+        });
+        const lockNote = product.lockedByAdmin ? ' (producto bloqueado, pero estado active se actualiza)' : '';
+        console.log(`[SYNC TO BACKEND] ✅ Producto ${productId} activado (tiene ${activeVariantsCount} variante(s) activa(s))${lockNote}`);
+      }
+    }
+  }
+
+  /**
    * Actualizar estado del producto en el ranking según su stock
    * Método público para que pueda ser llamado desde otros servicios (ej: worker de stock)
+   * ✅ El bloqueo SÍ protege el ranking (no agregar productos bloqueados al ranking)
    */
   async updateProductRankingStatus(productId: string): Promise<void> {
+    // Verificar si el producto está bloqueado
+    const productCheck = await prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        lockedByAdmin: true,
+        active: true,
+      },
+    });
+
+    if (!productCheck) return;
+
+    // ✅ Si el producto está bloqueado, NO actualizar ranking (el bloqueo SÍ protege el ranking)
+    if (productCheck.lockedByAdmin) {
+      console.log(`[SYNC TO BACKEND] 🔒 Producto bloqueado, no se actualiza ranking: ${productId}`);
+      return;
+    }
+
     const totalStock = await this.calculateProductStock(productId);
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -933,6 +1008,9 @@ export class DropiSyncService {
             // 7. Actualizar estado de la variante según su stock
             await this.updateVariantStockStatus(variant.id);
           }
+
+          // 7.5: Actualizar estado del producto basándose en el estado de sus variantes
+          await this.updateProductStatusFromVariants(product.id);
 
           // 8. Actualizar estado del producto en el ranking según su stock total
           const totalStock = await this.calculateProductStock(product.id);

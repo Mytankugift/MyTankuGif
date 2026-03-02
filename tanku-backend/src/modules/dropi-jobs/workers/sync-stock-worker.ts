@@ -70,6 +70,8 @@ export class SyncStockWorker extends BaseWorker {
 
     // PASO 4: Actualizar estados de productos y variantes según stock
     console.log(`[SYNC_STOCK WORKER] Actualizando estados según stock...`);
+    // ✅ Procesar TODOS los productos (bloqueados y no bloqueados)
+    // El bloqueo NO protege el estado active, solo precios/categorías/información
     const allProducts = await prisma.product.findMany({
       select: { id: true },
     });
@@ -77,9 +79,7 @@ export class SyncStockWorker extends BaseWorker {
     let updatedCount = 0;
     for (const product of allProducts) {
       try {
-        await this.dropiSyncService.updateProductRankingStatus(product.id);
-        
-        // Actualizar estado de todas las variantes del producto
+        // 1. Actualizar estado de todas las variantes del producto según stock
         const variants = await prisma.productVariant.findMany({
           where: { productId: product.id },
           select: { id: true },
@@ -88,6 +88,12 @@ export class SyncStockWorker extends BaseWorker {
         for (const variant of variants) {
           await this.dropiSyncService.updateVariantStockStatus(variant.id);
         }
+
+        // 2. Actualizar estado del producto basándose en el estado de sus variantes
+        await this.dropiSyncService.updateProductStatusFromVariants(product.id);
+
+        // 3. Actualizar ranking del producto (el bloqueo SÍ protege el ranking)
+        await this.dropiSyncService.updateProductRankingStatus(product.id);
 
         updatedCount++;
         if (updatedCount % 50 === 0) {
