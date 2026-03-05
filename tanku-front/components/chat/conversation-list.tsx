@@ -74,11 +74,18 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
       {conversationsData.map(({ conversation, lastMessage, lastMessageTime, unreadCount }) => {
         const otherParticipant = getOtherParticipant(conversation, user?.id || '')
         if (!otherParticipant) return null
+        
+        // Validar: Si el usuario fue eliminado, user será null pero deletedUserEmail existirá
+        if (!otherParticipant.user && !otherParticipant.deletedUserEmail) return null
 
+        // Mostrar nombre: Usar user si existe, sino usar deletedUserEmail
         const displayName = otherParticipant.alias || 
-          `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim() ||
-          otherParticipant.user.email
-        const avatar = otherParticipant.user.profile?.avatar
+          (otherParticipant.user 
+            ? `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
+            : otherParticipant.deletedUserEmail || 'Usuario eliminado') ||
+          (otherParticipant.user?.email || 'Usuario desconocido')
+        
+        const avatar = otherParticipant.user?.profile?.avatar
         const isSelected = selectedConversationId === conversation.id
 
         return (
@@ -105,7 +112,10 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
                     />
                   ) : (
                     <span className="text-lg text-gray-400 font-bold">
-                      {(otherParticipant.user.firstName?.[0] || otherParticipant.user.email?.[0] || 'U').toUpperCase()}
+                      {(otherParticipant.user?.firstName?.[0] || 
+                        otherParticipant.user?.email?.[0] || 
+                        otherParticipant.deletedUserEmail?.[0] || 
+                        'U').toUpperCase()}
                     </span>
                   )}
                 </div>

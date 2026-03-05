@@ -14,7 +14,8 @@ export interface Conversation {
   updatedAt: string
   participants: Array<{
     id: string
-    userId: string
+    userId: string | null
+    deletedUserEmail?: string | null
     alias?: string | null
     isRevealed: boolean
     user: {
@@ -28,7 +29,7 @@ export interface Conversation {
         banner: string | null
         bio: string | null
       } | null
-    }
+    } | null
   }>
   messages?: Array<{
     id: string
@@ -42,8 +43,9 @@ export interface Conversation {
 export interface Message {
   id: string
   conversationId: string
-  senderId: string
+  senderId: string | null
   senderAlias?: string | null
+  deletedSenderEmail?: string | null
   content: string
   type: 'TEXT' | 'IMAGE' | 'FILE'
   status: 'SENT' | 'DELIVERED' | 'READ'
@@ -60,7 +62,7 @@ export interface Message {
       banner: string | null
       bio: string | null
     } | null
-  }
+  } | null
 }
 
 export function useChat() {
@@ -438,20 +440,16 @@ export function useChat() {
     const conversationMessages: Message[] = conversationMessagesRaw.map(msg => {
       // Buscar el sender en los participantes de la conversación
       const senderParticipant = conversation?.participants.find(p => p.userId === msg.senderId)
-      const sender = senderParticipant?.user || {
-        id: msg.senderId,
-        email: '',
-        firstName: null,
-        lastName: null,
-        username: null,
-        profile: null,
-      }
+      // Si el usuario fue eliminado, user será null pero deletedUserEmail existirá
+      const sender = senderParticipant?.user || null
+      const deletedSenderEmail = senderParticipant?.deletedUserEmail || null
       
       return {
         id: msg.id,
         conversationId,
         senderId: msg.senderId,
         senderAlias: senderParticipant?.alias || null,
+        deletedSenderEmail,
         content: msg.content,
         type: 'TEXT' as const, // conversation.messages no tiene type, asumir TEXT
         status: msg.status,

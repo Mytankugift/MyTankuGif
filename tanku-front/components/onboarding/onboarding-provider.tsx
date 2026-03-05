@@ -18,7 +18,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     const verifyOnboarding = async () => {
-      if (!isAuthenticated || !user) {
+      // Validación más estricta: verificar que el usuario esté realmente autenticado
+      // y tenga un ID válido antes de verificar el onboarding
+      if (!isAuthenticated || !user || !user.id) {
+        setShowModal(false)
         setIsChecking(false)
         return
       }
@@ -27,22 +30,39 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         const isCompleted = await checkIsCompleted()
         
         // Mostrar modal solo si el onboarding no está completado
-        if (!isCompleted) {
+        // y el usuario está autenticado con un ID válido
+        if (!isCompleted && isAuthenticated && user?.id) {
           // Esperar un poco antes de mostrar el modal para no interrumpir el flujo inicial
           setTimeout(() => {
-            setShowModal(true)
+            // Verificar nuevamente antes de mostrar (por si el estado cambió durante el timeout)
+            const currentState = useAuthStore.getState()
+            if (currentState.isAuthenticated && currentState.user?.id) {
+              setShowModal(true)
+            } else {
+              setShowModal(false)
+            }
           }, 1000)
+        } else {
+          setShowModal(false)
         }
       } catch (error) {
         console.error('Error verificando onboarding:', error)
         // En caso de error, no mostrar el modal para no bloquear al usuario
+        setShowModal(false)
       } finally {
         setIsChecking(false)
       }
     }
 
     verifyOnboarding()
-  }, [isAuthenticated, user, checkIsCompleted])
+  }, [isAuthenticated, user?.id, checkIsCompleted]) // Cambiar user a user?.id para evitar re-renders innecesarios
+
+  // Asegurarse de que el modal se oculte si el usuario se desautentica
+  useEffect(() => {
+    if (!isAuthenticated || !user || !user.id) {
+      setShowModal(false)
+    }
+  }, [isAuthenticated, user?.id])
 
   const handleComplete = () => {
     setShowModal(false)

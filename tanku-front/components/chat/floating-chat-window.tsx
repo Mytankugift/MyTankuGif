@@ -28,8 +28,10 @@ export function FloatingChatWindow({ conversationId, conversation, onClose, posi
 
   const otherParticipant = conversation ? getOtherParticipant(conversation, user?.id || '') : null
   const displayName = otherParticipant?.alias || 
-    `${otherParticipant?.user.firstName || ''} ${otherParticipant?.user.lastName || ''}`.trim() ||
-    otherParticipant?.user.email || 'Usuario'
+    (otherParticipant?.user 
+      ? `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
+      : otherParticipant?.deletedUserEmail || 'Usuario eliminado') ||
+    (otherParticipant?.user?.email || 'Usuario')
 
   // Obtener mensajes
   const apiMessages = conversationId ? getMessages(conversationId) : []

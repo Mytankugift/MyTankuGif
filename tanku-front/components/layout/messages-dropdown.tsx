@@ -344,11 +344,18 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
               conversationsData.map(({ conversation, lastMessage, lastMessageTime, unreadCount }) => {
                 const otherParticipant = getOtherParticipant(conversation, user?.id || '')
                 if (!otherParticipant) return null
+                
+                // Validar: Si el usuario fue eliminado, user será null pero deletedUserEmail existirá
+                if (!otherParticipant.user && !otherParticipant.deletedUserEmail) return null
 
+                // Mostrar nombre: Usar user si existe, sino usar deletedUserEmail
                 const displayName = otherParticipant.alias || 
-                  `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim() ||
-                  otherParticipant.user.email
-                const avatar = otherParticipant.user.profile?.avatar
+                  (otherParticipant.user 
+                    ? `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
+                    : otherParticipant.deletedUserEmail || 'Usuario eliminado') ||
+                  (otherParticipant.user?.email || 'Usuario desconocido')
+                
+                const avatar = otherParticipant.user?.profile?.avatar
 
                 return (
                   <button
@@ -372,7 +379,10 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm font-semibold">
-                            {(otherParticipant.user.firstName?.[0] || otherParticipant.user.email?.[0] || 'U').toUpperCase()}
+                            {(otherParticipant.user?.firstName?.[0] || 
+                              otherParticipant.user?.email?.[0] || 
+                              otherParticipant.deletedUserEmail?.[0] || 
+                              'U').toUpperCase()}
                           </div>
                         )}
                       </div>

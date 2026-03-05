@@ -35,8 +35,13 @@ export function StalkerGiftChatList({ onSelectChat }: StalkerGiftChatListProps) 
 
     // Si el alias está revelado o el participante está revelado, mostrar nombre real
     if (otherParticipant.isRevealed || conversation.type === 'FRIENDS') {
-      const fullName = `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
-      return fullName || otherParticipant.user.email.split('@')[0]
+      if (otherParticipant.user) {
+        const fullName = `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
+        return fullName || otherParticipant.user.email.split('@')[0]
+      } else if (otherParticipant.deletedUserEmail) {
+        return otherParticipant.deletedUserEmail.split('@')[0]
+      }
+      return 'Usuario eliminado'
     }
 
     // Si no está revelado, usar alias o "Anónimo"

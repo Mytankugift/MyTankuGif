@@ -26,8 +26,10 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
 
   const otherParticipant = conversation ? getOtherParticipant(conversation, user?.id || '') : null
   const displayName = otherParticipant?.alias || 
-    `${otherParticipant?.user.firstName || ''} ${otherParticipant?.user.lastName || ''}`.trim() ||
-    otherParticipant?.user.email || 'Usuario'
+    (otherParticipant?.user 
+      ? `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
+      : otherParticipant?.deletedUserEmail || 'Usuario eliminado') ||
+    (otherParticipant?.user?.email || 'Usuario')
 
   // Obtener mensajes de API (incluye los propios)
   const apiMessages = conversationId ? getMessages(conversationId) : []
@@ -248,7 +250,10 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
               />
             ) : (
               <span className="text-sm text-gray-400 font-bold">
-                {(otherParticipant.user.firstName?.[0] || otherParticipant.user.email?.[0] || 'U').toUpperCase()}
+                {(otherParticipant?.user?.firstName?.[0] || 
+                  otherParticipant?.user?.email?.[0] || 
+                  otherParticipant?.deletedUserEmail?.[0] || 
+                  'U').toUpperCase()}
               </span>
             )}
           </div>
@@ -257,8 +262,8 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
             <h3 className="text-sm font-semibold text-[#73FFA2] hover:text-[#66DEDB] transition-colors">
               {displayName}
             </h3>
-            {(otherParticipant.user as any).username && (
-              <p className="text-xs text-gray-400">{(otherParticipant.user as any).username}</p>
+            {otherParticipant?.user?.username && (
+              <p className="text-xs text-gray-400">{otherParticipant.user.username}</p>
             )}
             {typingUsers.length > 0 && (
               <p className="text-xs text-gray-400">Escribiendo...</p>
@@ -275,8 +280,10 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
         {messages.map((msg) => {
           const isOwn = msg.senderId === user?.id
           const senderName = msg.senderAlias || 
-            `${msg.sender.firstName || ''} ${msg.sender.lastName || ''}`.trim() ||
-            msg.sender.email
+            (msg.sender 
+              ? `${msg.sender.firstName || ''} ${msg.sender.lastName || ''}`.trim()
+              : msg.deletedSenderEmail || 'Usuario eliminado') ||
+            (msg.sender?.email || 'Usuario desconocido')
 
           return (
             <div
