@@ -20,6 +20,7 @@ export class FeedService {
   // Boost temporal en memoria (no persistido)
   // Formato: { "itemId:itemType": boostFactor }
   private boostMap: Map<string, number> = new Map();
+  private readonly MAX_BOOST_ENTRIES = 10000; // Límite máximo de boosts en memoria
 
   // DEBOUNCING: Cola de actualizaciones pendientes
   private updateQueue = new Map<string, NodeJS.Timeout>();
@@ -39,10 +40,32 @@ export class FeedService {
   
   // TTL para tokens (1 hora)
   private readonly CURSOR_TOKEN_TTL = 60 * 60 * 1000; // 1 hora en ms
+  private readonly MAX_CURSOR_TOKENS = 10000; // Límite máximo de tokens en memoria
 
   // CONFIGURACIÓN HARDCODEADA
   private readonly DEFAULT_LIMIT = 50;
   private readonly DEFAULT_POSTS_PER_PRODUCTS = 5;
+
+  // CACHE PARA FEED PÚBLICO
+  private publicFeedCache: {
+    data: FeedResponseDTO | null;
+    timestamp: number;
+    categoryId?: string;
+    search?: string;
+  } | null = null;
+  private readonly PUBLIC_FEED_CACHE_TTL = 60000; // 60 segundos
+
+  // CACHE PARA CATEGORÍAS BLOQUEADAS
+  private blockedCategoryIdsCache: string[] | null = null;
+  private blockedCategoryIdsCacheTime: number = 0;
+  private readonly BLOCKED_CATEGORIES_TTL = 3600000; // 1 hora en ms
+
+  // ✅ CACHE PARA IDs DE HIJOS DE CATEGORÍAS (optimizar getAllChildrenIds)
+  private categoryChildrenCache: Map<string, { ids: string[]; timestamp: number }> = new Map();
+  private readonly CATEGORY_CHILDREN_TTL = 3600000; // 1 hora en ms
+
+  // ✅ Para evitar spam de warnings de ranking
+  private lastRankingWarningTime: number = 0;
 
   /**
    * Obtener feed combinado con cursor-based pagination
@@ -90,53 +113,62 @@ export class FeedService {
       const estimatedProducts = Math.ceil((limit * postsPerProducts) / (postsPerProducts + 1));
       const estimatedPosts = Math.ceil(limit / (postsPerProducts + 1));
       
-      // Obtener productos por ranking o búsqueda (solo productos)
-      let products: any[] = [];
-      try {
-        // Si hay búsqueda, usar método de búsqueda que busca en todos los productos
-        if (search && search.trim()) {
-          products = await this.getProductsBySearch(
-            search.trim(),
-            cursor,
-            estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
-            categoryId
-          );
-        } else {
-          products = await this.getProductsByRanking(
-            cursor,
-            estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
-            boostFactor,
-            categoryId
-          );
-        }
-      } catch (productsError: any) {
-        // Si es error de tabla no existente, continuar solo con posts
-        if (productsError?.code === 'P2021' || productsError?.message?.includes('does not exist')) {
-          console.warn(`⚠️ [FEED-SERVICE] Tabla global_ranking no existe. Continuando solo con posts.`);
-          console.warn(`⚠️ [FEED-SERVICE] Para habilitar productos, ejecutar: npm run fix:feed:tables`);
-          products = [];
-        } else {
-          console.error(`❌ [FEED-SERVICE] Error obteniendo productos:`, productsError?.message);
-          console.error(`❌ [FEED-SERVICE] Stack:`, productsError?.stack);
-          // Continuar con array vacío en lugar de fallar completamente
-          products = [];
-        }
-      }
+      // ✅ Ejecutar queries independientes en paralelo para mejor performance
+      const [productsResult, postsResult, blockedCategoryIds] = await Promise.all([
+        // Obtener productos por ranking o búsqueda (solo productos)
+        (async () => {
+          try {
+            // Si hay búsqueda, usar método de búsqueda que busca en todos los productos
+            if (search && search.trim()) {
+              return await this.getProductsBySearch(
+                search.trim(),
+                cursor,
+                estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
+                categoryId
+              );
+            } else {
+              return await this.getProductsByRanking(
+                cursor,
+                estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
+                boostFactor,
+                categoryId
+              );
+            }
+          } catch (productsError: any) {
+            // Si es error de tabla no existente, continuar solo con posts
+            if (productsError?.code === 'P2021' || productsError?.message?.includes('does not exist')) {
+              console.warn(`⚠️ [FEED-SERVICE] Tabla global_ranking no existe. Continuando solo con posts.`);
+              console.warn(`⚠️ [FEED-SERVICE] Para habilitar productos, ejecutar: npm run fix:feed:tables`);
+              return [];
+            } else {
+              console.error(`❌ [FEED-SERVICE] Error obteniendo productos:`, productsError?.message);
+              console.error(`❌ [FEED-SERVICE] Stack:`, productsError?.stack);
+              // Continuar con array vacío en lugar de fallar completamente
+              return [];
+            }
+          }
+        })(),
+        // Obtener posts por fecha (solo posts, filtrados por amigos + propio si hay userId)
+        (async () => {
+          try {
+            return await this.getPostsByDate(
+              cursor,
+              estimatedPosts + 2, // Buffer extra
+              userId // Pasar userId para filtrar por amigos + propio
+            );
+          } catch (postsError: any) {
+            console.error(`❌ [FEED-SERVICE] Error obteniendo posts:`, postsError?.message);
+            console.error(`❌ [FEED-SERVICE] Stack:`, postsError?.stack);
+            // Continuar con array vacío en lugar de fallar completamente
+            return [];
+          }
+        })(),
+        // Obtener categorías bloqueadas (con cache)
+        this.getBlockedCategoryIdsCached()
+      ]);
 
-      // Obtener posts por fecha (solo posts, filtrados por amigos + propio si hay userId)
-      let posts: any[] = [];
-      try {
-        posts = await this.getPostsByDate(
-          cursor,
-          estimatedPosts + 2, // Buffer extra
-          userId // Pasar userId para filtrar por amigos + propio
-        );
-      } catch (postsError: any) {
-        console.error(`❌ [FEED-SERVICE] Error obteniendo posts:`, postsError?.message);
-        console.error(`❌ [FEED-SERVICE] Stack:`, postsError?.stack);
-        // Continuar con array vacío en lugar de fallar completamente
-        posts = [];
-      }
+      const products = productsResult;
+      const posts = postsResult;
 
       // Intercalar productos y posts según la regla
       const intercalated = this.intercalateItems(products, posts, limit, postsPerProducts);
@@ -151,123 +183,256 @@ export class FeedService {
         .map(item => item.itemId);
 
 
-      // Batch query para productos (una sola query en lugar de N queries)
-      let productsData: any[] = [];
-      try {
-        if (productIds.length > 0) {
-          // Obtener IDs de categorías bloqueadas
-          const blockedCategoryIds = await getBlockedCategoryIds();
-          
-          productsData = await prisma.product.findMany({
-            where: { 
-              id: { in: productIds },
-              // Excluir productos de categorías bloqueadas
-              ...(blockedCategoryIds.length > 0 && {
-                categoryId: {
-                  notIn: blockedCategoryIds,
+      // ✅ PARALELIZAR: Ejecutar todas las batch queries en paralelo
+      const [
+        productsDataResult,
+        postersDataResult,
+        metricsResult,
+        userLikesResult,
+        wishlistItemsResult
+      ] = await Promise.all([
+        // Batch query para productos (una sola query en lugar de N queries)
+        (async () => {
+          try {
+            if (productIds.length > 0) {
+              // ✅ Usar categorías bloqueadas ya obtenidas en paralelo
+              // ✅ OPTIMIZAR: Usar select en lugar de include para reducir datos transferidos
+              return await prisma.product.findMany({
+                where: { 
+                  id: { in: productIds },
+                  // Excluir productos de categorías bloqueadas
+                  ...(blockedCategoryIds.length > 0 && {
+                    categoryId: {
+                      notIn: blockedCategoryIds,
+                    },
+                  }),
                 },
-              }),
-            },
-            include: {
-              category: true,
-              variants: {
-                where: { active: true },
-                orderBy: { price: 'asc' },
-                take: 1,
-              },
-            },
-            // hiddenImages se incluye automáticamente con include (todos los campos del modelo)
-          });
-        }
-      } catch (productsDataError: any) {
-        console.error(`❌ [FEED-SERVICE] Error en batch query de productos:`, productsDataError?.message);
-        console.error(`❌ [FEED-SERVICE] Stack:`, productsDataError?.stack);
-        productsData = [];
-      }
+                select: {
+                  id: true,
+                  title: true,
+                  handle: true,
+                  description: true,
+                  images: true,
+                  customImageUrls: true,
+                  hiddenImages: true,
+                  categoryId: true,
+                  active: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  lockedByAdmin: true,
+                  lockedAt: true,
+                  lockedBy: true,
+                  priceFormulaType: true,
+                  priceFormulaValue: true,
+                  category: {
+                    select: {
+                      id: true,
+                      name: true,
+                      handle: true,
+                      imageUrl: true,
+                    }
+                  },
+                  variants: {
+                    where: { active: true },
+                    orderBy: { price: 'asc' },
+                    take: 1,
+                    select: {
+                      id: true,
+                      productId: true,
+                      sku: true,
+                      title: true,
+                      price: true,
+                      stock: true,
+                      active: true,
+                      suggestedPrice: true,
+                      tankuPrice: true,
+                    }
+                  },
+                },
+              });
+            }
+            return [];
+          } catch (productsDataError: any) {
+            console.error(`❌ [FEED-SERVICE] Error en batch query de productos:`, productsDataError?.message);
+            console.error(`❌ [FEED-SERVICE] Stack:`, productsDataError?.stack);
+            return [];
+          }
+        })(),
+        // Batch query para posters (una sola query en lugar de N queries)
+        (async () => {
+          try {
+            if (posterIds.length > 0) {
+              return await prisma.poster.findMany({
+                where: { id: { in: posterIds } },
+                select: {
+                  id: true,
+                  customerId: true,
+                  title: true,
+                  description: true,
+                  imageUrl: true,
+                  videoUrl: true,
+                  likesCount: true,
+                  commentsCount: true,
+                  isActive: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  customer: {
+                    select: {
+                      id: true,
+                      email: true,
+                      firstName: true,
+                      lastName: true,
+                      username: true,
+                      profile: {
+                        select: {
+                          avatar: true,
+                          banner: true,
+                          bio: true,
+                        }
+                      },
+                    },
+                  },
+                },
+              });
+            }
+            return [];
+          } catch (postersDataError: any) {
+            console.error(`❌ [FEED-SERVICE] Error en batch query de posters:`, postersDataError?.message);
+            console.error(`❌ [FEED-SERVICE] Stack:`, postersDataError?.stack);
+            return [];
+          }
+        })(),
+        // Batch query para métricas de likes (en paralelo)
+        (async () => {
+          try {
+            if (productIds.length > 0) {
+              const metrics = await (prisma as any).itemMetric.findMany({
+                where: {
+                  itemId: { in: productIds },
+                  itemType: 'product',
+                },
+                select: {
+                  itemId: true,
+                  likesCount: true,
+                },
+              });
+              return metrics;
+            }
+            return [];
+          } catch (error) {
+            console.error('Error obteniendo métricas de likes:', error);
+            return [];
+          }
+        })(),
+        // Batch query para likes del usuario (en paralelo)
+        (async () => {
+          try {
+            if (userId && productIds.length > 0) {
+              const userLikes = await prisma.productLike.findMany({
+                where: {
+                  userId,
+                  productId: { in: productIds },
+                },
+                select: {
+                  productId: true,
+                },
+              });
+              return userLikes;
+            }
+            return [];
+          } catch (error) {
+            console.error('Error obteniendo likes del usuario:', error);
+            return [];
+          }
+        })(),
+        // Batch query para wishlist del usuario (en paralelo)
+        (async () => {
+          try {
+            if (userId && productIds.length > 0) {
+              const wishlistItems = await prisma.wishListItem.findMany({
+                where: {
+                  wishList: {
+                    userId,
+                  },
+                  productId: { in: productIds },
+                },
+                select: {
+                  productId: true,
+                },
+                distinct: ['productId'], // Solo productos únicos
+              });
+              return wishlistItems;
+            }
+            return [];
+          } catch (error) {
+            console.error('Error obteniendo productos en wishlists del usuario:', error);
+            return [];
+          }
+        })()
+      ]);
 
-      // Batch query para posters (una sola query en lugar de N queries)
-      let postersData: any[] = [];
-      try {
-        if (posterIds.length > 0) {
-          postersData = await prisma.poster.findMany({
-            where: { id: { in: posterIds } },
-            include: {
-              customer: {
-                include: {
-                  profile: true,
-                },
-              },
-            },
-          });
-        }
-      } catch (postersDataError: any) {
-        console.error(`❌ [FEED-SERVICE] Error en batch query de posters:`, postersDataError?.message);
-        console.error(`❌ [FEED-SERVICE] Stack:`, postersDataError?.stack);
-        postersData = [];
-      }
+      const productsData = productsDataResult;
+      const postersData = postersDataResult;
 
       // Crear mapas para acceso rápido O(1)
       const productMap = new Map(productsData.map(p => [p.id, p]));
       const posterMap = new Map(postersData.map(p => [p.id, p]));
 
-
-      // ✅ DIAGNÓSTICO: Verificar productos faltantes en productMap
+      // ✅ FILTRAR productos del ranking que no existen en BD ANTES de procesarlos
+      // Esto evita warnings y asegura que solo procesamos productos válidos
+      const validProductIds = new Set(productMap.keys());
       const missingProducts: string[] = [];
       const productItems = intercalated.items.filter(item => item.itemType === 'product');
       for (const item of productItems) {
-        if (!productMap.has(item.itemId)) {
+        if (!validProductIds.has(item.itemId)) {
           missingProducts.push(item.itemId);
         }
       }
-      if (missingProducts.length > 0) {
-        console.warn(`⚠️ [FEED-SERVICE] ${missingProducts.length} productos en ranking no encontrados en BD (de ${productItems.length} productos en ranking)`);
-        console.warn(`⚠️ [FEED-SERVICE] Primeros 10 IDs faltantes:`, missingProducts.slice(0, 10));
-      } else {
+      
+      // Solo loggear si hay muchos productos faltantes (más de 10% del total)
+      // Y solo una vez cada 5 minutos para evitar spam de logs
+      if (missingProducts.length > 0 && missingProducts.length > productItems.length * 0.10) {
+        const now = Date.now();
+        const timeSinceLastWarning = now - this.lastRankingWarningTime;
+        if (timeSinceLastWarning > 300000) { // 5 minutos = 300000 ms
+          this.lastRankingWarningTime = now;
+          console.warn(`⚠️ [FEED-SERVICE] ${missingProducts.length} productos en ranking no encontrados en BD (de ${productItems.length} productos en ranking)`);
+          console.warn(`⚠️ [FEED-SERVICE] Esto puede indicar un problema de sincronización. Considerar limpiar el ranking.`);
+          console.warn(`⚠️ [FEED-SERVICE] Primeros 10 IDs faltantes:`, missingProducts.slice(0, 10));
+        }
       }
+      
+      // Filtrar items intercalados para excluir productos que no existen en BD
+      const validIntercalatedItems = intercalated.items.filter(item => {
+        if (item.itemType === 'product') {
+          return validProductIds.has(item.itemId);
+        }
+        return true; // Mantener todos los posters
+      });
+      
+      // Actualizar intercalated con solo items válidos
+      intercalated.items = validIntercalatedItems;
 
-      // Obtener métricas de likes para productos (batch query)
+      // ✅ Procesar resultados de queries paralelas
       const productIdsForMetrics = Array.from(productMap.keys());
+      
+      // Procesar métricas de likes
       const itemMetricsMap = new Map<string, { likesCount: number }>();
-      if (productIdsForMetrics.length > 0) {
-        try {
-          const metrics = await (prisma as any).itemMetric.findMany({
-            where: {
-              itemId: { in: productIdsForMetrics },
-              itemType: 'product',
-            },
-            select: {
-              itemId: true,
-              likesCount: true,
-            },
-          });
-          metrics.forEach((m: any) => {
-            itemMetricsMap.set(m.itemId, { likesCount: m.likesCount || 0 });
-          });
-        } catch (error) {
-          console.error('Error obteniendo métricas de likes:', error);
-        }
-      }
+      (metricsResult as any[]).forEach((m: any) => {
+        itemMetricsMap.set(m.itemId, { likesCount: m.likesCount || 0 });
+      });
 
-      // Obtener likes del usuario actual para productos (batch query)
+      // Procesar likes del usuario
       const userLikedProductsSet = new Set<string>();
-      if (userId && productIdsForMetrics.length > 0) {
-        try {
-          const userLikes = await prisma.productLike.findMany({
-            where: {
-              userId,
-              productId: { in: productIdsForMetrics },
-            },
-            select: {
-              productId: true,
-            },
-          });
-          userLikes.forEach((like) => {
-            userLikedProductsSet.add(like.productId);
-          });
-        } catch (error) {
-          console.error('Error obteniendo likes del usuario:', error);
-        }
-      }
+      (userLikesResult as any[]).forEach((like: any) => {
+        userLikedProductsSet.add(like.productId);
+      });
+
+      // Procesar wishlist del usuario
+      const userWishlistProductsSet = new Set<string>();
+      (wishlistItemsResult as any[]).forEach((item: any) => {
+        userWishlistProductsSet.add(item.productId);
+      });
 
       // Mapear items en el orden correcto (mantener orden de intercalación)
       const feedItems: FeedItemDTO[] = [];
@@ -298,7 +463,8 @@ export class FeedService {
           continue;
         }
         
-        const firstVariant = product.variants[0];
+        // ✅ Verificar que variants exista y tenga elementos
+        const firstVariant = (product.variants && product.variants.length > 0) ? product.variants[0] : null;
         
         // ✅ MEJORAR: Extraer imágenes de forma robusta (campo JSON puede venir en diferentes formatos)
         let imagesArray: string[] = [];
@@ -339,13 +505,14 @@ export class FeedService {
           imageUrl = ''; // Frontend manejará el placeholder
         }
         
-        // Usar tankuPrice directamente (ya calculado en sync)
-        const finalPrice = firstVariant?.tankuPrice || undefined;
+        // ✅ Usar tankuPrice directamente (ya calculado en sync) o price como fallback
+        const finalPrice = firstVariant?.tankuPrice || firstVariant?.price || undefined;
         
-        // Obtener likesCount e isLiked
+        // Obtener likesCount, isLiked e isInWishlist
         const metrics = itemMetricsMap.get(product.id);
         const likesCount = metrics?.likesCount || 0;
         const isLiked = userId ? userLikedProductsSet.has(product.id) : false;
+        const isInWishlist = userId ? userWishlistProductsSet.has(product.id) : false;
         
         feedItems.push({
           id: product.id,
@@ -362,6 +529,7 @@ export class FeedService {
           } : undefined,
           likesCount,
           isLiked,
+          isInWishlist,
         });
       } else {
         const poster = posterMap.get(item.itemId);
@@ -447,6 +615,17 @@ export class FeedService {
    * Generar token único para un cursor
    */
   private generateCursorToken(cursor: FeedCursorDTO): string {
+    // Limpiar tokens expirados primero
+    this.cleanExpiredTokens();
+    
+    // Si hay demasiados tokens, eliminar los más antiguos (FIFO)
+    if (this.cursorTokens.size >= this.MAX_CURSOR_TOKENS) {
+      const firstToken = this.cursorTokens.keys().next().value;
+      if (firstToken) {
+        this.cursorTokens.delete(firstToken);
+      }
+    }
+    
     // Generar token único (usando timestamp + random)
     const token = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
     
@@ -491,6 +670,46 @@ export class FeedService {
   }
 
   /**
+   * Obtener categorías bloqueadas con cache (TTL de 1 hora)
+   */
+  private async getBlockedCategoryIdsCached(): Promise<string[]> {
+    const now = Date.now();
+    if (this.blockedCategoryIdsCache && (now - this.blockedCategoryIdsCacheTime) < this.BLOCKED_CATEGORIES_TTL) {
+      return this.blockedCategoryIdsCache;
+    }
+    
+    this.blockedCategoryIdsCache = await getBlockedCategoryIds();
+    this.blockedCategoryIdsCacheTime = now;
+    return this.blockedCategoryIdsCache;
+  }
+
+  /**
+   * ✅ OPTIMIZAR: Obtener IDs de hijos de categoría con cache
+   * Evita queries recursivas repetidas
+   */
+  private async getAllChildrenIdsCached(categoryId: string): Promise<string[]> {
+    const now = Date.now();
+    const cached = this.categoryChildrenCache.get(categoryId);
+    
+    if (cached && (now - cached.timestamp) < this.CATEGORY_CHILDREN_TTL) {
+      return cached.ids;
+    }
+    
+    const ids = await getAllChildrenIds(categoryId);
+    this.categoryChildrenCache.set(categoryId, { ids, timestamp: now });
+    
+    // ✅ Limpiar cache si crece demasiado (evitar memory leak)
+    if (this.categoryChildrenCache.size > 1000) {
+      const oldestKey = this.categoryChildrenCache.keys().next().value;
+      if (oldestKey) {
+        this.categoryChildrenCache.delete(oldestKey);
+      }
+    }
+    
+    return ids;
+  }
+
+  /**
    * Obtener productos por ranking (solo productos)
    */
   private async getProductsByRanking(
@@ -499,8 +718,8 @@ export class FeedService {
     boostFactor: number,
     categoryId?: string
   ) {
-    // Obtener IDs de categorías bloqueadas
-    const blockedCategoryIds = await getBlockedCategoryIds();
+    // Obtener IDs de categorías bloqueadas (con cache)
+    const blockedCategoryIds = await this.getBlockedCategoryIdsCached();
     
     // Verificar si la categoría solicitada está bloqueada
     if (categoryId && blockedCategoryIds.includes(categoryId)) {
@@ -522,8 +741,8 @@ export class FeedService {
         return [];
       }
       
-      // Obtener todos los IDs de subcategorías (hijos)
-      const childrenIds = await getAllChildrenIds(categoryId);
+      // ✅ Obtener todos los IDs de subcategorías (hijos) con cache
+      const childrenIds = await this.getAllChildrenIdsCached(categoryId);
       
       // Buscar productos en la categoría padre Y en todas sus subcategorías
       const categoryIdsToSearch = [categoryId, ...childrenIds];
@@ -872,47 +1091,48 @@ export class FeedService {
     // Si hay userId, filtrar por amigos + propio y excluir bloqueados
     if (userId) {
       try {
-        // Obtener lista de amigos aceptados (bidireccional)
-        const friends = await prisma.friend.findMany({
-          where: {
-            OR: [
-              { userId, status: 'accepted' },
-              { friendId: userId, status: 'accepted' }
-            ]
-          },
-          select: {
-            userId: true,
-            friendId: true,
-          }
-        });
+        // ✅ PARALELIZAR: Obtener amigos y bloqueados en paralelo (3 queries → 1 Promise.all)
+        const [friends, blockedUserIds, blockedByUserIds] = await Promise.all([
+          // Obtener lista de amigos aceptados (bidireccional)
+          prisma.friend.findMany({
+            where: {
+              OR: [
+                { userId, status: 'accepted' },
+                { friendId: userId, status: 'accepted' }
+              ]
+            },
+            select: {
+              userId: true,
+              friendId: true,
+            }
+          }),
+          // Obtener IDs de usuarios bloqueados (que el usuario bloqueó)
+          prisma.friend.findMany({
+            where: {
+              userId,
+              status: 'blocked',
+            },
+            select: {
+              friendId: true,
+            },
+          }),
+          // Obtener IDs de usuarios que bloquearon al usuario actual
+          prisma.friend.findMany({
+            where: {
+              friendId: userId,
+              status: 'blocked',
+            },
+            select: {
+              userId: true,
+            },
+          })
+        ]);
 
         // Extraer IDs de amigos (bidireccional) + incluir el usuario mismo
         const friendIds = new Set<string>([userId]); // Incluir el usuario mismo
         friends.forEach(f => {
           if (f.userId === userId) friendIds.add(f.friendId);
           if (f.friendId === userId) friendIds.add(f.userId);
-        });
-
-        // Obtener IDs de usuarios bloqueados (que el usuario bloqueó)
-        const blockedUserIds = await prisma.friend.findMany({
-          where: {
-            userId,
-            status: 'blocked',
-          },
-          select: {
-            friendId: true,
-          },
-        });
-
-        // Obtener IDs de usuarios que bloquearon al usuario actual
-        const blockedByUserIds = await prisma.friend.findMany({
-          where: {
-            friendId: userId,
-            status: 'blocked',
-          },
-          select: {
-            userId: true,
-          },
         });
 
         // Combinar todos los IDs bloqueados (bidireccional)
@@ -1380,6 +1600,14 @@ export class FeedService {
    * Esto NO modifica el ranking global, solo afecta el ordenamiento temporal
    */
   applyBoost(itemId: string, itemType: 'product' | 'poster', boostFactor: number) {
+    // Si hay demasiados boosts, eliminar el más antiguo (FIFO)
+    if (this.boostMap.size >= this.MAX_BOOST_ENTRIES) {
+      const firstKey = this.boostMap.keys().next().value;
+      if (firstKey) {
+        this.boostMap.delete(firstKey);
+      }
+    }
+    
     const key = `${itemId}:${itemType}`;
     this.boostMap.set(key, boostFactor);
   }
@@ -1695,6 +1923,361 @@ export class FeedService {
         },
       });
     }
+  }
+
+  /**
+   * Obtener feed público (solo productos, sin posters, sin autenticación)
+   * Cacheable y limitado a 100 productos máximo
+   * 
+   * @param cursorToken Token del cursor (opcional, para paginación)
+   * @param categoryId ID de categoría para filtrar (opcional)
+   * @param search Query de búsqueda para filtrar productos (opcional)
+   */
+  async getPublicFeed(
+    cursorToken?: string,
+    categoryId?: string,
+    search?: string
+  ): Promise<FeedResponseDTO> {
+    try {
+      // Verificar cache primero
+      const cacheKey = this.getPublicFeedCacheKey(categoryId, search);
+      const now = Date.now();
+      
+      if (this.publicFeedCache && 
+          this.publicFeedCache.categoryId === categoryId &&
+          this.publicFeedCache.search === search &&
+          (now - this.publicFeedCache.timestamp) < this.PUBLIC_FEED_CACHE_TTL &&
+          !cursorToken) { // Solo usar cache si no hay cursor (primera página)
+        return this.publicFeedCache.data || { items: [], nextCursorToken: null };
+      }
+
+      // Limpiar tokens expirados
+      this.cleanExpiredTokens();
+
+      // Obtener cursor del token si existe
+      const cursor = cursorToken ? this.getCursorFromToken(cursorToken) : undefined;
+
+      // Límite máximo para feed público: 100 productos total
+      const PUBLIC_FEED_MAX_PRODUCTS = 100;
+      // Si no hay cursor, devolver todos los 100 productos de una vez
+      // Si hay cursor, ya estamos en segunda página, no debería haber más productos
+      const limit = cursorToken ? 0 : PUBLIC_FEED_MAX_PRODUCTS;
+
+      // Obtener productos por ranking o búsqueda (solo productos, sin boost)
+      // Para feed público sin cursor, pedir suficientes productos para asegurar 100 válidos
+      let products: any[] = [];
+      try {
+        if (search && search.trim()) {
+          // Para búsqueda, pedir más productos para compensar filtros
+          products = await this.getProductsBySearch(
+            search.trim(),
+            cursor,
+            limit > 0 ? limit + 100 : 0, // Buffer grande para compensar filtros
+            categoryId
+          );
+        } else {
+          // Para ranking, pedir más productos para asegurar 100 válidos
+          products = await this.getProductsByRanking(
+            cursor,
+            limit > 0 ? limit + 100 : 0, // Buffer grande para compensar filtros
+            1.0, // Sin boost (boostFactor = 1.0)
+            categoryId
+          );
+        }
+      } catch (productsError: any) {
+        if (productsError?.code === 'P2021' || productsError?.message?.includes('does not exist')) {
+          console.warn(`⚠️ [FEED-SERVICE] Tabla global_ranking no existe. Retornando feed vacío.`);
+          products = [];
+        } else {
+          console.error(`❌ [FEED-SERVICE] Error obteniendo productos para feed público:`, productsError?.message);
+          products = [];
+        }
+      }
+
+      // No limitar aquí, procesaremos hasta tener 100 válidos
+
+      // Obtener IDs de productos para batch query
+      const productIds = products.map(item => item.itemId);
+
+      // Batch query para productos
+      let productsData: any[] = [];
+      try {
+        if (productIds.length > 0) {
+          // ✅ Usar categorías bloqueadas con cache
+          const blockedCategoryIds = await this.getBlockedCategoryIdsCached();
+          
+          productsData = await prisma.product.findMany({
+            where: { 
+              id: { in: productIds },
+              ...(blockedCategoryIds.length > 0 && {
+                categoryId: {
+                  notIn: blockedCategoryIds,
+                },
+              }),
+            },
+            include: {
+              category: true,
+              variants: {
+                where: { active: true },
+                orderBy: { price: 'asc' },
+                take: 1,
+              },
+            },
+          });
+        }
+      } catch (productsDataError: any) {
+        console.error(`❌ [FEED-SERVICE] Error en batch query de productos (feed público):`, productsDataError?.message);
+        productsData = [];
+      }
+
+      // Crear mapa para acceso rápido
+      const productMap = new Map(productsData.map(p => [p.id, p]));
+
+      // Obtener métricas de likes para productos (batch query)
+      const productIdsForMetrics = Array.from(productMap.keys());
+      const itemMetricsMap = new Map<string, { likesCount: number }>();
+      if (productIdsForMetrics.length > 0) {
+        try {
+          const metrics = await (prisma as any).itemMetric.findMany({
+            where: {
+              itemId: { in: productIdsForMetrics },
+              itemType: 'product',
+            },
+            select: {
+              itemId: true,
+              likesCount: true,
+            },
+          });
+          metrics.forEach((m: any) => {
+            itemMetricsMap.set(m.itemId, { likesCount: m.likesCount || 0 });
+          });
+        } catch (metricsError: any) {
+          console.warn(`⚠️ [FEED-SERVICE] Error obteniendo métricas (feed público):`, metricsError?.message);
+        }
+      }
+
+      // Mapear productos a FeedItemDTO (sin isLiked ya que no hay userId)
+      // Continuar hasta tener 100 productos válidos
+      const feedItems: FeedItemDTO[] = [];
+      let currentCursor: FeedCursorDTO | undefined = cursor;
+      let allProducts = [...products];
+      let processedIndex = 0;
+      
+      // Loop para asegurar que siempre tengamos 100 productos válidos
+      while (feedItems.length < PUBLIC_FEED_MAX_PRODUCTS) {
+        // Procesar productos disponibles
+        while (processedIndex < allProducts.length && feedItems.length < PUBLIC_FEED_MAX_PRODUCTS) {
+          const item = allProducts[processedIndex];
+          processedIndex++;
+          
+          const product = productMap.get(item.itemId);
+          if (!product) {
+            continue; // Saltar si no se encontró el producto
+          }
+
+          const firstVariant = product.variants[0];
+          
+          // Extraer imágenes
+          let imagesArray: string[] = [];
+          if (product.images) {
+            if (Array.isArray(product.images)) {
+              imagesArray = product.images.map((img: any) => {
+                if (typeof img === 'string') return img;
+                if (typeof img === 'object' && img !== null) {
+                  return img.url || img.urlS3 || img;
+                }
+                return img;
+              }).filter((img: any) => img && typeof img === 'string');
+            } else if (typeof product.images === 'string') {
+              try {
+                const parsed = JSON.parse(product.images);
+                if (Array.isArray(parsed)) {
+                  imagesArray = parsed.filter((img: any) => typeof img === 'string');
+                }
+              } catch (e) {
+                // No es JSON válido, ignorar
+              }
+            }
+          }
+          
+          // Filtrar imágenes bloqueadas
+          const hiddenImages = (product.hiddenImages || []) as string[];
+          imagesArray = imagesArray.filter(img => !hiddenImages.includes(img));
+          
+          // Obtener primera imagen válida
+          const firstImage = imagesArray.length > 0 ? imagesArray[0] : null;
+          let imageUrl = firstImage ? (this.normalizeImageUrl(firstImage) || '') : '';
+          
+          if (!imageUrl || imageUrl.trim() === '') {
+            imageUrl = ''; // Frontend manejará el placeholder
+          }
+          
+          // Verificar que el producto tenga título (requerido)
+          if (!product.title || product.title.trim() === '') {
+            continue; // Saltar productos sin título
+          }
+          
+          // Usar tankuPrice directamente
+          const finalPrice = firstVariant?.tankuPrice || undefined;
+          
+          // Obtener likesCount (sin isLiked ya que no hay userId)
+          const metrics = itemMetricsMap.get(product.id);
+          const likesCount = metrics?.likesCount || 0;
+          
+          feedItems.push({
+            id: product.id,
+            type: 'product',
+            createdAt: product.createdAt.toISOString(),
+            title: product.title,
+            imageUrl,
+            price: finalPrice,
+            handle: product.handle,
+            category: product.category ? {
+              id: product.category.id,
+              name: product.category.name,
+              handle: product.category.handle,
+            } : undefined,
+            likesCount,
+            // No incluir isLiked (requiere userId)
+          });
+        }
+        
+        // Si aún no tenemos 100 productos y no hay cursor (primera carga), pedir más
+        if (feedItems.length < PUBLIC_FEED_MAX_PRODUCTS && !cursorToken && processedIndex >= allProducts.length) {
+          try {
+            // Crear cursor desde el último producto procesado
+            if (allProducts.length > 0) {
+              const lastProduct = allProducts[allProducts.length - 1];
+              const createdAt = lastProduct.createdAt instanceof Date 
+                ? lastProduct.createdAt.toISOString()
+                : (lastProduct.createdAt ? new Date(lastProduct.createdAt).toISOString() : undefined);
+              currentCursor = {
+                lastProductScore: lastProduct.globalScore,
+                lastProductCreatedAt: createdAt,
+                lastProductId: lastProduct.itemId,
+                lastItemType: 'product',
+              };
+            }
+            
+            // Obtener más productos del ranking
+            const additionalProducts = await this.getProductsByRanking(
+              currentCursor,
+              50, // Pedir 50 más
+              1.0,
+              categoryId
+            );
+            
+            if (additionalProducts.length === 0) {
+              // No hay más productos disponibles
+              break;
+            }
+            
+            // Agregar los nuevos productos a la lista
+            allProducts = [...allProducts, ...additionalProducts];
+            
+            // Obtener los nuevos IDs y hacer batch query
+            const newProductIds = additionalProducts.map(item => item.itemId);
+            if (newProductIds.length > 0) {
+              const blockedCategoryIds = await getBlockedCategoryIds();
+              const newProductsData = await prisma.product.findMany({
+                where: { 
+                  id: { in: newProductIds },
+                  ...(blockedCategoryIds.length > 0 && {
+                    categoryId: {
+                      notIn: blockedCategoryIds,
+                    },
+                  }),
+                },
+                include: {
+                  category: true,
+                  variants: {
+                    where: { active: true },
+                    orderBy: { price: 'asc' },
+                    take: 1,
+                  },
+                },
+              });
+              
+              // Agregar al mapa
+              newProductsData.forEach(p => productMap.set(p.id, p));
+              
+              // Actualizar métricas
+              const newMetrics = await (prisma as any).itemMetric.findMany({
+                where: {
+                  itemId: { in: newProductIds },
+                  itemType: 'product',
+                },
+                select: {
+                  itemId: true,
+                  likesCount: true,
+                },
+              });
+              newMetrics.forEach((m: any) => {
+                itemMetricsMap.set(m.itemId, { likesCount: m.likesCount || 0 });
+              });
+            }
+          } catch (error: any) {
+            console.error(`❌ [FEED-SERVICE] Error obteniendo productos adicionales:`, error?.message);
+            break; // Salir del loop si hay error
+          }
+        } else {
+          // Ya procesamos todos los productos disponibles o hay cursor (paginación)
+          break;
+        }
+      }
+
+      // Crear cursor para siguiente página (solo productos)
+      // No crear cursor para feed público ya que siempre devolvemos los 100 productos completos en la primera carga
+      let nextCursor: FeedCursorDTO | null = null;
+      // El feed público siempre devuelve 100 productos en la primera carga, sin paginación
+      // No hay más páginas después de los 100 productos
+
+      // Generar token para siguiente página si hay más items
+      const nextCursorToken = nextCursor ? this.generateCursorToken(nextCursor) : null;
+
+      const result: FeedResponseDTO = {
+        items: feedItems,
+        nextCursorToken,
+      };
+
+      // Guardar en cache (solo primera página, sin cursor)
+      if (!cursorToken) {
+        this.publicFeedCache = {
+          data: result,
+          timestamp: now,
+          categoryId,
+          search,
+        };
+      }
+
+      return result;
+    } catch (error: any) {
+      console.error(`❌ [FEED-SERVICE] Error en getPublicFeed:`, error?.message);
+      console.error(`❌ [FEED-SERVICE] Stack:`, error?.stack);
+      
+      return {
+        items: [],
+        nextCursorToken: null,
+      };
+    }
+  }
+
+  /**
+   * Generar clave de cache para feed público
+   */
+  private getPublicFeedCacheKey(categoryId?: string, search?: string): string {
+    const parts = ['feed_public_v1'];
+    if (categoryId) parts.push(`cat_${categoryId}`);
+    if (search) parts.push(`search_${search.trim().toLowerCase()}`);
+    return parts.join('_');
+  }
+
+  /**
+   * Invalidar cache del feed público
+   * Llamar cuando se actualiza el ranking o se agrega/elimina un producto
+   */
+  invalidatePublicFeedCache(): void {
+    this.publicFeedCache = null;
   }
 }
 

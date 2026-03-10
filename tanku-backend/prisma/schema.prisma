@@ -155,6 +155,9 @@ model Product {
   stories       StoriesUser[]
   locker        AdminUser?       @relation("ProductLocker", fields: [lockedBy], references: [id])
 
+  @@index([categoryId])
+  @@index([active])
+  @@index([categoryId, active]) // ✅ Índice compuesto para queries comunes del feed
   @@map("products")
 }
 
@@ -179,6 +182,7 @@ model ProductVariant {
   warehouseVariants WarehouseVariant[]
   wishListItems     WishListItem[]
 
+  @@index([productId, active]) // ✅ Índice compuesto para queries del feed
   @@map("product_variants")
 }
 
@@ -511,6 +515,7 @@ model Poster {
 
   @@index([customerId])
   @@index([isActive])
+  @@index([customerId, isActive, createdAt]) // ✅ Índice compuesto para optimizar queries del feed
   @@map("posters")
 }
 
@@ -531,25 +536,30 @@ model PosterReaction {
 }
 
 model PosterComment {
-  id         String          @id @default(cuid())
-  posterId   String          @map("poster_id")
-  customerId String          @map("customer_id")
-  content    String
-  parentId   String?         @map("parent_id")
-  likesCount Int             @default(0) @map("likes_count")
-  isActive   Boolean         @default(true) @map("is_active")
-  createdAt  DateTime        @default(now()) @map("created_at")
-  updatedAt  DateTime        @updatedAt @map("updated_at")
-  mentions   Json?
-  customer   User            @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  parent     PosterComment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies    PosterComment[] @relation("CommentReplies")
-  poster     Poster          @relation(fields: [posterId], references: [id], onDelete: Cascade)
+  id            String          @id @default(cuid())
+  posterId      String          @map("poster_id")
+  customerId    String          @map("customer_id")
+  content       String          @db.Text
+  parentId      String?         @map("parent_id")
+  likesCount    Int             @default(0) @map("likes_count")
+  isActive      Boolean         @default(true) @map("is_active")
+  deletedAt     DateTime?       @map("deleted_at")
+  hiddenByOwner Boolean         @default(false) @map("hidden_by_owner")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  mentions      Json?
+  customer      User            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  parent        PosterComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies       PosterComment[] @relation("CommentReplies")
+  poster        Poster          @relation(fields: [posterId], references: [id], onDelete: Cascade)
 
   @@index([posterId])
   @@index([customerId])
   @@index([parentId])
   @@index([createdAt])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@index([hiddenByOwner])
   @@map("poster_comments")
 }
 
@@ -578,6 +588,7 @@ model StoriesUser {
   @@index([storyType])
   @@index([wishlistId])
   @@index([productId])
+  @@index([customerId, isActive, expiresAt]) // ✅ Índice compuesto para optimizar consultas del feed
   @@map("stories_user")
 }
 
@@ -720,6 +731,7 @@ model Conversation {
 
   @@index([type, status])
   @@index([status])
+  @@index([updatedAt]) // ✅ Para ordenar por última actividad
   @@map("conversations")
 }
 

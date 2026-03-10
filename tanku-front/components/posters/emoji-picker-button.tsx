@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 
 // Importar dinámicamente para evitar problemas de SSR
 const EmojiPicker = dynamic(
-  () => import('emoji-picker-react'),
+  () => import('emoji-picker-react').then((mod) => mod.default || mod),
   { ssr: false }
 )
 
@@ -123,7 +123,7 @@ export function EmojiPickerButton({ onEmojiSelect }: EmojiPickerButtonProps) {
         >
           <EmojiPicker
             onEmojiClick={handleEmojiClick}
-            theme="dark"
+            theme={'dark' as any}
             width={350}
             height={400}
             previewConfig={{

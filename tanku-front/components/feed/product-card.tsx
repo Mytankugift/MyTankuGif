@@ -27,6 +27,7 @@ interface ProductCardProps {
     handle?: string // Para navegación
     likesCount?: number // Del feed optimizado
     isLiked?: boolean // Del feed optimizado
+    isInWishlist?: boolean // Del feed optimizado
   }
   onOpenModal?: (product: any) => void
   isLightMode?: boolean

@@ -64,13 +64,17 @@ export default function FeedPage() {
     loadMore,
     updateItem,
     removeItem,
-  } = useFeed({
-    categoryId: selectedCategoryId,
-    searchQuery,
-    // ✅ Pasar flag para deshabilitar carga inicial solo si estamos usando feedInit Y tiene datos
-    // Si cambiamos a "Todas" y feedInit no tiene datos, permitir que useFeed cargue
-    skipInitialLoad: useInitData && feedInit.items.length > 0,
-  })
+  } = useFeed(
+    {
+      categoryId: selectedCategoryId,
+      searchQuery,
+    },
+    {
+      // ✅ Pasar flag para deshabilitar carga inicial solo si estamos usando feedInit Y tiene datos
+      // Si cambiamos a "Todas" y feedInit no tiene datos, permitir que useFeed cargue
+      skipInitialLoad: useInitData && feedInit.items.length > 0,
+    }
+  )
   
   // Una vez que feedInit carga, marcar como inicializado
   useEffect(() => {

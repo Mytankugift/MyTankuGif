@@ -59,7 +59,7 @@ export function StalkerGiftChatList({ onSelectChat }: StalkerGiftChatListProps) 
 
     // Solo para FRIENDS mostrar avatar
     if (otherParticipant.isRevealed || conversation.type === 'FRIENDS') {
-      return otherParticipant.user.profile?.avatar
+      return otherParticipant.user?.profile?.avatar
     }
 
     return null

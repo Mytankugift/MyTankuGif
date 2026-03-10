@@ -86,6 +86,7 @@ export class PostersController {
    */
   getComments = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const requestWithUser = req as RequestWithUser;
       const { posterId } = req.params;
       const page = parseInt(req.query.page as string) || 0;
       const limit = parseInt(req.query.limit as string) || 20;
@@ -94,7 +95,10 @@ export class PostersController {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'posterId es requerido'));
       }
 
-      const result = await this.postersService.getPosterComments(posterId, page, limit);
+      // Pasar el userId si está autenticado (para mostrar comentarios ocultos si es el dueño)
+      const userId = requestWithUser.user?.id;
+
+      const result = await this.postersService.getPosterComments(posterId, page, limit, userId);
 
       res.status(200).json(successResponse(result));
     } catch (error) {
@@ -208,6 +212,15 @@ export class PostersController {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'content es requerido'));
       }
 
+      // Log del contenido recibido
+      console.log('\n📝 ===== CREAR COMENTARIO =====');
+      console.log('📌 PosterId:', posterId);
+      console.log('💬 Contenido recibido:', content);
+      console.log('📏 Longitud:', content.length, 'caracteres');
+      console.log('✂️  Contenido (trimmed):', content.trim());
+      console.log('🔗 ParentId:', parentId || 'null (comentario principal)');
+      console.log('================================\n');
+
       const comment = await this.postersService.createComment(
         posterId,
         requestWithUser.user.id,
@@ -245,6 +258,60 @@ export class PostersController {
       );
 
       res.status(200).json(successResponse(result));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * PATCH /api/v1/posters/:posterId/comments/:commentId
+   * Actualizar comentario (soft delete, ocultar, o edición)
+   */
+  updateComment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const { posterId, commentId } = req.params;
+      const { isActive, hiddenByOwner, content } = req.body;
+
+      // Obtener permisos del middleware
+      const permissions = (requestWithUser as any).commentPermissions;
+      if (!permissions) {
+        return res.status(403).json(
+          errorResponse(ErrorCode.FORBIDDEN, 'No se pudieron verificar los permisos')
+        );
+      }
+
+      const updateData: any = {};
+      if (typeof isActive === 'boolean') {
+        updateData.isActive = isActive;
+      }
+      if (typeof hiddenByOwner === 'boolean') {
+        updateData.hiddenByOwner = hiddenByOwner;
+      }
+      if (typeof content === 'string') {
+        updateData.content = content.trim();
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json(
+          errorResponse(ErrorCode.BAD_REQUEST, 'Debe proporcionar al menos un campo para actualizar')
+        );
+      }
+
+      const comment = await this.postersService.updateComment(
+        commentId,
+        requestWithUser.user.id,
+        updateData,
+        permissions.isPosterOwner,
+        permissions.isAdmin
+      );
+
+      res.status(200).json(successResponse(comment));
     } catch (error) {
       next(error);
     }

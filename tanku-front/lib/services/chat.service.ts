@@ -56,6 +56,7 @@ type ChatEventType =
   | 'message:new'
   | 'message:sent'
   | 'message:error'
+  | 'message:optimistic' // ✅ Mensajes optimistas (enviados localmente)
   | 'typing:start'
   | 'typing:stop'
   | 'read:update'
@@ -63,6 +64,7 @@ type ChatEventType =
   | 'conversation:left'
   | 'notification' // ✅ Eventos de notificaciones
   | 'notification_count' // ✅ Contador de notificaciones
+  | 'presence' // ✅ Presencia de usuarios (opcional, para futuras features)
 
 type ChatEventListener = (data: any) => void
 

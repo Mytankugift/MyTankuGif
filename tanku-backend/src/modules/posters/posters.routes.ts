@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { PostersController } from './posters.controller';
 import { authenticate, optionalAuthenticate } from '../../shared/middleware/auth.middleware';
 import { uploadFiles } from '../../shared/middleware/upload.middleware';
+import { checkCommentPermissions } from '../../shared/middleware/comment-permissions.middleware';
 
 const router = Router();
 const postersController = new PostersController();
@@ -55,6 +56,17 @@ router.post('/:posterId/comments', authenticate, postersController.createComment
  * Dar like/unlike a un comentario
  */
 router.post('/:posterId/comments/:commentId/like', authenticate, postersController.toggleCommentLike);
+
+/**
+ * PATCH /api/v1/posters/:posterId/comments/:commentId
+ * Actualizar comentario (soft delete, ocultar, o edición)
+ */
+router.patch(
+  '/:posterId/comments/:commentId',
+  authenticate,
+  checkCommentPermissions,
+  postersController.updateComment
+);
 
 /**
  * DELETE /api/v1/posters/:posterId

@@ -270,7 +270,7 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
     })
   }
 
-  if (!conversation || !otherParticipant) {
+  if (!conversation || !otherParticipant || !otherParticipant.user) {
     return (
       <div className="flex items-center justify-center h-full text-gray-400">
         <p>Selecciona una conversación para comenzar</p>
@@ -278,24 +278,26 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
     )
   }
 
+  const otherUser = otherParticipant.user
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-gray-700 bg-gray-800/50">
         <button
-          onClick={() => router.push((otherParticipant.user as any).username ? `/profile/${(otherParticipant.user as any).username}` : `/profile/${otherParticipant.user.id}`)}
+          onClick={() => router.push(otherUser.username ? `/profile/${otherUser.username}` : `/profile/${otherUser.id}`)}
           className="flex items-center gap-3 hover:opacity-80 transition-opacity w-full"
         >
           <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-[#66DEDB] bg-gray-700 flex items-center justify-center">
-            {otherParticipant.user.profile?.avatar ? (
+            {otherUser.profile?.avatar ? (
               <Image
-                src={otherParticipant.user.profile.avatar}
+                src={otherUser.profile.avatar}
                 alt={displayName}
                 width={40}
                 height={40}
                 className="object-cover w-full h-full"
                 referrerPolicy="no-referrer"
-                unoptimized={otherParticipant.user.profile.avatar.startsWith('http')}
+                unoptimized={otherUser.profile.avatar.startsWith('http')}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement
                   target.style.display = 'none'
@@ -307,8 +309,8 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
               />
             ) : (
               <span className="text-sm text-gray-400 font-bold">
-                {(otherParticipant?.user?.firstName?.[0] || 
-                  otherParticipant?.user?.email?.[0] || 
+                {(otherUser.firstName?.[0] || 
+                  otherUser.email?.[0] || 
                   otherParticipant?.deletedUserEmail?.[0] || 
                   'U').toUpperCase()}
               </span>
@@ -319,8 +321,8 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
             <h3 className="text-sm font-semibold text-[#73FFA2] hover:text-[#66DEDB] transition-colors">
               {displayName}
             </h3>
-            {otherParticipant?.user?.username && (
-              <p className="text-xs text-gray-400">{otherParticipant.user.username}</p>
+            {otherUser.username && (
+              <p className="text-xs text-gray-400">{otherUser.username}</p>
             )}
             {typingUsers.length > 0 && (
               <p className="text-xs text-gray-400">Escribiendo...</p>

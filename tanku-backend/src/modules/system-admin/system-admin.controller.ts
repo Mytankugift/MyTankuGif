@@ -57,13 +57,21 @@ export class SystemAdminController {
       const testUrl = `${proxyUrl}/integrations/categories`;
       const startTime = Date.now();
       
+      // Preparar headers con el proxy key si está configurado
+      const headers: Record<string, string> = {
+        'dropi-integration-key': env.DROPI_STATIC_TOKEN,
+        'Content-Type': 'application/json',
+      };
+      
+      // Agregar X-Proxy-Key si está configurado (requerido por nginx)
+      if (env.DROPI_PROXY_KEY) {
+        headers['x-proxy-key'] = env.DROPI_PROXY_KEY;
+      }
+      
       try {
         const response = await fetch(testUrl, {
           method: 'GET',
-          headers: {
-            'dropi-integration-key': env.DROPI_STATIC_TOKEN,
-            'Content-Type': 'application/json',
-          },
+          headers,
           signal: AbortSignal.timeout(5000), // 5 segundos timeout
         });
 

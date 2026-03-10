@@ -311,34 +311,76 @@ export class StoriesService {
   }
 
   /**
-   * Obtener feed de historias (amigos + propias)
+   * Obtener feed de historias (amigos + propias) - OPTIMIZADO
    */
-  async getFeedStories(userId: string): Promise<StoryDTO[]> {
+  async getFeedStories(userId: string, limit: number = 50): Promise<StoryDTO[]> {
     try {
-      // Obtener IDs de amigos
-      const friendships = await prisma.friend.findMany({
-        where: {
-          OR: [
-            { userId, status: 'accepted' },
-            { friendId: userId, status: 'accepted' },
-          ],
-        },
-        select: {
-          userId: true,
-          friendId: true,
-        },
-      });
+      // OPTIMIZACIÓN 1: Usar una consulta más eficiente con UNION en lugar de OR
+      // OPTIMIZACIÓN 2: Agregar límite para evitar cargar demasiadas stories
+      // OPTIMIZACIÓN 3: Filtrar por expiresAt directamente en la consulta
+      
+      const now = new Date();
+      
+      // Obtener IDs de amigos de forma más eficiente usando consultas separadas
+      // Esto aprovecha mejor los índices compuestos [userId, status] y [friendId, status]
+      const [friendsAsUser, friendsAsFriend] = await Promise.all([
+        prisma.friend.findMany({
+          where: {
+            userId,
+            status: 'accepted',
+          },
+          select: {
+            friendId: true,
+          },
+        }),
+        prisma.friend.findMany({
+          where: {
+            friendId: userId,
+            status: 'accepted',
+          },
+          select: {
+            userId: true,
+          },
+        }),
+      ]);
 
-      const friendIds = new Set<string>();
-      friendships.forEach((f) => {
-        if (f.userId === userId) {
-          friendIds.add(f.friendId);
-        } else {
-          friendIds.add(f.userId);
-        }
-      });
-      friendIds.add(userId); // Incluir historias propias
+      const friendIds = new Set<string>([userId]); // Incluir historias propias
+      friendsAsUser.forEach((f) => friendIds.add(f.friendId));
+      friendsAsFriend.forEach((f) => friendIds.add(f.userId));
 
+      // Si no hay amigos, solo obtener stories propias
+      if (friendIds.size === 1) {
+        const stories = await prisma.storiesUser.findMany({
+          where: {
+            customerId: userId,
+            isActive: true,
+            expiresAt: {
+              gt: now,
+            },
+          },
+          include: {
+            customer: {
+              include: {
+                profile: true,
+              },
+            },
+            storyFiles: {
+              orderBy: { orderIndex: 'asc' },
+            },
+            product: {
+              select: {
+                handle: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: limit, // ✅ Agregar límite
+        });
+
+        return stories.map((story) => this.mapStoryToDTO(story));
+      }
+
+      // OPTIMIZACIÓN 4: Agregar límite y usar índices existentes
       const stories = await prisma.storiesUser.findMany({
         where: {
           customerId: {
@@ -346,7 +388,7 @@ export class StoriesService {
           },
           isActive: true,
           expiresAt: {
-            gt: new Date(),
+            gt: now, // ✅ Usar variable en lugar de new Date() cada vez
           },
         },
         include: {
@@ -365,6 +407,7 @@ export class StoriesService {
           },
         },
         orderBy: { createdAt: 'desc' },
+        take: limit, // ✅ Agregar límite para evitar cargar demasiadas stories
       });
 
       return stories.map((story) => this.mapStoryToDTO(story));

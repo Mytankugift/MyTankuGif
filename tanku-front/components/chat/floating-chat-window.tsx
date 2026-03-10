@@ -28,7 +28,7 @@ export function FloatingChatWindow({ conversationId, conversation, onClose, posi
   const otherParticipant = conversation ? getOtherParticipant(conversation, user?.id || '') : null
   const displayName = otherParticipant?.alias || 
     (otherParticipant?.user 
-      ? `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
+      ? `${otherParticipant.user?.firstName || ''} ${otherParticipant.user?.lastName || ''}`.trim()
       : otherParticipant?.deletedUserEmail || 'Usuario eliminado') ||
     (otherParticipant?.user?.email || 'Usuario')
 
@@ -149,14 +149,14 @@ export function FloatingChatWindow({ conversationId, conversation, onClose, posi
       <div className="flex items-center justify-between p-3 border-b border-gray-700 bg-gray-800/50 cursor-move">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="relative w-8 h-8 rounded-full overflow-hidden border border-[#66DEDB] bg-gray-700 flex-shrink-0">
-            {otherParticipant?.user.profile?.avatar ? (
+            {otherParticipant?.user?.profile?.avatar ? (
               <Image
-                src={otherParticipant.user.profile.avatar}
+                src={otherParticipant.user?.profile?.avatar || ''}
                 alt={displayName}
                 width={32}
                 height={32}
                 className="object-cover w-full h-full"
-                unoptimized={otherParticipant.user.profile.avatar.startsWith('http')}
+                unoptimized={(otherParticipant.user?.profile?.avatar || '').startsWith('http')}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement
                   target.style.display = 'none'
@@ -168,7 +168,7 @@ export function FloatingChatWindow({ conversationId, conversation, onClose, posi
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs font-semibold">
-                {(otherParticipant?.user.firstName?.[0] || otherParticipant?.user.email?.[0] || 'U').toUpperCase()}
+                {(otherParticipant?.user?.firstName?.[0] || otherParticipant?.user?.email?.[0] || 'U').toUpperCase()}
               </div>
             )}
           </div>

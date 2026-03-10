@@ -338,9 +338,10 @@ export function PosterDetailContent({
       console.log('\n📥 RESPUESTA DEL SERVIDOR:')
       console.log('   ✅ Éxito:', response.success ? 'Sí' : 'No')
       if (response.success && response.data) {
-        console.log('   📝 Comentario ID:', response.data.id)
-        console.log('   💬 Contenido:', response.data.content?.substring(0, 80) + (response.data.content?.length > 80 ? '...' : ''))
-        console.log('   👥 Menciones:', response.data.mentions?.length || 0, response.data.mentions || 'ninguna')
+        const data = response.data as any
+        console.log('   📝 Comentario ID:', data.id)
+        console.log('   💬 Contenido:', data.content?.substring(0, 80) + (data.content?.length > 80 ? '...' : ''))
+        console.log('   👥 Menciones:', data.mentions?.length || 0, data.mentions || 'ninguna')
       } else {
         console.log('   ❌ Error:', response.error?.message || 'Error desconocido')
       }

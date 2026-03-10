@@ -345,10 +345,12 @@ export class FriendsService {
     // Mapear para que siempre retorne el amigo (no el usuario actual)
     return friends.map((f) => {
       const friendUser = f.userId === userId ? f.friend : f.user;
+      // ✅ Asegurar que friendId sea siempre el ID del usuario amigo, no el de la relación
+      const correctFriendId = f.userId === userId ? f.friendId : f.userId;
       return {
         id: f.id,
         userId: f.userId,
-        friendId: f.friendId,
+        friendId: correctFriendId, // ✅ Siempre el ID del usuario amigo
         status: f.status as 'pending' | 'accepted' | 'blocked',
         friend: this.mapUserToFriendUserDTO(friendUser),
         createdAt: f.createdAt.toISOString(),
@@ -361,6 +363,7 @@ export class FriendsService {
    * Eliminar amigo
    */
   async removeFriend(userId: string, friendId: string): Promise<void> {
+    // ✅ Eliminada validación incorrecta - los IDs de usuario también pueden empezar con "cmm" (cuid genera IDs aleatorios)
     // Buscar la relación (puede estar en cualquier dirección)
     const friendship = await prisma.friend.findFirst({
       where: {

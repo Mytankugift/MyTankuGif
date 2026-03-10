@@ -194,8 +194,8 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
 
   const otherParticipant = selectedConversation ? getOtherParticipant(selectedConversation, user?.id || '') : null
   const displayName = otherParticipant?.alias || 
-    `${otherParticipant?.user.firstName || ''} ${otherParticipant?.user.lastName || ''}`.trim() ||
-    otherParticipant?.user.email || 'Usuario'
+    `${otherParticipant?.user?.firstName || ''} ${otherParticipant?.user?.lastName || ''}`.trim() ||
+    otherParticipant?.user?.email || 'Usuario'
 
   return (
     <div
@@ -220,18 +220,18 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
             </button>
             {/* Avatar y nombre */}
             <div className="relative w-10 h-10 rounded-full overflow-hidden border border-[#66DEDB] bg-gray-700 flex items-center justify-center flex-shrink-0">
-              {otherParticipant?.user.profile?.avatar ? (
+              {otherParticipant?.user?.profile?.avatar ? (
                 <Image
                   src={otherParticipant.user.profile.avatar}
                   alt={displayName}
                   width={40}
                   height={40}
                   className="object-cover w-full h-full"
-                  unoptimized={otherParticipant.user.profile.avatar.startsWith('http')}
+                  unoptimized={(otherParticipant.user?.profile?.avatar || '').startsWith('http')}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs font-semibold">
-                  {(otherParticipant?.user.firstName?.[0] || otherParticipant?.user.email?.[0] || 'U').toUpperCase()}
+                  {(otherParticipant?.user?.firstName?.[0] || otherParticipant?.user?.email?.[0] || 'U').toUpperCase()}
                 </div>
               )}
             </div>
@@ -338,7 +338,7 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
                 // Mostrar nombre: Usar user si existe, sino usar deletedUserEmail
                 const displayName = otherParticipant.alias || 
                   (otherParticipant.user 
-                    ? `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
+                    ? `${otherParticipant.user?.firstName || ''} ${otherParticipant.user?.lastName || ''}`.trim()
                     : otherParticipant.deletedUserEmail || 'Usuario eliminado') ||
                   (otherParticipant.user?.email || 'Usuario desconocido')
                 

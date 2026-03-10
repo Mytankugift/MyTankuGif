@@ -141,66 +141,120 @@ export class ChatService {
    * Filtra conversaciones con usuarios bloqueados
    */
   async getConversations(userId: string): Promise<ConversationWithParticipants[]> {
-    // Obtener conversaciones existentes con UNA query optimizada
-    // Incluir tanto FRIENDS como STALKERGIFT (chats anónimos)
-    const conversations = await prisma.conversation.findMany({
-      where: {
-        type: { in: ['FRIENDS', 'STALKERGIFT'] }, // Incluir ambos tipos
-        status: 'ACTIVE',
-        participants: {
-          some: { userId },
+    // ✅ OPTIMIZACIÓN: Ejecutar queries en paralelo
+    const [conversations, blockedByMe, blockedMe] = await Promise.all([
+      // Query principal optimizada con select específico
+      prisma.conversation.findMany({
+        where: {
+          type: { in: ['FRIENDS', 'STALKERGIFT'] },
+          status: 'ACTIVE',
+          participants: {
+            some: { userId },
+          },
         },
-      },
-      include: {
-        participants: {
-          include: {
-            user: {
-              include: {
-                profile: true,
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          participants: {
+            select: {
+              id: true,
+              userId: true,
+              createdAt: true,
+              conversationId: true,
+              deletedUserEmail: true,
+              alias: true,
+              isRevealed: true,
+              user: {
+                select: {
+                  id: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  email: true,
+                  emailVerified: true,
+                  username: true,
+                  password: true,
+                  firstName: true,
+                  lastName: true,
+                  phone: true,
+                  profile: {
+                    select: {
+                      avatar: true,
+                      banner: true,
+                      bio: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              conversationId: true,
+              senderId: true,
+              deletedSenderEmail: true,
+              senderAlias: true,
+              content: true,
+              type: true,
+              status: true,
+              readAt: true,
+              createdAt: true,
+                sender: {
+                select: {
+                  id: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  email: true,
+                  emailVerified: true,
+                  username: true,
+                  password: true,
+                  firstName: true,
+                  lastName: true,
+                  phone: true,
+                  profile: {
+                    select: {
+                      avatar: true,
+                      banner: true,
+                      bio: true,
+                    },
+                  },
+                },
               },
             },
           },
         },
-        messages: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          include: {
-            sender: {
-              include: {
-                profile: true,
-              },
-            },
-          },
+        orderBy: { updatedAt: 'desc' },
+      }),
+      // Query de usuarios bloqueados (paralelo)
+      prisma.friend.findMany({
+        where: {
+          userId,
+          status: 'blocked',
         },
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+        select: {
+          friendId: true,
+        },
+      }),
+      // Query de usuarios que bloquearon (paralelo)
+      prisma.friend.findMany({
+        where: {
+          friendId: userId,
+          status: 'blocked',
+        },
+        select: {
+          userId: true,
+        },
+      }),
+    ]);
 
-    // Obtener IDs de usuarios bloqueados (bidireccional)
+    // Construir Set de usuarios bloqueados
     const blockedUserIds = new Set<string>();
-    
-    // Usuarios que el usuario actual bloqueó
-    const blockedByMe = await prisma.friend.findMany({
-      where: {
-        userId,
-        status: 'blocked',
-      },
-      select: {
-        friendId: true,
-      },
-    });
     blockedByMe.forEach(b => blockedUserIds.add(b.friendId));
-
-    // Usuarios que bloquearon al usuario actual
-    const blockedMe = await prisma.friend.findMany({
-      where: {
-        friendId: userId,
-        status: 'blocked',
-      },
-      select: {
-        userId: true,
-      },
-    });
     blockedMe.forEach(b => blockedUserIds.add(b.userId));
 
     // Filtrar conversaciones con usuarios bloqueados
@@ -221,7 +275,7 @@ export class ChatService {
       return bTime - aTime; // Más reciente primero
     });
 
-    return filteredConversations as ConversationWithParticipants[];
+    return filteredConversations as unknown as ConversationWithParticipants[];
   }
 
   /**

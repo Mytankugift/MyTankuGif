@@ -1,21 +1,24 @@
-import AWS from 'aws-sdk';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { env } from '../../config/env';
 import { randomUUID } from 'crypto';
 import path from 'path';
 
 /**
  * Servicio para subir archivos a S3
+ * Migrado a AWS SDK v3
  */
 export class S3Service {
-  private s3: AWS.S3;
+  private s3: S3Client;
 
   constructor() {
-    this.s3 = new AWS.S3({
-      accessKeyId: env.S3_ACCESS_KEY_ID,
-      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+    this.s3 = new S3Client({
       region: env.S3_REGION,
       endpoint: env.S3_ENDPOINT,
-      s3ForcePathStyle: true, // Para compatibilidad con S3-compatible storage
+      credentials: {
+        accessKeyId: env.S3_ACCESS_KEY_ID,
+        secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+      },
+      forcePathStyle: true, // Para compatibilidad con S3-compatible storage
     });
   }
 
@@ -40,23 +43,17 @@ export class S3Service {
       const envPrefix = this.getEnvironmentPrefix();
       const fileName = `${envPrefix}/${folder}/${randomUUID()}${fileExtension}`;
 
-      const params: AWS.S3.PutObjectRequest = {
+      const command = new PutObjectCommand({
         Bucket: env.S3_BUCKET,
         Key: fileName,
         Body: file.buffer,
         ContentType: file.mimetype,
         // ACL removido - el acceso público se controla mediante la política del bucket
-      };
+      });
 
-      const result = await this.s3.upload(params).promise();
+      await this.s3.send(command);
 
-      // Retornar la URL completa del archivo
-      // Si Location no está disponible, construirla manualmente
-      if (result.Location) {
-        return result.Location;
-      }
-      
-      // Construir URL manualmente si es necesario
+      // Construir URL manualmente (AWS SDK v3 no retorna Location directamente)
       return `${env.S3_FILE_URL}/${fileName}`;
     } catch (error) {
       console.error('Error subiendo archivo a S3:', error);
@@ -76,21 +73,16 @@ export class S3Service {
       // Sin prefijo de ambiente, directamente en products/
       const fileName = `products/${randomUUID()}${fileExtension}`;
 
-      const params: AWS.S3.PutObjectRequest = {
+      const command = new PutObjectCommand({
         Bucket: env.S3_BUCKET,
         Key: fileName,
         Body: file.buffer,
         ContentType: file.mimetype,
-      };
+      });
 
-      const result = await this.s3.upload(params).promise();
+      await this.s3.send(command);
 
-      // Retornar la URL completa del archivo
-      if (result.Location) {
-        return result.Location;
-      }
-
-      // Construir URL manualmente si es necesario
+      // Construir URL manualmente (AWS SDK v3 no retorna Location directamente)
       return `${env.S3_FILE_URL}/${fileName}`;
     } catch (error) {
       console.error('Error subiendo archivo a S3:', error);
@@ -135,12 +127,12 @@ export class S3Service {
 
       console.log(`[S3Service] Eliminando archivo de S3 - Bucket: ${env.S3_BUCKET}, Key: ${key}`);
 
-      const params: AWS.S3.DeleteObjectRequest = {
+      const command = new DeleteObjectCommand({
         Bucket: env.S3_BUCKET,
         Key: key,
-      };
+      });
 
-      await this.s3.deleteObject(params).promise();
+      await this.s3.send(command);
       console.log(`[S3Service] Archivo eliminado exitosamente: ${key}`);
     } catch (error) {
       console.error('Error eliminando archivo de S3:', error);

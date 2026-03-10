@@ -277,7 +277,8 @@ export class PostersService {
   async getPosterComments(
     posterId: string,
     page: number = 0,
-    limit: number = 20
+    limit: number = 20,
+    userId?: string // ID del usuario que está viendo los comentarios (para mostrar ocultos si es el dueño)
   ): Promise<{
     comments: Array<{
       id: string;
@@ -293,13 +294,33 @@ export class PostersService {
   }> {
     const skip = page * limit;
 
+    // Verificar si el usuario es el dueño del post
+    let isPostOwner = false;
+    if (userId) {
+      const poster = await prisma.poster.findUnique({
+        where: { id: posterId },
+        select: { customerId: true },
+      });
+      isPostOwner = poster?.customerId === userId;
+    }
+
+    // Construir el where clause: si es el dueño, incluir comentarios ocultos
+    const whereClause: any = {
+      posterId,
+      isActive: true,
+      deletedAt: null, // No mostrar comentarios eliminados
+      parentId: null, // Solo comentarios principales
+    };
+
+    // Si NO es el dueño del post, filtrar comentarios ocultos
+    if (!isPostOwner) {
+      whereClause.hiddenByOwner = false;
+    }
+    // Si es el dueño, no filtrar por hiddenByOwner (mostrar todos, ocultos y visibles)
+
     const [comments, total] = await Promise.all([
       prisma.posterComment.findMany({
-        where: {
-          posterId,
-          isActive: true,
-          parentId: null, // Solo comentarios principales
-        },
+        where: whereClause,
         orderBy: { createdAt: 'asc' },
         skip,
         take: limit,
@@ -310,7 +331,11 @@ export class PostersService {
             },
           },
           replies: {
-            where: { isActive: true },
+            where: {
+              isActive: true,
+              deletedAt: null, // No mostrar respuestas eliminadas
+              ...(isPostOwner ? {} : { hiddenByOwner: false }), // Si es el dueño, mostrar todas las respuestas (incluyendo ocultas)
+            },
             orderBy: { createdAt: 'asc' },
             include: {
               customer: {
@@ -323,10 +348,7 @@ export class PostersService {
         },
       }),
       prisma.posterComment.count({
-        where: {
-          posterId,
-          isActive: true,
-        },
+        where: whereClause,
       }),
     ]);
 
@@ -384,6 +406,7 @@ export class PostersService {
               createdAt: reply.createdAt.toISOString(),
               author: this.mapUserToPosterAuthorDTO(reply.customer),
               mentions: replyMentions,
+              hiddenByOwner: reply.hiddenByOwner || false, // Incluir el estado de oculto
             };
           })
         );
@@ -398,6 +421,7 @@ export class PostersService {
           author: this.mapUserToPosterAuthorDTO(comment.customer),
           mentions: mentionsArray,
           replies: repliesArray,
+          hiddenByOwner: comment.hiddenByOwner || false, // Incluir el estado de oculto
         };
       })
     );
@@ -612,11 +636,11 @@ export class PostersService {
 
     let formattedContent = content;
 
-    // Reemplazar cada marcador @{userId} con el nombre actual del usuario
+    // Reemplazar cada marcador @{userId} con el username del usuario (prioridad sobre nombre completo)
     users.forEach(user => {
-      const displayName = user.firstName && user.lastName
-        ? `${user.firstName} ${user.lastName}`
-        : (user.username || 'Usuario');
+      // Usar username en lugar de nombre completo (más fácil de trabajar, sin espacios)
+      const displayName = user.username || 
+        (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : 'Usuario');
       
       // Reemplazar todos los marcadores de este usuario
       const mentionMarker = `@{${user.id}}`;
@@ -627,14 +651,14 @@ export class PostersService {
     });
 
     // También soportar formato legacy: @displayName|userId y @userId
-    // Reemplazar formato legacy @displayName|userId con solo el nombre actual
+    // Reemplazar formato legacy @displayName|userId con el username actual
     const legacyRegex = /@([^|@]+?)\|([a-zA-Z0-9_-]{20,})/g;
     formattedContent = formattedContent.replace(legacyRegex, (match, displayName, userId) => {
       const user = users.find(u => u.id === userId);
       if (user) {
-        const currentDisplayName = user.firstName && user.lastName
-          ? `${user.firstName} ${user.lastName}`
-          : (user.username || 'Usuario');
+        // Usar username en lugar de nombre completo
+        const currentDisplayName = user.username || 
+          (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : 'Usuario');
         return `@${currentDisplayName}`;
       }
       return match; // Si no se encuentra el usuario, mantener el formato original
@@ -644,35 +668,216 @@ export class PostersService {
   }
 
   private async extractMentions(content: string): Promise<string[]> {
-    // Regex para encontrar menciones en formato: @{userId}
-    // También soporta formato legacy: @displayName|userId y @userId para compatibilidad
-    const mentionRegex = /@\{([a-zA-Z0-9_-]+)\}|@([^|@]+?)\|([a-zA-Z0-9_-]{20,})|@([a-zA-Z0-9_-]{20,})/g;
-    const matches = content.matchAll(mentionRegex);
-    const mentionedUserIds: string[] = [];
+    console.log('\n🔍 ===== EXTRAER MENCIONES =====');
+    console.log('📄 Contenido:', JSON.stringify(content));
+    console.log('📏 Longitud:', content.length, 'caracteres');
+    
+    if (!content || !content.trim()) {
+      console.log('⚠️  Contenido vacío, no hay menciones');
+      console.log('====================================\n');
+      return [];
+    }
 
-    for (const match of matches) {
-      // match[1] es userId del formato nuevo @{userId}
-      // match[3] es userId del formato @nombre|userId
-      // match[4] es userId del formato legacy @userId
-      const userId = match[1] || match[3] || match[4];
+    const mentionedUserIds: string[] = [];
+    
+    // Patrón 1: Formato nuevo @{userId} - Prioridad alta
+    // Busca @{ seguido de alfanuméricos/guiones/guiones bajos, luego }
+    const newFormatRegex = /@\{([a-zA-Z0-9_-]+)\}/g;
+    let match;
+    
+    console.log('\n1️⃣  PATRÓN 1: Buscando formato @{userId}');
+    const pattern1Matches: string[] = [];
+    while ((match = newFormatRegex.exec(content)) !== null) {
+      const userId = match[1];
+      console.log(`   ✓ Encontrado: ${match[0]} → userId: ${userId} (${userId.length} caracteres)`);
+      // Los userIds de Prisma CUID tienen al menos 25 caracteres, pero aceptamos desde 20 para compatibilidad
+      if (userId && userId.length >= 20 && !mentionedUserIds.includes(userId)) {
+        mentionedUserIds.push(userId);
+        pattern1Matches.push(userId);
+      }
+    }
+    console.log(`   📊 Total encontrados: ${pattern1Matches.length}`, pattern1Matches.length > 0 ? `→ ${pattern1Matches.join(', ')}` : '');
+    
+    // Patrón 2: Formato legacy @displayName|userId
+    // Busca @ seguido de caracteres que no sean @, |, espacios al inicio
+    // Luego | seguido de un userId válido (mínimo 20 caracteres)
+    const legacyFormatRegex = /@([^\s@|]+)\|([a-zA-Z0-9_-]{20,})/g;
+    
+    // Resetear el lastIndex del regex anterior
+    legacyFormatRegex.lastIndex = 0;
+    
+    while ((match = legacyFormatRegex.exec(content)) !== null) {
+      const userId = match[2];
+      if (userId && !mentionedUserIds.includes(userId)) {
+        mentionedUserIds.push(userId);
+      }
+    }
+    
+    // Patrón 3: Formato legacy directo @userId (solo si tiene al menos 20 caracteres)
+    // Solo capturar si está al inicio de línea, después de espacio, o después de @
+    // Esto evita capturar IDs que son parte de texto normal
+    const directFormatRegex = /(?:^|\s|@)@([a-zA-Z0-9_-]{20,})(?=\s|$|[^\w-])/g;
+    
+    // Resetear el lastIndex
+    directFormatRegex.lastIndex = 0;
+    
+    while ((match = directFormatRegex.exec(content)) !== null) {
+      const userId = match[1];
       if (userId && !mentionedUserIds.includes(userId)) {
         mentionedUserIds.push(userId);
       }
     }
 
+    // Patrón 4a: Detectar menciones por username (sin espacios) - Prioridad alta
+    // Busca @ seguido de caracteres alfanuméricos, guiones y guiones bajos (username)
+    // Acepta cualquier carácter de delimitación después del username
+    const usernameMentionRegex = /@([a-zA-Z0-9_-]+)(?=\s|$|@|,|\.|!|\?|:)/g;
+    usernameMentionRegex.lastIndex = 0;
+    
+    console.log('\n4️⃣  PATRÓN 4a: Buscando formato @username');
+    const usernameMentions: string[] = [];
+    while ((match = usernameMentionRegex.exec(content)) !== null) {
+      const username = match[1].trim();
+      const matchIndex = match.index;
+      const beforeMatch = content.substring(Math.max(0, matchIndex - 1), matchIndex);
+      const afterMatch = content.substring(matchIndex + match[0].length);
+      
+      console.log(`   🔎 Encontrado: ${match[0]}`);
+      console.log(`      Username: "${username}"`);
+      console.log(`      Posición: ${matchIndex}`);
+      console.log(`      Antes: "${beforeMatch}" | Después: "${afterMatch.substring(0, 30)}"`);
+      
+      // Verificar que no está dentro de un formato conocido
+      if (!beforeMatch.endsWith('{') && username.length > 0) {
+        // Evitar duplicados
+        if (!usernameMentions.includes(username)) {
+          usernameMentions.push(username);
+          console.log(`      ✅ Agregado a lista de usernames`);
+        } else {
+          console.log(`      ⚠️  Ya existe (duplicado)`);
+        }
+      } else {
+        console.log(`      ❌ Rechazado (ya está en formato @{userId} o vacío)`);
+      }
+    }
+    console.log(`   📊 Usernames encontrados: ${usernameMentions.length}`, usernameMentions.length > 0 ? `→ ${usernameMentions.join(', ')}` : '');
+    
+    // Buscar usuarios por username primero (más preciso y rápido)
+    if (usernameMentions.length > 0) {
+      console.log(`\n   🔍 Buscando en BD usuarios con usernames: ${usernameMentions.join(', ')}`);
+      const users = await prisma.user.findMany({
+        where: {
+          username: { in: usernameMentions },
+        },
+        select: { id: true, username: true },
+      });
+      
+      console.log(`   📋 Usuarios encontrados en BD: ${users.length}`);
+      users.forEach(u => console.log(`      - ${u.username} (id: ${u.id})`));
+      
+      users.forEach(user => {
+        if (!mentionedUserIds.includes(user.id)) {
+          mentionedUserIds.push(user.id);
+          console.log(`      ✅ Agregado userId: ${user.id} (${user.username})`);
+        }
+      });
+    } else {
+      console.log('   ℹ️  No hay usernames para buscar en BD');
+    }
+    
+    // Patrón 4b: Detectar menciones por nombre completo (solo si no hay username matches)
+    // Busca @ seguido de nombres con espacios (ej: @john perez)
+    // Solo buscar si no se encontraron usernames para evitar duplicados
+    if (usernameMentions.length === 0) {
+      const nameMentionRegex = /@([a-zA-ZáéíóúÁÉÍÓÚñÑ][a-zA-ZáéíóúÁÉÍÓÚñÑ\s]{0,20}[a-zA-ZáéíóúÁÉÍÓÚñÑ])(?=\s|$|@|,|\.|!|\?)/g;
+      nameMentionRegex.lastIndex = 0;
+      
+      const nameMentions: string[] = [];
+      while ((match = nameMentionRegex.exec(content)) !== null) {
+        const name = match[1].trim();
+        // Evitar capturar si ya es parte de un formato conocido
+        const matchIndex = match.index;
+        const beforeMatch = content.substring(Math.max(0, matchIndex - 1), matchIndex);
+        const afterMatch = content.substring(matchIndex + match[0].length, matchIndex + match[0].length + 1);
+        
+        // No capturar si está dentro de @{userId} o @name|userId
+        if (!beforeMatch.endsWith('{') && !afterMatch.startsWith('|') && name.length > 0) {
+          // Evitar duplicados
+          if (!nameMentions.includes(name)) {
+            nameMentions.push(name);
+          }
+        }
+      }
+      
+      // Si hay menciones por nombre, buscar usuarios que coincidan
+      if (nameMentions.length > 0) {
+        const userQueries = nameMentions.map(name => {
+          const nameParts = name.trim().split(/\s+/).filter(part => part.length > 0);
+          
+          if (nameParts.length >= 2) {
+            // Buscar por firstName y lastName
+            return {
+              AND: [
+                { firstName: { contains: nameParts[0], mode: 'insensitive' as const } },
+                { lastName: { contains: nameParts[nameParts.length - 1], mode: 'insensitive' as const } }
+              ]
+            };
+          } else if (nameParts.length === 1) {
+            // Buscar por firstName, lastName o username
+            const searchTerm = nameParts[0];
+            return {
+              OR: [
+                { firstName: { contains: searchTerm, mode: 'insensitive' as const } },
+                { lastName: { contains: searchTerm, mode: 'insensitive' as const } },
+                { username: { contains: searchTerm, mode: 'insensitive' as const } }
+              ]
+            };
+          }
+          return null;
+        }).filter(query => query !== null);
+
+        if (userQueries.length > 0) {
+          const users = await prisma.user.findMany({
+            where: {
+              OR: userQueries as any,
+            },
+            select: { id: true },
+          });
+          
+          users.forEach(user => {
+            if (!mentionedUserIds.includes(user.id)) {
+              mentionedUserIds.push(user.id);
+            }
+          });
+        }
+      }
+    }
+
+    console.log(`\n📊 RESUMEN: ${mentionedUserIds.length} userId(s) detectado(s) antes de validación:`, mentionedUserIds);
+    
     if (mentionedUserIds.length === 0) {
+      console.log('⚠️  No se detectaron menciones');
+      console.log('====================================\n');
       return [];
     }
 
     // Verificar que los IDs existen en la BD
+    console.log(`\n✅ Validando ${mentionedUserIds.length} userId(s) en BD...`);
     const validUsers = await prisma.user.findMany({
       where: {
         id: { in: mentionedUserIds },
       },
-      select: { id: true },
+      select: { id: true, username: true },
     });
 
-    return validUsers.map(u => u.id);
+    console.log(`📋 Usuarios válidos encontrados: ${validUsers.length}`);
+    validUsers.forEach(u => console.log(`   - ${u.username || 'sin username'} (${u.id})`));
+    
+    const result = validUsers.map(u => u.id);
+    console.log(`\n✅ RESULTADO FINAL: ${result.length} mención(es) válida(s) →`, result);
+    console.log('====================================\n');
+    
+    return result;
   }
 
   /**
@@ -689,7 +894,10 @@ export class PostersService {
     }
 
     // Extraer menciones del contenido
+    console.log('\n🔍 EXTRAYENDO MENCIONES DEL CONTENIDO...');
+    console.log('📄 Contenido a procesar:', JSON.stringify(content));
     const mentionedUserIds = await this.extractMentions(content);
+    console.log(`✅ Menciones extraídas: ${mentionedUserIds.length} userId(s) →`, mentionedUserIds);
 
     // Verificar si algún usuario mencionado está bloqueado (bidireccional)
     if (mentionedUserIds.length > 0) {
@@ -730,11 +938,26 @@ export class PostersService {
     // Solo agregar mentions si hay menciones
     if (mentionedUserIds.length > 0) {
       commentData.mentions = mentionedUserIds;
+      console.log(`\n✅ Agregando ${mentionedUserIds.length} mención(es) al comentario:`, mentionedUserIds);
+    } else {
+      console.log('\nℹ️  No hay menciones para agregar al comentario');
     }
+    
+    console.log('\n💾 Datos del comentario a crear:');
+    console.log('   - PosterId:', commentData.posterId);
+    console.log('   - CustomerId:', commentData.customerId);
+    console.log('   - Contenido:', commentData.content.substring(0, 80) + (commentData.content.length > 80 ? '...' : ''));
+    console.log('   - ParentId:', commentData.parentId || 'null (comentario principal)');
+    console.log('   - Menciones:', commentData.mentions || 'ninguna');
     
     const comment = await prisma.posterComment.create({
       data: commentData,
     });
+    
+    console.log(`\n✅ Comentario creado exitosamente!`);
+    console.log(`   📝 ID: ${comment.id}`);
+    console.log(`   💬 Menciones guardadas:`, comment.mentions || 'ninguna');
+    console.log('================================\n');
 
     // Incrementar contador de comentarios
     const updatedPoster = await prisma.poster.update({
@@ -813,7 +1036,51 @@ export class PostersService {
       console.error(`Error creando notificaciones de comentario:`, notifError?.message);
     }
 
-    return comment;
+    // Formatear el contenido antes de devolverlo (reemplazar @{userId} con username)
+    let mentionsArray: string[] | undefined = undefined;
+    if (comment.mentions) {
+      try {
+        if (Array.isArray(comment.mentions)) {
+          mentionsArray = comment.mentions as string[];
+        } else if (typeof comment.mentions === 'string') {
+          mentionsArray = JSON.parse(comment.mentions);
+        }
+      } catch (e) {
+        console.error('Error parsing mentions al formatear:', e);
+      }
+    }
+
+    const formattedContent = await this.formatCommentContent(
+      comment.content,
+      mentionsArray
+    );
+
+    console.log('\n🔄 Formateando contenido del comentario creado...');
+    console.log('   📄 Antes:', comment.content);
+    console.log('   ✨ Después:', formattedContent);
+    console.log('   👥 Menciones usadas:', mentionsArray || 'ninguna');
+
+    // Obtener el comentario completo con relaciones para devolverlo formateado
+    const commentWithRelations = await prisma.posterComment.findUnique({
+      where: { id: comment.id },
+      include: {
+        customer: {
+          include: { profile: true },
+        },
+      },
+    });
+
+    if (!commentWithRelations) {
+      throw new NotFoundError('Comentario no encontrado después de crearlo');
+    }
+
+    // Crear el DTO con el contenido formateado
+    const commentDTO = this.mapCommentToDTO(commentWithRelations);
+    commentDTO.content = formattedContent; // Reemplazar con contenido formateado
+
+    console.log('✅ Comentario formateado y listo para devolver\n');
+
+    return commentDTO;
   }
 
   /**
@@ -861,6 +1128,37 @@ export class PostersService {
       throw new BadRequestError('No tienes permiso para eliminar este poster');
     }
 
+    // Eliminar archivos de S3 antes del soft delete
+    const filesToDelete: string[] = [];
+    
+    if (poster.imageUrl) {
+      filesToDelete.push(poster.imageUrl);
+    }
+    
+    if (poster.videoUrl) {
+      filesToDelete.push(poster.videoUrl);
+    }
+
+    // Eliminar archivos de S3
+    if (filesToDelete.length > 0) {
+      try {
+        await Promise.all(
+          filesToDelete.map(async (fileUrl) => {
+            try {
+              await this.s3Service.deleteFile(fileUrl);
+              console.log(`[POSTERS] Archivo ${fileUrl} eliminado de S3`);
+            } catch (error) {
+              console.error(`[POSTERS] Error eliminando archivo ${fileUrl} de S3:`, error);
+              // No lanzar error para que el soft delete continúe incluso si falla la eliminación de S3
+            }
+          })
+        );
+      } catch (error) {
+        console.error(`[POSTERS] Error eliminando archivos de S3:`, error);
+        // Continuar con el soft delete incluso si falla la eliminación de S3
+      }
+    }
+
     // Soft delete: marcar como inactivo
     await prisma.poster.update({
       where: { id: posterId },
@@ -868,6 +1166,285 @@ export class PostersService {
         isActive: false,
       },
     });
+  }
+
+  /**
+   * Actualizar comentario (soft delete, ocultar, o edición)
+   * @param commentId ID del comentario
+   * @param userId ID del usuario que realiza la acción
+   * @param data Datos a actualizar
+   * @param isPosterOwner Si el usuario es el dueño del poster (puede ocultar comentarios)
+   * @param isAdmin Si el usuario es admin
+   */
+  async updateComment(
+    commentId: string,
+    userId: string,
+    data: { isActive?: boolean; hiddenByOwner?: boolean; content?: string },
+    isPosterOwner: boolean = false,
+    isAdmin: boolean = false
+  ): Promise<any> {
+    const comment = await prisma.posterComment.findUnique({
+      where: { id: commentId },
+      include: {
+        customer: {
+          include: { profile: true },
+        },
+        poster: {
+          select: { 
+            id: true,
+            customerId: true,
+            commentsCount: true,
+          },
+        },
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundError('Comentario no encontrado');
+    }
+
+    // Verificar permisos según la acción
+    const isCommentOwner = comment.customerId === userId;
+    const isOwnerOfPoster = comment.poster.customerId === userId;
+
+    // Soft delete: solo el dueño del comentario puede eliminarlo
+    if (data.isActive === false) {
+      if (!isCommentOwner && !isAdmin) {
+        throw new ForbiddenError('Solo puedes eliminar tus propios comentarios');
+      }
+    }
+
+    // Ocultar comentario: solo el dueño del poster puede ocultar comentarios
+    if (data.hiddenByOwner !== undefined) {
+      if (!isOwnerOfPoster && !isAdmin) {
+        throw new ForbiddenError('Solo el dueño de la publicación puede ocultar comentarios');
+      }
+    }
+
+    // Editar contenido: solo el dueño del comentario puede editarlo
+    if (data.content !== undefined) {
+      if (!isCommentOwner && !isAdmin) {
+        throw new ForbiddenError('Solo puedes editar tus propios comentarios');
+      }
+    }
+
+    const updateData: any = {};
+
+    // Soft delete
+    if (data.isActive === false) {
+      // Solo decrementar si el comentario NO estaba ya eliminado
+      const wasAlreadyDeleted = !comment.isActive || comment.deletedAt !== null;
+      
+      if (!wasAlreadyDeleted) {
+        updateData.isActive = false;
+        updateData.deletedAt = new Date();
+        
+        // Contar cuántos comentarios se van a eliminar (incluyendo respuestas)
+        const repliesCount = await prisma.posterComment.count({
+          where: {
+            parentId: commentId,
+            isActive: true,
+            deletedAt: null,
+          },
+        });
+        
+        // Decrementar contador de comentarios del poster
+        // 1 comentario principal + todas sus respuestas activas
+        const totalToDecrement = 1 + repliesCount;
+        
+        console.log(`\n🗑️  Eliminando comentario y ${repliesCount} respuesta(s)`);
+        console.log(`   📉 Decrementando contador de comentarios en ${totalToDecrement}`);
+        
+        await prisma.poster.update({
+          where: { id: comment.posterId },
+          data: {
+            commentsCount: {
+              decrement: totalToDecrement,
+            },
+          },
+        });
+        
+        // También marcar las respuestas como eliminadas
+        if (repliesCount > 0) {
+          await prisma.posterComment.updateMany({
+            where: {
+              parentId: commentId,
+              isActive: true,
+              deletedAt: null,
+            },
+            data: {
+              isActive: false,
+              deletedAt: new Date(),
+            },
+          });
+          console.log(`   ✅ ${repliesCount} respuesta(s) también marcadas como eliminadas`);
+        }
+        
+        // Actualizar métricas del feed
+        const feedService = new FeedService();
+        const updatedPoster = await prisma.poster.findUnique({
+          where: { id: comment.posterId },
+          select: { commentsCount: true },
+        });
+        
+        if (updatedPoster) {
+          feedService.updateItemMetricsDebounced(comment.posterId, 'poster', {
+            commentsCount: updatedPoster.commentsCount,
+          });
+        }
+      } else {
+        // Ya estaba eliminado, solo actualizar los campos sin decrementar
+        updateData.isActive = false;
+        updateData.deletedAt = comment.deletedAt || new Date();
+        console.log(`\n⚠️  Comentario ya estaba eliminado, no se decrementa el contador`);
+      }
+      
+    } else if (data.isActive === true) {
+      // Restaurar comentario (solo admin)
+      if (!isAdmin) {
+        throw new ForbiddenError('Solo un administrador puede restaurar comentarios');
+      }
+      
+      // Solo incrementar si el comentario estaba eliminado
+      const wasDeleted = !comment.isActive || comment.deletedAt !== null;
+      
+      if (wasDeleted) {
+        updateData.isActive = true;
+        updateData.deletedAt = null;
+        
+        // Contar cuántos comentarios se van a restaurar (incluyendo respuestas)
+        const repliesCount = await prisma.posterComment.count({
+          where: {
+            parentId: commentId,
+            isActive: false,
+          },
+        });
+        
+        // Incrementar contador de comentarios del poster
+        const totalToIncrement = 1 + repliesCount;
+        
+        console.log(`\n♻️  Restaurando comentario y ${repliesCount} respuesta(s)`);
+        console.log(`   📈 Incrementando contador de comentarios en ${totalToIncrement}`);
+        
+        await prisma.poster.update({
+          where: { id: comment.posterId },
+          data: {
+            commentsCount: {
+              increment: totalToIncrement,
+            },
+          },
+        });
+        
+        // También restaurar las respuestas
+        if (repliesCount > 0) {
+          await prisma.posterComment.updateMany({
+            where: {
+              parentId: commentId,
+              isActive: false,
+            },
+            data: {
+              isActive: true,
+              deletedAt: null,
+            },
+          });
+          console.log(`   ✅ ${repliesCount} respuesta(s) también restauradas`);
+        }
+        
+        // Actualizar métricas del feed
+        const feedService = new FeedService();
+        const updatedPoster = await prisma.poster.findUnique({
+          where: { id: comment.posterId },
+          select: { commentsCount: true },
+        });
+        
+        if (updatedPoster) {
+          feedService.updateItemMetricsDebounced(comment.posterId, 'poster', {
+            commentsCount: updatedPoster.commentsCount,
+          });
+        }
+      } else {
+        // Ya estaba activo, solo actualizar los campos sin incrementar
+        updateData.isActive = true;
+        updateData.deletedAt = null;
+        console.log(`\n⚠️  Comentario ya estaba activo, no se incrementa el contador`);
+      }
+    }
+
+    // Ocultar/mostrar comentario
+    if (data.hiddenByOwner !== undefined) {
+      updateData.hiddenByOwner = data.hiddenByOwner;
+      
+      // Si se oculta el comentario, también ocultar todos sus hijos (respuestas)
+      if (data.hiddenByOwner === true) {
+        const repliesCount = await prisma.posterComment.count({
+          where: {
+            parentId: commentId,
+            hiddenByOwner: false,
+          },
+        });
+        
+        if (repliesCount > 0) {
+          await prisma.posterComment.updateMany({
+            where: {
+              parentId: commentId,
+              hiddenByOwner: false,
+            },
+            data: {
+              hiddenByOwner: true,
+            },
+          });
+          console.log(`\n🔒 Ocultando ${repliesCount} respuesta(s) junto con el comentario principal`);
+        }
+      } else if (data.hiddenByOwner === false) {
+        // Si se muestra el comentario, también mostrar todos sus hijos (respuestas)
+        const repliesCount = await prisma.posterComment.count({
+          where: {
+            parentId: commentId,
+            hiddenByOwner: true,
+          },
+        });
+        
+        if (repliesCount > 0) {
+          await prisma.posterComment.updateMany({
+            where: {
+              parentId: commentId,
+              hiddenByOwner: true,
+            },
+            data: {
+              hiddenByOwner: false,
+            },
+          });
+          console.log(`\n🔓 Mostrando ${repliesCount} respuesta(s) junto con el comentario principal`);
+        }
+      }
+    }
+
+    // Actualizar contenido
+    if (data.content !== undefined) {
+      // Si se actualiza el contenido, re-extraer menciones
+      const mentionedUserIds = await this.extractMentions(data.content);
+      updateData.content = data.content;
+
+      if (mentionedUserIds.length > 0) {
+        updateData.mentions = mentionedUserIds;
+      } else {
+        updateData.mentions = null;
+      }
+    }
+
+    updateData.updatedAt = new Date();
+
+    const updatedComment = await prisma.posterComment.update({
+      where: { id: commentId },
+      data: updateData,
+      include: {
+        customer: {
+          include: { profile: true },
+        },
+      },
+    });
+
+    return this.mapCommentToDTO(updatedComment);
   }
 }
 

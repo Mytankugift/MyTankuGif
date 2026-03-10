@@ -115,8 +115,16 @@ export class SocketService {
       });
 
       // Handler de desconexión
-      socket.on('disconnect', () => {
+      socket.on('disconnect', (reason: string) => {
+        console.log(`⚠️ [SOCKET] Usuario ${userId} desconectado: ${reason}`);
         this.handleDisconnection(socket, userId);
+      });
+
+      // Handler de reconexión (Socket.IO automático)
+      socket.on('reconnect', (attemptNumber: number) => {
+        console.log(`🔄 [SOCKET] Usuario ${userId} reconectado después de ${attemptNumber} intentos`);
+        // Re-unir a todas las conversaciones activas
+        this.joinUserConversations(userId, socket);
       });
 
       // Emitir evento de conexión al usuario
@@ -429,9 +437,9 @@ export class SocketService {
             callback({ success: true, messageId: message.id });
           }
 
-          // Emitir a otros participantes usando room de conversación
-          // Esto es más eficiente que iterar manualmente
-          this.io!.to(`conversation:${data.conversationId}`).emit('chat:new', {
+          // ✅ Emitir a otros participantes (excluyendo al remitente)
+          // Usar socket.to() para excluir al remitente de la emisión
+          socket.to(`conversation:${data.conversationId}`).emit('chat:new', {
             id: message.id,
             conversationId: message.conversationId,
             senderId: message.senderId,
@@ -550,7 +558,7 @@ export class SocketService {
   }
 
   /**
-   * Unir usuario a todas sus conversaciones activas al conectar
+   * Unir usuario a todas sus conversaciones activas al conectar/reconectar
    */
   private async joinUserConversations(userId: string, socket: Socket) {
     try {
@@ -560,8 +568,16 @@ export class SocketService {
         socket.join(`conversation:${conversation.id}`);
       });
 
+      // También unirse a room personal del usuario (para notificaciones)
+      socket.join(`user:${userId}`);
+
       if (conversations.length > 0) {
         console.log(`✅ [SOCKET-CHAT] Usuario ${userId} unido a ${conversations.length} conversaciones`);
+        
+        // Notificar al cliente que se unió a las conversaciones
+        socket.emit('chat:conversations:synced', {
+          conversationIds: conversations.map(c => c.id),
+        });
       }
     } catch (error: any) {
       console.error(`❌ [SOCKET-CHAT] Error uniendo a conversaciones:`, error.message);
