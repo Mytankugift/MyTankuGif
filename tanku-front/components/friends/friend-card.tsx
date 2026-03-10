@@ -34,10 +34,13 @@ export function FriendCard({ friend, onRefresh, groups }: FriendCardProps) {
 
     setIsRemoving(true)
     try {
-      await removeFriend(friend.friendId)
+      // ✅ Usar friend.friend.id directamente, que siempre es el ID del usuario amigo
+      // friend.friendId puede estar mal mapeado, pero friend.friend.id siempre es correcto
+      await removeFriend(friend.friend.id)
       onRefresh()
     } catch (error) {
       console.error('Error eliminando amigo:', error)
+      alert(error instanceof Error ? error.message : 'Error al eliminar amigo')
     } finally {
       setIsRemoving(false)
     }

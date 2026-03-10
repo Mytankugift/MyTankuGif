@@ -1,9 +1,28 @@
+/**
+ * @deprecated Este hook está deprecado.
+ * 
+ * Usa `useChatService` (lib/hooks/use-chat-service.ts) en su lugar.
+ * 
+ * chatService ahora maneja:
+ * - Chat
+ * - Notificaciones  
+ * - Presencia
+ * 
+ * TODO: Migrar todos los componentes que usan este hook a useChatService
+ * Componentes pendientes de migración:
+ * - components/products/share-product-modal.tsx
+ * - components/wishlists/share-wishlist-modal.tsx
+ * - components/stalkergift/stalkergift-chat-window.tsx
+ * - components/posters/share-post-modal.tsx
+ */
+
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Socket } from 'socket.io-client'
 import { initSocket, disconnectSocket, getSocket } from '@/lib/realtime/socket'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { chatService } from '@/lib/services/chat.service'
 
 // Callback para actualizar último mensaje (sin refresh en background)
 let updateConversationLastMessageCallback: ((conversationId: string, message: ChatMessage) => void) | null = null
@@ -51,10 +70,25 @@ export function useSocket() {
   // ✅ Estado para rastrear el último mensaje recibido (para que useChat reaccione)
   const [lastReceivedMessage, setLastReceivedMessage] = useState<ChatMessage | null>(null)
 
+  // ✅ NUEVO: Verificar si ChatService está activo
+  const isChatServiceActive = chatService.getConnectionState().isConnected
+
   // Inicializar socket
   useEffect(() => {
     if (!token || !user) {
       console.warn('⚠️ [SOCKET] No hay token o user, desconectando...')
+      if (socket) {
+        disconnectSocket()
+        setSocket(null)
+        setIsConnected(false)
+      }
+      return
+    }
+
+    // ✅ NUEVO: Si ChatService está activo, no crear socket para chat
+    if (isChatServiceActive) {
+      console.log('ℹ️ [SOCKET] ChatService está activo, omitiendo inicialización de socket para chat')
+      // Limpiar socket existente si hay
       if (socket) {
         disconnectSocket()
         setSocket(null)
@@ -151,7 +185,10 @@ export function useSocket() {
 
   // Escuchar eventos específicos de chat (NO genéricos)
   useEffect(() => {
-    if (!socket || !isConnected) return
+    // ✅ NUEVO: No escuchar eventos de chat si ChatService está activo
+    if (!socket || !isConnected || isChatServiceActive) {
+      return
+    }
 
     // Handler: Mensaje nuevo de otro usuario
     const onNewMessage = (message: ChatMessage) => {
@@ -306,21 +343,27 @@ export function useSocket() {
     }
     
     // Registrar listeners
-    socket.on('chat:new', onNewMessage)
-    socket.on('chat:sent', onSent)
-    socket.on('chat:error', onError)
-    socket.on('chat:typing', onTyping)
-    socket.on('chat:read', onRead)
+    // ✅ NUEVO: Solo registrar listeners de chat si ChatService NO está activo
+    if (!isChatServiceActive) {
+      socket.on('chat:new', onNewMessage)
+      socket.on('chat:sent', onSent)
+      socket.on('chat:error', onError)
+      socket.on('chat:typing', onTyping)
+      socket.on('chat:read', onRead)
+    }
     
     // Cleanup
     return () => {
-      socket.off('chat:new', onNewMessage)
-      socket.off('chat:sent', onSent)
-      socket.off('chat:error', onError)
-      socket.off('chat:typing', onTyping)
-      socket.off('chat:read', onRead)
+      if (!isChatServiceActive) {
+        socket.off('chat:new', onNewMessage)
+        socket.off('chat:sent', onSent)
+        socket.off('chat:error', onError)
+        socket.off('chat:typing', onTyping)
+        socket.off('chat:read', onRead)
+      }
     }
-  }, [socket, isConnected, user?.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, isConnected, user?.id, isChatServiceActive])
 
   /**
    * Salir de una conversación

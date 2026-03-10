@@ -25,6 +25,7 @@ export const ONBOARDING_CATEGORIES = [
   { slug: 'musica', label: 'Música' },
   { slug: 'viajes', label: 'Viajes' },
   { slug: 'videojuegos', label: 'Videojuegos' },
+  { slug: 'belleza-cuidado', label: 'Belleza & Cuidado' },
 ] as const
 
 // Actividades/Hobbies (12 oficiales)
@@ -45,6 +46,7 @@ export const ONBOARDING_ACTIVITIES = [
   { slug: 'moda-estilo', label: 'Moda & Estilo' },
   { slug: 'viajes', label: 'Viajes' },
   { slug: 'escritura', label: 'Escritura' },
+  { slug: 'manualidades', label: 'Manualidades' },
 ] as const
 
 // Meses del año

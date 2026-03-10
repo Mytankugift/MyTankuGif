@@ -11,8 +11,10 @@ interface OpenChat {
 }
 
 export function FloatingChatsManager() {
-  const { conversations } = useChat()
   const [openChats, setOpenChats] = useState<OpenChat[]>([])
+  // ✅ useChat se carga siempre (requisito de React hooks)
+  // Las llamadas API están optimizadas con guards en useChat para evitar duplicados
+  const { conversations } = useChat()
 
   const openChat = useCallback((conversationId: string) => {
     setOpenChats(prev => {

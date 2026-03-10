@@ -344,7 +344,7 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         </div>
 
         {/* Contenido */}
-        <div className="flex-1 overflow-y-auto px-4 pb-6 custom-scrollbar" style={{ minHeight: '520px', maxHeight: '520px' }}>
+        <div className="flex-1 overflow-y-auto px-4 pb-6 custom-scrollbar md:overflow-y-auto overflow-y-visible" style={{ minHeight: '520px', maxHeight: '520px' }}>
           {currentStep === 0 && (
             <OnboardingStepUsername
               onNext={handleUsernameNext}

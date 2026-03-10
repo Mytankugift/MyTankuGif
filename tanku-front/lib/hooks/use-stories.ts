@@ -4,10 +4,11 @@
 
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { useFeedInitContext } from '@/lib/context/feed-init-context'
 
 export type StoryDTO = {
   id: string
@@ -57,6 +58,7 @@ interface UseStoriesResult {
 
 export function useStories(): UseStoriesResult {
   const { isAuthenticated, user } = useAuthStore()
+  const { isComplete, hasData } = useFeedInitContext()
   const [feedStories, setFeedStories] = useState<StoryDTO[]>([])
   const [wishlistStories, setWishlistStories] = useState<StoryDTO[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -145,12 +147,41 @@ export function useStories(): UseStoriesResult {
     await Promise.all([fetchFeedStories(), fetchWishlistStories()])
   }, [fetchFeedStories, fetchWishlistStories])
 
+  // ✅ Guard para evitar fetch si ya hay datos
+  const hasLoadedRef = useRef(false)
+
   // Cargar feed de stories al montar si está autenticado
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
+    if (!isAuthenticated || !user?.id) {
+      hasLoadedRef.current = false
+      return
+    }
+
+    // ✅ Esperar a que feedInit termine antes de hacer fetch
+    if (!isComplete) {
+      // Si feedInit ya tiene datos de stories, usarlos
+      if (hasData.stories && feedStories.length > 0) {
+        console.log('[useStories] feedInit tiene stories, esperando a que termine')
+        hasLoadedRef.current = true
+      }
+      return
+    }
+
+    // ✅ feedInit ya completó
+    // Si feedInit tiene datos de stories, no hacer fetch
+    if (hasData.stories && feedStories.length > 0) {
+      console.log('[useStories] feedInit completó y ya hay stories, omitiendo fetch')
+      hasLoadedRef.current = true
+      return
+    }
+
+    // ✅ feedInit completó pero no tiene stories, hacer fetch
+    if (isComplete && !hasData.stories && feedStories.length === 0 && !hasLoadedRef.current) {
+      console.log('[useStories] feedInit completó pero no tiene stories, haciendo fetch')
+      hasLoadedRef.current = true
       fetchFeedStories()
     }
-  }, [isAuthenticated, user?.id, fetchFeedStories])
+  }, [isAuthenticated, user?.id, isComplete, hasData.stories, feedStories.length, fetchFeedStories])
 
   return {
     feedStories,

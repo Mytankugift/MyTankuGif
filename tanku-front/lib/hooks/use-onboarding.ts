@@ -29,6 +29,19 @@ export function useOnboarding() {
 
       return null
     } catch (err) {
+      // Silenciar errores de conexión cuando el backend no está disponible
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      
+      // No mostrar error si es un error de conexión (backend no disponible)
+      // Solo mostrar errores reales de la API
+      if (errorMessage.includes('No se pudo conectar al servidor') || 
+          errorMessage.includes('Failed to fetch') ||
+          errorMessage.includes('NetworkError')) {
+        // Silenciar el error, solo retornar null
+        return null
+      }
+      
+      // Para otros errores, guardarlos pero no lanzarlos
       const error = err instanceof Error ? err : new Error('Error al obtener datos de onboarding')
       setError(error)
       return null

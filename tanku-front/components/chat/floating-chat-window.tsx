@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { useChat } from '@/lib/hooks/use-chat'
-import { useSocket } from '@/lib/hooks/use-socket'
+import { useChatService } from '@/lib/hooks/use-chat-service'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import type { Conversation } from '@/lib/hooks/use-chat'
 
@@ -15,12 +15,11 @@ interface FloatingChatWindowProps {
 }
 
 export function FloatingChatWindow({ conversationId, conversation, onClose, position }: FloatingChatWindowProps) {
-  const { sendMessage: sendMessageChat, fetchMessages, getMessages, markAsRead, getOtherParticipant, user } = useChat()
-  const { socket, isConnected, joinConversation, sendMessage: sendSocketMessage, getMessages: getSocketMessages, markAsRead: markAsReadSocket } = useSocket()
+  const { getOtherParticipant, user } = useChat()
+  const { isConnected, sendMessage, getMessages, markAsRead, loadMessages, joinConversation, lastMessage } = useChatService()
   const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
-  const [optimisticMessages, setOptimisticMessages] = useState<Array<{ id: string; content: string; createdAt: string; senderId: string }>>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const windowRef = useRef<HTMLDivElement>(null)
@@ -33,45 +32,13 @@ export function FloatingChatWindow({ conversationId, conversation, onClose, posi
       : otherParticipant?.deletedUserEmail || 'Usuario eliminado') ||
     (otherParticipant?.user?.email || 'Usuario')
 
-  // Obtener mensajes
-  const apiMessages = conversationId ? getMessages(conversationId) : []
-  const socketMessages = conversationId ? getSocketMessages(conversationId) : []
-  
-  // Combinar mensajes: incluir todos los mensajes de API y de socket (incluyendo propios)
-  const allMessages = [...apiMessages]
-  socketMessages.forEach(socketMsg => {
-    // Incluir todos los mensajes de socket, incluso los propios (para ver mensajes enviados inmediatamente)
-    if (!allMessages.find(m => m.id === socketMsg.id)) {
-      allMessages.push(socketMsg)
-    }
-  })
-  
-  // Agregar mensajes optimistas (excluir los que ya están en los mensajes reales)
-  optimisticMessages.forEach(optMsg => {
-    if (!allMessages.find(m => m.id === optMsg.id)) {
-      allMessages.push({
-        ...optMsg,
-        conversationId: conversationId,
-        type: 'TEXT' as const,
-        status: 'SENT' as const,
-        sender: {
-          id: user?.id || '',
-          email: user?.email || '',
-          firstName: user?.firstName || null,
-          lastName: user?.lastName || null,
-          username: user?.username || null,
-          profile: user?.profile || null,
-        },
-        senderAlias: null,
-      })
-    }
-  })
-  
-  const messages = allMessages.sort((a, b) => 
+  // ✅ NUEVO: Obtener mensajes directamente del servicio (ya incluye optimistic updates)
+  const messages = conversationId ? getMessages(conversationId) : []
+  const sortedMessages = [...messages].sort((a, b) => 
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   )
 
-  // Cargar mensajes
+  // ✅ NUEVO: Unirse a conversación y cargar mensajes históricos
   useEffect(() => {
     if (conversationId && !conversationId.startsWith('temp-')) {
       if (lastFetchedConversationRef.current !== conversationId) {
@@ -81,50 +48,46 @@ export function FloatingChatWindow({ conversationId, conversation, onClose, posi
           joinConversation(conversationId)
         }
         
-        fetchMessages(conversationId).then(() => {
-          if (markAsReadSocket) {
-            markAsRead(conversationId, markAsReadSocket)
-          }
+        loadMessages(conversationId, 1, 50).then(() => {
+          markAsRead(conversationId)
         }).catch((err) => {
           console.error('Error cargando mensajes:', err)
         })
       }
     }
-  }, [conversationId, isConnected, fetchMessages, joinConversation, markAsRead, markAsReadSocket])
+  }, [conversationId, isConnected, joinConversation, loadMessages, markAsRead])
 
-  // Marcar como leído
+  // ✅ NUEVO: Re-unión automática si se desconecta y reconecta
   useEffect(() => {
-    if (conversationId && messages.length > 0 && markAsReadSocket) {
-      markAsRead(conversationId, markAsReadSocket)
+    if (conversationId && isConnected && !conversationId.startsWith('temp-')) {
+      joinConversation(conversationId)
     }
-  }, [conversationId, messages.length, markAsRead, markAsReadSocket])
+  }, [conversationId, isConnected, joinConversation])
 
-  // Limpiar mensajes optimistas cuando llegan los mensajes reales
+  // ✅ Marcar como leído solo cuando la ventana NO está minimizada y el usuario está viendo
   useEffect(() => {
-    if (optimisticMessages.length === 0) return
+    if (!conversationId || sortedMessages.length === 0 || isMinimized) return
     
-    const realMessages = [...apiMessages, ...socketMessages]
+    const hasUnread = sortedMessages.some(msg => 
+      msg.senderId !== user?.id && msg.status !== 'READ'
+    )
     
-    // Si hay mensajes reales con el mismo contenido y senderId, limpiar el optimista
-    setOptimisticMessages(prev => {
-      return prev.filter(optMsg => {
-        // Buscar si hay un mensaje real con el mismo contenido y senderId reciente (últimos 10 segundos)
-        const hasRealMessage = realMessages.some(realMsg => 
-          realMsg.senderId === optMsg.senderId &&
-          realMsg.content === optMsg.content &&
-          Math.abs(new Date(realMsg.createdAt).getTime() - new Date(optMsg.createdAt).getTime()) < 10000
-        )
-        return !hasRealMessage
-      })
-    })
-  }, [apiMessages, socketMessages, optimisticMessages.length])
+    if (hasUnread) {
+      // Delay para evitar marcar como leído demasiado rápido
+      const timeoutId = setTimeout(() => {
+        markAsRead(conversationId)
+      }, 2000) // Esperar 2 segundos antes de marcar como leído
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [conversationId, sortedMessages.length, user?.id, markAsRead, lastMessage, isMinimized])
 
   // Scroll al final
   useEffect(() => {
     if (!isMinimized && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [messages, isMinimized])
+  }, [sortedMessages, isMinimized])
 
   // Auto-resize textarea
   useEffect(() => {
@@ -134,42 +97,25 @@ export function FloatingChatWindow({ conversationId, conversation, onClose, posi
     }
   }, [message])
 
-  const handleSend = async () => {
+  // ✅ NUEVO: Enviar mensaje usando el servicio (con queue automático y optimistic updates)
+  const handleSend = () => {
     if (!message.trim() || !conversationId || isSending) return
 
     const messageText = message.trim()
-    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    
-    // Agregar mensaje optimista inmediatamente
-    setOptimisticMessages(prev => [...prev, {
-      id: tempId,
-      content: messageText,
-      createdAt: new Date().toISOString(),
-      senderId: user?.id || '',
-    }])
-    
-    setMessage('') // Limpiar input inmediatamente
+    setMessage('')
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
     
     setIsSending(true)
     try {
-      if (isConnected) {
-        sendSocketMessage(conversationId, messageText)
-      } else {
-        await sendMessageChat(conversationId, messageText, 'TEXT', sendSocketMessage)
-      }
-      // El mensaje optimista se reemplazará cuando llegue el ACK o el mensaje real
-      // Limpiar mensaje optimista después de un tiempo (se reemplazará con el real)
-      setTimeout(() => {
-        setOptimisticMessages(prev => prev.filter(m => m.id !== tempId))
-      }, 5000)
+      // ✅ El servicio maneja automáticamente:
+      // - Queue si está desconectado
+      // - Optimistic updates
+      // - ACK handling
+      sendMessage(conversationId, messageText, 'TEXT')
     } catch (error) {
       console.error('Error enviando mensaje:', error)
-      // Remover mensaje optimista si falla
-      setOptimisticMessages(prev => prev.filter(m => m.id !== tempId))
-      // Restaurar mensaje si falla
       setMessage(messageText)
     } finally {
       setIsSending(false)
@@ -211,6 +157,14 @@ export function FloatingChatWindow({ conversationId, conversation, onClose, posi
                 height={32}
                 className="object-cover w-full h-full"
                 unoptimized={otherParticipant.user.profile.avatar.startsWith('http')}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement
+                  target.style.display = 'none'
+                }}
+                onLoad={(e) => {
+                  const target = e.target as HTMLImageElement
+                  target.style.display = 'block'
+                }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs font-semibold">
@@ -249,12 +203,12 @@ export function FloatingChatWindow({ conversationId, conversation, onClose, posi
       {!isMinimized && (
         <>
           <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-            {messages.length === 0 ? (
+            {sortedMessages.length === 0 ? (
               <div className="text-center text-gray-400 text-sm py-8">
                 No hay mensajes aún
               </div>
             ) : (
-              messages.map((msg) => {
+              sortedMessages.map((msg) => {
                 const isOwn = msg.senderId === user?.id
                 return (
                   <div
@@ -294,7 +248,7 @@ export function FloatingChatWindow({ conversationId, conversation, onClose, posi
               />
               <button
                 onClick={handleSend}
-                disabled={!message.trim() || isSending}
+                disabled={!message.trim() || isSending || !isConnected}
                 className="p-2 bg-[#66DEDB] hover:bg-[#5accc9] text-gray-900 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSending ? (
@@ -306,6 +260,11 @@ export function FloatingChatWindow({ conversationId, conversation, onClose, posi
                 )}
               </button>
             </div>
+            {!isConnected && (
+              <p className="text-xs text-yellow-400 mt-2 px-3">
+                ⚠️ Reconectando... Los mensajes se enviarán automáticamente al reconectar.
+              </p>
+            )}
           </div>
         </>
       )}

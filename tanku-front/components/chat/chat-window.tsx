@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useChat } from '@/lib/hooks/use-chat'
-import { useSocket } from '@/lib/hooks/use-socket'
+import { useChatService } from '@/lib/hooks/use-chat-service'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import type { Conversation } from '@/lib/hooks/use-chat'
 
@@ -15,14 +15,18 @@ interface ChatWindowProps {
 
 export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
   const router = useRouter()
-  const { sendMessage: sendMessageChat, fetchMessages, getMessages, markAsRead, getOtherParticipant, user } = useChat()
-  const { socket, isConnected, joinConversation, sendMessage: sendSocketMessage, getMessages: getSocketMessages, getTypingUsers, markAsRead: markAsReadSocket } = useSocket()
+  const { getOtherParticipant, user } = useChat()
+  const { isConnected, sendMessage, getMessages, getTypingUsers, markAsRead, loadMessages, joinConversation, lastMessage } = useChatService()
   const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMoreMessages, setHasMoreMessages] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const lastFetchedConversationRef = useRef<string | null>(null)
+  const scrollPositionRef = useRef<number>(0)
 
   const otherParticipant = conversation ? getOtherParticipant(conversation, user?.id || '') : null
   const displayName = otherParticipant?.alias || 
@@ -31,108 +35,157 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
       : otherParticipant?.deletedUserEmail || 'Usuario eliminado') ||
     (otherParticipant?.user?.email || 'Usuario')
 
-  // Obtener mensajes de API (incluye los propios)
-  const apiMessages = conversationId ? getMessages(conversationId) : []
-  
-  // Obtener mensajes de Socket (solo de otros usuarios, no propios)
-  const socketMessages = conversationId ? getSocketMessages(conversationId) : []
-  
-  // Combinar y deduplicar mensajes
-  const allMessages = [...apiMessages]
-  socketMessages.forEach(socketMsg => {
-    // Solo agregar si no existe y no es nuestro mensaje
-    if (!allMessages.find(m => m.id === socketMsg.id) && socketMsg.senderId !== user?.id) {
-      allMessages.push(socketMsg)
-    }
-  })
+  // ✅ NUEVO: Obtener mensajes directamente del servicio (ya están sincronizados)
+  const messages = conversationId ? getMessages(conversationId) : []
   
   // Ordenar por fecha
-  const messages = allMessages.sort((a, b) => 
+  const sortedMessages = [...messages].sort((a, b) => 
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   )
 
-  // Cargar mensajes cuando cambia la conversación (solo una vez por conversación)
+  // ✅ NUEVO: Unirse a conversación y cargar mensajes históricos (solo primera página)
   useEffect(() => {
     if (conversationId && !conversationId.startsWith('temp-')) {
-      // ✅ Solo cargar si no se ha cargado antes para esta conversación
       if (lastFetchedConversationRef.current !== conversationId) {
         lastFetchedConversationRef.current = conversationId
+        setCurrentPage(1)
+        setHasMoreMessages(true)
         
-        // Unirse a la conversación vía Socket
+        // Unirse a la conversación (automático al reconectar)
         if (isConnected) {
           joinConversation(conversationId)
         }
         
-        // Cargar mensajes históricos (solo una vez)
-        fetchMessages(conversationId).then(() => {
-          // Marcar como leído solo cuando el usuario realmente abre este chat específico
-          if (markAsReadSocket) {
-            // Delay para asegurar que el chat está visible
-            setTimeout(() => {
-              markAsRead(conversationId, markAsReadSocket)
-            }, 500)
+        // Cargar primera página de mensajes históricos
+        setIsLoadingMore(true)
+        loadMessages(conversationId, 1, 30).then((loadedMessages) => {
+          // Si cargó menos de 30, no hay más mensajes
+          if (loadedMessages.length < 30) {
+            setHasMoreMessages(false)
           }
+          setIsLoadingMore(false)
+          
+          // Marcar como leído después de cargar
+          setTimeout(() => {
+            markAsRead(conversationId)
+          }, 500)
         }).catch((err) => {
           console.error('Error cargando mensajes:', err)
+          setIsLoadingMore(false)
         })
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, isConnected]) // ✅ Solo estas dependencias para evitar loop infinito
+  }, [conversationId, isConnected, joinConversation, loadMessages, markAsRead])
 
-  // Marcar como leído cuando llegan nuevos mensajes y el chat está abierto
+  // ✅ NUEVO: Re-unión automática si se desconecta y reconecta
   useEffect(() => {
-    if (conversationId && messages.length > 0 && markAsReadSocket) {
-      // Marcar como leído automáticamente cuando hay nuevos mensajes (por Socket)
-      const hasUnread = messages.some(msg => 
-        msg.senderId !== user?.id && msg.status !== 'READ'
-      )
-      if (hasUnread) {
-        markAsRead(conversationId, markAsReadSocket)
+    if (conversationId && isConnected && !conversationId.startsWith('temp-')) {
+      joinConversation(conversationId)
+    }
+  }, [conversationId, isConnected, joinConversation])
+
+  // ✅ NUEVO: Marcar como leído solo cuando el chat está visible y el usuario está viendo
+  // No marcar automáticamente cuando llegan mensajes, solo cuando el usuario está viendo activamente
+  useEffect(() => {
+    if (!conversationId || sortedMessages.length === 0) return
+    
+    // Solo marcar como leído si:
+    // 1. El chat está visible (no minimizado, no en otra página)
+    // 2. Hay mensajes no leídos de otros usuarios
+    // 3. El usuario está viendo el chat (scroll cerca del final)
+    const hasUnread = sortedMessages.some(msg => 
+      msg.senderId !== user?.id && msg.status !== 'READ'
+    )
+    
+    if (hasUnread && messagesContainerRef.current) {
+      const container = messagesContainerRef.current
+      const scrollTop = container.scrollTop
+      const scrollHeight = container.scrollHeight
+      const clientHeight = container.clientHeight
+      
+      // Solo marcar como leído si está cerca del final (viendo los mensajes más recientes)
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 200
+      
+      if (isNearBottom) {
+        // Delay para evitar marcar como leído demasiado rápido
+        const timeoutId = setTimeout(() => {
+          markAsRead(conversationId)
+        }, 1000) // Esperar 1 segundo antes de marcar como leído
+        
+        return () => clearTimeout(timeoutId)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, messages.length, user?.id]) // ✅ Solo dependencias esenciales, no las funciones
+  }, [conversationId, sortedMessages.length, user?.id, markAsRead, lastMessage])
 
-  // Scroll al final cuando hay nuevos mensajes
+  // Scroll al final cuando hay nuevos mensajes (solo si no está cargando más)
   useEffect(() => {
-    scrollToBottom()
-  }, [conversationId, messages.length])
+    if (!isLoadingMore) {
+      scrollToBottom()
+    }
+  }, [conversationId, sortedMessages.length, isLoadingMore])
+
+  // ✅ NUEVO: Manejar scroll para cargar más mensajes
+  const handleScroll = useCallback(() => {
+    if (!messagesContainerRef.current || isLoadingMore || !hasMoreMessages) return
+
+    const container = messagesContainerRef.current
+    const scrollTop = container.scrollTop
+    const scrollHeight = container.scrollHeight
+    const clientHeight = container.clientHeight
+
+    // Si está cerca del top (100px), cargar más mensajes
+    if (scrollTop < 100 && conversationId) {
+      setIsLoadingMore(true)
+      const nextPage = currentPage + 1
+      
+      // Guardar posición de scroll antes de cargar
+      scrollPositionRef.current = scrollHeight - scrollTop
+      
+      loadMessages(conversationId, nextPage, 30).then((loadedMessages) => {
+        if (loadedMessages.length < 30) {
+          setHasMoreMessages(false)
+        }
+        setCurrentPage(nextPage)
+        setIsLoadingMore(false)
+        
+        // Restaurar posición de scroll después de cargar
+        setTimeout(() => {
+          if (messagesContainerRef.current) {
+            const newScrollHeight = messagesContainerRef.current.scrollHeight
+            messagesContainerRef.current.scrollTop = newScrollHeight - scrollPositionRef.current
+          }
+        }, 0)
+      }).catch((err) => {
+        console.error('Error cargando más mensajes:', err)
+        setIsLoadingMore(false)
+      })
+    }
+  }, [conversationId, currentPage, isLoadingMore, hasMoreMessages, loadMessages])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  // ✅ NUEVO: Enviar mensaje usando el servicio (con queue automático)
   const handleSend = () => {
     if (!message.trim() || !conversationId || isSending) return
-
-    // ✅ Verificar que el socket esté conectado ANTES de intentar enviar
-    if (!socket || !isConnected || !sendSocketMessage) {
-      console.error('❌ Socket no conectado, no se puede enviar mensaje', {
-        socket: !!socket,
-        isConnected,
-        sendSocketMessage: !!sendSocketMessage,
-      })
-      // Mostrar mensaje al usuario
-      alert('El chat no está conectado. Por favor, espera un momento e intenta de nuevo.')
-      return
-    }
 
     const messageContent = message.trim()
     setMessage('')
     setIsSending(true)
 
     try {
-      // Enviar SOLO por Socket (no REST)
-      sendMessageChat(conversationId, messageContent, 'TEXT', sendSocketMessage)
+      // ✅ El servicio maneja automáticamente:
+      // - Queue si está desconectado
+      // - Optimistic updates
+      // - ACK handling
+      sendMessage(conversationId, messageContent, 'TEXT')
       
-      // Mantener el foco en el textarea después de enviar
       setTimeout(() => {
         textareaRef.current?.focus()
       }, 0)
     } catch (error) {
       console.error('Error enviando mensaje:', error)
-      // Restaurar mensaje si falla
       setMessage(messageContent)
     } finally {
       setIsSending(false)
@@ -247,6 +300,10 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
                   const target = e.target as HTMLImageElement
                   target.style.display = 'none'
                 }}
+                onLoad={(e) => {
+                  const target = e.target as HTMLImageElement
+                  target.style.display = 'block'
+                }}
               />
             ) : (
               <span className="text-sm text-gray-400 font-bold">
@@ -275,9 +332,15 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
       {/* Mensajes */}
       <div 
         ref={messagesContainerRef}
+        onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"
       >
-        {messages.map((msg) => {
+        {isLoadingMore && (
+          <div className="flex justify-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#66DEDB]"></div>
+          </div>
+        )}
+        {sortedMessages.map((msg) => {
           const isOwn = msg.senderId === user?.id
           const senderName = msg.senderAlias || 
             (msg.sender 
@@ -327,17 +390,22 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
             placeholder="Escribe un mensaje..."
             className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#66DEDB]"
             rows={1}
-            disabled={isSending}
+            disabled={isSending || !isConnected}
             autoFocus
           />
           <button
             onClick={handleSend}
-            disabled={!message.trim() || isSending}
+            disabled={!message.trim() || isSending || !isConnected}
             className="px-4 py-2 bg-[#66DEDB] text-black rounded-lg hover:bg-[#73FFA2] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSending ? '...' : 'Enviar'}
           </button>
         </div>
+        {!isConnected && (
+          <p className="text-xs text-yellow-400 mt-2">
+            ⚠️ Reconectando... Los mensajes se enviarán automáticamente al reconectar.
+          </p>
+        )}
       </div>
     </div>
   )

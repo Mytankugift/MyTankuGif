@@ -93,12 +93,32 @@ export class ApiClient {
         console.log(`[API] Iniciando petición a ${endpoint} con timeout de ${timeout}ms`)
       }
 
-      const response = await fetch(url, {
-        ...options,
-        headers,
-        credentials: 'include',
-        signal: controller.signal,
-      })
+      let response: Response
+      try {
+        response = await fetch(url, {
+          ...options,
+          headers,
+          credentials: 'include',
+          signal: controller.signal,
+        })
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId)
+        // Error de red (CORS, conexión rechazada, etc.)
+        if (fetchError.name === 'AbortError') {
+          throw new Error(`Timeout: La petición a ${endpoint} excedió el tiempo límite de ${timeout}ms`)
+        }
+        if (fetchError.message?.includes('Failed to fetch') || fetchError.message?.includes('NetworkError')) {
+          // Solo lanzar error si hay token (usuario autenticado debería poder conectarse)
+          // Si no hay token, es probable que el usuario no esté autenticado y el error es esperado
+          if (token) {
+            throw new Error(`No se pudo conectar al servidor en ${this.baseURL}. Verifica que el backend esté corriendo y que la URL sea correcta.`)
+          } else {
+            // Usuario no autenticado, error silencioso
+            throw new Error('NETWORK_ERROR_SILENT')
+          }
+        }
+        throw fetchError
+      }
 
       clearTimeout(timeoutId)
 
@@ -106,6 +126,7 @@ export class ApiClient {
         let errorData: any = {};
         const isAuthError = response.status === 401 || response.status === 403;
         let isNotFoundError = false;
+        let isConnectionTimeoutError = false;
         
         try {
           const text = await response.text();
@@ -123,12 +144,23 @@ export class ApiClient {
               const isDifferentRecipient = errorData.error?.code === 'BAD_REQUEST' && 
                                           errorData.error?.message === 'DIFFERENT_RECIPIENT';
               
-              // ✅ Solo loggear si no es un error de autenticación esperado, NOT_FOUND o DIFFERENT_RECIPIENT
-              if (!isAuthError && !isNotFoundError && !isDifferentRecipient) {
+              // Verificar si es un error de timeout de conexión de base de datos
+              isConnectionTimeoutError = errorData.error?.code === 'INTERNAL_ERROR' && 
+                                        (errorData.error?.message?.includes('Connection terminated') ||
+                                         errorData.error?.message?.includes('connection timeout') ||
+                                         errorData.error?.message?.includes('Connection terminated due to connection timeout'));
+              
+              // Verificar si es un error de CONFLICT (como "Ya le diste like a este producto")
+              const isConflictError = errorData.error?.code === 'CONFLICT' || 
+                                     (errorData.error?.message?.includes('Ya le diste like') ||
+                                      errorData.error?.message?.includes('ya existe'));
+              
+              // ✅ Solo loggear si no es un error de autenticación esperado, NOT_FOUND, DIFFERENT_RECIPIENT, CONFLICT o timeout de conexión
+              if (!isAuthError && !isNotFoundError && !isDifferentRecipient && !isConnectionTimeoutError && !isConflictError) {
                 console.error('[API] Error response body:', text);
               }
             } catch (parseError) {
-              if (!isAuthError && !isNotFoundError) {
+              if (!isAuthError && !isNotFoundError && !isConnectionTimeoutError) {
                 console.error('[API] Error parsing JSON:', parseError);
               }
               // Si el parseo falla, crear un objeto de error con el texto raw
@@ -149,7 +181,7 @@ export class ApiClient {
             };
           }
         } catch (readError) {
-          if (!isAuthError && !isNotFoundError) {
+          if (!isAuthError && !isNotFoundError && !isConnectionTimeoutError) {
             console.error('[API] Error reading error response:', readError);
           }
           errorData = { 
@@ -169,15 +201,23 @@ export class ApiClient {
         const isDifferentRecipient = errorObj?.code === 'BAD_REQUEST' && 
                                     errorObj?.message === 'DIFFERENT_RECIPIENT';
         
-        // ✅ Solo loggear detalles si no es un error de autenticación esperado, NOT_FOUND o DIFFERENT_RECIPIENT
-        if (!isAuthError && !isNotFoundError && !isDifferentRecipient) {
+        // Verificar nuevamente si es un error de timeout de conexión (por si no se detectó antes)
+        if (!isConnectionTimeoutError) {
+          isConnectionTimeoutError = errorObj?.code === 'INTERNAL_ERROR' && 
+                                     (errorObj?.message?.includes('Connection terminated') ||
+                                      errorObj?.message?.includes('connection timeout') ||
+                                      errorObj?.message?.includes('Connection terminated due to connection timeout'));
+        }
+        
+        // ✅ Solo loggear detalles si no es un error de autenticación esperado, NOT_FOUND, DIFFERENT_RECIPIENT o timeout de conexión
+        if (!isAuthError && !isNotFoundError && !isDifferentRecipient && !isConnectionTimeoutError) {
           console.error('[API] Error data parsed:', errorData);
           console.error('[API] Error obj extracted:', errorObj);
         }
         
         // Si errorObj es un objeto vacío o no tiene code/message, usar valores por defecto
         if (!errorObj || typeof errorObj !== 'object' || Object.keys(errorObj).length === 0) {
-          if (!isAuthError && !isNotFoundError) {
+          if (!isAuthError && !isNotFoundError && !isConnectionTimeoutError) {
             console.warn('[API] Error object is empty, using default error');
           }
           errorObj = { 
@@ -186,7 +226,7 @@ export class ApiClient {
           };
         } else if (!errorObj.code || !errorObj.message) {
           // Si tiene propiedades pero no code/message, construir un mensaje
-          if (!isAuthError && !isNotFoundError) {
+          if (!isAuthError && !isNotFoundError && !isConnectionTimeoutError) {
             console.warn('[API] Error object missing code or message, constructing error');
           }
           errorObj = {
@@ -261,11 +301,12 @@ export class ApiClient {
         }
       }
     } catch (error: any) {
-      console.error('[API] Error:', error)
-      
       // Manejar diferentes tipos de errores
       if (error.name === 'AbortError' || error.message?.includes('aborted')) {
-        console.error('[API] Request aborted - posible timeout o cancelación')
+        // Solo loggear timeout si hay token (usuario autenticado)
+        if (token) {
+          console.error('[API] Request aborted - posible timeout o cancelación')
+        }
         return {
           success: false,
           data: null as T,
@@ -276,7 +317,23 @@ export class ApiClient {
         }
       }
       
-      if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+      // Error silencioso para usuarios no autenticados
+      if (error.message === 'NETWORK_ERROR_SILENT') {
+        return {
+          success: false,
+          data: null as T,
+          error: { 
+            code: 'NETWORK_ERROR', 
+            message: 'No se pudo conectar al servidor' 
+          }
+        }
+      }
+      
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError') || error.message?.includes('No se pudo conectar al servidor')) {
+        // Solo loggear si hay token (usuario autenticado debería poder conectarse)
+        if (token) {
+          console.error('[API] Network error:', error)
+        }
         return {
           success: false,
           data: null as T,
@@ -287,6 +344,11 @@ export class ApiClient {
         }
       }
 
+      // Solo loggear otros errores si hay token
+      if (token) {
+        console.error('[API] Error:', error)
+      }
+      
       return {
         success: false,
         data: null as T,
@@ -309,6 +371,13 @@ export class ApiClient {
   put<T>(endpoint: string, body?: any) {
     return this.request<T>(endpoint, {
       method: 'PUT',
+      body: JSON.stringify(body),
+    })
+  }
+
+  patch<T>(endpoint: string, body?: any) {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
       body: JSON.stringify(body),
     })
   }

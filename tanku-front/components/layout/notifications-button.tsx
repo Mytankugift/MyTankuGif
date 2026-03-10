@@ -1,12 +1,26 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useNotifications } from '@/lib/hooks/use-notifications'
 import { useEffect, useRef } from 'react'
 
-export function NotificationsButton() {
-  const { unreadCount, items, isOpen, isLoading, setIsOpen, fetchList, markAllAsRead } = useNotifications()
+interface NotificationsButtonProps {
+  // ✅ Props opcionales desde feedInit para evitar llamadas duplicadas
+  initialNotifications?: any[]
+  initialUnreadCount?: number
+}
+
+export function NotificationsButton({ initialNotifications, initialUnreadCount }: NotificationsButtonProps = {}) {
+  const { unreadCount, items, isOpen, isLoading, setIsOpen, fetchList, markAllAsRead } = useNotifications({
+    initialData: initialNotifications || initialUnreadCount !== undefined
+      ? {
+          items: initialNotifications,
+          unreadCount: initialUnreadCount,
+        }
+      : undefined,
+  })
   const router = useRouter()
   const btnRef = useRef<HTMLButtonElement | null>(null)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
@@ -51,10 +65,15 @@ export function NotificationsButton() {
         className="relative p-2 rounded-lg hover:bg-white/10 transition-colors"
         aria-label="Notificaciones"
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#73FFA2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
+        <Image
+          src="/icons_tanku/tanku_nav_notificaciones_verde.svg"
+          alt="Notificaciones"
+          width={30}
+          height={30}
+          className="object-contain"
+          style={{ width: '30px', height: '30px' }}
+          unoptimized
+        />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
             {unreadCount}

@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { useProduct } from '@/lib/hooks/use-product'
 import { useCartStore } from '@/lib/stores/cart-store'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { useWishLists } from '@/lib/hooks/use-wishlists'
 import { Button } from '@/components/ui/button'
 import { VariantSelector } from '@/components/products/variant-selector'
 import { HeartIcon } from '@heroicons/react/24/outline'
@@ -24,6 +25,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
   const router = useRouter()
   const { isAuthenticated, user } = useAuthStore()
   const { addItem, isLoading: isCartLoading } = useCartStore()
+  const { wishLists } = useWishLists()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
@@ -35,6 +37,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
   const [isLiked, setIsLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
   const [isTogglingLike, setIsTogglingLike] = useState(false)
+  const [isInWishlist, setIsInWishlist] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
   const initializedProductIdRef = React.useRef<string | null>(null)
   const productHandleRef = React.useRef<string | null>(null)
@@ -107,6 +110,20 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
 
     loadLikesData()
   }, [fullProduct?.id, isAuthenticated])
+
+  // Verificar si el producto está en alguna wishlist
+  useEffect(() => {
+    if (!isAuthenticated || !fullProduct?.id || !wishLists || wishLists.length === 0) {
+      setIsInWishlist(false)
+      return
+    }
+
+    // Verificar si el producto está en alguna wishlist
+    const productInWishlist = wishLists.some(wishlist =>
+      wishlist.items?.some(item => item.product?.id === fullProduct.id)
+    )
+    setIsInWishlist(productInWishlist)
+  }, [wishLists, fullProduct?.id, isAuthenticated])
 
   // Función para toggle like
   const handleToggleLike = async () => {
@@ -270,14 +287,14 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
         <div className="flex flex-col md:flex-row gap-6 mb-6">
           {/* Galería de imágenes */}
           <div className="md:w-1/2 flex gap-4">
-          {/* Miniaturas a la izquierda (solo en desktop) - siempre reservar espacio */}
-          <div className="hidden md:flex flex-col gap-2 overflow-y-auto max-h-[400px] custom-scrollbar w-16 flex-shrink-0">
+          {/* Miniaturas a la izquierda - siempre visible */}
+          <div className="flex flex-col gap-2 overflow-y-auto max-h-[400px] custom-scrollbar w-12 sm:w-16 flex-shrink-0">
             {allImages.length > 1 ? (
               allImages.map((img, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
-                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                  className={`flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all ${
                     currentImageIndex === index
                       ? 'border-[#66DEDB] ring-2 ring-[#66DEDB] ring-offset-2 ring-offset-[#2C3137]'
                       : 'border-gray-600 hover:border-gray-500'
@@ -294,7 +311,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                 </button>
               ))
             ) : (
-              <div className="w-16 h-16"></div> // Espacio reservado
+              <div className="w-12 h-12 sm:w-16 sm:h-16"></div> // Espacio reservado
             )}
           </div>
 
@@ -315,32 +332,6 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                   unoptimized={allImages[currentImageIndex].startsWith('http')}
                 />
               </div>
-              
-              {/* Miniaturas abajo en móvil */}
-              {allImages.length > 1 && (
-                <div className="md:hidden flex gap-2 overflow-x-auto mt-4 pb-2">
-                  {allImages.map((img, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                        currentImageIndex === index
-                          ? 'border-[#66DEDB] ring-2 ring-[#66DEDB]'
-                          : 'border-gray-600 hover:border-gray-500'
-                      }`}
-                    >
-                      <Image
-                        src={img}
-                        alt={`${productTitle} - ${index + 1}`}
-                        width={64}
-                        height={64}
-                        className="w-full h-full object-cover"
-                        unoptimized={img.startsWith('http')}
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -361,15 +352,15 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                   onClick={() => setShowWishlistModal(true)}
                   disabled={!selectedVariant || selectedVariant.stock === 0}
                   className="p-2 hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={selectedVariant?.stock === 0 ? "Esta variante no tiene stock disponible" : "Agregar a wishlist"}
+                  title={selectedVariant?.stock === 0 ? "Esta variante no tiene stock disponible" : (isInWishlist ? "Ya está en wishlist" : "Agregar a wishlist")}
                   style={{ 
                     color: selectedVariant?.stock === 0 ? '#666' : undefined,
                     cursor: selectedVariant?.stock === 0 ? 'not-allowed' : 'pointer'
                   }}
                 >
                   <Image
-                    src="/icons_tanku/tanku_agregar_a_whislist_azul.svg"
-                    alt="Agregar a wishlist"
+                    src={isInWishlist ? "/icons_tanku/tanku_agregado_a_whislist_verde.svg" : "/icons_tanku/tanku_agregar_a_whislist_azul.svg"}
+                    alt={isInWishlist ? "Ya está en wishlist" : "Agregar a wishlist"}
                     width={24}
                     height={24}
                     className="w-6 h-6"
@@ -432,7 +423,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
               )}
             </button>
             <span 
-              className="text-base font-normal"
+              className="text-xs sm:text-base font-normal"
               style={{ color: '#73FFA2' }}
             >
               A {likesCount} personas este producto las hace feliz.
@@ -525,33 +516,35 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
 
           {/* Botones de acción */}
           {stock > 0 && isAuthenticated && (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button
-                onClick={handleBuyNow}
-                disabled={isAddingToCart || isCartLoading}
-                className="flex-1 font-semibold py-3"
-                style={{ 
-                  backgroundColor: '#3B9BC3',
-                  color: '#2C3137',
-                  borderRadius: '25px'
-                }}
-              >
-                Comprar este Tanku
-              </Button>
+            <div className="flex flex-row gap-2 sm:gap-4">
               <Button
                 onClick={() => {
                   if (!selectedVariant?.id) return
                   router.push(`/checkout/gift-direct?variantId=${selectedVariant.id}&quantity=${quantity}`)
                 }}
                 disabled={isAddingToCart || isCartLoading || !selectedVariant?.id}
-                className="flex-1 font-semibold py-3"
+                className="flex-1 font-semibold py-2 sm:py-3 text-xs sm:text-base"
                 style={{ 
                   backgroundColor: '#66DEDB',
                   color: '#2C3137',
-                  borderRadius: '25px'
+                  borderRadius: '25px',
+                  boxShadow: '0px 4px 4px 0px #00000040 inset'
                 }}
               >
-                Regalar este Tanku
+                Regalar TANKU
+              </Button>
+              <Button
+                onClick={handleBuyNow}
+                disabled={isAddingToCart || isCartLoading}
+                className="flex-1 font-semibold py-2 sm:py-3 text-xs sm:text-base"
+                style={{ 
+                  backgroundColor: '#3B9BC3',
+                  color: '#2C3137',
+                  borderRadius: '25px',
+                  boxShadow: '0px 4px 4px 0px #00000040 inset'
+                }}
+              >
+                Comprar TANKU
               </Button>
             </div>
           )}
@@ -625,8 +618,10 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
           onClose={() => setShowWishlistModal(false)}
           productId={fullProduct.id}
           variantId={selectedVariant?.id}
-          onAdded={() => {
+          onAdded={async () => {
             setShowWishlistModal(false)
+            // Actualizar estado después de agregar a wishlist
+            setIsInWishlist(true)
           }}
         />
       )}

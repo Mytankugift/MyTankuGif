@@ -9,8 +9,9 @@ import { UserMentionAutocomplete } from './user-mention-autocomplete'
 import { UserAvatar } from '@/components/shared/user-avatar'
 import { CommentItem } from './comment-item'
 import { SharePostModal } from './share-post-modal'
+import { EmojiPickerButton } from './emoji-picker-button'
 import Image from 'next/image'
-import { HeartIcon, ChatBubbleLeftIcon, TrashIcon, ShareIcon, ArrowLeftIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline'
+import { HeartIcon, ChatBubbleLeftIcon, TrashIcon, ShareIcon, ArrowLeftIcon, EllipsisVerticalIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 
 interface PosterDetailContentProps {
@@ -94,6 +95,7 @@ export function PosterDetailContent({
   const [error, setError] = useState<string | null>(null)
   const [commentsPage, setCommentsPage] = useState(0)
   const [hasMoreComments, setHasMoreComments] = useState(true)
+  const [totalComments, setTotalComments] = useState(0)
   const [isLoadingComments, setIsLoadingComments] = useState(false)
   const [mentionedUsers, setMentionedUsers] = useState<Record<string, {
     id: string
@@ -166,6 +168,7 @@ export function PosterDetailContent({
           comments: page === 0 ? response.data.comments : [...(prev.comments || []), ...response.data.comments],
         } : null)
         setHasMoreComments(response.data.hasMore)
+        setTotalComments(response.data.total)
         setCommentsPage(page)
         await loadMentionedUsers(response.data.comments)
       }
@@ -246,15 +249,102 @@ export function PosterDetailContent({
     e.preventDefault()
     if (!poster || !commentText.trim() || isCommenting) return
 
+    console.log('\n📝 ===== FRONTEND: ENVIAR COMENTARIO =====')
+    console.log('💬 Contenido original:', commentText)
+    console.log('📏 Longitud:', commentText.length, 'caracteres')
+
     setIsCommenting(true)
     try {
+      // Convertir todas las menciones @username a @{userId} antes de enviar
+      // Esto asegura que incluso si la búsqueda asíncrona no terminó, las menciones se conviertan
+      let finalContent = commentText.trim()
+      
+      // Buscar todas las menciones @username que no estén ya convertidas
+      const usernameMentionRegex = /@([a-zA-Z0-9_-]+)(?=\s|$|@|,|\.|!|\?)/g
+      const matches = Array.from(finalContent.matchAll(usernameMentionRegex))
+      
+      console.log(`\n🔍 Menciones @username encontradas: ${matches.length}`)
+      matches.forEach((m, i) => console.log(`   ${i + 1}. @${m[1]}`))
+      
+      // Para cada match, verificar si ya está en formato @{userId}
+      // Si no, buscar el usuario y convertir
+      for (const match of matches) {
+        const username = match[1]
+        const matchIndex = match.index || 0
+        const beforeMatch = finalContent.substring(Math.max(0, matchIndex - 1), matchIndex)
+        
+        // Si ya está en formato @{userId}, saltar
+        if (beforeMatch.endsWith('{')) {
+          console.log(`\n   @${username}: ✅ Ya está en formato @{userId}, omitiendo`)
+          continue
+        }
+        
+        console.log(`\n   @${username}: 🔍 Buscando usuario...`)
+        
+        // Buscar el usuario por username
+        try {
+          const response = await apiClient.get<Array<{
+            id: string
+            email: string
+            firstName: string | null
+            lastName: string | null
+            username: string | null
+          }>>(
+            `${API_ENDPOINTS.USERS.SEARCH}?q=${encodeURIComponent(username)}&limit=5`
+          )
+          
+          if (response.success && response.data && response.data.length > 0) {
+            // Buscar el usuario que coincida exactamente con el username
+            const user = response.data.find(u => 
+              u.username?.toLowerCase() === username.toLowerCase()
+            ) || response.data[0]
+            
+            if (user && user.username) {
+              console.log(`      ✅ Usuario encontrado: ${user.username} (id: ${user.id})`)
+              
+              // Reemplazar @username con @{userId}
+              const escapedUsername = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+              finalContent = finalContent.replace(
+                new RegExp(`@${escapedUsername}(?=\\s|$|@|,|\\.|!|\\?)`, 'g'),
+                `@{${user.id}}`
+              )
+              
+              console.log(`      🔄 Convertido: @${username} → @{${user.id}}`)
+            } else {
+              console.log(`      ⚠️  Usuario sin username, manteniendo @${username}`)
+            }
+          } else {
+            console.log(`      ❌ No se encontraron usuarios para "${username}"`)
+          }
+        } catch (err) {
+          // Si falla la búsqueda, mantener el @username original
+          // El backend lo procesará con el Patrón 4a
+          console.log(`      ⚠️  Error en búsqueda, manteniendo @${username} original`)
+        }
+      }
+      
+      console.log('\n📤 CONTENIDO FINAL A ENVIAR:')
+      console.log('   💬 Texto:', finalContent)
+      console.log('   📏 Longitud:', finalContent.length, 'caracteres')
+      
       const response = await apiClient.post(
         API_ENDPOINTS.POSTERS.COMMENT(poster.id),
         { 
-          content: commentText.trim(),
+          content: finalContent,
           parentId: replyingTo?.commentId || undefined
         }
       )
+      
+      console.log('\n📥 RESPUESTA DEL SERVIDOR:')
+      console.log('   ✅ Éxito:', response.success ? 'Sí' : 'No')
+      if (response.success && response.data) {
+        console.log('   📝 Comentario ID:', response.data.id)
+        console.log('   💬 Contenido:', response.data.content?.substring(0, 80) + (response.data.content?.length > 80 ? '...' : ''))
+        console.log('   👥 Menciones:', response.data.mentions?.length || 0, response.data.mentions || 'ninguna')
+      } else {
+        console.log('   ❌ Error:', response.error?.message || 'Error desconocido')
+      }
+      console.log('========================================\n')
 
       if (response.success && response.data) {
         setCommentText('')
@@ -281,8 +371,8 @@ export function PosterDetailContent({
   }
 
   const handleReplyClick = (commentId: string, authorName: string, authorId: string) => {
-    const displayName = authorName
-    setCommentText(`@${displayName}|${authorId} `)
+    // No poner nada en el input, ya hay un indicador abajo que dice "Respondiendo a X persona"
+    setCommentText('')
     setReplyingTo({ commentId, authorName, authorId })
     setTimeout(() => {
       const input = document.querySelector('input[placeholder="Escribe un comentario..."]') as HTMLInputElement
@@ -501,9 +591,9 @@ export function PosterDetailContent({
       )}
 
       {/* Content */}
-      <div className={`flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden ${isPageView ? '' : 'overflow-y-auto'}`}>
+      <div className={`flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden ${isPageView ? '' : 'overflow-y-auto'}`}>
         {/* Media */}
-        <div className="md:w-3/5 bg-black flex items-center justify-center min-h-[300px] md:min-h-0 md:h-full">
+        <div className="lg:w-3/5 bg-black flex items-center justify-center min-h-[300px] lg:min-h-0 lg:h-full relative">
           {poster.videoUrl ? (
             <video
               src={poster.videoUrl}
@@ -525,20 +615,63 @@ export function PosterDetailContent({
               }}
             />
           )}
+          
+          {/* Contadores de like y comentarios en esquina inferior izquierda */}
+          <div className="absolute bottom-4 left-4 flex flex-col gap-2 z-10">
+            <button
+              onClick={handleLike}
+              disabled={isLiking}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-black/60 backdrop-blur-sm transition-colors ${
+                poster.isLiked ? 'text-red-500' : 'text-white hover:text-red-500'
+              }`}
+            >
+              {poster.isLiked ? (
+                <HeartSolidIcon className="w-5 h-5" />
+              ) : (
+                <HeartIcon className="w-5 h-5" />
+              )}
+              <span className="font-semibold text-sm">{poster.likesCount}</span>
+            </button>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/60 backdrop-blur-sm text-white">
+              <ChatBubbleLeftIcon className="w-5 h-5" />
+              <span className="font-semibold text-sm">{poster.commentsCount}</span>
+            </div>
+          </div>
         </div>
 
         {/* Details */}
-        <div className="md:w-2/5 flex flex-col min-h-0 h-full border-l border-gray-700">
+        <div className="lg:w-2/5 flex flex-col min-h-0 h-full lg:border-l border-t lg:border-t-0 border-gray-700">
           {/* Description */}
           {poster.description && (
-            <div className="flex-shrink-0 p-4 border-b border-gray-700">
-              <p className="text-white">{poster.description}</p>
+            <div className="flex-shrink-0 p-4 border-b border-gray-700 relative">
+              <p className="text-white pr-12">{poster.description}</p>
+              {/* Botón compartir en esquina derecha */}
+              <button
+                onClick={handleShare}
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition-colors"
+                title="Compartir con amigos"
+              >
+                <ShareIcon className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+          
+          {/* Si no hay descripción, mostrar botón compartir en la parte superior */}
+          {!poster.description && (
+            <div className="flex-shrink-0 p-4 border-b border-gray-700 relative">
+              <button
+                onClick={handleShare}
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition-colors"
+                title="Compartir con amigos"
+              >
+                <ShareIcon className="w-5 h-5" />
+              </button>
             </div>
           )}
 
 
           {/* Comments - Con altura definida y scroll interno */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 min-h-0">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 min-h-0 md:pb-0 pb-24">
             {poster.comments && poster.comments.length > 0 ? (
               <>
                 {poster.comments
@@ -554,9 +687,10 @@ export function PosterDetailContent({
                       onUpdate={() => loadComments(0)}
                       parentComment={null}
                       rootComment={null}
+                      isPostOwner={isOwner}
                     />
                   ))}
-                {hasMoreComments && (
+                {hasMoreComments && (poster?.comments?.length || 0) >= 20 && (
                   <button
                     onClick={() => loadComments(commentsPage + 1)}
                     disabled={isLoadingComments}
@@ -575,41 +709,9 @@ export function PosterDetailContent({
             )}
           </div>
 
-          {/* Comment Form - Siempre visible en la parte inferior */}
+          {/* Comment Form - Siempre visible en la parte inferior, fijo en móvil */}
           {token && (
-            <div className="flex-shrink-0 p-4 border-t border-gray-700 space-y-3 bg-gray-900">
-              {/* Iconos de me gusta y comentarios */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={handleLike}
-                    disabled={isLiking}
-                    className={`flex items-center gap-2 transition-colors ${
-                      poster.isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
-                    }`}
-                  >
-                    {poster.isLiked ? (
-                      <HeartSolidIcon className="w-6 h-6" />
-                    ) : (
-                      <HeartIcon className="w-6 h-6" />
-                    )}
-                    <span className="font-semibold">{poster.likesCount}</span>
-                  </button>
-                  <div className="flex items-center gap-2 text-gray-400">
-                    <ChatBubbleLeftIcon className="w-6 h-6" />
-                    <span className="font-semibold">{poster.commentsCount}</span>
-                  </div>
-                </div>
-                {/* Botón compartir separado a la derecha */}
-                <button
-                  onClick={handleShare}
-                  className="p-2 text-gray-400 hover:text-white transition-colors"
-                  title="Compartir con amigos"
-                >
-                  <ShareIcon className="w-5 h-5" />
-                </button>
-              </div>
-
+            <div className="flex-shrink-0 p-4 border-t border-gray-700 space-y-3 bg-gray-900 md:relative fixed md:bottom-auto bottom-0 left-0 right-0 z-10 md:z-auto pb-20 md:pb-4">
               {/* Form */}
               <form onSubmit={handleComment} className="flex gap-3">
                 {user && (
@@ -626,20 +728,30 @@ export function PosterDetailContent({
                 )}
                 
                 <div className="flex-1 flex gap-2">
-                  <div className="flex-1">
+                  <div className="flex-1 relative">
                     <UserMentionAutocomplete
                       value={commentText}
                       onChange={setCommentText}
                       placeholder="Escribe un comentario..."
                       disabled={isCommenting}
                     />
+                    <EmojiPickerButton
+                      onEmojiSelect={(emoji) => {
+                        setCommentText(prev => prev + emoji)
+                      }}
+                    />
                   </div>
                   <button
                     type="submit"
                     disabled={!commentText.trim() || isCommenting}
-                    className="px-4 py-2 bg-[#73FFA2] hover:bg-[#66e891] text-gray-900 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-10 h-10 flex items-center justify-center bg-[#73FFA2] hover:bg-[#66e891] text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                    title={isCommenting ? 'Publicando...' : 'Publicar'}
                   >
-                    {isCommenting ? 'Publicando...' : 'Publicar'}
+                    {isCommenting ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    ) : (
+                      <PaperAirplaneIcon className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
               </form>

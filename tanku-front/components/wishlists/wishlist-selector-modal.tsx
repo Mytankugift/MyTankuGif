@@ -61,6 +61,12 @@ export function WishlistSelectorModal({
       }
 
       await addItemToWishList(wishListId, productId, variantId)
+      // Disparar evento con información del producto agregado
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('wishlistUpdated', { 
+          detail: { productId } 
+        }))
+      }
       onAdded()
       onClose()
     } catch (error: any) {
@@ -108,6 +114,12 @@ export function WishlistSelectorModal({
       const newWishlist = await createWishList(newWishlistName.trim(), isPublic)
       if (newWishlist) {
         await addItemToWishList(newWishlist.id, productId, variantId)
+        // Disparar evento con información del producto agregado
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('wishlistUpdated', { 
+            detail: { productId } 
+          }))
+        }
         onAdded()
         onClose()
         setShowCreateForm(false)

@@ -271,23 +271,34 @@ export function AddressFormModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+      <div 
+        className="rounded-[25px] w-full overflow-hidden flex flex-col border-2"
+        style={{ 
+          backgroundColor: '#262626',
+          borderColor: '#73FFA2',
+          maxWidth: '600px',
+          maxHeight: '720px',
+          minHeight: '600px',
+          width: '90%'
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <h2 className="text-xl font-bold text-[#66DEDB]">
+        <div className="flex items-center justify-between p-4">
+          <h2 className="text-xl font-semibold" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
             {address ? 'Editar dirección' : 'Crear nueva dirección'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-800 rounded"
           >
-            <XMarkIcon className="w-6 h-6" />
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-6 custom-scrollbar" style={{ minHeight: '450px', maxHeight: '520px' }}>
+        <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
               {error}
@@ -296,17 +307,23 @@ export function AddressFormModal({
 
           {/* Alias */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
               Alias (opcional)
             </label>
             <input
               type="text"
               value={formData.alias}
               onChange={(e) => setFormData({ ...formData, alias: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+              className="w-full px-4 py-3 text-white focus:outline-none"
+              style={{
+                backgroundColor: 'rgba(217, 217, 217, 0.2)',
+                borderRadius: '25px',
+                border: '1px solid #4A4A4A',
+                fontFamily: 'Poppins, sans-serif',
+              }}
               placeholder="Ej: Casa, Oficina, etc."
             />
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs mt-1" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>
               Un nombre para identificar esta dirección fácilmente
             </p>
           </div>
@@ -314,7 +331,7 @@ export function AddressFormModal({
           {/* Nombre y Apellido */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
                 Nombre *
               </label>
               <input
@@ -322,12 +339,18 @@ export function AddressFormModal({
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 required
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                className="w-full px-4 py-3 text-white focus:outline-none"
+                style={{
+                  backgroundColor: 'rgba(217, 217, 217, 0.2)',
+                  borderRadius: '25px',
+                  border: '1px solid #4A4A4A',
+                  fontFamily: 'Poppins, sans-serif',
+                }}
                 placeholder="Juan"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
                 Apellido *
               </label>
               <input
@@ -335,7 +358,13 @@ export function AddressFormModal({
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 required
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                className="w-full px-4 py-3 text-white focus:outline-none"
+                style={{
+                  backgroundColor: 'rgba(217, 217, 217, 0.2)',
+                  borderRadius: '25px',
+                  border: '1px solid #4A4A4A',
+                  fontFamily: 'Poppins, sans-serif',
+                }}
                 placeholder="Pérez"
               />
             </div>
@@ -343,7 +372,7 @@ export function AddressFormModal({
 
           {/* Dirección */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
               Dirección *
             </label>
             <input
@@ -351,21 +380,33 @@ export function AddressFormModal({
               value={formData.address1}
               onChange={(e) => setFormData({ ...formData, address1: e.target.value })}
               required
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+              className="w-full px-4 py-3 text-white focus:outline-none"
+              style={{
+                backgroundColor: 'rgba(217, 217, 217, 0.2)',
+                borderRadius: '25px',
+                border: '1px solid #4A4A4A',
+                fontFamily: 'Poppins, sans-serif',
+              }}
               placeholder="Calle 123 #45-67"
             />
           </div>
 
           {/* Detalle de dirección */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
               Detalle adicional (opcional)
             </label>
             <input
               type="text"
               value={formData.address2}
               onChange={(e) => setFormData({ ...formData, address2: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+              className="w-full px-4 py-3 text-white focus:outline-none"
+              style={{
+                backgroundColor: 'rgba(217, 217, 217, 0.2)',
+                borderRadius: '25px',
+                border: '1px solid #4A4A4A',
+                fontFamily: 'Poppins, sans-serif',
+              }}
               placeholder="Apartamento, piso, etc."
             />
           </div>
@@ -373,7 +414,7 @@ export function AddressFormModal({
           {/* Departamento y Ciudad */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
                 Departamento *
               </label>
               <select
@@ -381,21 +422,30 @@ export function AddressFormModal({
                 onChange={handleDepartmentChange}
                 required
                 disabled={loadingDepartments}
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 text-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: 'rgba(217, 217, 217, 0.2)',
+                  borderRadius: '25px',
+                  border: '1px solid #4A4A4A',
+                  fontFamily: 'Poppins, sans-serif',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  MozAppearance: 'none',
+                }}
               >
-                <option value="">Selecciona un departamento</option>
+                <option value="" style={{ backgroundColor: '#4A4A4A', color: '#ffffff' }}>Selecciona un departamento</option>
                 {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
+                  <option key={dept.id} value={dept.id} style={{ backgroundColor: '#4A4A4A', color: '#ffffff' }}>
                     {dept.name}
                   </option>
                 ))}
               </select>
               {loadingDepartments && (
-                <p className="text-xs text-gray-400 mt-1">Cargando departamentos...</p>
+                <p className="text-xs mt-1" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>Cargando departamentos...</p>
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
                 Ciudad *
               </label>
               <select
@@ -403,20 +453,29 @@ export function AddressFormModal({
                 onChange={handleCityChange}
                 required
                 disabled={loadingCities || !selectedDepartmentId}
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 text-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: 'rgba(217, 217, 217, 0.2)',
+                  borderRadius: '25px',
+                  border: '1px solid #4A4A4A',
+                  fontFamily: 'Poppins, sans-serif',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  MozAppearance: 'none',
+                }}
               >
-                <option value="">{selectedDepartmentId ? 'Selecciona una ciudad' : 'Primero selecciona un departamento'}</option>
+                <option value="" style={{ backgroundColor: '#4A4A4A', color: '#ffffff' }}>{selectedDepartmentId ? 'Selecciona una ciudad' : 'Primero selecciona un departamento'}</option>
                 {filteredCities.map((city) => (
-                  <option key={city.id} value={city.name}>
+                  <option key={city.id} value={city.name} style={{ backgroundColor: '#4A4A4A', color: '#ffffff' }}>
                     {city.name}
                   </option>
                 ))}
               </select>
               {loadingCities && (
-                <p className="text-xs text-gray-400 mt-1">Cargando ciudades...</p>
+                <p className="text-xs mt-1" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>Cargando ciudades...</p>
               )}
               {!selectedDepartmentId && (
-                <p className="text-xs text-gray-400 mt-1">Selecciona un departamento primero</p>
+                <p className="text-xs mt-1" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>Selecciona un departamento primero</p>
               )}
             </div>
           </div>
@@ -424,7 +483,7 @@ export function AddressFormModal({
           {/* Código postal y Teléfono */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
                 Código postal *
               </label>
               <input
@@ -432,19 +491,31 @@ export function AddressFormModal({
                 value={formData.postalCode}
                 onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
                 required
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                className="w-full px-4 py-3 text-white focus:outline-none"
+                style={{
+                  backgroundColor: 'rgba(217, 217, 217, 0.2)',
+                  borderRadius: '25px',
+                  border: '1px solid #4A4A4A',
+                  fontFamily: 'Poppins, sans-serif',
+                }}
                 placeholder="110111"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
                 Teléfono
               </label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                className="w-full px-4 py-3 text-white focus:outline-none"
+                style={{
+                  backgroundColor: 'rgba(217, 217, 217, 0.2)',
+                  borderRadius: '25px',
+                  border: '1px solid #4A4A4A',
+                  fontFamily: 'Poppins, sans-serif',
+                }}
                 placeholder="3001234567"
               />
             </div>
@@ -459,7 +530,7 @@ export function AddressFormModal({
               onChange={(e) => setFormData({ ...formData, isDefaultShipping: e.target.checked })}
               className="w-4 h-4 text-[#66DEDB] focus:ring-[#66DEDB] focus:ring-2 rounded"
             />
-            <label htmlFor="isDefaultShipping" className="text-sm text-gray-300">
+            <label htmlFor="isDefaultShipping" className="text-sm" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>
               Usar como dirección de envío por defecto
             </label>
           </div>
@@ -474,34 +545,50 @@ export function AddressFormModal({
                 onChange={(e) => setFormData({ ...formData, isGiftAddress: e.target.checked })}
                 className="mt-1 w-4 h-4 text-[#73FFA2] focus:ring-[#73FFA2] focus:ring-2 rounded"
               />
-              <label htmlFor="isGiftAddress" className="text-sm text-gray-300 cursor-pointer flex-1">
+              <label htmlFor="isGiftAddress" className="text-sm cursor-pointer flex-1" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>
                 Usar esta dirección para recibir regalos
-                <span className="block text-xs text-gray-400 mt-0.5">
+                <span className="block text-xs mt-0.5" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>
                   Nadie más tendrá acceso a estos datos
                 </span>
               </label>
             </div>
           </div>
-
-          {/* Botones */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 bg-[#66DEDB] hover:bg-[#5accc9] text-black font-semibold"
-            >
-              {isSubmitting ? 'Guardando...' : address ? 'Actualizar' : 'Crear'}
-            </Button>
-          </div>
         </form>
+        </div>
+
+        {/* Footer con botones */}
+        <div className="flex items-center justify-between p-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="font-semibold transition-all rounded-full"
+            style={{
+              width: '120px',
+              height: '40px',
+              backgroundColor: '#4A4A4A',
+              color: '#B7B7B7',
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            form="address-form"
+            disabled={isSubmitting}
+            onClick={handleSubmit}
+            className="font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-full"
+            style={{
+              width: '120px',
+              height: '40px',
+              backgroundColor: isSubmitting ? '#4A4A4A' : '#73FFA2',
+              color: isSubmitting ? '#666' : '#262626',
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >
+            {isSubmitting ? 'Guardando...' : address ? 'Actualizar' : 'Crear'}
+          </button>
+        </div>
       </div>
     </div>
   )

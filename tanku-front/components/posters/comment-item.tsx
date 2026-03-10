@@ -17,6 +17,7 @@ interface Comment {
   likesCount: number
   createdAt: string
   mentions?: string[]
+  hiddenByOwner?: boolean
   author: {
     id: string
     email: string
@@ -39,6 +40,7 @@ interface CommentItemProps {
   level?: number
   parentComment?: Comment | null
   rootComment?: Comment | null // Comentario principal (nivel 0) para respuestas anidadas
+  isPostOwner?: boolean // Si el usuario actual es el dueño del post
 }
 
 const MAX_VISIBLE_LENGTH = 150
@@ -53,11 +55,14 @@ export function CommentItem({
   onUpdate,
   level = 0,
   parentComment = null,
-  rootComment = null // Comentario principal (nivel 0)
+  rootComment = null, // Comentario principal (nivel 0)
+  isPostOwner = false // Si el usuario actual es el dueño del post
 }: CommentItemProps) {
   const router = useRouter()
   const { token, user } = useAuthStore()
   const [isLiking, setIsLiking] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isHiding, setIsHiding] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [isDoubleExpanded, setIsDoubleExpanded] = useState(false)
   const [showReplies, setShowReplies] = useState(false) // Colapsar respuestas por defecto
@@ -78,25 +83,73 @@ export function CommentItem({
     : commentAuthorName
 
   // Procesar menciones en el contenido
-  // El backend ya formatea el contenido reemplazando @{userId} con @NombreCompleto
+  // El backend ya formatea el contenido reemplazando @{userId} con @username
   // Aquí solo necesitamos convertir las menciones en links clickeables
   const processMentions = (text: string) => {
-    if (!text) return ''
+    if (!text) return [<span key="empty" className="inline"></span>]
     
-    // El backend ya formateó el contenido, así que buscamos @NombreCompleto
+    // El backend ya formateó el contenido, así que buscamos @username
     // Necesitamos encontrar las menciones y buscar el userId correspondiente
     // usando el array de mentions del comentario y el mapa de mentionedUsers
     
     // Dividir el texto en partes: menciones y texto normal
-    // Buscar menciones: @ seguido de nombre (puede tener espacios) hasta espacio, salto de línea o fin
-    const parts = text.split(/(@[^\s@\n]+(?:\s+[^\s@\n]+)*)/g)
+    // Regex simplificado: captura @ seguido de username (sin espacios, puede tener _ y -)
+    // o @ seguido de nombre completo (con espacios) hasta espacio, salto de línea o fin
+    const mentionRegex = /@([a-zA-Z0-9_-]+)|@([a-zA-ZáéíóúÁÉÍÓÚñÑ][a-zA-ZáéíóúÁÉÍÓÚñÑ\s]{0,30}[a-zA-ZáéíóúÁÉÍÓÚñÑ])(?=\s|$|@|,|\.|!|\?|:)/g
+    
+    const parts: Array<{ type: 'mention' | 'text', content: string, index: number }> = []
+    let lastIndex = 0
+    let match
+    
+    // Resetear lastIndex del regex
+    mentionRegex.lastIndex = 0
+    
+    while ((match = mentionRegex.exec(text)) !== null) {
+      // Agregar texto antes de la mención
+      if (match.index > lastIndex) {
+        const textBefore = text.substring(lastIndex, match.index)
+        if (textBefore) {
+          parts.push({
+            type: 'text',
+            content: textBefore,
+            index: lastIndex
+          })
+        }
+      }
+      
+      // Agregar la mención (usar match[1] si es username, match[2] si es nombre completo)
+      const mentionText = match[0] // @username o @nombre completo
+      parts.push({
+        type: 'mention',
+        content: mentionText,
+        index: match.index
+      })
+      
+      lastIndex = match.index + mentionText.length
+    }
+    
+    // Agregar texto restante
+    if (lastIndex < text.length) {
+      const textAfter = text.substring(lastIndex)
+      if (textAfter) {
+        parts.push({
+          type: 'text',
+          content: textAfter,
+          index: lastIndex
+        })
+      }
+    }
+    
+    // Si no hay partes, devolver el texto completo como texto normal
+    if (parts.length === 0) {
+      return [<span key="full-text" className="inline">{text}</span>]
+    }
     
     return parts.map((part, index) => {
-      if (part.startsWith('@') && part.length > 1) {
-        const mentionName = part.substring(1).trim() // Nombre sin el @
+      if (part.type === 'mention') {
+        const mentionName = part.content.substring(1).trim() // Nombre sin el @
         
         // Buscar el usuario mencionado en el array de mentions del comentario
-        // Necesitamos encontrar el userId que corresponde a este nombre
         let foundUserId: string | null = null
         let foundUsername: string | null = null
         
@@ -105,11 +158,17 @@ export function CommentItem({
           for (const userId of comment.mentions) {
             const mentionedUser = mentionedUsers[userId]
             if (mentionedUser) {
+              // Priorizar búsqueda por username (formato actual de menciones)
+              if (mentionedUser.username && mentionedUser.username.toLowerCase() === mentionName.toLowerCase()) {
+                foundUserId = userId
+                foundUsername = mentionedUser.username || null
+                break
+              }
+              // Fallback: buscar por nombre completo (compatibilidad)
               const userDisplayName = mentionedUser.firstName && mentionedUser.lastName
                 ? `${mentionedUser.firstName} ${mentionedUser.lastName}`
-                : (mentionedUser.username || '')
-              
-              if (userDisplayName === mentionName || mentionedUser.username === mentionName) {
+                : ''
+              if (userDisplayName.toLowerCase() === mentionName.toLowerCase()) {
                 foundUserId = userId
                 foundUsername = mentionedUser.username || null
                 break
@@ -121,10 +180,13 @@ export function CommentItem({
         // Si no se encontró, buscar en los comentarios
         if (!foundUserId) {
           const foundInComments = allComments.find(c => {
+            // Priorizar búsqueda por username
+            if (c.author.username && c.author.username.toLowerCase() === mentionName.toLowerCase()) return true
+            // Fallback: buscar por nombre completo
             const authorDisplayName = c.author.firstName && c.author.lastName
               ? `${c.author.firstName} ${c.author.lastName}`
-              : (c.author.username || '')
-            return authorDisplayName === mentionName || c.author.username === mentionName
+              : ''
+            return authorDisplayName.toLowerCase() === mentionName.toLowerCase()
           })
           
           if (foundInComments?.author) {
@@ -133,22 +195,32 @@ export function CommentItem({
           }
         }
         
-        // Si encontramos el usuario, crear link; si no, mostrar como texto normal
+        // Si encontramos el usuario, crear link; si no, mostrar como mención no clickeable
         if (foundUserId) {
           return (
             <button
-              key={index}
+              key={`mention-${part.index}-${index}`}
               onClick={() => router.push(foundUsername ? `/profile/${foundUsername}` : `/profile/${foundUserId}`)}
-              className="text-[#73FFA2] font-semibold hover:text-[#66DEDB] hover:underline transition-colors"
+              className="text-[#73FFA2] font-semibold hover:text-[#66DEDB] hover:underline transition-colors inline"
             >
-              {part}
+              {part.content}
             </button>
+          )
+        } else {
+          // Mostrar como mención aunque no se encuentre el usuario (para mantener el formato)
+          return (
+            <span
+              key={`mention-${part.index}-${index}`}
+              className="text-[#73FFA2] font-semibold inline"
+            >
+              {part.content}
+            </span>
           )
         }
       }
       
-      // Texto normal (no es mención o no se encontró el usuario)
-      return <span key={index}>{part}</span>
+      // Texto normal
+      return <span key={`text-${part.index}-${index}`} className="inline">{part.content}</span>
     })
   }
 
@@ -190,7 +262,8 @@ export function CommentItem({
   
   // Permitir responder en nivel 0 y nivel 1
   // Cuando se responde a una respuesta (nivel 1), debe insertarse en el comentario principal
-  const canReply = (level === 0 || level === 1) && token
+  // NO permitir responder a comentarios ocultos
+  const canReply = (level === 0 || level === 1) && token && !comment.hiddenByOwner
   
   // Determinar el ID del comentario al que se responderá
   // Si es nivel 1, responder al comentario principal (rootComment), no a la respuesta
@@ -208,8 +281,69 @@ export function CommentItem({
     }
   }
 
+  const handleDeleteComment = async () => {
+    if (!posterId || !token) return
+    
+    if (!confirm('¿Estás seguro de que quieres eliminar este comentario?')) {
+      return
+    }
+
+    setIsDeleting(true)
+    try {
+      const response = await apiClient.patch(
+        API_ENDPOINTS.POSTERS.COMMENT_UPDATE(posterId, comment.id),
+        { isActive: false }
+      )
+
+      if (response.success) {
+        // Notificar al componente padre para actualizar
+        if (onUpdate) {
+          onUpdate()
+        }
+      } else {
+        console.error('Error al eliminar comentario:', response.error)
+      }
+    } catch (err) {
+      console.error('Error al eliminar comentario:', err)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleHideComment = async () => {
+    if (!posterId || !token || !isPostOwner) return
+    
+    const action = comment.hiddenByOwner ? 'mostrar' : 'ocultar'
+    if (!confirm(`¿Estás seguro de que quieres ${action} este comentario? ${comment.hiddenByOwner ? 'El comentario y sus respuestas volverán a ser visibles.' : 'El comentario y sus respuestas serán ocultados.'}`)) {
+      return
+    }
+
+    setIsHiding(true)
+    try {
+      const response = await apiClient.patch(
+        API_ENDPOINTS.POSTERS.COMMENT_UPDATE(posterId, comment.id),
+        { hiddenByOwner: !comment.hiddenByOwner }
+      )
+
+      if (response.success) {
+        // Notificar al componente padre para actualizar
+        if (onUpdate) {
+          onUpdate()
+        }
+      } else {
+        console.error('Error al ocultar/mostrar comentario:', response.error)
+        alert('Error al ocultar/mostrar comentario')
+      }
+    } catch (err) {
+      console.error('Error al ocultar/mostrar comentario:', err)
+      alert('Error al ocultar/mostrar comentario')
+    } finally {
+      setIsHiding(false)
+    }
+  }
+
   return (
-    <div className={`flex gap-3 ${level > 0 ? 'ml-8' : ''}`}>
+    <div className={`flex gap-3 ${level > 0 ? 'ml-8' : ''} ${comment.hiddenByOwner ? 'opacity-60' : ''}`}>
       {/* Avatar - siempre circular, no se alarga */}
       <UserAvatar 
         user={comment.author} 
@@ -221,26 +355,32 @@ export function CommentItem({
       <div className="flex-1 min-w-0 overflow-hidden">
         <div className="flex flex-col">
           {/* Nombre del usuario - arriba - clickeable */}
-          <div className="mb-1">
+          <div className="mb-1 flex items-center gap-2">
             <button
-              onClick={() => router.push(`/profile/${comment.author.id}`)}
+              onClick={() => router.push(`/profile/${comment.author.username || comment.author.id}`)}
               className="text-white font-semibold text-sm hover:text-[#73FFA2] transition-colors text-left"
             >
               {displayAuthorName}
             </button>
+            {/* Indicador de comentario oculto - al lado del nombre, solo visible para el dueño del post */}
+            {comment.hiddenByOwner && isPostOwner && (
+              <span className="text-yellow-400 text-xs" title="Comentario oculto (solo visible para ti)">
+                🔒
+              </span>
+            )}
           </div>
 
           {/* Mensaje - debajo del nombre */}
           <div className="mb-1">
-            <p className="text-white text-sm break-words whitespace-pre-wrap">
-              <span className="break-words">
+            <div className="text-white text-sm break-words whitespace-pre-wrap">
+              <span className="break-words inline-flex flex-wrap items-baseline gap-x-1">
                 {processMentions(displayText)}
                 {needsExpand && !isExpanded && (
                   <>
                     {' '}
                     <button
                       onClick={() => setIsExpanded(true)}
-                      className="text-[#73FFA2] hover:text-[#66e891] ml-1"
+                      className="text-[#73FFA2] hover:text-[#66e891] ml-1 inline"
                     >
                       ver más
                     </button>
@@ -251,7 +391,7 @@ export function CommentItem({
                     {' '}
                     <button
                       onClick={() => setIsDoubleExpanded(true)}
-                      className="text-[#73FFA2] hover:text-[#66e891] ml-1"
+                      className="text-[#73FFA2] hover:text-[#66e891] ml-1 inline"
                     >
                       ver más
                     </button>
@@ -265,14 +405,14 @@ export function CommentItem({
                         setIsExpanded(false)
                         setIsDoubleExpanded(false)
                       }}
-                      className="text-[#73FFA2] hover:text-[#66e891] ml-1"
+                      className="text-[#73FFA2] hover:text-[#66e891] ml-1 inline"
                     >
                       ver menos
                     </button>
                   </>
                 )}
               </span>
-            </p>
+            </div>
           </div>
 
           {/* Fecha, Responder y Me gusta - en la misma línea */}
@@ -293,6 +433,29 @@ export function CommentItem({
                   className="text-gray-500 hover:text-white text-xs"
                 >
                   Responder
+                </button>
+              )}
+
+              {/* Ocultar - solo si es el dueño del post */}
+              {token && isPostOwner && (
+                <button
+                  onClick={handleHideComment}
+                  disabled={isHiding}
+                  className="text-gray-500 hover:text-yellow-500 text-xs transition-colors disabled:opacity-50"
+                  title={comment.hiddenByOwner ? 'Mostrar comentario' : 'Ocultar comentario'}
+                >
+                  {isHiding ? 'Procesando...' : (comment.hiddenByOwner ? 'Mostrar' : 'Ocultar')}
+                </button>
+              )}
+
+              {/* Eliminar - solo si es el dueño del comentario */}
+              {token && user && comment.userId === user.id && (
+                <button
+                  onClick={handleDeleteComment}
+                  disabled={isDeleting}
+                  className="text-gray-500 hover:text-red-500 text-xs transition-colors disabled:opacity-50"
+                >
+                  {isDeleting ? 'Eliminando...' : 'Eliminar'}
                 </button>
               )}
             </div>
@@ -347,6 +510,7 @@ export function CommentItem({
                         level={level + 1}
                         parentComment={comment}
                         rootComment={level === 0 ? comment : rootComment} // Pasar el comentario principal
+                        isPostOwner={isPostOwner}
                       />
                     ))}
                   </div>

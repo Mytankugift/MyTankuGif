@@ -217,7 +217,7 @@ export function HoneycombGrid({
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              marginTop: rowIndex > 0 ? '-28px' : '0',
+              marginTop: rowIndex > 0 ? '-24px' : '0',
               gap: '0',
               width: '100%',
               transform: shouldOffset ? `translateX(${0}px)` : 'none',

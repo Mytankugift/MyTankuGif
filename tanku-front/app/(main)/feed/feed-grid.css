@@ -1,25 +1,59 @@
 /* Estilos para react-masonry-css */
 .masonry-grid {
   display: flex;
-  margin-left: -8px; /* gutter size offset */
+  margin-left: -20px; /* gutter size offset */
   width: auto;
+  justify-content: center; /* Centrar las columnas */
+  max-width: 100%;
 }
 
 .masonry-grid_column {
   padding-left: 20px; /* gutter size */
   background-clip: padding-box;
+  /* NO forzar width aquí, dejar que react-masonry-css lo calcule */
 }
 
-/* Asegurar que las cards tengan el mismo ancho */
+/* Asegurar que las cards tengan un ancho fijo */
 .masonry-grid_column > div {
-  width: 100% !important;
   break-inside: avoid;
   margin-bottom: 16px;
+  width: 100% !important;
 }
 
 /* Forzar que todas las cards tengan el mismo ancho */
 .masonry-grid_column > div > div {
   width: 100% !important;
   max-width: 100% !important;
+}
+
+/* Limitar el ancho máximo de las cards según el breakpoint */
+@media (max-width: 767px) {
+  .masonry-grid_column > div > div {
+    max-width: 100% !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .masonry-grid_column > div > div {
+    max-width: 300px !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .masonry-grid_column > div > div {
+    max-width: 300px !important;
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1399px) {
+  .masonry-grid_column > div > div {
+    max-width: 300px !important;
+  }
+}
+
+@media (min-width: 1400px) {
+  .masonry-grid_column > div > div {
+    max-width: 300px !important;
+  }
 }
 

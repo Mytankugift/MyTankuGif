@@ -6,6 +6,7 @@ import Sidebar from '@/components/layout/sidebar'
 import { useAuthInit } from '@/lib/hooks/use-auth-init'
 import { OnboardingProvider } from '@/components/onboarding/onboarding-provider'
 import { ProfileNavigationProvider } from '@/lib/context/profile-navigation-context'
+import { FeedInitProvider } from '@/lib/context/feed-init-context'
 import { DataPolicyConsentModal } from '@/components/auth/data-policy-consent-modal'
 import { FloatingChatsManager } from '@/components/chat/floating-chats-manager'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -26,6 +27,8 @@ export default function MainLayout({
   useEffect(() => {
     const checkConsent = async () => {
       if (isAuthenticated && user) {
+        // ✅ feedInit ya retorna user, así que checkAuth puede ser redundante
+        // Por ahora, solo verificar auth sin delay (feedInit se encarga de cargar user)
         setIsChecking(true)
         await checkAuth()
         setIsChecking(false)
@@ -54,20 +57,22 @@ export default function MainLayout({
   }, [user, isAuthenticated, isChecking, pathname])
 
   return (
-    <OnboardingProvider>
-      <ProfileNavigationProvider>
-        <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#1E1E1E' }}>
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto lg:ml-60 ml-0" style={{ backgroundColor: '#1E1E1E' }}>
-            {children}
-          </main>
-        </div>
-        {showConsentModal && (
-          <DataPolicyConsentModal isOpen={showConsentModal} />
-        )}
-        <FloatingChatsManager />
-      </ProfileNavigationProvider>
-    </OnboardingProvider>
+    <FeedInitProvider>
+      <OnboardingProvider>
+        <ProfileNavigationProvider>
+          <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#1E1E1E' }}>
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto md:ml-36 lg:ml-60 ml-0 pb-20 md:pb-0 lg:pb-0" style={{ backgroundColor: '#1E1E1E' }}>
+              {children}
+            </main>
+          </div>
+          {showConsentModal && (
+            <DataPolicyConsentModal isOpen={showConsentModal} />
+          )}
+          <FloatingChatsManager />
+        </ProfileNavigationProvider>
+      </OnboardingProvider>
+    </FeedInitProvider>
   )
 }
 

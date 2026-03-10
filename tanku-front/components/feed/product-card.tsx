@@ -7,6 +7,7 @@ import { useCartStore } from '@/lib/stores/cart-store'
 import { ProductModal } from '@/components/products/product-modal'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { WishlistSelectorModal } from '@/components/wishlists/wishlist-selector-modal'
+import { useWishLists } from '@/lib/hooks/use-wishlists'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { FeedItemDTO } from '@/types/api'
@@ -35,6 +36,7 @@ interface ProductCardProps {
 export const ProductCard = memo(function ProductCard({ product, onOpenModal, isLightMode = false, isAboveFold = false }: ProductCardProps) {
   const { isAuthenticated } = useAuthStore()
   const { addItem } = useCartStore()
+  const { wishLists } = useWishLists()
   const [showTitle, setShowTitle] = useState(false)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -81,6 +83,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     }
   }, [])
 
+
   // Actualizar estado cuando cambian los props del feed
   // Solo actualizar si el usuario NO ha hecho cambios manuales o si cambió el producto
   useEffect(() => {
@@ -111,7 +114,8 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     }
     // Si hasUserToggledLike.current es true, NO actualizar desde props
     // para mantener los cambios del usuario
-  }, [product.id]) // Solo cuando cambia el ID del producto, no cuando cambian likesCount/isLiked
+  }, [product.id, product.isLiked, product.likesCount]) // También escuchar cambios en isLiked y likesCount
+
 
   // Manejar like/unlike
   const handleToggleLike = async (e: React.MouseEvent) => {
@@ -160,16 +164,38 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
           setIsLiked(true)
           setLikesCount(response.data.likesCount)
         } else {
-          // Si falla, revertir al estado anterior
-          setIsLiked(previousLiked)
-          setLikesCount(previousCount)
+          // Si el error es CONFLICT (ya le diste like), actualizar el estado a "liked"
+          if (response.error?.code === 'CONFLICT' || response.error?.message?.includes('Ya le diste like')) {
+            // El producto ya tiene like, sincronizar el estado
+            setIsLiked(true)
+            // Intentar obtener el conteo actual
+            try {
+              const likesResponse = await apiClient.get<{ likesCount: number }>(
+                API_ENDPOINTS.PRODUCTS.LIKES_COUNT(product.id)
+              )
+              if (likesResponse.success && likesResponse.data) {
+                setLikesCount(likesResponse.data.likesCount)
+              }
+            } catch (err) {
+              // Si falla, mantener el conteo optimista
+            }
+          } else {
+            // Si falla por otra razón, revertir al estado anterior
+            setIsLiked(previousLiked)
+            setLikesCount(previousCount)
+          }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error toggling like:', error)
-      // Revertir al estado anterior si hay error
-      setIsLiked(previousLiked)
-      setLikesCount(previousCount)
+      // Si el error es CONFLICT, actualizar el estado a "liked"
+      if (error?.error?.code === 'CONFLICT' || error?.message?.includes('Ya le diste like')) {
+        setIsLiked(true)
+      } else {
+        // Revertir al estado anterior si hay otro error
+        setIsLiked(previousLiked)
+        setLikesCount(previousCount)
+      }
     } finally {
       setIsTogglingLike(false)
     }
@@ -231,6 +257,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
       setIsModalOpen(true)
       return
     }
+
 
     // Si no hay handle, no podemos obtener el producto completo
     if (!product.handle) {
@@ -352,32 +379,33 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
 
         {/* Botones de acción (me gusta, wishlist y carrito) */}
         <div 
-          className="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-2 rounded-full p-2"
+          className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 z-10 flex items-center justify-center gap-1 sm:gap-1.5 md:gap-2 rounded-full p-1 sm:p-1.5 md:p-2"
           style={{ backgroundColor: '#2C3137' }}
         >
           {/* Botón de me gusta */}
           <button
-            className="bg-transparent hover:opacity-80 transition-opacity p-1"
+            className="bg-transparent hover:opacity-80 transition-opacity p-0.5 sm:p-1"
             onClick={handleToggleLike}
             disabled={isTogglingLike || !isAuthenticated}
             title={isLiked ? 'Quitar me gusta' : 'Me gusta'}
           >
             {isTogglingLike ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
               <Image
                 src={isLiked ? "/icons_tanku/tanku_megusta_relleno.svg" : "/icons_tanku/tanku_megusta_lineas.svg"}
                 alt={isLiked ? "Quitar me gusta" : "Me gusta"}
                 width={24}
                 height={24}
-                className="w-6 h-6"
+                className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6"
+                style={{ width: 'clamp(12px, 2vw, 24px)', height: 'clamp(12px, 2vw, 24px)' }}
               />
             )}
           </button>
 
           {/* Botón de wishlist */}
           <button
-            className="bg-transparent hover:opacity-80 transition-opacity p-1"
+            className="bg-transparent hover:opacity-80 transition-opacity p-0.5 sm:p-1"
             onClick={handleAddToWishlist}
             title="Agregar a wishlist"
           >
@@ -386,26 +414,28 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
               alt="Agregar a wishlist"
               width={24}
               height={24}
-              className="w-6 h-6"
+              className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6"
+              style={{ width: 'clamp(12px, 2vw, 24px)', height: 'clamp(12px, 2vw, 24px)' }}
             />
           </button>
 
           {/* Botón de carrito */}
           <button
-            className="bg-transparent hover:opacity-80 transition-opacity p-1"
+            className="bg-transparent hover:opacity-80 transition-opacity p-0.5 sm:p-1"
             onClick={handleAddToCart}
             disabled={isAddingToCart}
             title="Agregar al carrito"
           >
             {isAddingToCart ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
               <Image
                 src="/icons_tanku/tanku_agregar_a_cart_azul.svg"
                 alt="Agregar al carrito"
                 width={24}
                 height={24}
-                className="w-6 h-6"
+                className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6"
+                style={{ width: 'clamp(12px, 2vw, 24px)', height: 'clamp(12px, 2vw, 24px)' }}
               />
             )}
           </button>
@@ -435,16 +465,17 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
         )}
 
         {/* Me gusta con contador y texto */}
-        <div className="flex items-center gap-1.5 mb-2">
+        <div className="flex items-center gap-1 sm:gap-1.5 mb-1 sm:mb-2">
           <Image
             src={isLiked ? "/icons_tanku/tanku_megusta_relleno.svg" : "/icons_tanku/tanku_megusta_lineas.svg"}
             alt="Me gusta"
             width={16}
             height={16}
-            className="w-4 h-4"
+            className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4"
+            style={{ width: 'clamp(12px, 1.5vw, 16px)', height: 'clamp(12px, 1.5vw, 16px)' }}
           />
           <span 
-            className="text-xs font-normal"
+            className="text-[10px] sm:text-xs md:text-xs font-normal leading-tight"
             style={{ color: '#73FFA2' }}
           >
             {likesCount} personas son felices con este producto

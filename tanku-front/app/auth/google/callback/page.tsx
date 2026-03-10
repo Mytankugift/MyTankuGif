@@ -33,6 +33,38 @@ function GoogleCallbackContent() {
       currentUrl: typeof window !== 'undefined' ? window.location.href : 'SSR',
     })
 
+    // Si es un popup (tiene window.opener), enviar mensaje al opener
+    if (typeof window !== 'undefined' && window.opener) {
+      if (error) {
+        console.error('❌ [GOOGLE CALLBACK] Error en autenticación de Google (popup):', error)
+        window.opener.postMessage(
+          { type: 'GOOGLE_AUTH_ERROR', error },
+          window.location.origin
+        )
+        window.close()
+        return
+      }
+
+      if (token) {
+        console.log('✅ [GOOGLE CALLBACK] Token recibido (popup), enviando mensaje al opener...')
+        window.opener.postMessage(
+          { type: 'GOOGLE_AUTH_SUCCESS', token },
+          window.location.origin
+        )
+        window.close()
+        return
+      } else {
+        console.error('❌ [GOOGLE CALLBACK] No se recibió token en la URL (popup)')
+        window.opener.postMessage(
+          { type: 'GOOGLE_AUTH_ERROR', error: 'No se recibió token' },
+          window.location.origin
+        )
+        window.close()
+        return
+      }
+    }
+
+    // Si no es popup, manejar normalmente (redirección completa)
     if (error) {
       console.error('❌ [GOOGLE CALLBACK] Error en autenticación de Google:', error)
       console.error('   URL completa:', typeof window !== 'undefined' ? window.location.href : 'SSR')

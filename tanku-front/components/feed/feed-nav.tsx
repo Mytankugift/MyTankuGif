@@ -9,16 +9,21 @@ import { NotificationsButton } from '@/components/layout/notifications-button'
 import { MessagesDropdown } from '@/components/layout/messages-dropdown'
 import { useChat } from '@/lib/hooks/use-chat'
 import { StoriesCarousel } from '@/components/stories/stories-carousel'
+import { CategoryLoginModal } from './category-login-modal'
 
 // Componente CategorySelector
 const CategorySelector = ({
   categories,
   selectedCategoryId,
   onCategoryChange,
+  isAuthenticated,
+  onShowLoginModal,
 }: {
   categories: { id: string | number; name: string; image?: string | null }[]
   selectedCategoryId: string | null
   onCategoryChange: (categoryId: string | null) => void
+  isAuthenticated: boolean
+  onShowLoginModal?: () => void
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -88,15 +93,60 @@ const CategorySelector = ({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-3 bg-gray-800 border-2 border-[#73FFA2] rounded-2xl shadow-2xl z-50 p-2 sm:p-4 w-[calc(100vw-2rem)] sm:min-w-[400px] sm:max-w-[600px] md:min-w-[600px] md:max-w-[800px]">
-          <div className="mb-3 relative">
+        <div 
+          className="absolute top-full left-0 mt-3 bg-gray-800 border border-[#73FFA2] shadow-2xl z-50"
+          style={{
+            width: 'max(320px, min(569px, 90vw))',
+            maxHeight: '524px',
+            gap: '16px',
+            padding: '20px',
+            borderRadius: '25px',
+            borderWidth: '1px',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div className="relative" style={{ marginBottom: '16px' }}>
+            <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 41 42"
+                fill="none"
+                className="w-5 h-5"
+              >
+                <path
+                  d="M26.8334 8.76545L30.1099 22.6447L20.9442 31.156L8.1482 27.8382L4.84774 14.0188L14.8779 5.75197L26.8334 8.76545Z"
+                  stroke="#262626"
+                  strokeWidth="3"
+                />
+                <line
+                  y1="-1.5"
+                  x2="20.427"
+                  y2="-1.5"
+                  transform="matrix(0.709973 0.704229 -0.70423 0.709971 24.3841 27.5551)"
+                  stroke="#262626"
+                  strokeWidth="3"
+                />
+              </svg>
+            </div>
             <input
               type="text"
               placeholder="Buscar categoría..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border-2 border-gray-600 focus:border-[#73FFA2] focus:outline-none transition-all duration-200"
-              style={{ fontFamily: 'Poppins, sans-serif' }}
+              className="text-white focus:outline-none transition-all duration-200 w-full"
+              style={{ 
+                fontFamily: 'Poppins, sans-serif',
+                height: '40px',
+                paddingRight: '16px',
+                paddingLeft: '48px', // Espacio para el icono
+                gap: '12px',
+                borderRadius: '55px',
+                backgroundColor: '#66DEDB', // Azul tanku como fondo de "todas las categorías"
+                border: 'none',
+              }}
               autoFocus
             />
             {searchQuery && (
@@ -120,64 +170,92 @@ const CategorySelector = ({
             )}
           </div>
 
-          <button
-            onClick={() => {
-              onCategoryChange(null)
-              setIsOpen(false)
-              setSearchQuery('')
-            }}
-            className={`w-full mb-3 px-3 py-2 rounded-lg transition-all duration-200 text-left ${
-              selectedCategoryId === null
-                ? 'bg-[#73FFA2]/20 border-2 border-[#73FFA2]'
-                : 'bg-gray-700/50 border-2 border-transparent hover:bg-gray-700 hover:border-[#73FFA2]/50'
-            }`}
-          >
-            <span
-              className="text-[#66DEDB] font-medium text-sm"
-              style={{ fontFamily: 'Poppins, sans-serif' }}
-            >
-              Todas las categorías
-            </span>
-          </button>
-
           {searchQuery && filteredCategories.length === 0 && (
             <div className="text-center py-4 text-gray-400 text-sm">
               No se encontraron categorías con "{searchQuery}"
             </div>
           )}
 
-          {filteredCategories.length > 0 && (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-1.5 sm:gap-2 max-h-[400px] overflow-y-auto">
-              {filteredCategories.map((category) => (
-                <button
-                  key={category.id}
-                  onClick={() => {
-                    onCategoryChange(String(category.id))
+          {(filteredCategories.length > 0 || !searchQuery) && (
+            <div 
+              className="grid grid-cols-2 gap-2 overflow-y-auto custom-scrollbar"
+              style={{ maxHeight: '400px' }}
+            >
+              {/* Botón "Todas" integrado con las demás categorías */}
+              <button
+                onClick={() => {
+                  if (!isAuthenticated && selectedCategoryId !== null) {
+                    if (onShowLoginModal) {
+                      onShowLoginModal()
+                    }
+                    setIsOpen(false)
+                  } else {
+                    onCategoryChange(null)
                     setIsOpen(false)
                     setSearchQuery('')
-                  }}
-                  className={`px-3 py-2 rounded-lg transition-all duration-200 border-2 ${
-                    selectedCategoryId === String(category.id)
-                      ? 'bg-[#73FFA2]/30 border-[#73FFA2] shadow-lg shadow-[#73FFA2]/30'
-                      : 'bg-gray-700/30 border-transparent hover:bg-gray-700/50 hover:border-[#73FFA2]/30'
-                  }`}
-                >
-                  <span
-                    className={`text-xs font-medium text-center block line-clamp-2 ${
-                      selectedCategoryId === String(category.id)
-                        ? 'text-[#73FFA2]'
-                        : 'text-gray-300'
-                    }`}
-                    style={{ fontFamily: 'Poppins, sans-serif' }}
+                  }
+                }}
+                className="transition-all duration-200 text-center"
+                style={{
+                  width: '100%',
+                  height: '35px',
+                  borderRadius: '20px',
+                  backgroundColor: selectedCategoryId === null ? '#66DEDB' : '#3B9BC399',
+                  color: selectedCategoryId === null ? '#3B9BC3' : '#66DEDB',
+                  fontFamily: 'Poppins, sans-serif',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                Todas
+              </button>
+              
+              {filteredCategories.map((category) => {
+                const isSelected = selectedCategoryId === String(category.id)
+                return (
+                  <button
+                    key={category.id}
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        if (onShowLoginModal) {
+                          onShowLoginModal()
+                        }
+                        setIsOpen(false)
+                      } else {
+                        onCategoryChange(String(category.id))
+                        setIsOpen(false)
+                        setSearchQuery('')
+                      }
+                    }}
+                    className="transition-all duration-200 text-center"
+                    style={{
+                      width: '100%',
+                      height: '35px',
+                      borderRadius: '20px',
+                      backgroundColor: isSelected ? '#66DEDB' : '#3B9BC399',
+                      color: isSelected ? '#3B9BC3' : '#66DEDB',
+                      fontFamily: 'Poppins, sans-serif',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
                   >
-                    {category.name}
-                  </span>
-                </button>
-              ))}
+                    <span className="line-clamp-1">
+                      {category.name}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
       )}
+
     </div>
   )
 }
@@ -284,6 +362,12 @@ interface FeedNavProps {
   searchQuery?: string
   onSearchChange?: (query: string) => void
   isHeaderVisible?: boolean
+  // ✅ Props opcionales desde feedInit para evitar llamadas duplicadas
+  conversations?: any[]
+  unreadCount?: number
+  stories?: any[]
+  notifications?: any[]
+  notificationsUnreadCount?: number
 }
 
 export function FeedNav({
@@ -293,21 +377,75 @@ export function FeedNav({
   searchQuery = '',
   onSearchChange = () => {},
   isHeaderVisible = true,
+  conversations: propConversations,
+  unreadCount: propUnreadCount,
+  stories: propStories,
+  notifications: propNotifications,
+  notificationsUnreadCount: propNotificationsUnreadCount,
 }: FeedNavProps) {
   const { user, isAuthenticated } = useAuthStore()
   const [isMessagesDropdownOpen, setIsMessagesDropdownOpen] = useState(false)
-  // ✅ Obtener total de mensajes no leídos para badge
-  const { getTotalUnreadCount, lastReceivedMessage } = useChat()
-  const totalUnread = user ? getTotalUnreadCount(user.id) : 0
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  
+  // ✅ Siempre llamar useChat (regla de hooks), pero usar propConversations si están disponibles
+  const chatHook = useChat()
+  const conversations = propConversations ?? chatHook.conversations
+  const unreadCount = propUnreadCount ?? (user ? chatHook.getTotalUnreadCount(user.id) : 0)
+  
+  // ✅ Usar totalUnread para badge
+  const totalUnread = unreadCount
 
   const handleOpenChat = (conversationId: string) => {
     // El dropdown ahora maneja el chat internamente, no necesitamos abrir ventanas flotantes
     // Esta función se mantiene por compatibilidad pero no hace nada
   }
 
+  const handleCategoryChange = (categoryId: string | null) => {
+    if (!isAuthenticated && categoryId !== null) {
+      // Mostrar modal si no está autenticado y se selecciona una categoría (no "todas")
+      setShowLoginModal(true)
+    } else {
+      onCategoryChange(categoryId)
+    }
+  }
+
+  // Hacer scroll automático a la categoría seleccionada en el slider
+  useEffect(() => {
+    if (selectedCategoryId === null) {
+      // Si es "Todas", hacer scroll al inicio
+      const container = document.getElementById('categories-scroll')
+      if (container) {
+        container.scrollTo({ left: 0, behavior: 'smooth' })
+      }
+    } else {
+      // Buscar el botón de la categoría seleccionada y hacer scroll a él
+      const categoryButton = document.querySelector(
+        `[data-category-id="${selectedCategoryId}"]`
+      ) as HTMLElement
+      if (categoryButton) {
+        const container = document.getElementById('categories-scroll')
+        if (container) {
+          // Calcular la posición del botón relativa al contenedor
+          const buttonLeft = categoryButton.offsetLeft
+          const buttonWidth = categoryButton.offsetWidth
+          const containerWidth = container.offsetWidth
+          const scrollLeft = container.scrollLeft
+          
+          // Calcular la posición deseada (centrar el botón en el contenedor)
+          const targetScroll = buttonLeft - (containerWidth / 2) + (buttonWidth / 2)
+          
+          container.scrollTo({
+            left: targetScroll,
+            behavior: 'smooth',
+          })
+        }
+      }
+    }
+  }, [selectedCategoryId])
+
   return (
     <div
-      className={`fixed top-0 left-0 lg:left-60 z-40 flex-shrink-0 shadow-lg transition-all duration-150 ease-in-out ${
+      className={`fixed top-0 left-0 md:left-36 lg:left-60 z-40 flex-shrink-0 shadow-lg transition-all duration-150 ease-in-out ${
         isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
       } bg-[#1E1E1E]`}
       style={{
@@ -317,68 +455,161 @@ export function FeedNav({
       }}
     >
       {/* Stories Section */}
-      <div className="px-2 sm:px-3 md:px-4 pt-2 sm:pt-3 md:pt-4 pb-0 flex flex-col md:flex-row justify-between items-start w-full gap-0.5 sm:gap-1 md:gap-1">
-        <div className="flex-1 min-w-0 md:mr-0.5 lg:mr-1">
-          <StoriesCarousel />
-        </div>
+      <div className="px-2 sm:px-3 md:px-4 pt-2 sm:pt-3 md:pt-4 pb-0 flex flex-col md:flex-row justify-between items-center w-full gap-0.5 sm:gap-1 md:gap-1">
+        {/* Layout móvil cuando no está autenticado */}
+        {!isAuthenticated ? (
+          <>
+            {/* Fila móvil: Logo + Texto + Botón en la misma línea */}
+            <div className="md:hidden w-full flex items-center gap-2 mb-2">
+              {/* Logo Tanku a la izquierda */}
+              <div className="flex-shrink-0">
+                <Image 
+                  src="/feed/logo-tanku.svg" 
+                  alt="Logo Tanku" 
+                  width={70} 
+                  height={70} 
+                  className="object-contain"
+                  style={{ width: '70px', height: '70px' }}
+                  priority={false}
+                  loading="eager"
+                  unoptimized
+                />
+              </div>
+              {/* Texto en el medio */}
+              <div
+                className="flex-1 min-w-0"
+                style={{
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 'bold',
+                  fontSize: 'clamp(12px, 3vw, 18px)',
+                  lineHeight: '1.2',
+                  background: 'linear-gradient(99.34deg, #73FFA2 24.37%, #459961 75.63%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  color: 'transparent',
+                }}
+              >
+                Don't Give a Like, Give a TANKU
+              </div>
+              {/* Botón Únete a Tanku a la derecha */}
+              <div className="flex-shrink-0">
+                <Link
+                  href="/auth/login"
+                  className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-3 py-1.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
+                  style={{ fontFamily: 'Poppins, sans-serif' }}
+                >
+                  Únete a Tanku
+                </Link>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 min-w-0 flex items-center justify-start">
+            <StoriesCarousel stories={propStories} />
+          </div>
+        )}
 
-        {/* Right Icons */}
-        <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center pt-2 sm:pt-3 md:pt-4">
-          {/* Botón "Únete a Tanku" - Solo visible cuando no hay sesión */}
+        {/* Layout desktop cuando no está autenticado */}
+        {!isAuthenticated && (
+          <div className="hidden md:flex lg:hidden flex-1 min-w-0 items-center justify-center">
+            <div
+              style={{
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 'bold',
+                fontSize: '24px',
+                lineHeight: '1.2',
+                background: 'linear-gradient(99.34deg, #73FFA2 24.37%, #459961 75.63%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                color: 'transparent',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Don't Give a Like, Give a TANKU
+            </div>
+          </div>
+        )}
+        {/* Layout desktop grande cuando no está autenticado */}
+        {!isAuthenticated && (
+          <div className="hidden lg:flex flex-1 min-w-0 items-center justify-center">
+            <div
+              style={{
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 'bold',
+                fontSize: '32px',
+                lineHeight: '1.2',
+                background: 'linear-gradient(99.34deg, #73FFA2 24.37%, #459961 75.63%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                color: 'transparent',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Don't Give a Like, Give a TANKU
+            </div>
+          </div>
+        )}
+
+        {/* Right Icons - Visible en tablet (md) y desktop, oculto en móvil */}
+        <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center self-center">
+          {/* Botón "Únete a Tanku" - Solo en desktop cuando no hay sesión */}
           {!isAuthenticated && (
-            <a
-              href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'}/api/v1/auth/google`}
-              className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
+            <Link
+              href="/auth/login"
+              className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
               style={{ fontFamily: 'Poppins, sans-serif' }}
             >
               Únete a Tanku
-            </a>
+            </Link>
           )}
-          {/* Messages Icon con Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setIsMessagesDropdownOpen(!isMessagesDropdownOpen)}
-              className="relative flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
-            >
-              <Image
-                src="/feed/Icons/Chat_Green.png"
-                alt="Mensajes"
-                width={24}
-                height={24}
-                className="object-contain group-hover:hidden w-5 h-5 md:w-6 md:h-6"
-                style={{ width: 'auto', height: 'auto' }}
-              />
-              <Image
-                src="/feed/Icons/Chat_Blue.png"
-                alt="Mensajes"
-                width={24}
-                height={24}
-                className="object-contain hidden group-hover:block w-5 h-5 md:w-6 md:h-6"
-                style={{ width: 'auto', height: 'auto' }}
-              />
-              {/* Badge azul Tanku de mensajes no leídos */}
-              {totalUnread > 0 && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#66DEDB] rounded-full border-2 border-[#1E1E1E]"></div>
-              )}
-            </button>
-            {isAuthenticated && (
+          {/* Messages Icon con Dropdown - Solo si está autenticado */}
+          {isAuthenticated && (
+            <div className="relative">
+              <button
+                onClick={() => setIsMessagesDropdownOpen(!isMessagesDropdownOpen)}
+                className="relative flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 bg-transparent rounded-full hover:bg-gray-700 transition-colors cursor-pointer group"
+              >
+                <Image
+                  src="/icons_tanku/tanku_nav_mensajes_verde.svg"
+                  alt="Mensajes"
+                  width={30}
+                  height={30}
+                  className="object-contain"
+                  style={{ width: '30px', height: '30px' }}
+                  unoptimized
+                />
+                {/* Badge azul Tanku de mensajes no leídos */}
+                {totalUnread > 0 && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#66DEDB] rounded-full border-2 border-[#1E1E1E]"></div>
+                )}
+              </button>
               <MessagesDropdown
                 isOpen={isMessagesDropdownOpen}
                 onClose={() => setIsMessagesDropdownOpen(false)}
                 onOpenChat={handleOpenChat}
               />
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Notifications */}
-          <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10">
-            <NotificationsButton />
-          </div>
+          {/* Notifications - Solo si está autenticado */}
+          {isAuthenticated && (
+            <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10">
+              <NotificationsButton 
+                initialNotifications={propNotifications}
+                initialUnreadCount={propNotificationsUnreadCount}
+              />
+            </div>
+          )}
 
-          {/* Cart Icon */}
-          <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10">
-            <CartButton />
-          </div>
+          {/* Cart Icon - Solo si está autenticado */}
+          {isAuthenticated && (
+            <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10">
+              <CartButton />
+            </div>
+          )}
         </div>
       </div>
 
@@ -411,7 +642,7 @@ export function FeedNav({
           </div>
           <input
             type="text"
-            placeholder="Buscar productos..."
+            placeholder="Buscar"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={(e) => {
@@ -419,7 +650,8 @@ export function FeedNav({
                 // TODO: Implementar búsqueda
               }
             }}
-            className="w-full pl-10 pr-3 py-2 text-sm bg-white text-black rounded-full border border-gray-300 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20 transition-all duration-200"
+            disabled={!isAuthenticated}
+            className="w-full pl-10 pr-3 py-2 text-sm bg-white text-black rounded-full border border-gray-300 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ fontFamily: 'Poppins, sans-serif' }}
           />
         </div>
@@ -428,17 +660,19 @@ export function FeedNav({
       {/* Selector de categorías, filtros y botones de categorías */}
       {categories.length > 0 && (
         <div className="px-2 sm:px-3 md:px-4 mb-0.5 pt-0.5">
-          <div className="flex items-center gap-2 w-full">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">
             {/* Desplegable de categorías */}
             <CategorySelector
               categories={categories}
               selectedCategoryId={selectedCategoryId}
-              onCategoryChange={onCategoryChange}
+              onCategoryChange={handleCategoryChange}
+              isAuthenticated={isAuthenticated}
+              onShowLoginModal={() => setShowLoginModal(true)}
             />
 
             {/* Botones de categorías con imagen y nombre (scrollable) */}
             <div className="relative flex-1 min-w-0">
-              {/* Flecha izquierda */}
+              {/* Flecha izquierda - Oculto en móvil */}
               <button
                 onClick={() => {
                   const container = document.getElementById('categories-scroll')
@@ -446,7 +680,7 @@ export function FeedNav({
                     container.scrollBy({ left: -200, behavior: 'smooth' })
                   }
                 }}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-gray-800/80 hover:bg-gray-700 rounded-full p-1 transition-all duration-200"
+                className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-gray-800/80 hover:bg-gray-700 rounded-full p-1 transition-all duration-200"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -478,13 +712,13 @@ export function FeedNav({
               {/* Contenedor scrollable */}
               <div
                 id="categories-scroll"
-                className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-2 ml-8 mr-8 scrollbar-hide scroll-smooth"
+                className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-2 md:ml-8 md:mr-8 scrollbar-hide scroll-smooth"
               >
                 {/* Botón "Todas" al inicio */}
                 <button
                   key="all-categories"
                   data-category-id="all"
-                  onClick={() => onCategoryChange(null)}
+                      onClick={() => handleCategoryChange(null)}
                   className={`flex-shrink-0 flex flex-col items-center justify-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl transition-all duration-300 border-2 min-w-[80px] sm:min-w-[100px] ${
                     selectedCategoryId === null
                       ? 'bg-gradient-to-r from-[#73FFA2] to-[#66DEDB] border-[#73FFA2] shadow-lg shadow-[#73FFA2]/30 scale-105'
@@ -508,25 +742,16 @@ export function FeedNav({
                     image: c.image || null, // Usar imagen del backend o null
                     url: `/${c.name.toLowerCase().replace(/\s+/g, '-')}`,
                   }
-                  const vibrantColors = [
-                    'bg-gradient-to-r from-pink-500 to-rose-500',
-                    'bg-gradient-to-r from-purple-500 to-indigo-500',
-                    'bg-gradient-to-r from-blue-500 to-cyan-500',
-                    'bg-gradient-to-r from-green-500 to-emerald-500',
-                    'bg-gradient-to-r from-yellow-500 to-orange-500',
-                    'bg-gradient-to-r from-red-500 to-pink-500',
-                    'bg-gradient-to-r from-indigo-500 to-purple-500',
-                    'bg-gradient-to-r from-cyan-500 to-blue-500',
-                    'bg-gradient-to-r from-emerald-500 to-teal-500',
-                    'bg-gradient-to-r from-orange-500 to-red-500',
-                    'bg-gradient-to-r from-violet-500 to-purple-500',
-                    'bg-gradient-to-r from-teal-500 to-cyan-500',
-                    'bg-gradient-to-r from-amber-500 to-yellow-500',
-                    'bg-gradient-to-r from-fuchsia-500 to-pink-500',
-                    'bg-gradient-to-r from-sky-500 to-blue-500',
-                    'bg-gradient-to-r from-lime-500 to-green-500',
+                  // Colores de categorías con opacidad (se repiten cíclicamente)
+                  const categoryColors = [
+                    '#8B5CF633', // violeta con opacidad
+                    '#3B82F633', // azul con opacidad
+                    '#FF6B6B33', // rojo con opacidad
+                    '#F9731633', // naranja con opacidad
+                    '#EC489933', // rosa con opacidad
+                    '#6366F133', // índigo con opacidad
                   ]
-                  const colorClass = vibrantColors[index % vibrantColors.length]
+                  const categoryColor = categoryColors[index % categoryColors.length]
                   const isSelected = selectedCategoryId === String(category.id)
                   const hasImage = !!category.image
 
@@ -534,15 +759,18 @@ export function FeedNav({
                     <button
                       key={category.id}
                       data-category-id={String(category.id)}
-                      onClick={() => onCategoryChange(String(category.id))}
+                      onClick={() => handleCategoryChange(String(category.id))}
                       className="flex-shrink-0 snap-start cursor-pointer group"
                     >
                       <div
-                        className={`flex items-center h-8 sm:h-9 rounded-full overflow-hidden border-2 transition-all duration-300 ${colorClass} ${
+                        className={`flex items-center h-8 sm:h-9 rounded-full overflow-hidden border-2 transition-all duration-300 ${
                           isSelected
                             ? 'border-[#73FFA2] scale-105 shadow-lg shadow-[#73FFA2]/50'
                             : 'border-gray-600 group-hover:border-[#73FFA2]'
                         }`}
+                        style={{
+                          backgroundColor: categoryColor,
+                        }}
                       >
                         {/* Imagen a la izquierda - usar imageUrl de la categoría */}
                         {hasImage && category.image ? (
@@ -579,7 +807,7 @@ export function FeedNav({
                 })}
               </div>
 
-              {/* Flecha derecha */}
+              {/* Flecha derecha - Oculto en móvil */}
               <button
                 onClick={() => {
                   const container = document.getElementById('categories-scroll')
@@ -587,7 +815,7 @@ export function FeedNav({
                     container.scrollBy({ left: 200, behavior: 'smooth' })
                   }
                 }}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-gray-800/80 hover:bg-gray-700 rounded-full p-1 transition-all duration-200"
+                className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-gray-800/80 hover:bg-gray-700 rounded-full p-1 transition-all duration-200"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -622,6 +850,16 @@ export function FeedNav({
           </div>
         </div>
       )}
+
+      {/* Modal de login para categorías */}
+      <CategoryLoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLogin={() => {
+          setShowLoginModal(false)
+          // El usuario será redirigido a Google OAuth
+        }}
+      />
     </div>
   )
 }

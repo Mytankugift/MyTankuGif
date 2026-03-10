@@ -14,6 +14,7 @@ export interface FeedItem {
   likesCount?: number
   commentsCount?: number
   isLiked?: boolean
+  isInWishlist?: boolean // Si el producto está en alguna wishlist del usuario
   description?: string | null
   videoUrl?: string | null
   author?: {

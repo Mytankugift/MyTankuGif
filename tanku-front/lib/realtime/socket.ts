@@ -1,3 +1,20 @@
+/**
+ * @deprecated Este módulo está deprecado. 
+ * Usa `chatService` (lib/services/chat.service.ts) en su lugar.
+ * 
+ * chatService ahora maneja:
+ * - Chat
+ * - Notificaciones
+ * - Presencia
+ * 
+ * TODO: Migrar todos los componentes que usan este módulo a chatService
+ * Componentes pendientes de migración:
+ * - components/products/share-product-modal.tsx
+ * - components/wishlists/share-wishlist-modal.tsx
+ * - components/stalkergift/stalkergift-chat-window.tsx
+ * - components/posters/share-post-modal.tsx
+ */
+
 'use client'
 
 import { io, Socket } from 'socket.io-client'

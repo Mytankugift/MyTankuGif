@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
-import { initSocket, getSocket } from '@/lib/realtime/socket'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { chatService } from '@/lib/services/chat.service'
+import { useFeedInitContext } from '@/lib/context/feed-init-context'
 
 export interface NotificationItem {
   id: string
@@ -22,15 +23,21 @@ export function useNotifications(options?: {
   isRead?: boolean
   autoFetch?: boolean
   ignoreOptionsIsRead?: boolean // ✅ Flag para ignorar isRead de options
+  initialData?: { // ✅ Datos iniciales desde feedInit para evitar fetch duplicado
+    items?: NotificationItem[]
+    unreadCount?: number
+  }
 }) {
   const { isAuthenticated, token } = useAuthStore()
-  const [unreadCount, setUnreadCount] = useState<number>(0)
-  const [items, setItems] = useState<NotificationItem[]>([])
+  const { isComplete, hasData } = useFeedInitContext()
+  const [unreadCount, setUnreadCount] = useState<number>(options?.initialData?.unreadCount ?? 0)
+  const [items, setItems] = useState<NotificationItem[]>(options?.initialData?.items ?? [])
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const [lastIsReadFilter, setLastIsReadFilter] = useState<boolean | undefined>(options?.isRead)
+  const hasInitialData = useRef(!!options?.initialData) // ✅ Guard para evitar fetch si ya hay datos iniciales
 
   const fetchUnreadCount = useCallback(async () => {
     if (!isAuthenticated) return
@@ -126,64 +133,92 @@ export function useNotifications(options?: {
   useEffect(() => {
     if (!isAuthenticated) return
     
-    fetchUnreadCount()
-    if (options?.autoFetch !== false) {
-      fetchList()
+    // ✅ Si ya tenemos datos iniciales, no hacer fetch (evitar duplicados)
+    if (hasInitialData.current && options?.initialData) {
+      // Solo actualizar si los datos iniciales están presentes
+      if (options.initialData.unreadCount !== undefined) {
+        setUnreadCount(options.initialData.unreadCount)
+      }
+      if (options.initialData.items && options.initialData.items.length > 0) {
+        setItems(options.initialData.items)
+      }
+      return
     }
-
-    // ✅ Verificar que haya token antes de inicializar socket
-    if (!token) {
-      console.warn('[useNotifications] No hay token, omitiendo inicialización de socket')
+    
+    // ✅ Esperar a que feedInit termine antes de hacer fetch
+    if (!isComplete) {
+      // Si feedInit ya tiene datos de notificaciones, usarlos
+      if (hasData.notifications && (items.length > 0 || unreadCount > 0)) {
+        console.log('[useNotifications] feedInit tiene notificaciones, esperando a que termine')
+        return
+      }
       return
     }
 
-    const socket = initSocket(token)
-    if (!socket) return
+    // ✅ feedInit ya completó
+    // Si feedInit tiene datos de notificaciones, no hacer fetch
+    if (hasData.notifications && (items.length > 0 || unreadCount > 0)) {
+      console.log('[useNotifications] feedInit completó y ya hay notificaciones, omitiendo fetch')
+      return
+    }
 
-    const onEvent = (msg: any) => {
-      if (!msg || !msg.type) return
-      if (msg.type === 'notification') {
-        const notification = msg.payload?.notification
-        if (notification) {
-          // ✅ Solo actualizar estado local, NO recargar desde servidor
-          setItems((prev) => {
-            // Evitar duplicados
-            if (prev.some((n) => n.id === notification.id)) {
-              return prev
-            }
-            // Si estamos en modo dropdown (sin opciones), limitar a 10
-            const maxItems = options?.limit ?? 10
-            // ✅ Solo agregar si no hay filtro de isRead o si la notificación coincide
-            if (options?.isRead === undefined || notification.isRead === options.isRead) {
-              return [notification, ...prev].slice(0, maxItems)
-            }
-            return prev
-          })
-          // Incrementar contador solo si es no leída
-          if (!notification.isRead) {
-            setUnreadCount((c) => c + 1)
-          }
-          
-          // ✅ Solo actualizar contador, NO recargar lista completa
-          setTimeout(() => {
-            fetchUnreadCount()
-          }, 100) // Pequeño delay para evitar múltiples llamadas
-        }
-      } else if (msg.type === 'notification_count') {
-        const count = msg.payload?.unreadCount
-        if (typeof count === 'number') {
-          setUnreadCount(count)
-        }
-        // ✅ NO recargar lista cuando solo cambia el contador
+    // ✅ feedInit completó pero no tiene notificaciones, hacer fetch
+    if (isComplete && !hasData.notifications && items.length === 0 && unreadCount === 0 && !hasInitialData.current) {
+      console.log('[useNotifications] feedInit completó pero no tiene notificaciones, haciendo fetch')
+      fetchUnreadCount()
+      if (options?.autoFetch !== false) {
+        fetchList()
       }
     }
 
-    socket.on('event', onEvent)
+    // ✅ Usar chatService para escuchar eventos de notificaciones (consolidado)
+    // chatService ya está inicializado si el usuario está autenticado (vía useChatService)
+    const unsubscribeNotification = chatService.on('notification', (data: { notification: NotificationItem }) => {
+      const notification = data.notification
+      if (!notification) return
+
+      console.log('📬 [useNotifications] Notificación recibida vía chatService:', notification.id)
+
+      // ✅ Solo actualizar estado local, NO recargar desde servidor
+      setItems((prev) => {
+        // Evitar duplicados
+        if (prev.some((n) => n.id === notification.id)) {
+          return prev
+        }
+        // Si estamos en modo dropdown (sin opciones), limitar a 10
+        const maxItems = options?.limit ?? 10
+        // ✅ Solo agregar si no hay filtro de isRead o si la notificación coincide
+        if (options?.isRead === undefined || notification.isRead === options.isRead) {
+          return [notification, ...prev].slice(0, maxItems)
+        }
+        return prev
+      })
+      
+      // Incrementar contador solo si es no leída
+      if (!notification.isRead) {
+        setUnreadCount((c) => c + 1)
+      }
+      
+      // ✅ Solo actualizar contador, NO recargar lista completa
+      setTimeout(() => {
+        fetchUnreadCount()
+      }, 100) // Pequeño delay para evitar múltiples llamadas
+    })
+
+    const unsubscribeNotificationCount = chatService.on('notification_count', (data: { unreadCount: number }) => {
+      const count = data.unreadCount
+      if (typeof count === 'number') {
+        console.log('🔔 [useNotifications] Contador actualizado vía chatService:', count)
+        setUnreadCount(count)
+      }
+      // ✅ NO recargar lista cuando solo cambia el contador
+    })
+
     return () => {
-      const s = getSocket()
-      s?.off('event', onEvent)
+      unsubscribeNotification()
+      unsubscribeNotificationCount()
     }
-  }, [isAuthenticated, fetchUnreadCount, options?.autoFetch, options?.limit, options?.isRead, token])
+  }, [isAuthenticated, isComplete, hasData.notifications, items.length, unreadCount, fetchUnreadCount, options?.autoFetch, options?.limit, options?.isRead])
 
   return {
     unreadCount,

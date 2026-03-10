@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import Image from 'next/image'
 import { useChat } from '@/lib/hooks/use-chat'
-import { useSocket } from '@/lib/hooks/use-socket'
+import { useChatService } from '@/lib/hooks/use-chat-service'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import type { Conversation } from '@/lib/hooks/use-chat'
 
@@ -14,8 +14,8 @@ interface MessagesDropdownProps {
 }
 
 export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdownProps) {
-  const { conversations, isLoading, getOtherParticipant, getUnreadCountForConversation, getAllMessagesForConversation, lastReceivedMessage, fetchMessages, getMessages, sendMessage: sendMessageChat, markAsRead } = useChat()
-  const { socket, isConnected, joinConversation, sendMessage: sendSocketMessage, getMessages: getSocketMessages, markAsRead: markAsReadSocket } = useSocket()
+  const { conversations, isLoading, getOtherParticipant, getUnreadCountForConversation, getAllMessagesForConversation, lastReceivedMessage } = useChat()
+  const { isConnected, sendMessage, getMessages, markAsRead, loadMessages, joinConversation, lastMessage } = useChatService()
   const { user } = useAuthStore()
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
@@ -33,24 +33,16 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
     ? conversations.find(c => c.id === selectedConversationId) 
     : null
 
-  // Obtener mensajes de la conversación seleccionada
-  const apiMessages = selectedConversationId ? getMessages(selectedConversationId) : []
-  const socketMessages = selectedConversationId ? getSocketMessages(selectedConversationId) : []
-  
-  // ✅ Usar useMemo para evitar recálculos innecesarios
+  // ✅ NUEVO: Obtener mensajes directamente del servicio (ya están sincronizados)
   const messages = useMemo(() => {
-    const allMessages = [...apiMessages]
-    socketMessages.forEach(socketMsg => {
-      if (!allMessages.find(m => m.id === socketMsg.id) && socketMsg.senderId !== user?.id) {
-        allMessages.push(socketMsg)
-      }
-    })
-    return allMessages.sort((a, b) => 
+    if (!selectedConversationId) return []
+    const msgs = getMessages(selectedConversationId)
+    return msgs.sort((a, b) => 
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     )
-  }, [apiMessages, socketMessages, user?.id])
+  }, [selectedConversationId, getMessages, lastMessage])
 
-  // Cargar mensajes cuando se selecciona una conversación
+  // ✅ NUEVO: Cargar mensajes cuando se selecciona una conversación
   useEffect(() => {
     if (selectedConversationId && !selectedConversationId.startsWith('temp-')) {
       if (lastFetchedConversationRef.current !== selectedConversationId) {
@@ -60,41 +52,42 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
           joinConversation(selectedConversationId)
         }
         
-        fetchMessages(selectedConversationId).then(() => {
-          // Marcar como leído solo después de cargar los mensajes
-          // Esto asegura que el usuario realmente está viendo el chat
-          if (markAsReadSocket) {
-            // Delay para asegurar que el chat está visible
-            setTimeout(() => {
-              markAsRead(selectedConversationId, markAsReadSocket)
-            }, 500)
-          }
+        loadMessages(selectedConversationId, 1, 50).then(() => {
+          setTimeout(() => {
+            markAsRead(selectedConversationId)
+          }, 500)
         }).catch((err) => {
           console.error('Error cargando mensajes:', err)
         })
       }
-      // NO marcar como leído si ya se cargó antes - solo cuando el usuario hace click en el chat
     }
-  }, [selectedConversationId, isConnected, fetchMessages, joinConversation, markAsRead, markAsReadSocket])
+  }, [selectedConversationId, isConnected, joinConversation, loadMessages, markAsRead])
 
-  // ✅ Marcar como leído cuando llegan nuevos mensajes y el chat está ABIERTO Y VISIBLE
-  // Solo marcar como leído si el dropdown está abierto Y hay un chat seleccionado
+  // ✅ NUEVO: Re-unión automática si se desconecta y reconecta
   useEffect(() => {
-    // Solo marcar como leído si:
-    // 1. El dropdown está abierto (isOpen)
-    // 2. Hay un chat seleccionado (selectedConversationId)
-    // 3. Hay mensajes
-    // 4. El socket está disponible
-    if (isOpen && selectedConversationId && messages.length > 0 && markAsReadSocket) {
-      // Marcar como leído automáticamente cuando hay nuevos mensajes (por Socket)
-      const hasUnread = messages.some(msg => 
-        msg.senderId !== user?.id && msg.status !== 'READ'
-      )
-      if (hasUnread) {
-        markAsRead(selectedConversationId, markAsReadSocket)
-      }
+    if (selectedConversationId && isConnected && !selectedConversationId.startsWith('temp-')) {
+      joinConversation(selectedConversationId)
     }
-  }, [isOpen, messages, selectedConversationId, markAsReadSocket, user?.id, markAsRead])
+  }, [selectedConversationId, isConnected, joinConversation])
+
+  // ✅ Marcar como leído solo cuando el dropdown está abierto Y el usuario está viendo el chat
+  useEffect(() => {
+    if (!isOpen || !selectedConversationId || messages.length === 0) return
+    
+    // Solo marcar como leído si hay mensajes no leídos Y el usuario está viendo el chat
+    const hasUnread = messages.some(msg => 
+      msg.senderId !== user?.id && msg.status !== 'READ'
+    )
+    
+    if (hasUnread) {
+      // Delay para evitar marcar como leído demasiado rápido
+      const timeoutId = setTimeout(() => {
+        markAsRead(selectedConversationId)
+      }, 2000) // Esperar 2 segundos antes de marcar como leído
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [isOpen, selectedConversationId, messages.length, user?.id, markAsRead, lastMessage])
 
   // Scroll al final
   useEffect(() => {
@@ -165,22 +158,9 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
     return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
   }
 
-  const handleSend = async () => {
+  // ✅ NUEVO: Enviar mensaje usando el servicio (con queue automático)
+  const handleSend = () => {
     if (!message.trim() || !selectedConversationId || isSending) return
-
-    // Verificar que el socket esté conectado antes de enviar
-    if (!isConnected || !sendSocketMessage) {
-      console.error('Error: Socket no conectado')
-      // ✅ Mostrar mensaje al usuario en lugar de solo log
-      alert('El chat no está conectado. Por favor, espera un momento e intenta de nuevo.')
-      return
-    }
-
-    // Asegurar que el socket esté unido a la conversación antes de enviar
-    // Esto es importante para que las notificaciones funcionen correctamente
-    if (selectedConversationId && !selectedConversationId.startsWith('temp-')) {
-      joinConversation(selectedConversationId)
-    }
 
     const messageText = message.trim()
     setMessage('')
@@ -190,9 +170,11 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
     
     setIsSending(true)
     try {
-      // Siempre usar sendMessageChat que maneja los mensajes optimistas correctamente
-      // Pasar markAsReadSocket para que marque como leído automáticamente al enviar
-      await sendMessageChat(selectedConversationId, messageText, 'TEXT', sendSocketMessage, markAsReadSocket)
+      // ✅ El servicio maneja automáticamente:
+      // - Queue si está desconectado
+      // - Optimistic updates
+      // - ACK handling
+      sendMessage(selectedConversationId, messageText, 'TEXT')
     } catch (error) {
       console.error('Error enviando mensaje:', error)
       setMessage(messageText)
@@ -313,7 +295,7 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
               />
               <button
                 onClick={handleSend}
-                disabled={!message.trim() || isSending}
+                disabled={!message.trim() || isSending || !isConnected}
                 className="p-2 bg-[#66DEDB] hover:bg-[#5accc9] text-gray-900 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSending ? (
@@ -325,6 +307,11 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
                 )}
               </button>
             </div>
+            {!isConnected && (
+              <p className="text-xs text-yellow-400 mt-2 px-3">
+                ⚠️ Reconectando... Los mensajes se enviarán automáticamente al reconectar.
+              </p>
+            )}
           </div>
         </>
       ) : (

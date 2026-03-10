@@ -77,9 +77,9 @@ export function OnboardingStepBirthday({
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-8">
+        <div className="flex flex-row gap-2 md:gap-3 justify-center items-center pt-8">
         {/* Selector de Año */}
-        <div className="w-full sm:w-32">
+        <div className="flex-1 max-w-[100px]">
           <label className="block text-sm font-medium mb-1 text-center" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
             Año
           </label>
@@ -107,7 +107,7 @@ export function OnboardingStepBirthday({
         </div>
 
         {/* Selector de Mes */}
-        <div className="w-full sm:w-40">
+        <div className="flex-1 max-w-[120px]">
           <label className="block text-sm font-medium mb-1 text-center" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
             Mes
           </label>
@@ -136,7 +136,7 @@ export function OnboardingStepBirthday({
         </div>
 
         {/* Selector de Día */}
-        <div className="w-full sm:w-32">
+        <div className="flex-1 max-w-[100px]">
           <label className="block text-sm font-medium mb-1 text-center" style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}>
             Día
           </label>
@@ -165,12 +165,12 @@ export function OnboardingStepBirthday({
         </div>
       </div>
 
-        {/* Logo */}
-        <div className="flex justify-center pt-6">
+        {/* Personaje - mismo que paso 1 */}
+        <div className="flex justify-center pt-2 md:pt-6">
           <img
-            src="/icons_tanku/onboarding_logo_tanku.png"
-            alt="Logo Tanku"
-            className="w-32 h-32 object-contain"
+            src="/icons_tanku/onboarding_personaje_tanku.png"
+            alt="Personaje Tanku"
+            className="w-40 h-40 md:w-56 md:h-56 object-contain"
           />
         </div>
       </div>

@@ -1,47 +1,63 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FeedNav } from '@/components/feed/feed-nav'
 import { FeedGrid } from '@/components/feed/feed-grid'
 import { FeedInfiniteScroll } from '@/components/feed/feed-infinite-scroll'
 import { PosterDetailModal } from '@/components/posters/poster-detail-modal'
+import { VideoModal } from '@/components/feed/video-modal'
+import { PromotionalBanner } from '@/components/feed/promotional-banner'
+import { FeedSkeleton } from '@/components/feed/feed-skeleton'
 import { useFeed } from '@/lib/hooks/use-feed'
+import { useFeedInit } from '@/lib/hooks/use-feed-init'
 import { useInfiniteScroll } from '@/lib/hooks/use-infinite-scroll'
-import { apiClient } from '@/lib/api/client'
+import { useAuthStore } from '@/lib/stores/auth-store'
 import './feed-grid.css'
 
 export default function FeedPage() {
-  const [categories, setCategories] = useState<{ id: string | number; name: string; image?: string | null }[]>([])
+  const { isAuthenticated } = useAuthStore()
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
+  const hasInitialized = useRef(false)
 
-  // Cargar categorías
+  // ✅ Usar endpoint batch SOLO en la carga inicial (sin filtros)
+  const feedInit = useFeedInit()
+  
+  // Determinar qué datos usar: batch init (solo primera vez sin filtros) o feed normal (con filtros)
+  const hasFilters = !!selectedCategoryId || !!searchQuery
+  const previousFiltersRef = useRef({ categoryId: null as string | null, searchQuery: '' })
+  
+  // Detectar cambio de filtros
+  const filtersChanged = 
+    previousFiltersRef.current.categoryId !== selectedCategoryId || 
+    previousFiltersRef.current.searchQuery !== searchQuery
+  
+  // Resetear hasInitialized cuando se cambia a "Todas" (sin filtros) después de haber filtrado
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await apiClient.get<{ id: string; name: string; handle: string; imageUrl: string | null }[]>('/api/v1/categories')
-        if (response.success && Array.isArray(response.data)) {
-          setCategories(response.data.map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            image: c.imageUrl || null, // Usar imageUrl del backend
-          })))
-        }
-      } catch (error) {
-        console.error('Error cargando categorías:', error)
+    if (filtersChanged) {
+      if (!hasFilters && hasInitialized.current) {
+        // Si volvemos a "Todas" después de haber filtrado, resetear para usar feedInit de nuevo
+        hasInitialized.current = false
       }
+      previousFiltersRef.current = { categoryId: selectedCategoryId, searchQuery }
     }
-    fetchCategories()
-  }, [])
-
-  // Hook del feed (filtra items sin imágenes automáticamente)
+  }, [hasFilters, selectedCategoryId, searchQuery, filtersChanged])
+  
+  // Si feedInit tiene items y no hay filtros, usar feedInit
+  // Esto permite que cuando se cambia a "Todas", se usen los datos de feedInit si están disponibles
+  // Si filtersChanged es true pero volvemos a "Todas", usar feedInit si tiene datos
+  const useInitData = !hasFilters && feedInit.items.length > 0 && !feedInit.isLoading
+  
+  // ✅ Solo ejecutar useFeed si hay filtros O si feedInit ya cargó (para loadMore)
+  // Esto evita llamadas duplicadas en la carga inicial
   const {
-    items,
-    isLoading,
+    items: feedItems,
+    isLoading: feedLoading,
     isLoadingMore,
     hasMore,
     nextCursorToken,
@@ -51,17 +67,35 @@ export default function FeedPage() {
   } = useFeed({
     categoryId: selectedCategoryId,
     searchQuery,
+    // ✅ Pasar flag para deshabilitar carga inicial solo si estamos usando feedInit Y tiene datos
+    // Si cambiamos a "Todas" y feedInit no tiene datos, permitir que useFeed cargue
+    skipInitialLoad: useInitData && feedInit.items.length > 0,
   })
+  
+  // Una vez que feedInit carga, marcar como inicializado
+  useEffect(() => {
+    if (!feedInit.isLoading && feedInit.items.length > 0) {
+      hasInitialized.current = true
+    }
+  }, [feedInit.isLoading, feedInit.items.length])
+  
+  // Datos finales a usar
+  const items = useInitData ? feedInit.items : feedItems
+  const isLoading = useInitData ? feedInit.isLoading : feedLoading
+  const categories = feedInit.categories || []
 
   // Hook de infinite scroll (solo funciona si hay nextCursorToken)
+  // Usar nextCursorToken del feed normal (no del init) para loadMore
+  const currentNextCursorToken = useInitData ? feedInit.nextCursorToken : nextCursorToken
+  const currentHasMore = useInitData ? feedInit.hasMore : hasMore
   const { sentinelRef } = useInfiniteScroll({
-    hasMore: hasMore && !!nextCursorToken,
+    hasMore: currentHasMore && !!currentNextCursorToken,
     isLoading: isLoadingMore,
-    nextCursorToken,
-    onLoadMore: loadMore,
+    nextCursorToken: currentNextCursorToken,
+    onLoadMore: hasFilters ? loadMore : feedInit.loadMore, // Usar loadMore apropiado
   })
 
-  // Handle scroll para mostrar/ocultar header
+  // Handle scroll para mostrar/ocultar header y feed barrier
   useEffect(() => {
     let ticking = false
 
@@ -100,7 +134,25 @@ export default function FeedPage() {
       scrollContainer.addEventListener('scroll', handleScroll)
       return () => scrollContainer.removeEventListener('scroll', handleScroll)
     }
-  }, [lastScrollY])
+  }, [lastScrollY, isAuthenticated])
+
+  // Mostrar modal de video automáticamente cuando no está logueado (solo una vez por sesión)
+  useEffect(() => {
+    // Solo ejecutar en el cliente y después de que el componente esté montado
+    if (typeof window === 'undefined') return
+    
+    // Verificar si ya se mostró el modal en esta sesión
+    const hasShownInSession = sessionStorage.getItem('videoModalShown') === 'true'
+    
+    if (!isAuthenticated && !isVideoModalOpen && !hasShownInSession) {
+      // Mostrar el modal después de un pequeño delay para que la página cargue
+      const timer = setTimeout(() => {
+        setIsVideoModalOpen(true)
+        sessionStorage.setItem('videoModalShown', 'true')
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [isAuthenticated, isVideoModalOpen])
 
   return (
     <div
@@ -114,6 +166,12 @@ export default function FeedPage() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         isHeaderVisible={isHeaderVisible}
+        // ✅ Pasar datos desde feedInit para evitar llamadas duplicadas
+        conversations={useInitData ? feedInit.conversations : undefined}
+        unreadCount={useInitData ? feedInit.unreadCounts.chat : undefined}
+        stories={useInitData ? feedInit.stories : undefined}
+        notifications={useInitData ? feedInit.notifications : undefined}
+        notificationsUnreadCount={useInitData ? feedInit.unreadCounts.notifications : undefined}
       />
 
       <div
@@ -125,29 +183,29 @@ export default function FeedPage() {
         }}
       >
         {isLoading && items.length === 0 ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="text-white">Cargando feed...</div>
-          </div>
-        ) : items.length === 0 ? (
+          <FeedSkeleton />
+        ) : items.length === 0 && !feedInit.isLoading && !isLoading ? (
           <div className="flex justify-center items-center py-12">
             <div className="text-white">No hay contenido en el feed</div>
           </div>
-        ) : (
+        ) : items.length > 0 ? (
           <>
             <FeedGrid 
               items={items}
+              isAuthenticated={isAuthenticated}
               onPosterClick={(poster) => {
                 setSelectedPosterId(poster.id)
                 setIsPosterModalOpen(true)
               }}
             />
             <FeedInfiniteScroll
-              hasMore={hasMore && !!nextCursorToken}
+              hasMore={currentHasMore && !!currentNextCursorToken}
               isLoadingMore={isLoadingMore}
               sentinelRef={sentinelRef}
             />
+            
           </>
-        )}
+        ) : null}
       </div>
 
       {/* Modal de detalle de post */}
@@ -167,6 +225,12 @@ export default function FeedPage() {
           // Actualizar solo ese item en el feed (sin recargar)
           updateItem(posterId, updates)
         }}
+      />
+
+      {/* Modal de video */}
+      <VideoModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
       />
     </div>
   )

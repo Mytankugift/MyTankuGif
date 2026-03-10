@@ -94,6 +94,7 @@ export const API_ENDPOINTS = {
     REACT: (id: string) => `/api/v1/posters/${id}/reactions`,
     COMMENT: (id: string) => `/api/v1/posters/${id}/comments`,
     COMMENT_LIKE: (posterId: string, commentId: string) => `/api/v1/posters/${posterId}/comments/${commentId}/like`,
+    COMMENT_UPDATE: (posterId: string, commentId: string) => `/api/v1/posters/${posterId}/comments/${commentId}`,
   },
   // Stories
   STORIES: {

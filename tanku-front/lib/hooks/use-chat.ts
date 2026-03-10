@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
-import { useSocket } from '@/lib/hooks/use-socket'
-import type { ChatMessage } from '@/lib/hooks/use-socket'
+import { chatService, type ChatMessage as ChatServiceMessage } from '@/lib/services/chat.service'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { useFeedInitContext } from '@/lib/context/feed-init-context'
 export interface Conversation {
   id: string
   type: 'FRIENDS' | 'STALKERGIFT'
@@ -67,8 +67,10 @@ export interface Message {
 
 export function useChat() {
   const { user } = useAuthStore()
-  // ✅ Obtener lastReceivedMessage y socketMessages directamente de useSocket
-  const { lastReceivedMessage, socketMessages } = useSocket()
+  const { isComplete, hasData } = useFeedInitContext()
+  // ✅ NUEVO: Usar ChatService en lugar de useSocket para mensajes
+  const [lastReceivedMessage, setLastReceivedMessage] = useState<Message | null>(null)
+  const [socketMessages, setSocketMessages] = useState<Map<string, Message[]>>(new Map())
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [messages, setMessages] = useState<Map<string, Message[]>>(new Map())
   const [activeConversation, setActiveConversation] = useState<string | null>(null)
@@ -76,6 +78,69 @@ export function useChat() {
   const [error, setError] = useState<string | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const fetchedConversationsRef = useRef<Set<string>>(new Set()) // ✅ Evitar llamadas duplicadas
+
+  // Función helper para convertir ChatServiceMessage a Message
+  const convertChatMessageToMessage = useCallback((chatMsg: ChatServiceMessage): Message => {
+    return {
+      id: chatMsg.id,
+      conversationId: chatMsg.conversationId,
+      senderId: chatMsg.senderId,
+      senderAlias: chatMsg.senderAlias,
+      deletedSenderEmail: chatMsg.deletedSenderEmail,
+      content: chatMsg.content,
+      type: chatMsg.type,
+      status: chatMsg.status,
+      createdAt: chatMsg.createdAt,
+      sender: chatMsg.sender,
+    }
+  }, [])
+
+  // ✅ NUEVO: Suscribirse a eventos de ChatService
+  useEffect(() => {
+    if (!user?.id) {
+      setLastReceivedMessage(null)
+      setSocketMessages(new Map())
+      return
+    }
+
+    // Obtener estado inicial
+    const updateFromService = () => {
+      const lastMsg = chatService.getLastReceivedMessage()
+      const allMsgs = chatService.getAllMessages()
+      
+      // Convertir ChatMessage a Message
+      const convertedMessages = new Map<string, Message[]>()
+      allMsgs.forEach((msgs, convId) => {
+        convertedMessages.set(convId, msgs.map(convertChatMessageToMessage))
+      })
+      
+      setSocketMessages(convertedMessages)
+      if (lastMsg) {
+        setLastReceivedMessage(convertChatMessageToMessage(lastMsg))
+      }
+    }
+
+    updateFromService()
+
+    // Suscribirse a nuevos mensajes (actualización en tiempo real vía Socket.IO)
+    const unsubscribe = chatService.on('message:new', ({ message }: { message: ChatServiceMessage }) => {
+      const converted = convertChatMessageToMessage(message)
+      setLastReceivedMessage(converted)
+      
+      setSocketMessages(prev => {
+        const newMap = new Map(prev)
+        const conversationMessages = newMap.get(message.conversationId) || []
+        if (!conversationMessages.find(m => m.id === message.id)) {
+          newMap.set(message.conversationId, [...conversationMessages, converted])
+        }
+        return newMap
+      })
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [user?.id, convertChatMessageToMessage])
 
   /**
    * Cargar todas las conversaciones
@@ -114,12 +179,7 @@ export function useChat() {
     }
   }, [user?.id])
 
-  // ✅ Cargar conversaciones al inicializar
-  useEffect(() => {
-    if (user?.id) {
-      fetchConversations()
-    }
-  }, [user?.id, fetchConversations])
+  // ✅ ELIMINADO: useEffect duplicado consolidado en el useEffect más abajo
 
   /**
    * Crear o obtener conversación con un usuario
@@ -306,8 +366,8 @@ export function useChat() {
               id: tempId,
               content,
               createdAt: optimisticMessage.createdAt,
-              senderId: optimisticMessage.senderId,
-              status: 'SENT',
+              senderId: optimisticMessage.senderId || user?.id || '',
+              status: 'SENT' as const,
             }],
           }
         }
@@ -422,7 +482,7 @@ export function useChat() {
     // 2. Mensajes de Socket (del Map de useSocket) - convertir ChatMessage a Message
     // ✅ Usar socketMessages directamente para mejor reactividad
     const socketMessagesRaw = socketMessages.get(conversationId) || []
-    const socketMessagesNormalized: Message[] = socketMessagesRaw.map((msg: ChatMessage) => ({
+    const socketMessagesNormalized: Message[] = socketMessagesRaw.map((msg: Message) => ({
       id: msg.id,
       conversationId: msg.conversationId,
       senderId: msg.senderId,
@@ -515,7 +575,7 @@ export function useChat() {
    * Actualizar último mensaje de una conversación (optimista, sin llamar API)
    * ✅ Usa message.createdAt para el tiempo real del mensaje
    */
-  const updateConversationLastMessage = useCallback((conversationId: string, message: ChatMessage) => {
+  const updateConversationLastMessage = useCallback((conversationId: string, message: Message) => {
     setConversations((prev) => {
       const updated = prev.map(conv => {
         if (conv.id === conversationId) {
@@ -526,7 +586,7 @@ export function useChat() {
               id: message.id,
               content: message.content,
               createdAt: message.createdAt,
-              senderId: message.senderId,
+              senderId: message.senderId || user?.id || '', // ✅ Asegurar que senderId no sea null
               status: message.status,
             }],
           }
@@ -546,8 +606,18 @@ export function useChat() {
   }, [])
 
   // ✅ Reaccionar a cambios en mensajes recibidos vía socket (forma correcta con useEffect)
+  // ✅ NUEVO: Usar useRef para evitar loop infinito
+  const lastProcessedMessageRef = useRef<string | null>(null)
+  
   useEffect(() => {
     if (!lastReceivedMessage) return
+
+    // ✅ Evitar procesar el mismo mensaje múltiples veces
+    if (lastProcessedMessageRef.current === lastReceivedMessage.id) {
+      return
+    }
+
+    lastProcessedMessageRef.current = lastReceivedMessage.id
 
     console.log('🔄 [useChat] Actualizando último mensaje de conversación:', {
       conversationId: lastReceivedMessage.conversationId,
@@ -556,40 +626,166 @@ export function useChat() {
     })
 
     // Actualizar último mensaje en la lista de conversaciones
-    // React controla cuándo ejecutar esto (después del render)
     updateConversationLastMessage(
       lastReceivedMessage.conversationId,
       lastReceivedMessage
     )
   }, [lastReceivedMessage, updateConversationLastMessage])
 
+  // ✅ Guard para evitar llamadas duplicadas
+  const hasLoadedRef = useRef<boolean>(false)
+  const lastUserIdRef = useRef<string | null>(null)
+
   // Cargar conversaciones al montar (SOLO una vez, el socket es la fuente de verdad)
   useEffect(() => {
     // ✅ Verificar autenticación antes de hacer cualquier llamada
     if (!user?.id) {
       console.log('[useChat] Usuario no autenticado, omitiendo carga de datos')
+      hasLoadedRef.current = false
+      lastUserIdRef.current = null
       return
     }
 
-    let mounted = true
+    // ✅ Si ya se cargó para este usuario, no volver a cargar
+    if (hasLoadedRef.current && lastUserIdRef.current === user.id) {
+      return
+    }
+
+    // ✅ Verificar si feedInit ya completó usando sessionStorage y eventos
+    const checkFeedInitComplete = () => {
+      if (typeof window !== 'undefined') {
+        return sessionStorage.getItem('feedInit_complete') === 'true'
+      }
+      return false
+    }
     
-    const loadData = async () => {
-      if (mounted && user?.id) {
-        await fetchConversations()
-        await fetchUnreadCount() // Solo una vez al montar
+    // ✅ Listener para evento de feedInit completado
+    const handleFeedInitComplete = (event: CustomEvent) => {
+      // ✅ Si feedInit ya cargó y hay conversaciones, no hacer fetch
+      if (conversations.length > 0 && !hasLoadedRef.current) {
+        console.log('[useChat] feedInit completó y ya hay conversaciones, omitiendo fetch')
+        hasLoadedRef.current = true
+        lastUserIdRef.current = user.id
+        // Solo hacer fetch de unreadCount si no está disponible
+        if (unreadCount === 0) {
+          fetchUnreadCount()
+        }
       }
     }
     
-    loadData()
+    // ✅ Agregar listener para evento feedInit_complete
+    if (typeof window !== 'undefined') {
+      window.addEventListener('feedInit_complete', handleFeedInitComplete as EventListener)
+    }
     
-    // ❌ ELIMINADO: Ya no necesitamos el callback global
-    // El useEffect anterior maneja las actualizaciones de forma reactiva
+    // ✅ Verificar periódicamente si feedInit ya cargó antes de hacer fetch
+    // Esto evita llamadas duplicadas cuando feedInit está cargando
+    let checkAttempts = 0
+    const maxAttempts = 40 // ✅ Máximo 40 intentos (8 segundos si feedInit tarda mucho)
+    let checkInterval: NodeJS.Timeout | null = null
+    
+    checkInterval = setInterval(() => {
+      checkAttempts++
+      
+      // ✅ Verificar si feedInit ya completó
+      if (checkFeedInitComplete()) {
+        // ✅ Si ya hay conversaciones cargadas (desde feedInit), no hacer fetch
+        if (conversations.length > 0 && !hasLoadedRef.current) {
+          console.log('[useChat] feedInit completó y ya hay conversaciones, omitiendo fetch')
+          if (checkInterval) {
+            clearInterval(checkInterval)
+          }
+          hasLoadedRef.current = true
+          lastUserIdRef.current = user.id
+          // Solo hacer fetch de unreadCount si no está disponible
+          if (unreadCount === 0) {
+            fetchUnreadCount()
+          }
+          return
+        }
+        
+        // ✅ Si feedInit completó pero no hay conversaciones después de varios intentos, hacer fetch
+        if (checkAttempts >= 15 && !hasLoadedRef.current && conversations.length === 0) {
+          if (checkInterval) {
+            clearInterval(checkInterval)
+          }
+          hasLoadedRef.current = true
+          lastUserIdRef.current = user.id
+          Promise.all([
+            fetchConversations(),
+            fetchUnreadCount()
+          ])
+          return
+        }
+      }
+      
+      // ✅ Si ya hay conversaciones cargadas (desde feedInit), no hacer fetch
+      if (conversations.length > 0 && !hasLoadedRef.current) {
+        console.log('[useChat] Ya hay conversaciones cargadas desde feedInit, omitiendo fetch')
+        if (checkInterval) {
+          clearInterval(checkInterval)
+        }
+        hasLoadedRef.current = true
+        lastUserIdRef.current = user.id
+        // Solo hacer fetch de unreadCount si no está disponible
+        if (unreadCount === 0) {
+          fetchUnreadCount()
+        }
+        return
+      }
+
+      // ✅ Si después de varios intentos todavía no hay datos, hacer fetch como fallback
+      if (checkAttempts >= maxAttempts || (!hasLoadedRef.current && conversations.length === 0 && checkAttempts >= 15)) {
+        if (checkInterval) {
+          clearInterval(checkInterval)
+        }
+        
+        // ✅ Solo hacer fetch si todavía no hay datos después de esperar
+        if (!hasLoadedRef.current && conversations.length === 0) {
+          let mounted = true
+          
+          const loadData = async () => {
+            if (mounted && user?.id && !hasLoadedRef.current) {
+              hasLoadedRef.current = true
+              lastUserIdRef.current = user.id
+              // ✅ Ejecutar en paralelo para mejor performance
+              await Promise.all([
+                fetchConversations(),
+                fetchUnreadCount()
+              ])
+            }
+          }
+          
+          loadData()
+          
+          return () => {
+            mounted = false
+          }
+        }
+      }
+    }, 200) // ✅ Verificar cada 200ms
     
     return () => {
-      mounted = false
+      if (checkInterval) {
+        clearInterval(checkInterval)
+      }
+      // ✅ Remover listener de evento
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('feedInit_complete', handleFeedInitComplete as EventListener)
+      }
+    }
+    
+    return () => {
+      if (checkInterval) {
+        clearInterval(checkInterval)
+      }
+      // Resetear guard si el usuario cambia
+      if (lastUserIdRef.current !== user?.id) {
+        hasLoadedRef.current = false
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]) // ✅ Agregar user?.id como dependencia
+  }, [user?.id, conversations.length, unreadCount]) // ✅ Agregar dependencias para detectar cuando feedInit carga
 
   return {
     conversations,

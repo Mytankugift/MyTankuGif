@@ -230,10 +230,17 @@ export default function FriendsPage() {
   return (
     <>
       <FriendsNav onSearch={handleSearch} initialSearchQuery={searchQuery} />
-      <div className="min-h-screen p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 md:pt-28 custom-scrollbar overflow-y-auto" style={{ backgroundColor: '#1E1E1E', height: 'calc(100vh - 0px)' }}>
+      <div 
+        className="min-h-screen p-4 sm:p-6 md:p-8 custom-scrollbar overflow-y-auto" 
+        style={{ 
+          backgroundColor: '#1E1E1E', 
+          height: 'calc(100vh - 0px)',
+          paddingTop: '150px' // Mismo padding que el feed cuando el nav está visible
+        }}
+      >
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="mb-6 mt-2">
+          <div className="mb-6">
             <h1 className="text-3xl font-bold text-[#66DEDB] mb-2">Amigos</h1>
             <p className="text-gray-400">Gestiona tus conexiones y descubre nuevas personas</p>
           </div>

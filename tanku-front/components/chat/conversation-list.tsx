@@ -101,15 +101,23 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
               <div className="relative flex-shrink-0">
                 <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-[#66DEDB] bg-gray-700 flex items-center justify-center">
                   {avatar ? (
-                    <Image
-                      src={avatar}
-                      alt={displayName}
-                      width={48}
-                      height={48}
-                      className="object-cover w-full h-full"
-                      referrerPolicy="no-referrer"
-                      unoptimized={avatar.startsWith('http')}
-                    />
+                      <Image
+                        src={avatar}
+                        alt={displayName}
+                        width={48}
+                        height={48}
+                        className="object-cover w-full h-full"
+                        referrerPolicy="no-referrer"
+                        unoptimized={avatar.startsWith('http')}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                        }}
+                        onLoad={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'block'
+                        }}
+                      />
                   ) : (
                     <span className="text-lg text-gray-400 font-bold">
                       {(otherParticipant.user?.firstName?.[0] || 

@@ -37,6 +37,75 @@ const hideMentionIds = (text: string, mentionMap?: Map<string, string>): string 
   })
 }
 
+// Componente para cada item de sugerencia con manejo de avatar mejorado
+function UserSuggestionItem({ 
+  user, 
+  displayName, 
+  username, 
+  isSelected, 
+  onSelect 
+}: { 
+  user: User
+  displayName: string
+  username: string | null
+  isSelected: boolean
+  onSelect: () => void
+}) {
+  const [avatarError, setAvatarError] = useState(false)
+  const [showFallback, setShowFallback] = useState(!user.avatar)
+
+  useEffect(() => {
+    setShowFallback(!user.avatar || avatarError)
+  }, [user.avatar, avatarError])
+
+  const handleImageError = () => {
+    setAvatarError(true)
+    setShowFallback(true)
+  }
+
+  const initial = (user.firstName?.[0] || user.email[0] || 'U').toUpperCase()
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-700 transition-colors ${
+        isSelected ? 'bg-gray-700' : ''
+      }`}
+    >
+      {/* Avatar container con tamaño fijo */}
+      <div className="w-8 h-8 flex-shrink-0 relative">
+        {user.avatar && !avatarError ? (
+          <Image
+            src={user.avatar}
+            alt={displayName}
+            fill
+            className="rounded-full object-cover"
+            unoptimized={user.avatar.startsWith('http')}
+            onError={handleImageError}
+          />
+        ) : null}
+        {/* Fallback - solo visible si no hay avatar o si la imagen falló */}
+        {showFallback && (
+          <div className="absolute inset-0 rounded-full bg-gray-700 flex items-center justify-center">
+            <span className="text-gray-400 text-xs font-bold">
+              {initial}
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="flex-1 text-left min-w-0">
+        <p className="text-white text-sm font-medium truncate">{displayName}</p>
+        {username ? (
+          <p className="text-gray-400 text-xs truncate">@{username}</p>
+        ) : (
+          <p className="text-gray-500 text-xs">Sin username</p>
+        )}
+      </div>
+    </button>
+  )
+}
+
 export function UserMentionAutocomplete({
   value,
   onChange,
@@ -55,6 +124,7 @@ export function UserMentionAutocomplete({
   const mentionMapRef = useRef<Map<string, string>>(new Map()) // Mapa userId -> @NombreCompleto
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   // Sincronizar displayValue cuando cambia el value externo
   // IMPORTANTE: Siempre ocultar IDs en displayValue, incluso si value viene con IDs
@@ -121,8 +191,25 @@ export function UserMentionAutocomplete({
       if (lastAtIndex !== -1) {
         const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1)
         
+        // Detener búsquedas anteriores
+        if (searchTimeoutRef.current) {
+          clearTimeout(searchTimeoutRef.current)
+          searchTimeoutRef.current = null
+        }
+        
         // Si hay espacio o salto de línea después del @, no es una mención válida
         if (textAfterAt.match(/^[\s\n]/)) {
+          setShowSuggestions(false)
+          setMentionQuery('')
+          setMentionStart(-1)
+          return
+        }
+
+        // Verificar que no hay espacios en el medio (solo username sin espacios)
+        // Si hay espacio, la mención ya terminó, no buscar más
+        const spaceIndex = textAfterAt.indexOf(' ')
+        if (spaceIndex > 0) {
+          // Hay un espacio, la mención ya terminó, no buscar más
           setShowSuggestions(false)
           setMentionQuery('')
           setMentionStart(-1)
@@ -132,13 +219,15 @@ export function UserMentionAutocomplete({
         setMentionStart(lastAtIndex)
         setMentionQuery(textAfterAt)
 
-        // Si hay texto después del @, buscar usuarios
-        if (textAfterAt.length >= 1) {
-          searchUsers(textAfterAt)
-        } else {
-          // Mostrar sugerencias recientes o populares cuando solo se escribe @
-          searchUsers('')
-        }
+        // Debounce: esperar 300ms antes de buscar para evitar demasiadas peticiones
+        searchTimeoutRef.current = setTimeout(() => {
+          if (textAfterAt.length >= 1) {
+            searchUsers(textAfterAt)
+          } else {
+            // Mostrar sugerencias recientes o populares cuando solo se escribe @
+            searchUsers('')
+          }
+        }, 300)
         
         // Actualizar posición del popup (arriba del input)
         if (inputRef.current) {
@@ -150,6 +239,11 @@ export function UserMentionAutocomplete({
           })
         }
       } else {
+        // Limpiar timeout si no hay @ activo
+        if (searchTimeoutRef.current) {
+          clearTimeout(searchTimeoutRef.current)
+          searchTimeoutRef.current = null
+        }
         setShowSuggestions(false)
         setMentionQuery('')
         setMentionStart(-1)
@@ -157,6 +251,14 @@ export function UserMentionAutocomplete({
     }
 
     handleInput(displayValue)
+    
+    // Cleanup del timeout al desmontar o cambiar displayValue
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+        searchTimeoutRef.current = null
+      }
+    }
   }, [displayValue])
 
   const searchUsers = async (query: string) => {
@@ -187,32 +289,37 @@ export function UserMentionAutocomplete({
   const insertMention = (user: User) => {
     if (mentionStart === -1 || !inputRef.current) return
 
-    // Obtener la posición actual del cursor para calcular correctamente textAfter
+    // Obtener la posición actual del cursor
     const cursorPos = inputRef.current.selectionStart || displayValue.length
     
-    // Usar internalValue para obtener el texto real antes del cursor
-    const textBefore = internalValue.substring(0, mentionStart)
-    // Calcular textAfter desde la posición del cursor en displayValue
-    // Necesitamos mapear la posición del cursor de displayValue a internalValue
+    // Calcular todo desde displayValue para mantener consistencia
     const displayTextBefore = displayValue.substring(0, mentionStart)
     const displayTextAfter = displayValue.substring(cursorPos)
     
-    // Obtener el nombre a mostrar (prioridad: firstName+lastName > username)
-    const displayName = user.firstName && user.lastName 
-      ? `${user.firstName} ${user.lastName}`
-      : (user.username || user.email.split('@')[0])
+    // Obtener el nombre a mostrar (prioridad: username > firstName+lastName)
+    const displayName = user.username || 
+      (user.firstName && user.lastName 
+        ? `${user.firstName} ${user.lastName}`
+        : user.email.split('@')[0])
     
     // Guardar en el mapa para poder mostrar el nombre después
     mentionMapRef.current.set(user.id, `@${displayName}`)
     
-    // Formato interno: @{userId} (esto es lo que se envía al backend)
-    const mentionMarker = `@{${user.id}}`
-    
-    // Valor interno: con el marcador @{userId}
-    const newInternalValue = `${textBefore}${mentionMarker} ${displayTextAfter}`
-    
-    // Valor mostrado: con el nombre visible
+    // Construir el nuevo displayValue con la mención insertada
     const newDisplayValue = `${displayTextBefore}@${displayName} ${displayTextAfter}`
+    
+    // Reconstruir internalValue desde newDisplayValue usando el mapa de menciones
+    // Esto asegura que todas las menciones (incluyendo la nueva) se conviertan correctamente
+    let newInternalValue = newDisplayValue
+    
+    // Reemplazar todas las menciones conocidas (incluyendo la nueva) con sus marcadores
+    mentionMapRef.current.forEach((displayName, userId) => {
+      const nameWithoutAt = displayName.substring(1)
+      const escapedName = nameWithoutAt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      // Buscar @nombre que no esté seguido de { (para evitar reemplazar marcadores ya existentes)
+      const nameRegex = new RegExp(`@${escapedName}(?!\\{)`, 'g')
+      newInternalValue = newInternalValue.replace(nameRegex, `@{${userId}}`)
+    })
     
     // Actualizar ambos valores
     setDisplayValue(newDisplayValue)
@@ -248,8 +355,87 @@ export function UserMentionAutocomplete({
     // Actualizar displayValue inmediatamente (lo que ve el usuario)
     setDisplayValue(newDisplayValue)
     
+    // Buscar menciones por username (sin espacios) primero - Prioridad alta
+    const usernameMentionRegex = /@([a-zA-Z0-9_-]+)(?=\s|$|@|,|\.|!|\?)/g
+    const usernameMatches = Array.from(newDisplayValue.matchAll(usernameMentionRegex))
+    
+    // Buscar menciones por nombre completo (con espacios) solo si no hay username match
+    const nameMentionRegex = /@([a-zA-ZáéíóúÁÉÍÓÚñÑ][a-zA-ZáéíóúÁÉÍÓÚñÑ\s]{0,20}[a-zA-ZáéíóúÁÉÍÓÚñÑ])(?=\s|$|@|,|\.|!|\?)/g
+    const nameMatches = usernameMatches.length === 0 
+      ? Array.from(newDisplayValue.matchAll(nameMentionRegex))
+      : []
+    
+    // Combinar matches, priorizando usernames
+    const matches = [...usernameMatches, ...nameMatches]
+    
+    // Para cada mención por nombre encontrada, buscar el usuario si no está en el mapa
+    matches.forEach(async (match) => {
+      const name = match[1].trim()
+      // Verificar si ya está en el mapa
+      const existingEntry = Array.from(mentionMapRef.current.entries())
+        .find(([userId, displayName]) => {
+          const nameWithoutAt = displayName.substring(1)
+          return nameWithoutAt.toLowerCase() === name.toLowerCase() ||
+                 nameWithoutAt.toLowerCase().includes(name.toLowerCase()) ||
+                 name.toLowerCase().includes(nameWithoutAt.toLowerCase())
+        })
+      
+      if (!existingEntry && name.length > 0) {
+        // Buscar usuario por nombre (solo una vez, no hacer múltiples requests)
+        // Usar un debounce simple: solo buscar si el nombre tiene al menos 2 caracteres
+        if (name.length >= 2) {
+          try {
+            const response = await apiClient.get<User[]>(
+              `${API_ENDPOINTS.USERS.SEARCH}?q=${encodeURIComponent(name)}&limit=5`
+            )
+            
+            if (response.success && response.data && response.data.length > 0) {
+              // Buscar el usuario que mejor coincida
+              // Priorizar búsqueda por username (sin espacios, más fácil de trabajar)
+              const nameLower = name.toLowerCase().trim()
+              const bestMatch = response.data.find(user => {
+                // Primero buscar por username exacto o parcial
+                if (user.username) {
+                  const usernameLower = user.username.toLowerCase()
+                  if (usernameLower === nameLower || usernameLower.includes(nameLower)) {
+                    return true
+                  }
+                }
+                // Fallback: buscar por nombre completo
+                if (user.firstName && user.lastName) {
+                  const userFullName = `${user.firstName} ${user.lastName}`.toLowerCase()
+                  return userFullName.includes(nameLower)
+                }
+                return false
+              }) || response.data[0]
+              
+              if (bestMatch) {
+                // Usar username primero (sin espacios, más fácil de trabajar)
+                const displayName = bestMatch.username || 
+                  (bestMatch.firstName && bestMatch.lastName 
+                    ? `${bestMatch.firstName} ${bestMatch.lastName}`
+                    : bestMatch.email.split('@')[0])
+                
+                // Agregar al mapa
+                mentionMapRef.current.set(bestMatch.id, `@${displayName}`)
+                
+                // Actualizar el internalValue con el nuevo mapeo
+                const updatedInternalValue = newDisplayValue.replace(
+                  new RegExp(`@${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$|@|,|\\.|!|\\?)`, 'g'),
+                  `@{${bestMatch.id}}`
+                )
+                setInternalValue(updatedInternalValue)
+                onChange(updatedInternalValue)
+              }
+            }
+          } catch (err) {
+            // Silenciar errores de búsqueda
+          }
+        }
+      }
+    })
+    
     // Convertir displayValue (con nombres) a internalValue (con @{userId})
-    // Estrategia simple: reemplazar cada nombre conocido con su marcador
     let newInternalValue = newDisplayValue
     
     // Reemplazar cada nombre de mención conocida con su marcador
@@ -342,7 +528,7 @@ export function UserMentionAutocomplete({
       {showSuggestions && suggestions.length > 0 && typeof window !== 'undefined' && createPortal(
         <div
           ref={suggestionsRef}
-          className="fixed z-[9999] bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+          className="fixed z-[9999] bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto custom-scrollbar"
           style={{
             top: `${suggestionsPosition.top}px`,
             left: `${suggestionsPosition.left}px`,
@@ -355,51 +541,14 @@ export function UserMentionAutocomplete({
             const displayName = getUserDisplayName(user)
             const username = getUserUsername(user)
             return (
-              <button
+              <UserSuggestionItem
                 key={user.id}
-                type="button"
-                onClick={() => insertMention(user)}
-                className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-700 transition-colors ${
-                  index === selectedIndex ? 'bg-gray-700' : ''
-                }`}
-              >
-                {user.avatar ? (
-                  <Image
-                    src={user.avatar}
-                    alt={displayName}
-                    width={32}
-                    height={32}
-                    className="rounded-full object-cover flex-shrink-0"
-                    unoptimized={user.avatar.startsWith('http')}
-                    onError={(e) => {
-                      // Fallback si la imagen falla
-                      const target = e.target as HTMLImageElement
-                      target.style.display = 'none'
-                      const parent = target.parentElement
-                      if (parent) {
-                        const fallback = document.createElement('div')
-                        fallback.className = 'w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0'
-                        fallback.innerHTML = `<span class="text-gray-400 text-xs font-bold">${(user.firstName?.[0] || user.email[0] || 'U').toUpperCase()}</span>`
-                        parent.appendChild(fallback)
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
-                    <span className="text-gray-400 text-xs font-bold">
-                      {(user.firstName?.[0] || user.email[0] || 'U').toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div className="flex-1 text-left">
-                  <p className="text-white text-sm font-medium">{displayName}</p>
-                  {username ? (
-                    <p className="text-gray-400 text-xs">@{username}</p>
-                  ) : (
-                    <p className="text-gray-500 text-xs">Sin username</p>
-                  )}
-                </div>
-              </button>
+                user={user}
+                displayName={displayName}
+                username={username}
+                isSelected={index === selectedIndex}
+                onSelect={() => insertMention(user)}
+              />
             )
           })}
         </div>,

@@ -60,9 +60,9 @@ export function VariantSelector({
           borderRadius: '25px'
         }}
       >
-        <div className="flex flex-col">
-          <span className="text-xs text-gray-400 mb-1">Variante seleccionada:</span>
-          <span className="text-sm font-semibold text-[#66DEDB]">{selectedVariantTitle}</span>
+        <div className="flex flex-row items-center gap-2">
+          <span className="text-[10px] sm:text-xs text-gray-400">Variante seleccionada:</span>
+          <span className="text-[10px] sm:text-xs font-semibold text-[#66DEDB]">{selectedVariantTitle}</span>
         </div>
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -116,9 +116,6 @@ export function VariantSelector({
                     <span className="text-xs text-gray-400 ml-2">{formatPrice(variantPrice)}</span>
                   )}
                 </div>
-                {isSelected && (
-                  <div className="mt-1 text-xs text-[#66DEDB] opacity-75">✓ Seleccionada</div>
-                )}
               </button>
             )
           })}

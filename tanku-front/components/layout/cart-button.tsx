@@ -19,9 +19,32 @@ export function CartButton() {
   const hasInitializedRef = useRef(false)
   const pathname = usePathname()
 
-  // Cargar carrito al montar
+  // Cargar carrito al montar solo si no está cargado o está stale
+  // ✅ Esperar un poco para que feedInit tenga oportunidad de cargar primero
   useEffect(() => {
-    fetchCart()
+    const checkDelay = setTimeout(() => {
+      // ✅ Verificar si feedInit ya terminó
+      const feedInitComplete = typeof window !== 'undefined' 
+        ? sessionStorage.getItem('feedInit_complete') === 'true'
+        : false
+      
+      const currentCart = useCartStore.getState().cart
+      
+      // ✅ Si feedInit ya terminó y hay carrito, no hacer fetch
+      if (feedInitComplete && currentCart) {
+        console.log('[CartButton] feedInit ya cargó el carrito, omitiendo fetch')
+        return
+      }
+      
+      // Solo hacer fetch si no hay carrito o si está stale (más de 1 minuto)
+      if (!currentCart || (currentCart.updatedAt && Date.now() - new Date(currentCart.updatedAt).getTime() > 60000)) {
+        fetchCart()
+      }
+    }, 2500) // ✅ Esperar 2.5 segundos para que feedInit cargue
+    
+    return () => {
+      clearTimeout(checkDelay)
+    }
   }, [fetchCart])
 
   // Inicializar prevItemCountRef con el valor real después de cargar el carrito (solo una vez)
@@ -177,12 +200,13 @@ export function CartButton() {
           className="relative p-2 hover:opacity-80 transition-opacity flex items-center justify-center"
         >
         <Image
-          src="/feed/Icons/Shopping_Cart_Green.png"
+          src="/icons_tanku/tanku_nav_carrito_verde.svg"
           alt="Carrito"
-          width={24}
-          height={24}
+          width={30}
+          height={30}
           className="object-contain"
-          style={{ width: 'auto', height: 'auto' }}
+          style={{ width: '30px', height: '30px' }}
+          unoptimized
         />
         {itemCount > 0 && (
           <span

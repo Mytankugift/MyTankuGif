@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -119,12 +120,10 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
     }
   }
 
-  if (!isOpen) return null
-
   const isImage = selectedFile?.type.startsWith('image/')
   const isVideo = selectedFile?.type.startsWith('video/')
 
-  return (
+  const modalContent = (
     <div
       className="fixed inset-0 bg-black/70 flex items-center justify-center p-4"
       style={{ zIndex: 9999 }}
@@ -311,5 +310,14 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
       </div>
     </div>
   )
+
+  // Usar portal para renderizar fuera del sidebar
+  if (!isOpen) return null
+
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  return createPortal(modalContent, document.body)
 }
 

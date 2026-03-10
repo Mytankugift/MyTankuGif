@@ -140,11 +140,11 @@ export function OnboardingStepUsername({ onNext, initialUsername, onUsernameChan
           </div>
 
           {/* Personaje */}
-          <div className="flex justify-center pt-6">
+          <div className="flex justify-center pt-2 md:pt-6">
             <img
               src="/icons_tanku/onboarding_personaje_tanku.png"
               alt="Personaje Tanku"
-              className="w-56 h-56 object-contain"
+              className="w-40 h-40 md:w-56 md:h-56 object-contain"
             />
           </div>
         </div>
