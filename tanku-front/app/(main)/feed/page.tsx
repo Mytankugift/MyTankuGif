@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { FeedNav } from '@/components/feed/feed-nav'
 import { FeedGrid } from '@/components/feed/feed-grid'
 import { FeedInfiniteScroll } from '@/components/feed/feed-infinite-scroll'
@@ -14,8 +15,35 @@ import { useInfiniteScroll } from '@/lib/hooks/use-infinite-scroll'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import './feed-grid.css'
 
+// URL del video de bienvenida en S3
+const WELCOME_VIDEO_URL = 'https://tanku-bucket-us-east-2.s3.us-east-2.amazonaws.com/dev/videos/3e7683ee-fce6-4e2f-82b9-194db1e659d9.mp4'
+
 export default function FeedPage() {
+  const router = useRouter()
   const { isAuthenticated } = useAuthStore()
+
+  // Proteger ruta: redirigir no autenticados a landing
+  useEffect(() => {
+    if (!isAuthenticated) {
+      console.log('[FEED] Usuario no autenticado, redirigiendo a landing...')
+      router.replace('/')
+    }
+  }, [isAuthenticated, router])
+
+  // Si no está autenticado, no renderizar nada (se está redirigiendo)
+  if (!isAuthenticated) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: '#1E1E1E' }}
+      >
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
+          <p className="text-white">Redirigiendo...</p>
+        </div>
+      </div>
+    )
+  }
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
@@ -23,7 +51,34 @@ export default function FeedPage() {
   const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
+  const [headerPadding, setHeaderPadding] = useState('220px')
   const hasInitialized = useRef(false)
+
+  // Calcular paddingTop dinámicamente según el dispositivo
+  useEffect(() => {
+    const calculatePadding = () => {
+      if (typeof window === 'undefined') return
+      
+      const width = window.innerWidth
+      
+      // Móvil (< 640px)
+      if (width < 640) {
+        setHeaderPadding('230px')
+      }
+      // Tablet (640px - 1024px)
+      else if (width >= 640 && width < 1024) {
+        setHeaderPadding('170px')
+      }
+      // Desktop (>= 1024px)
+      else {
+        setHeaderPadding('180px')
+      }
+    }
+
+    calculatePadding()
+    window.addEventListener('resize', calculatePadding)
+    return () => window.removeEventListener('resize', calculatePadding)
+  }, [])
 
   // ✅ Usar endpoint batch SOLO en la carga inicial (sin filtros)
   const feedInit = useFeedInit()
@@ -181,7 +236,7 @@ export default function FeedPage() {
       <div
         className="flex-1 overflow-y-auto px-2 sm:px-3 md:px-4 py-2 sm:py-4 md:py-5 custom-scrollbar transition-all duration-300 ease-in-out"
         style={{
-          paddingTop: isHeaderVisible ? '220px' : '20px',
+          paddingTop: isHeaderVisible ? headerPadding : '20px',
           marginRight: '0',
           scrollBehavior: 'smooth',
         }}
@@ -235,6 +290,7 @@ export default function FeedPage() {
       <VideoModal
         isOpen={isVideoModalOpen}
         onClose={() => setIsVideoModalOpen(false)}
+        videoUrl={WELCOME_VIDEO_URL}
       />
     </div>
   )

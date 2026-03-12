@@ -43,9 +43,9 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header con nombre del producto y botón cerrar */}
-        <div className="flex-shrink-0 flex items-center justify-between p-4">
+        <div className="flex-shrink-0 flex items-center justify-between pt-2 pb-1 px-4">
           <h2 
-            className="text-2xl font-semibold pl-4 pt-2"
+            className="text-lg sm:text-xl font-semibold pl-2 pt-4"
             style={{ color: '#66DEDB' }}
           >
             {product.title}
@@ -55,19 +55,23 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
               e.stopPropagation()
               onClose()
             }}
-            className="p-2 hover:opacity-80 transition-opacity"
+            className="p-1.5 hover:opacity-80 transition-opacity"
             aria-label="Cerrar"
             style={{ color: '#66DEDB' }}
           >
-            <XMarkIcon className="w-6 h-6" />
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
         {/* Contenido usando componente compartido */}
         <div 
-          className="flex-1 overflow-y-auto min-h-0"
+          className="flex-1 overflow-y-auto min-h-0 custom-scrollbar"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            paddingBottom: '40px', // Espacio extra en móvil para ver todo el contenido
+            WebkitOverflowScrolling: 'touch', // Mejor scroll en iOS
+          }}
         >
           <ProductDetailContent
             product={product}

@@ -109,11 +109,11 @@ export function VariantSelector({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className={`text-sm font-medium ${isSelected ? 'text-[#66DEDB]' : 'text-gray-300'}`}>
+                  <span className={`text-[10px] sm:text-xs font-semibold ${isSelected ? 'text-[#66DEDB]' : 'text-gray-300'}`}>
                     {variant.title || `Variante ${index + 1}`}
                   </span>
                   {variantPrice > 0 && (
-                    <span className="text-xs text-gray-400 ml-2">{formatPrice(variantPrice)}</span>
+                    <span className="text-[10px] sm:text-xs text-gray-400 ml-2">{formatPrice(variantPrice)}</span>
                   )}
                 </div>
               </button>

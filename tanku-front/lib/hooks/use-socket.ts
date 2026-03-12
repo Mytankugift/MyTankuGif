@@ -76,7 +76,7 @@ export function useSocket() {
   // Inicializar socket
   useEffect(() => {
     if (!token || !user) {
-      console.warn('⚠️ [SOCKET] No hay token o user, desconectando...')
+      // Silencioso: no hacer logs innecesarios en landing
       if (socket) {
         disconnectSocket()
         setSocket(null)

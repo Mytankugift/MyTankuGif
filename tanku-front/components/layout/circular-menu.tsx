@@ -2,10 +2,14 @@
 
 import React, { useState } from 'react'
 import { CreatePostModal } from '@/components/posters/create-post-modal'
+import { CategoryLoginModal } from '@/components/feed/category-login-modal'
+import { useAuthStore } from '@/lib/stores/auth-store'
 
 const CircularMenu = () => {
+  const { isAuthenticated } = useAuthStore()
   const [hoveredText, setHoveredText] = useState<string | null>(null)
   const [createPostModalOpen, setCreatePostModalOpen] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
 
   return (
     <div className="relative flex-shrink-0" style={{ width: '256px', height: '256px' }}>
@@ -53,7 +57,13 @@ const CircularMenu = () => {
       {/* Invisible clickable button overlay - Solo NUEVO POST arriba */}
       <button
         className="absolute top-4 left-1/2 transform -translate-x-1/2 w-24 h-12 cursor-pointer z-50"
-        onClick={() => setCreatePostModalOpen(true)}
+        onClick={() => {
+          if (isAuthenticated) {
+            setCreatePostModalOpen(true)
+          } else {
+            setShowLoginModal(true)
+          }
+        }}
         onMouseEnter={() => setHoveredText('new-post')}
         onMouseLeave={() => setHoveredText(null)}
         aria-label="New Post"
@@ -86,13 +96,24 @@ const CircularMenu = () => {
       </div>
 
       {/* Modal de creación de post */}
-      <CreatePostModal
-        isOpen={createPostModalOpen}
-        onClose={() => setCreatePostModalOpen(false)}
-        onPostCreated={() => {
-          setCreatePostModalOpen(false)
-          // El feed se actualizará automáticamente en la próxima carga
-          // No necesitamos recargar toda la página
+      {isAuthenticated && (
+        <CreatePostModal
+          isOpen={createPostModalOpen}
+          onClose={() => setCreatePostModalOpen(false)}
+          onPostCreated={() => {
+            setCreatePostModalOpen(false)
+            // El feed se actualizará automáticamente en la próxima carga
+            // No necesitamos recargar toda la página
+          }}
+        />
+      )}
+
+      {/* Modal de login para no autenticados */}
+      <CategoryLoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLogin={() => {
+          setShowLoginModal(false)
         }}
       />
     </div>

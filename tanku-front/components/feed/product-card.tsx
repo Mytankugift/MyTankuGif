@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect, memo } from 'react'
+import React, { useState, useRef, useEffect, memo, useCallback } from 'react'
 import Image from 'next/image'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useCartStore } from '@/lib/stores/cart-store'
@@ -10,6 +10,7 @@ import { WishlistSelectorModal } from '@/components/wishlists/wishlist-selector-
 import { useWishLists } from '@/lib/hooks/use-wishlists'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { logger } from '@/lib/utils/logger'
 import type { FeedItemDTO } from '@/types/api'
 
 interface ProductCardProps {
@@ -32,9 +33,10 @@ interface ProductCardProps {
   onOpenModal?: (product: any) => void
   isLightMode?: boolean
   isAboveFold?: boolean // ✅ Nuevo prop para indicar si está visible sin scroll
+  isLanding?: boolean // ✅ Prop para indicar si es landing (oculta carrito y wishlist)
 }
 
-export const ProductCard = memo(function ProductCard({ product, onOpenModal, isLightMode = false, isAboveFold = false }: ProductCardProps) {
+export const ProductCard = memo(function ProductCard({ product, onOpenModal, isLightMode = false, isAboveFold = false, isLanding = false }: ProductCardProps) {
   const { isAuthenticated } = useAuthStore()
   const { addItem } = useCartStore()
   const { wishLists } = useWishLists()
@@ -188,7 +190,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
         }
       }
     } catch (error: any) {
-      console.error('Error toggling like:', error)
+      logger.error('Error toggling like:', error)
       // Si el error es CONFLICT, actualizar el estado a "liked"
       if (error?.error?.code === 'CONFLICT' || error?.message?.includes('Ya le diste like')) {
         setIsLiked(true)
@@ -202,21 +204,21 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     }
   }
 
-  const handleCardClick = () => {
+  const handleCardClick = useCallback(() => {
     // Siempre abrir modal al hacer click en la card
     setIsModalOpen(true)
     // Si hay un callback, llamarlo también
     if (onOpenModal) {
       onOpenModal(product)
     }
-  }
+  }, [onOpenModal, product])
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation()
     
     // Si no hay handle, no podemos obtener el producto completo
     if (!product.handle) {
-      console.warn('Producto no tiene handle, no se puede agregar al carrito')
+      logger.warn('Producto no tiene handle, no se puede agregar al carrito')
       return
     }
 
@@ -243,7 +245,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
         throw new Error('El producto no tiene variantes disponibles')
       }
     } catch (error) {
-      console.error('Error agregando al carrito:', error)
+      logger.error('Error agregando al carrito:', error)
       // Si falla, abrir el modal como fallback
       setIsModalOpen(true)
     } finally {
@@ -262,7 +264,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
 
     // Si no hay handle, no podemos obtener el producto completo
     if (!product.handle) {
-      console.warn('Producto no tiene handle, no se puede agregar a wishlist')
+      logger.warn('Producto no tiene handle, no se puede agregar a wishlist')
       return
     }
 
@@ -296,7 +298,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
         throw new Error('El producto no tiene variantes disponibles')
       }
     } catch (error) {
-      console.error('Error verificando producto para wishlist:', error)
+      logger.error('Error verificando producto para wishlist:', error)
       // Si falla, abrir el modal de producto como fallback
       setIsModalOpen(true)
     }
@@ -313,6 +315,8 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
         category: product.category,
         createdAt: new Date().toISOString(),
         handle: product.handle,
+        likesCount: likesCount, // Pasar el conteo actual de likes
+        isLiked: isLiked, // Pasar el estado de like actual
       } as FeedItemDTO)
     : null
 
@@ -356,10 +360,12 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 25vw"
               quality={85}
               onError={() => {
-                console.warn('[ProductCard] Error cargando imagen:', product.imageUrl)
+                if (process.env.NODE_ENV === 'development') {
+                  console.warn('[ProductCard] Error cargando imagen:', product.imageUrl)
+                }
                 setImageError(true)
               }}
-              unoptimized={product.imageUrl?.includes('cloudfront.net') || product.imageUrl?.includes('.gif')}
+              unoptimized={product.imageUrl?.includes('.gif')}
               priority={isAboveFold}
             />
           ) : (
@@ -383,7 +389,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
           className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 z-10 flex items-center justify-center gap-1 sm:gap-1.5 md:gap-2 rounded-full p-1 sm:p-1.5 md:p-2"
           style={{ backgroundColor: '#2C3137' }}
         >
-          {/* Botón de me gusta */}
+          {/* Botón de me gusta - Siempre visible */}
           <button
             className="bg-transparent hover:opacity-80 transition-opacity p-0.5 sm:p-1"
             onClick={handleToggleLike}
@@ -404,42 +410,46 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
             )}
           </button>
 
-          {/* Botón de wishlist */}
-          <button
-            className="bg-transparent hover:opacity-80 transition-opacity p-0.5 sm:p-1"
-            onClick={handleAddToWishlist}
-            title="Agregar a wishlist"
-          >
-            <Image
-              src="/icons_tanku/tanku_agregar_a_whislist_azul.svg"
-              alt="Agregar a wishlist"
-              width={24}
-              height={24}
-              className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6"
-              style={{ width: 'clamp(12px, 2vw, 24px)', height: 'clamp(12px, 2vw, 24px)' }}
-            />
-          </button>
-
-          {/* Botón de carrito */}
-          <button
-            className="bg-transparent hover:opacity-80 transition-opacity p-0.5 sm:p-1"
-            onClick={handleAddToCart}
-            disabled={isAddingToCart}
-            title="Agregar al carrito"
-          >
-            {isAddingToCart ? (
-              <div className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            ) : (
+          {/* Botón de wishlist - Solo si NO es landing */}
+          {!isLanding && (
+            <button
+              className="bg-transparent hover:opacity-80 transition-opacity p-0.5 sm:p-1"
+              onClick={handleAddToWishlist}
+              title="Agregar a wishlist"
+            >
               <Image
-                src="/icons_tanku/tanku_agregar_a_cart_azul.svg"
-                alt="Agregar al carrito"
+                src="/icons_tanku/tanku_agregar_a_whislist_azul.svg"
+                alt="Agregar a wishlist"
                 width={24}
                 height={24}
                 className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6"
                 style={{ width: 'clamp(12px, 2vw, 24px)', height: 'clamp(12px, 2vw, 24px)' }}
               />
-            )}
-          </button>
+            </button>
+          )}
+
+          {/* Botón de carrito - Solo si NO es landing */}
+          {!isLanding && (
+            <button
+              className="bg-transparent hover:opacity-80 transition-opacity p-0.5 sm:p-1"
+              onClick={handleAddToCart}
+              disabled={isAddingToCart}
+              title="Agregar al carrito"
+            >
+              {isAddingToCart ? (
+                <div className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Image
+                  src="/icons_tanku/tanku_agregar_a_cart_azul.svg"
+                  alt="Agregar al carrito"
+                  width={24}
+                  height={24}
+                  className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6"
+                  style={{ width: 'clamp(12px, 2vw, 24px)', height: 'clamp(12px, 2vw, 24px)' }}
+                />
+              )}
+            </button>
+          )}
         </div>
       </div>
 

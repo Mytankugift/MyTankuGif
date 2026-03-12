@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  // ✅ Compresión habilitada
+  compress: true,
+  
   // Configuración de webpack para resolver módulos desde el directorio correcto
   webpack: (config, { isServer }) => {
     // Resolver módulos solo desde el directorio del proyecto
@@ -53,15 +56,25 @@ const nextConfig: NextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     unoptimized: false,
-    // Configuración de timeout y cache para imágenes
+    // ✅ Configuración optimizada de imágenes
+    formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     qualities: [75, 85],
   },
-  // Headers para cache de imágenes
+  // ✅ Headers optimizados para performance
   async headers() {
     return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on'
+          },
+        ],
+      },
       {
         source: '/_next/image',
         headers: [
@@ -72,6 +85,10 @@ const nextConfig: NextConfig = {
         ],
       },
     ]
+  },
+  // ✅ Optimizaciones experimentales
+  experimental: {
+    optimizeCss: true,
   },
 };
 

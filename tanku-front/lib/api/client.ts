@@ -3,6 +3,8 @@
  * Control total sobre peticiones HTTP
  */
 
+import { logger } from '@/lib/utils/logger'
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'
 
 export class ApiClient {
@@ -56,13 +58,11 @@ export class ApiClient {
     const token = this.getToken()
     
     // Logging en desarrollo
-    if (process.env.NODE_ENV === 'development') {
-      const cursorHeader = options.headers && 'X-Feed-Cursor' in options.headers 
-        ? ` (Cursor: ${(options.headers['X-Feed-Cursor'] as string).substring(0, 20)}...)` 
-        : ''
-      const authHeader = token ? ' (Auth: ✓)' : ' (Auth: ✗)'
-      console.log(`[API] ${options.method || 'GET'} ${url}${authHeader}${cursorHeader}`)
-    }
+    const cursorHeader = options.headers && 'X-Feed-Cursor' in options.headers 
+      ? ` (Cursor: ${(options.headers['X-Feed-Cursor'] as string).substring(0, 20)}...)` 
+      : ''
+    const authHeader = token ? ' (Auth: ✓)' : ' (Auth: ✗)'
+    logger.api(`${options.method || 'GET'} ${url}${authHeader}${cursorHeader}`)
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -85,13 +85,11 @@ export class ApiClient {
       const timeout = isDropiEndpoint ? 60000 : 30000 // 60 segundos para Dropi, 30 para otros
       const controller = new AbortController()
       const timeoutId = setTimeout(() => {
-        console.warn(`[API] Timeout después de ${timeout}ms para ${endpoint}`)
+        logger.warn(`[API] Timeout después de ${timeout}ms para ${endpoint}`)
         controller.abort()
       }, timeout)
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[API] Iniciando petición a ${endpoint} con timeout de ${timeout}ms`)
-      }
+      logger.api(`Iniciando petición a ${endpoint} con timeout de ${timeout}ms`)
 
       let response: Response
       try {

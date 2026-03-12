@@ -640,7 +640,7 @@ export function useChat() {
   useEffect(() => {
     // ✅ Verificar autenticación antes de hacer cualquier llamada
     if (!user?.id) {
-      console.log('[useChat] Usuario no autenticado, omitiendo carga de datos')
+      // Silencioso: no hacer logs innecesarios en landing
       hasLoadedRef.current = false
       lastUserIdRef.current = null
       return

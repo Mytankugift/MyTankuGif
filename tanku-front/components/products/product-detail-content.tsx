@@ -12,6 +12,7 @@ import { VariantSelector } from '@/components/products/variant-selector'
 import { HeartIcon } from '@heroicons/react/24/outline'
 import { ShareProductModal } from './share-product-modal'
 import { WishlistSelectorModal } from '@/components/wishlists/wishlist-selector-modal'
+import { CategoryLoginModal } from '@/components/feed/category-login-modal'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { ProductDTO, FeedItemDTO } from '@/types/api'
@@ -39,13 +40,16 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
   const [isTogglingLike, setIsTogglingLike] = useState(false)
   const [isInWishlist, setIsInWishlist] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
   const initializedProductIdRef = React.useRef<string | null>(null)
   const productHandleRef = React.useRef<string | null>(null)
+  const descriptionRef = React.useRef<HTMLDivElement>(null)
+  const variantSelectorRef = React.useRef<HTMLDivElement>(null)
 
-  // Cargar producto completo usando el hook
+  // Cargar producto completo usando el hook (siempre, para mostrar descripciones, variantes, etc.)
   const { product: fullProduct, isLoading: isLoadingProduct, error: productError } = useProduct(
     product?.handle || null,
-    { enabled: !!product?.handle }
+    { enabled: !!product?.handle } // Siempre cargar para mostrar toda la información
   )
 
   useEffect(() => {
@@ -82,34 +86,51 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
     }
   }, [fullProduct?.id]) // Solo cuando cambia el ID del producto, no cuando cambian las variantes
 
-  // Cargar datos de likes
+  // Cargar datos de likes (usar valores del feed si están disponibles)
   useEffect(() => {
     if (!fullProduct?.id) return
 
-    const loadLikesData = async () => {
-      try {
-        const likesResponse = await apiClient.get<{ likesCount: number }>(
-          API_ENDPOINTS.PRODUCTS.LIKES_COUNT(fullProduct.id)
-        )
-        if (likesResponse.success && likesResponse.data) {
-          setLikesCount(likesResponse.data.likesCount)
-        }
-
-        if (isAuthenticated) {
-          const likedResponse = await apiClient.get<{ isLiked: boolean }>(
-            API_ENDPOINTS.PRODUCTS.IS_LIKED(fullProduct.id)
-          )
-          if (likedResponse.success && likedResponse.data) {
-            setIsLiked(likedResponse.data.isLiked)
-          }
-        }
-      } catch (error) {
-        console.error('Error cargando likes:', error)
-      }
+    // Si el producto viene del feed, usar esos valores iniciales
+    if (product.likesCount !== undefined) {
+      setLikesCount(product.likesCount)
+    }
+    if (product.isLiked !== undefined) {
+      setIsLiked(product.isLiked)
     }
 
-    loadLikesData()
-  }, [fullProduct?.id, isAuthenticated])
+    // Solo hacer petición si no tenemos los datos del feed o si está autenticado y necesitamos verificar
+    const needsLikesData = product.likesCount === undefined || (isAuthenticated && product.isLiked === undefined)
+    
+    if (needsLikesData) {
+      const loadLikesData = async () => {
+        try {
+          // Solo cargar likesCount si no lo tenemos
+          if (product.likesCount === undefined) {
+            const likesResponse = await apiClient.get<{ likesCount: number }>(
+              API_ENDPOINTS.PRODUCTS.LIKES_COUNT(fullProduct.id)
+            )
+            if (likesResponse.success && likesResponse.data) {
+              setLikesCount(likesResponse.data.likesCount)
+            }
+          }
+
+          // Solo cargar isLiked si está autenticado y no lo tenemos
+          if (isAuthenticated && product.isLiked === undefined) {
+            const likedResponse = await apiClient.get<{ isLiked: boolean }>(
+              API_ENDPOINTS.PRODUCTS.IS_LIKED(fullProduct.id)
+            )
+            if (likedResponse.success && likedResponse.data) {
+              setIsLiked(likedResponse.data.isLiked)
+            }
+          }
+        } catch (error) {
+          console.error('Error cargando likes:', error)
+        }
+      }
+
+      loadLikesData()
+    }
+  }, [fullProduct?.id, isAuthenticated, product.likesCount, product.isLiked])
 
   // Verificar si el producto está en alguna wishlist
   useEffect(() => {
@@ -283,7 +304,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
         </div>
       )}
 
-      <div className="p-6">
+      <div className="pt-2 pb-6 px-6">
         <div className="flex flex-col md:flex-row gap-6 mb-6">
           {/* Galería de imágenes */}
           <div className="md:w-1/2 flex gap-4">
@@ -406,8 +427,14 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
           {/* Me gusta con contador */}
           <div className="flex items-center gap-2">
             <button
-              onClick={handleToggleLike}
-              disabled={!isAuthenticated || isTogglingLike}
+              onClick={() => {
+                if (!isAuthenticated) {
+                  setShowLoginModal(true)
+                } else {
+                  handleToggleLike()
+                }
+              }}
+              disabled={isTogglingLike}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity disabled:opacity-50"
             >
               {isTogglingLike ? (
@@ -444,25 +471,38 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
 
           {/* Selector de variantes */}
           {variants.length > 1 && (
-            <VariantSelector
-              variants={variants}
-              selectedVariant={selectedVariant}
-              onVariantChange={(variant) => {
-                // Encontrar el índice de la variante seleccionada
-                const variantIndex = variants.findIndex((v) => v.id === variant.id)
-                if (variantIndex !== -1) {
-                  setSelectedVariantIndex(variantIndex)
-                  setQuantity(1)
-                  // Forzar re-render actualizando el estado
-                  setCurrentImageIndex(0)
-                }
-              }}
-              formatPrice={formatPrice}
-            />
+            <div ref={variantSelectorRef}>
+              <VariantSelector
+                variants={variants}
+                selectedVariant={selectedVariant}
+                onVariantChange={(variant) => {
+                  // Encontrar el índice de la variante seleccionada
+                  const variantIndex = variants.findIndex((v) => v.id === variant.id)
+                  if (variantIndex !== -1) {
+                    setSelectedVariantIndex(variantIndex)
+                    setQuantity(1)
+                    // Forzar re-render actualizando el estado
+                    setCurrentImageIndex(0)
+                    
+                    // Scroll automático en móvil para ver el botón "Ver más" si existe
+                    setTimeout(() => {
+                      if (variantSelectorRef.current && typeof window !== 'undefined' && window.innerWidth < 768) {
+                        variantSelectorRef.current.scrollIntoView({ 
+                          behavior: 'smooth', 
+                          block: 'nearest',
+                          inline: 'nearest'
+                        })
+                      }
+                    }, 100)
+                  }
+                }}
+                formatPrice={formatPrice}
+              />
+            </div>
           )}
 
-          {/* Cantidad */}
-          {stock > 0 && (
+          {/* Cantidad - Solo visible si está autenticado */}
+          {stock > 0 && isAuthenticated && (
             <div className="flex items-center gap-4">
               <label 
                 className="font-medium"
@@ -472,8 +512,14 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
               </label>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => handleQuantityChange(quantity - 1)}
-                  disabled={quantity <= 1}
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      setShowLoginModal(true)
+                    } else {
+                      handleQuantityChange(quantity - 1)
+                    }
+                  }}
+                  disabled={quantity <= 1 || !isAuthenticated}
                   className="w-10 h-10 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     backgroundColor: 'transparent',
@@ -491,8 +537,14 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                   {quantity}
                 </span>
                 <button
-                  onClick={() => handleQuantityChange(quantity + 1)}
-                  disabled={quantity >= maxQuantity}
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      setShowLoginModal(true)
+                    } else {
+                      handleQuantityChange(quantity + 1)
+                    }
+                  }}
+                  disabled={quantity >= maxQuantity || !isAuthenticated}
                   className="w-10 h-10 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     backgroundColor: 'transparent',
@@ -515,44 +567,69 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
           )}
 
           {/* Botones de acción */}
-          {stock > 0 && isAuthenticated && (
+          {stock > 0 && (
             <div className="flex flex-row gap-2 sm:gap-4">
-              <Button
-                onClick={() => {
-                  if (!selectedVariant?.id) return
-                  router.push(`/checkout/gift-direct?variantId=${selectedVariant.id}&quantity=${quantity}`)
-                }}
-                disabled={isAddingToCart || isCartLoading || !selectedVariant?.id}
-                className="flex-1 font-semibold py-2 sm:py-3 text-xs sm:text-base"
-                style={{ 
-                  backgroundColor: '#66DEDB',
-                  color: '#2C3137',
-                  borderRadius: '25px',
-                  boxShadow: '0px 4px 4px 0px #00000040 inset'
-                }}
-              >
-                Regalar TANKU
-              </Button>
-              <Button
-                onClick={handleBuyNow}
-                disabled={isAddingToCart || isCartLoading}
-                className="flex-1 font-semibold py-2 sm:py-3 text-xs sm:text-base"
-                style={{ 
-                  backgroundColor: '#3B9BC3',
-                  color: '#2C3137',
-                  borderRadius: '25px',
-                  boxShadow: '0px 4px 4px 0px #00000040 inset'
-                }}
-              >
-                Comprar TANKU
-              </Button>
+              {isAuthenticated ? (
+                <>
+                  <Button
+                    onClick={() => {
+                      if (!selectedVariant?.id) return
+                      router.push(`/checkout/gift-direct?variantId=${selectedVariant.id}&quantity=${quantity}`)
+                    }}
+                    disabled={isAddingToCart || isCartLoading || !selectedVariant?.id}
+                    className="flex-1 font-semibold py-2 sm:py-3 text-xs sm:text-base"
+                    style={{ 
+                      backgroundColor: '#66DEDB',
+                      color: '#2C3137',
+                      borderRadius: '25px',
+                      boxShadow: '0px 4px 4px 0px #00000040 inset'
+                    }}
+                  >
+                    Regalar TANKU
+                  </Button>
+                  <Button
+                    onClick={handleBuyNow}
+                    disabled={isAddingToCart || isCartLoading}
+                    className="flex-1 font-semibold py-2 sm:py-3 text-xs sm:text-base"
+                    style={{ 
+                      backgroundColor: '#3B9BC3',
+                      color: '#2C3137',
+                      borderRadius: '25px',
+                      boxShadow: '0px 4px 4px 0px #00000040 inset'
+                    }}
+                  >
+                    Comprar TANKU
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    onClick={() => setShowLoginModal(true)}
+                    className="flex-1 font-semibold py-2 sm:py-3 text-xs sm:text-base"
+                    style={{ 
+                      backgroundColor: '#66DEDB',
+                      color: '#2C3137',
+                      borderRadius: '25px',
+                      boxShadow: '0px 4px 4px 0px #00000040 inset'
+                    }}
+                  >
+                    Regalar TANKU
+                  </Button>
+                  <Button
+                    onClick={() => setShowLoginModal(true)}
+                    className="flex-1 font-semibold py-2 sm:py-3 text-xs sm:text-base"
+                    style={{ 
+                      backgroundColor: '#3B9BC3',
+                      color: '#2C3137',
+                      borderRadius: '25px',
+                      boxShadow: '0px 4px 4px 0px #00000040 inset'
+                    }}
+                  >
+                    Comprar TANKU
+                  </Button>
+                </>
+              )}
             </div>
-          )}
-
-          {!isAuthenticated && (
-            <p className="text-gray-400 text-sm">
-              Inicia sesión para agregar productos al carrito
-            </p>
           )}
           </div>
         </div>
@@ -560,7 +637,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
 
       {/* Descripción debajo de la imagen principal */}
       {productDescription && (
-        <div className="px-6 pb-6 w-full">
+        <div ref={descriptionRef} className="px-6 pb-6 w-full" style={{ paddingBottom: '40px' }}>
           <h3 
             className="text-lg font-semibold mb-2"
             style={{ color: '#66DEDB' }}
@@ -578,7 +655,22 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
             {hasLongDescription && !showFullDescription && (
               <div className="flex justify-end mt-2">
                 <button
-                  onClick={() => setShowFullDescription(true)}
+                  onClick={() => {
+                    setShowFullDescription(true)
+                    // Scroll automático en móvil para ver el botón "Ver menos" después de expandir
+                    setTimeout(() => {
+                      if (descriptionRef.current && typeof window !== 'undefined' && window.innerWidth < 768) {
+                        const button = descriptionRef.current.querySelector('button')
+                        if (button) {
+                          button.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'nearest',
+                            inline: 'nearest'
+                          })
+                        }
+                      }
+                    }, 100)
+                  }}
                   className="text-sm font-medium hover:underline"
                   style={{ color: '#3B9BC3' }}
                 >
@@ -589,7 +681,19 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
             {hasLongDescription && showFullDescription && (
               <div className="flex justify-end mt-2">
                 <button
-                  onClick={() => setShowFullDescription(false)}
+                  onClick={() => {
+                    setShowFullDescription(false)
+                    // Scroll automático en móvil para volver a la posición anterior
+                    setTimeout(() => {
+                      if (descriptionRef.current && typeof window !== 'undefined' && window.innerWidth < 768) {
+                        descriptionRef.current.scrollIntoView({ 
+                          behavior: 'smooth', 
+                          block: 'start',
+                          inline: 'nearest'
+                        })
+                      }
+                    }, 100)
+                  }}
                   className="text-sm font-medium hover:underline"
                   style={{ color: '#3B9BC3' }}
                 >
@@ -625,6 +729,15 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
           }}
         />
       )}
+
+      {/* Modal de login para no autenticados */}
+      <CategoryLoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLogin={() => {
+          setShowLoginModal(false)
+        }}
+      />
     </div>
   )
 }

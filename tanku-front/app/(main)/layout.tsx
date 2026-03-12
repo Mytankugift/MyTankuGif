@@ -69,7 +69,8 @@ export default function MainLayout({
           {showConsentModal && (
             <DataPolicyConsentModal isOpen={showConsentModal} />
           )}
-          <FloatingChatsManager />
+          {/* Solo renderizar FloatingChatsManager si el usuario está autenticado */}
+          {isAuthenticated && <FloatingChatsManager />}
         </ProfileNavigationProvider>
       </OnboardingProvider>
     </FeedInitProvider>

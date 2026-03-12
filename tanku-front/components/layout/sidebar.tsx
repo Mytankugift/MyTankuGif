@@ -122,25 +122,47 @@ export default function Sidebar() {
             </h3>
             <div className="flex flex-col gap-0.5">
               {/* My TANKU */}
-              <Link
+              {isAuthenticated ? (
+                <Link
                   href="/feed"
-                className="flex items-center gap-2.5 group hover:opacity-80 transition-opacity px-3 py-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
-              >
-                <Image
-                  src="/icons_tanku/tanku_logo_menu_MyTanku_verde.svg"
-                  alt="My TANKU"
-                  width={30}
-                  height={30}
-                  className="object-contain flex-shrink-0"
-                  style={{ width: '30px', height: '30px' }}
-                />
-                <span 
-                  className="font-normal"
-                  style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif', fontSize: '16px' }}
+                  className="flex items-center gap-2.5 group hover:opacity-80 transition-opacity px-3 py-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
                 >
-                  My TANKU
-                </span>
-              </Link>
+                  <Image
+                    src="/icons_tanku/tanku_logo_menu_MyTanku_verde.svg"
+                    alt="My TANKU"
+                    width={30}
+                    height={30}
+                    className="object-contain flex-shrink-0"
+                    style={{ width: '30px', height: '30px' }}
+                  />
+                  <span 
+                    className="font-normal"
+                    style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif', fontSize: '16px' }}
+                  >
+                    My TANKU
+                  </span>
+                </Link>
+              ) : (
+                <div
+                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg opacity-50 cursor-not-allowed"
+                  title="Inicia sesión para acceder"
+                >
+                  <Image
+                    src="/icons_tanku/tanku_logo_menu_MyTanku_verde.svg"
+                    alt="My TANKU"
+                    width={30}
+                    height={30}
+                    className="object-contain flex-shrink-0"
+                    style={{ width: '30px', height: '30px' }}
+                  />
+                  <span 
+                    className="font-normal"
+                    style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif', fontSize: '16px' }}
+                  >
+                    My TANKU
+                  </span>
+                </div>
+              )}
 
               {/* Mi Perfil */}
               {isAuthenticated ? (
