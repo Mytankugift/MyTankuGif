@@ -343,7 +343,7 @@ export function LandingNav({
                 textAlign: 'center',
               }}
             >
-              Don't Give a Like, Give a TANKU
+              Don't give a like, give a TANKU
             </div>
             {/* Botón Únete a Tanku */}
             <div className="flex-shrink-0">

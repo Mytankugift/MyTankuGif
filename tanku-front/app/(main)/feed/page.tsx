@@ -21,29 +21,8 @@ const WELCOME_VIDEO_URL = 'https://tanku-bucket-us-east-2.s3.us-east-2.amazonaws
 export default function FeedPage() {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
-
-  // Proteger ruta: redirigir no autenticados a landing
-  useEffect(() => {
-    if (!isAuthenticated) {
-      console.log('[FEED] Usuario no autenticado, redirigiendo a landing...')
-      router.replace('/')
-    }
-  }, [isAuthenticated, router])
-
-  // Si no está autenticado, no renderizar nada (se está redirigiendo)
-  if (!isAuthenticated) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: '#1E1E1E' }}
-      >
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
-          <p className="text-white">Redirigiendo...</p>
-        </div>
-      </div>
-    )
-  }
+  
+  // ✅ MOVER TODOS LOS HOOKS ANTES DEL RETURN CONDICIONAL
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
@@ -53,6 +32,14 @@ export default function FeedPage() {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
   const [headerPadding, setHeaderPadding] = useState('220px')
   const hasInitialized = useRef(false)
+
+  // Proteger ruta: redirigir no autenticados a landing
+  useEffect(() => {
+    if (!isAuthenticated) {
+      console.log('[FEED] Usuario no autenticado, redirigiendo a landing...')
+      router.replace('/')
+    }
+  }, [isAuthenticated, router])
 
   // Calcular paddingTop dinámicamente según el dispositivo
   useEffect(() => {
@@ -212,6 +199,22 @@ export default function FeedPage() {
       return () => clearTimeout(timer)
     }
   }, [isAuthenticated, isVideoModalOpen])
+
+  // ✅ AHORA SÍ: return condicional DESPUÉS de todos los hooks
+  // Si no está autenticado, no renderizar nada (se está redirigiendo)
+  if (!isAuthenticated) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: '#1E1E1E' }}
+      >
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
+          <p className="text-white">Redirigiendo...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
