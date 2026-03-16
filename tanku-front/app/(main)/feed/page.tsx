@@ -6,17 +6,13 @@ import { FeedNav } from '@/components/feed/feed-nav'
 import { FeedGrid } from '@/components/feed/feed-grid'
 import { FeedInfiniteScroll } from '@/components/feed/feed-infinite-scroll'
 import { PosterDetailModal } from '@/components/posters/poster-detail-modal'
-import { VideoModal } from '@/components/feed/video-modal'
-import { PromotionalBanner } from '@/components/feed/promotional-banner'
 import { FeedSkeleton } from '@/components/feed/feed-skeleton'
 import { useFeed } from '@/lib/hooks/use-feed'
 import { useFeedInit } from '@/lib/hooks/use-feed-init'
 import { useInfiniteScroll } from '@/lib/hooks/use-infinite-scroll'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { logger } from '@/lib/utils/logger'
 import './feed-grid.css'
-
-// URL del video de bienvenida en S3
-const WELCOME_VIDEO_URL = 'https://tanku-bucket-us-east-2.s3.us-east-2.amazonaws.com/dev/videos/3e7683ee-fce6-4e2f-82b9-194db1e659d9.mp4'
 
 export default function FeedPage() {
   const router = useRouter()
@@ -29,14 +25,13 @@ export default function FeedPage() {
   const [lastScrollY, setLastScrollY] = useState(0)
   const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
-  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
   const [headerPadding, setHeaderPadding] = useState('220px')
   const hasInitialized = useRef(false)
 
   // Proteger ruta: redirigir no autenticados a landing
   useEffect(() => {
     if (!isAuthenticated) {
-      console.log('[FEED] Usuario no autenticado, redirigiendo a landing...')
+      logger.log('[FEED] Usuario no autenticado, redirigiendo a landing...')
       router.replace('/')
     }
   }, [isAuthenticated, router])
@@ -182,24 +177,6 @@ export default function FeedPage() {
     }
   }, [lastScrollY, isAuthenticated])
 
-  // Mostrar modal de video automáticamente cuando no está logueado (solo una vez por sesión)
-  useEffect(() => {
-    // Solo ejecutar en el cliente y después de que el componente esté montado
-    if (typeof window === 'undefined') return
-    
-    // Verificar si ya se mostró el modal en esta sesión
-    const hasShownInSession = sessionStorage.getItem('videoModalShown') === 'true'
-    
-    if (!isAuthenticated && !isVideoModalOpen && !hasShownInSession) {
-      // Mostrar el modal después de un pequeño delay para que la página cargue
-      const timer = setTimeout(() => {
-        setIsVideoModalOpen(true)
-        sessionStorage.setItem('videoModalShown', 'true')
-      }, 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [isAuthenticated, isVideoModalOpen])
-
   // ✅ AHORA SÍ: return condicional DESPUÉS de todos los hooks
   // Si no está autenticado, no renderizar nada (se está redirigiendo)
   if (!isAuthenticated) {
@@ -287,13 +264,6 @@ export default function FeedPage() {
           // Actualizar solo ese item en el feed (sin recargar)
           updateItem(posterId, updates)
         }}
-      />
-
-      {/* Modal de video */}
-      <VideoModal
-        isOpen={isVideoModalOpen}
-        onClose={() => setIsVideoModalOpen(false)}
-        videoUrl={WELCOME_VIDEO_URL}
       />
     </div>
   )
