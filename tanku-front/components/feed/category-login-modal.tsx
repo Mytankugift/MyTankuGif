@@ -120,10 +120,15 @@ export function CategoryLoginModal({ isOpen, onClose, onLogin }: CategoryLoginMo
           <Link
             href="/auth/login"
             onClick={onLogin}
-            className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 inline-block text-center whitespace-nowrap"
-            style={{ fontFamily: 'Poppins, sans-serif', fontSize: '13px' }}
+            className="text-black font-semibold px-4 py-2 rounded-full hover:shadow-lg transition-all duration-300 hover:transform hover:scale-105 inline-block text-center whitespace-nowrap"
+            style={{ 
+              fontFamily: 'Poppins, sans-serif', 
+              fontSize: '13px',
+              backgroundColor: '#73FFA2',
+              boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset'
+            }}
           >
-            Únete a Tanku
+            Únete a TANKU
           </Link>
         </div>
       </div>

@@ -104,6 +104,14 @@ export const API_ENDPOINTS = {
     WISHLIST: '/api/v1/stories/wishlist',
     CREATE_WISHLIST: '/api/v1/stories/wishlist',
   },
+  // Events
+  EVENTS: {
+    LIST: '/api/v1/events',
+    BY_ID: (id: string) => `/api/v1/events/${id}`,
+    CREATE: '/api/v1/events',
+    UPDATE: (id: string) => `/api/v1/events/${id}`,
+    DELETE: (id: string) => `/api/v1/events/${id}`,
+  },
   // Wishlists
   WISHLISTS: {
     LIST: '/api/v1/wishlists',

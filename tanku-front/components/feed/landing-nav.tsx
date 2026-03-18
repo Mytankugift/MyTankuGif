@@ -257,6 +257,30 @@ export function LandingNav({
   isHeaderVisible = true,
 }: LandingNavProps) {
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [rotatingTextIndex, setRotatingTextIndex] = useState(0)
+  const [textOpacity, setTextOpacity] = useState(1)
+
+  const rotatingTexts = [
+    "Don't Give a Like, Give a TANKU",
+    "Bienvenido al primer GivE-Commerce del mundo",
+    "Conecta con lo que te hace feliz"
+  ]
+
+  // Rotación de textos cada 15 segundos con desvanecimiento
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Desvanecer
+      setTextOpacity(0)
+      setTimeout(() => {
+        // Cambiar texto
+        setRotatingTextIndex((prev) => (prev + 1) % rotatingTexts.length)
+        // Aparecer
+        setTextOpacity(1)
+      }, 300) // 300ms para la transición
+    }, 15000) // 15 segundos
+
+    return () => clearInterval(interval)
+  }, [rotatingTexts.length])
 
   const handleCategoryChange = (categoryId: string | null) => {
     if (categoryId !== null) {
@@ -341,18 +365,24 @@ export function LandingNav({
                 color: 'transparent',
                 marginTop: '8px',
                 textAlign: 'center',
+                opacity: textOpacity,
+                transition: 'opacity 0.3s ease-in-out',
               }}
             >
-              Don't give a like, give a TANKU
+              {rotatingTexts[rotatingTextIndex]}
             </div>
             {/* Botón Únete a Tanku */}
             <div className="flex-shrink-0">
               <Link
                 href="/auth/login"
-                className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-3 py-1.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
-                style={{ fontFamily: 'Poppins, sans-serif' }}
+                className="text-black font-semibold px-3 py-1.5 rounded-full hover:shadow-lg transition-all duration-300 hover:transform hover:scale-105 text-xs whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
+                style={{ 
+                  fontFamily: 'Poppins, sans-serif',
+                  backgroundColor: '#73FFA2',
+                  boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset'
+                }}
               >
-                Únete a Tanku
+                Únete a TANKU
               </Link>
             </div>
           </div>
@@ -372,9 +402,11 @@ export function LandingNav({
               backgroundClip: 'text',
               color: 'transparent',
               whiteSpace: 'nowrap',
+              opacity: textOpacity,
+              transition: 'opacity 0.3s ease-in-out',
             }}
           >
-            Don't Give a Like, Give a TANKU
+            {rotatingTexts[rotatingTextIndex]}
           </div>
         </div>
         {/* Layout desktop grande */}
@@ -391,9 +423,11 @@ export function LandingNav({
               backgroundClip: 'text',
               color: 'transparent',
               whiteSpace: 'nowrap',
+              opacity: textOpacity,
+              transition: 'opacity 0.3s ease-in-out',
             }}
           >
-            Don't Give a Like, Give a TANKU
+            {rotatingTexts[rotatingTextIndex]}
           </div>
         </div>
 
@@ -401,10 +435,14 @@ export function LandingNav({
         <div className="hidden md:flex gap-2 lg:gap-3 flex-shrink-0 items-center self-center">
           <Link
             href="/auth/login"
-            className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
-            style={{ fontFamily: 'Poppins, sans-serif' }}
+            className="text-black font-semibold px-4 py-2 rounded-full hover:shadow-lg transition-all duration-300 hover:transform hover:scale-105 text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
+            style={{ 
+              fontFamily: 'Poppins, sans-serif',
+              backgroundColor: '#73FFA2',
+              boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset'
+            }}
           >
-            Únete a Tanku
+            Únete a TANKU
           </Link>
         </div>
       </div>

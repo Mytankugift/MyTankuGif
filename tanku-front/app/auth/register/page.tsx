@@ -20,6 +20,31 @@ function RegisterForm() {
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [rotatingTextIndex, setRotatingTextIndex] = useState(0)
+  const [textOpacity, setTextOpacity] = useState(1)
+
+  const rotatingTexts = [
+    { text: 'Emotions', emoji: '❤️' },
+    { text: 'Vibes', emoji: '😎' },
+    { text: 'Moments', emoji: '🎉' },
+    { text: 'Connections', emoji: '🥰' }
+  ]
+
+  // Rotación de textos cada 15 segundos con desvanecimiento (solo desktop/tablet)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Desvanecer
+      setTextOpacity(0)
+      setTimeout(() => {
+        // Cambiar texto
+        setRotatingTextIndex((prev) => (prev + 1) % rotatingTexts.length)
+        // Aparecer
+        setTextOpacity(1)
+      }, 300) // 300ms para la transición
+    }, 15000) // 15 segundos
+
+    return () => clearInterval(interval)
+  }, [rotatingTexts.length])
 
   // Si ya está autenticado, redirigir
   useEffect(() => {
@@ -194,12 +219,13 @@ function RegisterForm() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-8 py-2.5 rounded-[25px] font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm border-2 border-transparent"
+                  className="px-8 py-2.5 rounded-[25px] font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                   style={{ 
-                    background: 'linear-gradient(135deg, #66DEDB 0%, #73FFA2 100%)',
+                    background: '#73FFA2',
                     color: '#000',
                     fontFamily: 'Poppins, sans-serif',
-                    borderColor: 'transparent'
+                    border: 'none',
+                    boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset'
                   }}
                 >
                   {isLoading ? 'Creando cuenta...' : 'Registrarse'}
@@ -234,7 +260,8 @@ function RegisterForm() {
                 <span>¿Ya tienes una cuenta? </span>
                 <Link 
                   href="/auth/login"
-                  className="text-[#73FFA2] hover:text-[#66DEDB] font-semibold"
+                  className="text-[#66DEDB] hover:text-[#73FFA2] font-semibold"
+                  style={{ fontFamily: 'Poppins, sans-serif' }}
                 >
                   Inicia Sesión
                 </Link>
@@ -265,10 +292,12 @@ function RegisterForm() {
             className="text-2xl"
             style={{ 
               color: '#66DEDB',
-              fontFamily: 'Poppins, sans-serif'
+              fontFamily: 'Poppins, sans-serif',
+              opacity: textOpacity,
+              transition: 'opacity 0.3s ease-in-out',
             }}
           >
-            We Create Good Emotions ❤️
+            We Create Good {rotatingTexts[rotatingTextIndex].text} {rotatingTexts[rotatingTextIndex].emoji}
           </p>
         </div>
         
@@ -285,7 +314,7 @@ function RegisterForm() {
         </div>
       </div>
 
-      {/* Texto abajo en móvil */}
+      {/* Texto abajo en móvil - Sin rotación */}
       <div 
         className="lg:hidden w-full py-6 px-4 text-center"
         style={{ backgroundColor: '#2D3A3A' }}

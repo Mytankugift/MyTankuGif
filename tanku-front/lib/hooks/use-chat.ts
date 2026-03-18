@@ -764,22 +764,14 @@ export function useChat() {
         }
       }
     }, 200) // ✅ Verificar cada 200ms
-    
+
     return () => {
       if (checkInterval) {
         clearInterval(checkInterval)
       }
-      // ✅ Remover listener de evento
       if (typeof window !== 'undefined') {
         window.removeEventListener('feedInit_complete', handleFeedInitComplete as EventListener)
       }
-    }
-    
-    return () => {
-      if (checkInterval) {
-        clearInterval(checkInterval)
-      }
-      // Resetear guard si el usuario cambia
       if (lastUserIdRef.current !== user?.id) {
         hasLoadedRef.current = false
       }

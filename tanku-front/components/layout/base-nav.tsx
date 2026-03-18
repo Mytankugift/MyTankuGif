@@ -107,10 +107,14 @@ export function BaseNav({
             {showJoinButton && !isAuthenticated && (
               <Link
                 href="/auth/login"
-                className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
-                style={{ fontFamily: 'Poppins, sans-serif' }}
+                className="text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
+                style={{ 
+                  fontFamily: 'Poppins, sans-serif',
+                  backgroundColor: '#73FFA2',
+                  boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset'
+                }}
               >
-                Únete a Tanku
+                Únete a TANKU
               </Link>
             )}
             {/* Messages Icon con Dropdown */}
@@ -162,10 +166,14 @@ export function BaseNav({
           {showJoinButton && !isAuthenticated && (
             <Link
               href="/auth/login"
-              className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg hover:shadow-[#66DEDB]/25 transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
-              style={{ fontFamily: 'Poppins, sans-serif' }}
+              className="text-black font-semibold px-4 py-2 sm:px-5 sm:py-2.5 rounded-full hover:shadow-lg transition-all duration-300 hover:transform hover:scale-105 text-xs sm:text-sm whitespace-nowrap flex-shrink-0 cursor-pointer inline-block text-center"
+              style={{ 
+                fontFamily: 'Poppins, sans-serif',
+                backgroundColor: '#73FFA2',
+                boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset'
+              }}
             >
-              Únete a Tanku
+              Únete a TANKU
             </Link>
           )}
           {/* Messages Icon con Dropdown */}

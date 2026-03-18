@@ -1,0 +1,23 @@
+---
+description: Cambios Prisma/migraciones Tanku — seguir MIGRATIONS.md y SQL idempotente
+globs:
+  - tanku-backend/prisma/**/*
+  - tanku-backend/**/schema.prisma
+---
+
+# Prisma y migraciones (Tanku)
+
+Al tocar **`tanku-backend/prisma/schema.prisma`** o **`prisma/migrations/`**:
+
+1. **Leer y aplicar** `tanku-backend/prisma/MIGRATIONS.md` y, para el SQL, `tanku-backend/scripts/migration-template.sql`.
+
+2. **Tras generar una migración**, reescribir el `migration.sql` para que sea **seguro en producción**:
+   - columnas: bloque `DO $$ … IF NOT EXISTS (information_schema.columns) … END $$;`
+   - índices: `CREATE INDEX IF NOT EXISTS …`
+   - tablas: `CREATE TABLE IF NOT EXISTS …` cuando tenga sentido
+
+3. **Nombre de carpeta** `YYYYMMDDHHMMSS_descripcion` con timestamp **posterior** a las migraciones existentes; el índice/FK solo en migración **después** de crear la tabla afectada (evitar fallos de shadow DB).
+
+4. **No modificar** migraciones ya desplegadas en producción.
+
+5. Comandos típicos: `npx prisma migrate dev` (dev), `npx prisma migrate deploy` (prod), luego `npx prisma generate` si hace falta.

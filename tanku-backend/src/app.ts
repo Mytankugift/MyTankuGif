@@ -316,6 +316,10 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/stalker-gift`, stalkerGiftRoutes);
 import giftRoutes from './modules/gifts/gift.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/gifts`, giftRoutes);
 
+// Events routes
+import eventsRoutes from './modules/events/events.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/events`, eventsRoutes);
+
 // ePayco webhook routes
 import epaycoRoutes from './modules/orders/epayco.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/webhook/epayco`, epaycoRoutes);
@@ -412,6 +416,14 @@ async function startServer() {
 🔌 Socket.IO: Habilitado (realtime preparado)
       `);
     });
+
+    // Inicializar cron job de recordatorios de eventos
+    try {
+      const { initializeEventsRemindersCron } = require('./modules/events/events-reminders.cron');
+      initializeEventsRemindersCron();
+    } catch (error) {
+      console.error('[APP] Error inicializando cron de recordatorios:', error);
+    }
 
     // Manejo de cierre graceful
     process.on('SIGTERM', async () => {

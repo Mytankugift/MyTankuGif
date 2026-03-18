@@ -108,24 +108,7 @@ function LandingPageContent() {
     }
   }, [searchParams, router, setToken, isAuthenticated])
 
-  // Si está autenticado o hay token, mostrar loading mientras redirige
-  const tokenParam = searchParams.get('token')
-  if (tokenParam || (isAuthenticated && !hasRedirected.current)) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: '#1E1E1E' }}
-      >
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
-          <p className="text-white">Cargando...</p>
-        </div>
-      </div>
-    )
-  }
-
   // Las categorías se cargan con el hook useCategories (cacheado)
-
 
   // Cargar feed de productos (hasta 100, sin posts)
   // Nota: searchQuery no se pasa al hook, la búsqueda se hace localmente
@@ -138,6 +121,7 @@ function LandingPageContent() {
   })
 
   // Filtrar productos localmente basado en searchQuery
+  // IMPORTANTE: Este hook debe ir ANTES del return condicional
   const items = React.useMemo(() => {
     if (!searchQuery.trim()) {
       return allItems
@@ -153,6 +137,7 @@ function LandingPageContent() {
   }, [allItems, searchQuery])
 
   // Handle scroll para mostrar/ocultar header
+  // IMPORTANTE: Todos los hooks deben ir ANTES del return condicional
   useEffect(() => {
     let ticking = false
 
@@ -194,6 +179,7 @@ function LandingPageContent() {
   }, [lastScrollY])
 
   // Mostrar modal de video automáticamente (solo una vez por sesión)
+  // IMPORTANTE: Todos los hooks deben ir ANTES del return condicional
   useEffect(() => {
     if (typeof window === 'undefined') return
     
@@ -207,6 +193,23 @@ function LandingPageContent() {
       return () => clearTimeout(timer)
     }
   }, [isVideoModalOpen])
+
+  // Si está autenticado o hay token, mostrar loading mientras redirige
+  // IMPORTANTE: Este return debe ir DESPUÉS de TODOS los hooks
+  const tokenParam = searchParams.get('token')
+  if (tokenParam || (isAuthenticated && !hasRedirected.current)) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: '#1E1E1E' }}
+      >
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
+          <p className="text-white">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

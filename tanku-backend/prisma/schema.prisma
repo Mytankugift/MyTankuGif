@@ -41,6 +41,7 @@ model User {
   profile                  UserProfile?
   wishLists                WishList[]
   wishlistAccessRequests   WishlistAccessRequest[]   @relation("WishlistAccessRequests")
+  events                   Event[]
 
   @@map("users")
 }
@@ -915,6 +916,34 @@ enum PriceFormulaType {
   PERCENTAGE // Solo porcentaje: base + (base * porcentaje / 100)
   FIXED // Suma fija: base + cantidad_fija
   MIN_MARGIN // Margen mínimo garantizado: base + max(15% de base, margen_mínimo)
+}
+
+enum RepeatType {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  userId      String      @map("user_id")
+  title       String
+  description String?
+  eventDate   DateTime    @map("event_date")
+  repeatType  RepeatType  @default(NONE) @map("repeat_type")
+  reminders   Json        // Array de días antes: [7, 3, 1, 0]
+  color       String      @default("#73FFA2") @db.VarChar(7) // hex tipo de evento
+  isActive    Boolean     @default(true) @map("is_active")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, eventDate])
+  @@index([userId, isActive])
+  @@index([eventDate])
+  @@map("events")
 }
 
 model PriceFormula {

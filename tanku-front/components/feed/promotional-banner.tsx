@@ -363,7 +363,7 @@ export function PromotionalBanner({ variant }: PromotionalBannerProps) {
             boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset',
           }}
         >
-          Únete a Tanku
+          Únete a TANKU
         </Link>
       </div>
     </div>

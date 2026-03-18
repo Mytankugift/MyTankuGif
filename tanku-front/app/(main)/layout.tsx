@@ -10,6 +10,7 @@ import { FeedInitProvider } from '@/lib/context/feed-init-context'
 import { DataPolicyConsentModal } from '@/components/auth/data-policy-consent-modal'
 import { FloatingChatsManager } from '@/components/chat/floating-chats-manager'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { MainLayoutErrorBoundary } from '@/components/layout/main-layout-error-boundary'
 
 export default function MainLayout({
   children,
@@ -57,23 +58,25 @@ export default function MainLayout({
   }, [user, isAuthenticated, isChecking, pathname])
 
   return (
-    <FeedInitProvider>
-      <OnboardingProvider>
-        <ProfileNavigationProvider>
-          <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#1E1E1E' }}>
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto md:ml-36 lg:ml-60 ml-0 pb-20 md:pb-0 lg:pb-0" style={{ backgroundColor: '#1E1E1E' }}>
-              {children}
-            </main>
-          </div>
-          {showConsentModal && (
-            <DataPolicyConsentModal isOpen={showConsentModal} />
-          )}
-          {/* Solo renderizar FloatingChatsManager si el usuario está autenticado */}
-          {isAuthenticated && <FloatingChatsManager />}
-        </ProfileNavigationProvider>
-      </OnboardingProvider>
-    </FeedInitProvider>
+    <MainLayoutErrorBoundary>
+      <FeedInitProvider>
+        <OnboardingProvider>
+          <ProfileNavigationProvider>
+            <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#1E1E1E' }}>
+              <Sidebar />
+              <main className="flex-1 overflow-y-auto md:ml-36 lg:ml-60 ml-0 pb-20 md:pb-0 lg:pb-0" style={{ backgroundColor: '#1E1E1E' }}>
+                {children}
+              </main>
+            </div>
+            {showConsentModal && (
+              <DataPolicyConsentModal isOpen={showConsentModal} />
+            )}
+            {/* Solo renderizar FloatingChatsManager si el usuario está autenticado */}
+            {isAuthenticated && <FloatingChatsManager />}
+          </ProfileNavigationProvider>
+        </OnboardingProvider>
+      </FeedInitProvider>
+    </MainLayoutErrorBoundary>
   )
 }
 
