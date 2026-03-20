@@ -5,6 +5,7 @@
  */
 
 import cron from 'node-cron';
+import { getEventRemindersTimeZone } from './event-reminders-timezone';
 import { EventsRemindersService } from './events-reminders.service';
 
 let remindersService: EventsRemindersService | null = null;
@@ -18,10 +19,9 @@ export function initializeEventsRemindersCron(): void {
     remindersService = new EventsRemindersService();
   }
 
-  const tz = process.env.EVENT_REMINDERS_CRON_TZ?.trim();
-  const scheduleOpts = tz ? { timezone: tz } : undefined;
+  const tz = getEventRemindersTimeZone();
 
-  // Ejecutar cada día a las 00:00 (en EVENT_REMINDERS_CRON_TZ o zona del proceso)
+  // Ejecutar cada día a las 00:00 en la misma TZ que usa el servicio de recordatorios
   cron.schedule(
     '0 0 * * *',
     async () => {
@@ -35,11 +35,11 @@ export function initializeEventsRemindersCron(): void {
         console.error('[EVENTS-REMINDERS-CRON] Error ejecutando recordatorios:', error);
       }
     },
-    scheduleOpts
+    { timezone: tz }
   );
 
   console.log(
-    `[EVENTS-REMINDERS-CRON] Cron inicializado: 0 0 * * *${tz ? ` (timezone: ${tz})` : ' (zona por defecto del proceso Node)'}`
+    `[EVENTS-REMINDERS-CRON] Cron inicializado: 0 0 * * * (timezone: ${tz})`
   );
 }
 

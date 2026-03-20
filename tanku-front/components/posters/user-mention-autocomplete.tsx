@@ -6,6 +6,9 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import Image from 'next/image'
 
+/** Por encima de PosterDetailModal / ProductModal (10050), por debajo del nav móvil global */
+const MENTION_SUGGESTIONS_Z = 100_600
+
 interface User {
   id: string
   email: string
@@ -232,9 +235,10 @@ export function UserMentionAutocomplete({
         // Actualizar posición del popup (arriba del input)
         if (inputRef.current) {
           const rect = inputRef.current.getBoundingClientRect()
+          // Portal + position:fixed → solo coordenadas de viewport (sin scrollY/scrollX)
           setSuggestionsPosition({
-            top: rect.top + window.scrollY - 4, // Arriba del input
-            left: rect.left + window.scrollX,
+            top: rect.top - 4,
+            left: rect.left,
             width: rect.width,
           })
         }
@@ -260,6 +264,29 @@ export function UserMentionAutocomplete({
       }
     }
   }, [displayValue])
+
+  // Mantener el popup alineado al input si el usuario hace scroll dentro del modal
+  useEffect(() => {
+    if (!showSuggestions) return
+
+    const updatePos = () => {
+      if (!inputRef.current) return
+      const rect = inputRef.current.getBoundingClientRect()
+      setSuggestionsPosition({
+        top: rect.top - 4,
+        left: rect.left,
+        width: rect.width,
+      })
+    }
+
+    updatePos()
+    window.addEventListener('scroll', updatePos, true)
+    window.addEventListener('resize', updatePos)
+    return () => {
+      window.removeEventListener('scroll', updatePos, true)
+      window.removeEventListener('resize', updatePos)
+    }
+  }, [showSuggestions])
 
   const searchUsers = async (query: string) => {
     // Si no hay query, buscar usuarios recientes o populares (primeros 5)
@@ -528,13 +555,14 @@ export function UserMentionAutocomplete({
       {showSuggestions && suggestions.length > 0 && typeof window !== 'undefined' && createPortal(
         <div
           ref={suggestionsRef}
-          className="fixed z-[9999] bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto custom-scrollbar"
+          className="fixed bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto custom-scrollbar"
           style={{
+            zIndex: MENTION_SUGGESTIONS_Z,
             top: `${suggestionsPosition.top}px`,
             left: `${suggestionsPosition.left}px`,
             width: `${suggestionsPosition.width || 300}px`,
-            transform: 'translateY(-100%)', // Posicionar arriba del input
-            marginTop: '-4px', // Pequeño espacio
+            transform: 'translateY(-100%)',
+            marginTop: '-4px',
           }}
         >
           {suggestions.map((user, index) => {

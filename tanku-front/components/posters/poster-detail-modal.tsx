@@ -1,9 +1,11 @@
 'use client'
 
-import React from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { PosterDetailContent } from './poster-detail-content'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+
+/** Por encima del nav (z-40–50) y del bottom nav móvil (z-100); fuera de <main overflow> vía portal */
+const POSTER_MODAL_Z = 10050
 
 interface PosterDetailModalProps {
   isOpen: boolean
@@ -69,9 +71,12 @@ interface PosterDetail {
 }
 
 export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose, onPostDeleted, onPostUpdated }: PosterDetailModalProps) {
-  const router = useRouter()
+  const [mounted, setMounted] = useState(false)
 
-  if (!isOpen || !posterId) return null
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
 
   const handleClose = () => {
     onClose()
@@ -84,36 +89,26 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
     onClose()
   }
 
-  return (
-    <div
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-      onClick={handleClose}
-    >
-      {/* Botón cerrar fuera del modal, en la esquina */}
-      <button
-        onClick={handleClose}
-        className="fixed top-4 right-4 z-[60] p-3 bg-gray-900/90 hover:bg-gray-800 rounded-full text-gray-400 hover:text-white transition-colors shadow-lg"
-        aria-label="Cerrar"
-      >
-        <XMarkIcon className="w-6 h-6" />
-      </button>
+  if (!isOpen || !posterId || !mounted) return null
 
+  /** Espacio para MobileBottomNav solo &lt; md (barra fija + safe area) */
+  const modal = (
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-black/80 p-4 max-md:pb-[max(1rem,calc(4.75rem+env(safe-area-inset-bottom,0px)))]"
+      style={{ zIndex: POSTER_MODAL_Z }}
+      onClick={handleClose}
+      role="presentation"
+    >
       <div
-        className="bg-gray-900 rounded-lg w-full h-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-700 shadow-2xl"
+        className="flex w-[95vw] max-w-[1400px] flex-col overflow-hidden rounded-lg border border-gray-700 bg-gray-900 shadow-2xl max-md:max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px))] md:h-[90vh] md:max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
-        style={{ 
-          width: '95vw',
-          maxWidth: '1400px',
-          height: '90vh',
-          maxHeight: '90vh',
-        }}
       >
-        {/* Content usando componente compartido */}
         <div className="flex-1 overflow-y-auto min-h-0">
           <PosterDetailContent
             posterId={posterId}
             initialPosterData={initialPosterData}
             isPageView={false}
+            onModalClose={handleClose}
             onPostDeleted={handlePostDeleted}
             onPostUpdated={onPostUpdated}
           />
@@ -121,5 +116,7 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
       </div>
     </div>
   )
+
+  return createPortal(modal, document.body)
 }
 

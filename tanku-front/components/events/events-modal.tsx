@@ -186,10 +186,10 @@ export function EventsModal({ isOpen, onClose }: EventsModalProps) {
           style={{
             backgroundColor: '#262626',
             borderColor: '#73FFA2',
-            maxWidth: '560px',
+            maxWidth: '600px',
             width: '92%',
-            maxHeight: 'min(720px, 88vh)',
-            minHeight: '420px',
+            maxHeight: 'min(820px, 92vh)',
+            minHeight: '480px',
             cursor: 'default',
             userSelect: 'auto',
           }}

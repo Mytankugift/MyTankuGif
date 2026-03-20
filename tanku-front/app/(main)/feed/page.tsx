@@ -47,13 +47,13 @@ export default function FeedPage() {
       if (width < 640) {
         setHeaderPadding('230px')
       }
-      // Tablet (640px - 1024px)
+      // Tablet (640px - 1024px) — nav + stories más altos; evitar solapamiento con cards
       else if (width >= 640 && width < 1024) {
-        setHeaderPadding('170px')
+        setHeaderPadding('200px')
       }
       // Desktop (>= 1024px)
       else {
-        setHeaderPadding('180px')
+        setHeaderPadding('220px')
       }
     }
 
@@ -214,7 +214,7 @@ export default function FeedPage() {
       />
 
       <div
-        className="flex-1 overflow-y-auto px-2 sm:px-3 md:px-4 py-2 sm:py-4 md:py-5 custom-scrollbar transition-all duration-300 ease-in-out"
+        className="flex-1 overflow-y-auto px-2 pt-2 max-md:pb-[max(5.5rem,calc(5rem+env(safe-area-inset-bottom,0px)))] sm:px-3 sm:pt-4 md:px-4 md:py-5 custom-scrollbar transition-all duration-300 ease-in-out"
         style={{
           paddingTop: isHeaderVisible ? headerPadding : '20px',
           marginRight: '0',

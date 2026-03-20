@@ -1,9 +1,12 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ProductDetailContent } from './product-detail-content'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import type { FeedItemDTO } from '@/types/api'
+
+const PRODUCT_MODAL_Z = 10050
 
 interface ProductModalProps {
   product: FeedItemDTO | null
@@ -12,32 +15,39 @@ interface ProductModalProps {
 }
 
 export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
-  if (!isOpen || !product) return null
+  const [mounted, setMounted] = useState(false)
 
-  return (
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!isOpen || !product || !mounted) return null
+
+  const modal = (
     <div
-      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4"
+      className="fixed inset-0 flex items-center justify-center bg-black/75 px-2 pt-2 max-md:pb-[max(0.5rem,calc(4.75rem+env(safe-area-inset-bottom,0px)))] sm:px-4 sm:pt-4 md:p-4"
       onClick={onClose}
       onMouseDown={(e) => {
-        // Solo cerrar si el click es directamente en el overlay, no en un hijo
         if (e.target === e.currentTarget) {
           onClose()
         }
       }}
-      style={{ 
-        zIndex: 9999, 
+      style={{
+        zIndex: PRODUCT_MODAL_Z,
         cursor: 'default',
-        userSelect: 'none'
+        userSelect: 'none',
       }}
+      role="presentation"
     >
       <div
-        className="w-full max-w-6xl h-full max-h-[95vh] sm:max-h-[92vh] overflow-hidden flex flex-col relative"
-        style={{ 
+        className="relative flex h-full w-full max-w-6xl flex-col overflow-hidden max-md:max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px))] md:max-h-[92vh]"
+        style={{
           backgroundColor: '#2C3137',
           border: '2px solid #66DEDB',
           borderRadius: '25px',
           cursor: 'default',
-          userSelect: 'auto'
+          userSelect: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
@@ -81,4 +91,6 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
       </div>
     </div>
   )
+
+  return createPortal(modal, document.body)
 }

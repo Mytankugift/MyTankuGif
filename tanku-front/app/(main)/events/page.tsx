@@ -205,10 +205,10 @@ export default function EventsPage() {
   } as const
 
   /**
-   * Móvil (dentro de caja fija): flex-1 + truncate. Desktop: ancho fijo 17rem.
+   * Móvil: flex-1 + truncate. Desktop: crece/encoge con el ancho del calendario (sin 17rem rígido).
    */
   const monthTitle = (
-    <h2 className="min-w-0 flex-1 truncate text-center text-base font-semibold tabular-nums capitalize px-1 sm:text-lg lg:w-[17rem] lg:min-w-[17rem] lg:flex-none lg:shrink-0 lg:text-xl">
+    <h2 className="min-w-0 flex-1 truncate text-center text-base font-semibold tabular-nums capitalize px-1 sm:text-lg lg:flex-1 lg:text-base lg:leading-tight xl:text-xl">
       {format(currentDate, 'MMMM yyyy', { locale: es })}
     </h2>
   )
@@ -217,11 +217,11 @@ export default function EventsPage() {
     <button
       type="button"
       onClick={() => handleCreateEvent()}
-      className={`${navButtonBase} px-5 flex items-center justify-center gap-2`}
+      className={`${navButtonBase} flex items-center justify-center gap-1.5 px-3 text-sm sm:px-4 sm:text-base xl:px-5`}
       style={navGreen}
     >
-      <span className="text-xl leading-none">+</span>
-      Nuevo Evento
+      <span className="text-lg leading-none xl:text-xl">+</span>
+      <span className="whitespace-nowrap">Nuevo Evento</span>
     </button>
   )
 
@@ -239,7 +239,12 @@ export default function EventsPage() {
   )
 
   const todayButtonDesktop = (
-    <button type="button" onClick={goToToday} className={navButtonBase} style={navGreen}>
+    <button
+      type="button"
+      onClick={goToToday}
+      className={`${navButtonBase} px-3 text-sm sm:px-4 sm:text-base xl:px-4`}
+      style={navGreen}
+    >
       Hoy
     </button>
   )
@@ -279,18 +284,90 @@ export default function EventsPage() {
     </button>
   )
 
-  /** Desktop: barra única debajo del calendario (← mes → Hoy Nuevo). shrink-0: nunca genera scroll propio; scroll va al contenedor de página. */
+  /** Ancho del calendario en lg+: misma fórmula que la tarjeta para alinear toolbar y rejilla. */
+  const calendarWidthLg =
+    'lg:max-w-[min(100%,max(15rem,calc((100dvh-16rem)*7/6)))]'
+
+  /** Desktop: solo cambio de mes (fila superior; Hoy/Nuevo van en la misma fila del grid, columna derecha). */
   const calendarToolbarDesktop = (
-    <div className="mx-auto hidden w-full min-w-0 max-w-full shrink-0 flex-nowrap items-center justify-center gap-2 overflow-x-hidden lg:mb-3 lg:flex lg:max-w-[min(100%,max(15rem,calc((100dvh-16rem)*7/6)))]">
-      <button type="button" onClick={goToPreviousMonth} className={navButtonBase} style={navCyan}>
-        ←
-      </button>
-      {monthTitle}
-      <button type="button" onClick={goToNextMonth} className={navButtonBase} style={navCyan}>
-        →
-      </button>
-      {todayButtonDesktop}
-      {newEventButtonDesktop}
+    <div className={`mx-auto flex w-full min-w-0 max-w-full shrink-0 flex-col items-stretch ${calendarWidthLg}`}>
+      <div className="flex min-w-0 w-full items-center justify-center gap-1.5 sm:gap-2">
+        <button
+          type="button"
+          onClick={goToPreviousMonth}
+          className={`${navButtonBase} shrink-0 px-3 text-sm sm:px-4 sm:text-base`}
+          style={navCyan}
+        >
+          ←
+        </button>
+        {monthTitle}
+        <button
+          type="button"
+          onClick={goToNextMonth}
+          className={`${navButtonBase} shrink-0 px-3 text-sm sm:px-4 sm:text-base`}
+          style={navCyan}
+        >
+          →
+        </button>
+      </div>
+    </div>
+  )
+
+  const weekdayRow = (
+    <div className="mb-3 grid w-full grid-cols-7 gap-1.5 lg:mb-2 lg:gap-1">
+      {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
+        <div
+          key={day}
+          className="py-1 text-center text-xs font-semibold text-gray-400 lg:py-1 lg:text-xs lg:leading-tight"
+        >
+          {day}
+        </div>
+      ))}
+    </div>
+  )
+
+  const dayCellsGrid = (
+    <div className="grid w-full grid-cols-7 gap-1.5 lg:gap-1">
+      {calendarDays.map((day) => {
+        const dayEvents = getEventsForDay(day)
+        const isToday = isSameDay(day, new Date())
+        const isCurrentMonth = isSameMonth(day, currentDate)
+
+        return (
+          <button
+            key={day.toISOString()}
+            onClick={() => handleDateClick(day)}
+            className={`
+                      aspect-square rounded-lg border-2 p-1.5 transition-all
+                      lg:rounded-md lg:border lg:p-1 lg:text-xs
+                      ${isToday ? 'border-[#73FFA2] bg-[#73FFA2]/10 lg:ring-1 lg:ring-[#73FFA2]/40' : 'border-gray-700 hover:border-gray-600'}
+                      ${!isCurrentMonth ? 'opacity-40 text-gray-500' : ''}
+                      ${dayEvents.length > 0 && isCurrentMonth ? 'bg-[#73FFA2]/20' : dayEvents.length > 0 ? 'bg-[#73FFA2]/10' : isCurrentMonth ? 'bg-gray-700/50' : 'bg-gray-800/40'}
+                    `}
+          >
+            <div className="mb-0.5 text-xs font-medium leading-none lg:mb-0 lg:leading-tight">
+              {format(day, 'd')}
+            </div>
+            {dayEvents.length > 0 && (
+              <div className="flex flex-wrap justify-center gap-0.5">
+                {dayEvents.slice(0, 4).map((event) => (
+                  <div
+                    key={`${event.id}_${event.date}`}
+                    className="h-1.5 w-1.5 shrink-0 rounded-full border border-white/10"
+                    style={{ backgroundColor: normalizeEventColor(event.color) }}
+                    title={event.title}
+                  />
+                ))}
+                {dayEvents.length > 4 && (
+                  <div className="text-[10px] leading-none text-gray-400 lg:text-[9px]">
+                    +{dayEvents.length - 4}
+                  </div>
+                )}
+              </div>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 
@@ -309,89 +386,57 @@ export default function EventsPage() {
         className="flex min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-hidden text-white"
         style={{ fontFamily: 'Poppins, sans-serif', backgroundColor: '#262626' }}
       >
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar p-3 pt-24 sm:p-4 sm:pt-28 md:p-6 md:pt-32 lg:p-6 lg:pt-32">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar p-3 pt-20 sm:p-4 sm:pt-24 md:px-8 md:pb-6 md:pt-28 lg:px-10 lg:pb-6 lg:pt-28 xl:px-12">
           <div className="mx-auto w-full max-w-7xl">
             {/* Contenido principal: Calendario y Próximos Eventos */}
-            <div className="grid grid-cols-1 gap-6 pb-2 lg:grid-cols-3 lg:pb-1">
-              {/* Calendario (+ controles solo en móvil debajo) */}
-              <div className="flex flex-col gap-4 lg:col-span-2 lg:items-start">
-            {calendarToolbarDesktop}
-            {/*
-              Tarjeta = ancho exacto del grid (móvil 100%, desktop max por altura + centrado).
-            */}
-            <div
-              className="relative w-full max-w-full rounded-2xl border border-gray-700 bg-gray-800 p-4 lg:mx-auto lg:max-w-[min(100%,max(15rem,calc((100dvh-16rem)*7/6)))] lg:p-3"
-            >
-              <div className="mb-3 grid w-full grid-cols-7 gap-1.5 lg:mb-2 lg:gap-1">
-                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
-                  <div
-                    key={day}
-                    className="py-1 text-center text-xs font-semibold text-gray-400 lg:py-1 lg:text-xs lg:leading-tight"
-                  >
-                    {day}
+            <div className="grid grid-cols-1 gap-6 pb-2 lg:grid-cols-3 lg:grid-rows-[auto_minmax(12rem,1fr)] lg:items-start lg:gap-x-8 lg:gap-y-3 lg:pb-1">
+              {/* Desktop fila 1: selector de mes (cols 1–2) + Hoy / Nuevo (col 3), misma línea horizontal */}
+              <div
+                className={`mx-auto hidden w-full min-w-0 lg:col-span-2 lg:row-start-1 lg:flex lg:min-h-0 lg:items-center lg:justify-center lg:self-center ${calendarWidthLg}`}
+              >
+                {calendarToolbarDesktop}
+              </div>
+              <div className="hidden lg:col-span-1 lg:row-start-1 lg:col-start-3 lg:flex lg:min-h-0 lg:min-w-0 lg:flex-wrap lg:items-center lg:justify-end lg:gap-2 lg:self-center">
+                {todayButtonDesktop}
+                {newEventButtonDesktop}
+              </div>
+
+              {/* Móvil: tarjeta calendario completa + barra inferior */}
+              <div className="flex flex-col gap-4 lg:hidden">
+                <div
+                  className={`relative w-full max-w-full rounded-2xl border border-gray-700 bg-gray-800 p-4 ${calendarWidthLg}`}
+                >
+                  {weekdayRow}
+                  {dayCellsGrid}
+                </div>
+                <div className="sticky bottom-0 z-20 flex w-full justify-center border-t border-gray-700/60 bg-[#262626] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+                  <div className="flex w-[20rem] max-w-[calc(100vw-2rem)] shrink-0 flex-col gap-2.5">
+                    {monthArrowsOnly}
+                    <div className="grid w-full grid-cols-2 gap-2">
+                      {todayButtonMobile}
+                      {newEventButtonMobile}
+                    </div>
                   </div>
-                ))}
-              </div>
-
-              <div className="grid w-full grid-cols-7 gap-1.5 lg:gap-1">
-                {calendarDays.map((day) => {
-                  const dayEvents = getEventsForDay(day)
-                  const isToday = isSameDay(day, new Date())
-                  const isCurrentMonth = isSameMonth(day, currentDate)
-
-                  return (
-                    <button
-                      key={day.toISOString()}
-                      onClick={() => handleDateClick(day)}
-                      className={`
-                      aspect-square rounded-lg border-2 p-1.5 transition-all
-                      lg:rounded-md lg:border lg:p-1 lg:text-xs
-                      ${isToday ? 'border-[#73FFA2] bg-[#73FFA2]/10 lg:ring-1 lg:ring-[#73FFA2]/40' : 'border-gray-700 hover:border-gray-600'}
-                      ${!isCurrentMonth ? 'opacity-40 text-gray-500' : ''}
-                      ${dayEvents.length > 0 && isCurrentMonth ? 'bg-[#73FFA2]/20' : dayEvents.length > 0 ? 'bg-[#73FFA2]/10' : isCurrentMonth ? 'bg-gray-700/50' : 'bg-gray-800/40'}
-                    `}
-                    >
-                      <div className="mb-0.5 text-xs font-medium leading-none lg:mb-0 lg:leading-tight">
-                        {format(day, 'd')}
-                      </div>
-                      {dayEvents.length > 0 && (
-                        <div className="flex flex-wrap justify-center gap-0.5">
-                          {dayEvents.slice(0, 4).map((event) => (
-                            <div
-                              key={`${event.id}_${event.date}`}
-                              className="h-1.5 w-1.5 shrink-0 rounded-full border border-white/10"
-                              style={{ backgroundColor: normalizeEventColor(event.color) }}
-                              title={event.title}
-                            />
-                          ))}
-                          {dayEvents.length > 4 && (
-                            <div className="text-[10px] leading-none text-gray-400 lg:text-[9px]">
-                              +{dayEvents.length - 4}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Móvil: caja de ancho fijo centrada; mes estable; Hoy / Nuevo mismo ancho (grid) */}
-            <div className="sticky bottom-0 z-20 flex w-full justify-center border-t border-gray-700/60 bg-[#262626] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 lg:hidden">
-              <div className="flex w-[20rem] max-w-[calc(100vw-2rem)] shrink-0 flex-col gap-2.5">
-                {monthArrowsOnly}
-                <div className="grid w-full grid-cols-2 gap-2">
-                  {todayButtonMobile}
-                  {newEventButtonMobile}
                 </div>
               </div>
-            </div>
+
+              {/* Desktop fila 2: calendario completo y Próximos eventos empiezan a la misma altura */}
+              <div
+                className={`hidden lg:col-span-2 lg:row-start-2 mx-auto w-full min-h-0 lg:block lg:self-stretch ${calendarWidthLg}`}
+              >
+                <div className="relative w-full max-w-full rounded-2xl border border-gray-700 bg-gray-800 p-4 lg:p-3">
+                  {weekdayRow}
+                  {dayCellsGrid}
+                </div>
               </div>
 
-              {/* Próximos Eventos - Lista lateral */}
-              <div className="flex flex-col lg:col-span-1">
-                <div className="sticky top-4 flex min-h-0 max-h-[min(480px,62vh)] flex-col rounded-2xl border border-gray-700 bg-gray-800 p-4 lg:relative lg:top-auto lg:max-h-[min(520px,58vh)] lg:shrink-0">
+              {/* Próximos Eventos - Lista lateral (altura fija, scroll solo en la lista) */}
+              <div className="flex min-h-0 flex-col lg:col-span-1 lg:row-start-2 lg:col-start-3 lg:self-start">
+                <div
+                  className="sticky top-4 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-700 bg-gray-800 p-4 lg:relative lg:top-auto lg:shrink-0
+                    h-[min(21rem,52svh)] max-h-[min(21rem,52svh)]
+                    lg:h-[30rem] lg:min-h-[30rem] lg:max-h-[30rem]"
+                >
               <h2 className="text-base font-bold mb-2 flex-shrink-0" style={{ color: '#73FFA2' }}>
                 Próximos eventos
               </h2>
@@ -478,50 +523,52 @@ export default function EventsPage() {
                   </button>
                 ))}
               </div>
-              {upcomingEvents.length === 0 ? (
-                <p className="text-gray-400 text-xs">
-                  {colorFilter && baseUpcomingEvents.length > 0
-                    ? 'Ningún evento con este color en el periodo.'
-                    : 'No hay eventos en el próximo mes'}
-                </p>
-              ) : (
-                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 -mr-1 space-y-1.5">
-                  {upcomingEvents.map((event) => {
-                    const eventDate = new Date(event.date)
-                    const isToday = isSameDay(eventDate, new Date())
-                    const isTomorrow = isSameDay(eventDate, addDays(new Date(), 1))
+              <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-1 -mr-1">
+                {upcomingEvents.length === 0 ? (
+                  <p className="text-gray-400 text-xs py-2">
+                    {colorFilter && baseUpcomingEvents.length > 0
+                      ? 'Ningún evento con este color en el periodo.'
+                      : 'No hay eventos en el próximo mes'}
+                  </p>
+                ) : (
+                  <div className="space-y-1.5 pb-1">
+                    {upcomingEvents.map((event) => {
+                      const eventDate = new Date(event.date)
+                      const isToday = isSameDay(eventDate, new Date())
+                      const isTomorrow = isSameDay(eventDate, addDays(new Date(), 1))
 
-                    return (
-                      <div
-                        key={`${event.id}_${event.date}`}
-                        className="p-2 bg-gray-700/90 rounded-lg border border-gray-600 hover:border-[#66DEDB]/50 transition-colors cursor-pointer border-l-4"
-                        style={{ borderLeftColor: normalizeEventColor(event.color) }}
-                        onClick={() => {
-                          setSelectedDate(eventDate)
-                          setSelectedEvents([event])
-                          setShowDayModal(true)
-                        }}
-                      >
-                        <div className="flex items-start min-w-0 pl-0.5">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-white text-xs leading-tight truncate">
-                              {event.title}
-                            </h4>
-                            <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">
-                              {isToday ? 'Hoy' : isTomorrow ? 'Mañana' : format(eventDate, 'EEE d MMM', { locale: es })}
-                            </p>
-                            {event.description ? (
-                              <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1 leading-tight">
-                                {event.description}
+                      return (
+                        <div
+                          key={`${event.id}_${event.date}`}
+                          className="p-2 bg-gray-700/90 rounded-lg border border-gray-600 hover:border-[#66DEDB]/50 transition-colors cursor-pointer border-l-4"
+                          style={{ borderLeftColor: normalizeEventColor(event.color) }}
+                          onClick={() => {
+                            setSelectedDate(eventDate)
+                            setSelectedEvents([event])
+                            setShowDayModal(true)
+                          }}
+                        >
+                          <div className="flex items-start min-w-0 pl-0.5">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-white text-xs leading-tight truncate">
+                                {event.title}
+                              </h4>
+                              <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">
+                                {isToday ? 'Hoy' : isTomorrow ? 'Mañana' : format(eventDate, 'EEE d MMM', { locale: es })}
                               </p>
-                            ) : null}
+                              {event.description ? (
+                                <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1 leading-tight">
+                                  {event.description}
+                                </p>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
                 </div>
               </div>
             </div>

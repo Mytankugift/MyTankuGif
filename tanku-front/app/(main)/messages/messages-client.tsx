@@ -59,8 +59,8 @@ function MessagesClientContent() {
         pageTitleColor="#66DEDB"
       />
 
-      <div className="max-w-7xl mx-auto pt-28 sm:pt-32 md:pt-36 px-4 sm:px-6 md:px-8">
-        <div className="flex h-[calc(100vh-12rem)] sm:h-[calc(100vh-13rem)] border-t border-gray-700">
+      <div className="max-w-7xl mx-auto pt-28 sm:pt-32 md:pt-40 lg:pt-44 px-4 sm:px-6 md:px-8">
+        <div className="flex h-[calc(100vh-12rem)] sm:h-[calc(100vh-13rem)] md:h-[calc(100vh-15rem)] lg:h-[calc(100vh-16rem)] border-t border-gray-700">
           {/* Lista de conversaciones */}
           <div className="w-full md:w-80 border-r border-gray-700 bg-gray-900/50 flex flex-col">
             <div className="p-4 border-b border-gray-700">

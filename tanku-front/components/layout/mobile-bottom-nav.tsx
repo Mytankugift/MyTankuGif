@@ -8,6 +8,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 /**
  * Barra inferior móvil (< md). Vive fuera del Sidebar y se renderiza después de <main>
  * para que no quede tapada por el contenido (p. ej. /events con scroll propio).
+ * z-index muy alto: debe seguir siendo clicable aunque haya modales/portales abiertos.
  */
 export default function MobileBottomNav() {
   const pathname = usePathname()
@@ -22,7 +23,7 @@ export default function MobileBottomNav() {
 
   return (
     <nav
-      className="pointer-events-auto md:hidden fixed bottom-0 left-0 right-0 z-[100] flex items-center justify-around px-2 py-1"
+      className="pointer-events-auto md:hidden fixed bottom-0 left-0 right-0 z-[999999] flex items-center justify-around px-2 py-1"
       style={{
         backgroundColor: 'rgba(38, 38, 38, 0.95)',
         borderTop: '1px solid rgba(255, 255, 255, 0.1)',

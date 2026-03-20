@@ -664,7 +664,7 @@ export function EventFormModal({
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-4 py-2 text-sm text-white focus:outline-none resize-none rounded-full min-h-[72px]"
+                className="w-full px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/30 resize-none rounded-3xl min-h-[72px]"
                 style={fieldShell}
                 rows={3}
                 placeholder="Agrega una descripción..."
@@ -1068,41 +1068,46 @@ export function EventFormModal({
                   {addPresetError}
                 </div>
               ) : null}
-              <div className="space-y-3">
+              <div className="mb-4 flex min-w-0 items-center gap-3">
                 <input
                   type="text"
                   value={newColorLabel}
                   onChange={(e) => setNewColorLabel(e.target.value)}
                   placeholder="Nombre (ej: Familia)"
-                  className={fieldClass}
+                  className={`${fieldClass} min-h-[40px] min-w-0 flex-1`}
                   style={fieldShell}
                   maxLength={40}
                   autoFocus
                 />
-                <div className="flex items-center gap-3">
+                <div
+                  className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#4A4A4A] bg-[#1a1a1a]"
+                  title="Elegir color"
+                >
                   <input
                     type="color"
                     value={newColorHex.length === 7 ? newColorHex : DEFAULT_EVENT_COLOR}
                     onChange={(e) => setNewColorHex(e.target.value)}
-                    className="w-11 h-11 rounded-full cursor-pointer border border-[#4A4A4A] bg-transparent shrink-0"
-                    title="Elegir color"
+                    className="h-full w-full cursor-pointer border-0 bg-transparent p-0 [color-scheme:dark] [&::-webkit-color-swatch-wrapper]:rounded-full [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-0 [&::-moz-color-swatch]:rounded-full [&::-moz-color-swatch]:border-0"
+                    style={{ WebkitAppearance: 'none', appearance: 'none' }}
+                    aria-label="Elegir color"
                   />
-                  <span className="text-xs truncate" style={{ color: '#B7B7B7' }}>
-                    {normalizeEventColor(newColorHex)}
-                  </span>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-4">
+              <div className="flex w-full items-center justify-between gap-3">
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddPresetModal(false)
                     setAddPresetError(null)
                   }}
-                  className="px-4 py-2 rounded-full text-sm font-semibold"
+                  className="font-semibold transition-all rounded-full"
                   style={{
+                    width: '120px',
+                    height: '40px',
                     backgroundColor: '#4A4A4A',
                     color: '#B7B7B7',
+                    fontFamily: 'Poppins, sans-serif',
+                    boxShadow: '0px 4px 4px 0px #00000040 inset',
                   }}
                 >
                   Cancelar
@@ -1111,10 +1116,14 @@ export function EventFormModal({
                   type="button"
                   onClick={() => void handleSaveNewColorType()}
                   disabled={savingPreset}
-                  className="px-4 py-2 rounded-full text-sm font-semibold disabled:opacity-50"
+                  className="font-semibold transition-all rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
+                    width: '120px',
+                    height: '40px',
                     backgroundColor: '#73FFA2',
                     color: '#262626',
+                    fontFamily: 'Poppins, sans-serif',
+                    boxShadow: '0px 4px 4px 0px #00000040 inset',
                   }}
                 >
                   {savingPreset ? 'Guardando…' : 'Guardar tipo'}

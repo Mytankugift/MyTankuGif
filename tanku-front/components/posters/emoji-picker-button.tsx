@@ -10,6 +10,9 @@ const EmojiPicker = dynamic(
   { ssr: false }
 )
 
+/** Por encima de modales de post/producto (10050) */
+const EMOJI_PICKER_Z = 100_600
+
 interface EmojiPickerButtonProps {
   onEmojiSelect: (emoji: string) => void
 }
@@ -53,6 +56,7 @@ export function EmojiPickerButton({ onEmojiSelect }: EmojiPickerButtonProps) {
     if (showPicker) {
       updatePosition()
       window.addEventListener('resize', updatePosition)
+      // capture: true → también scroll dentro de modales con overflow
       window.addEventListener('scroll', updatePosition, true)
     }
 
@@ -115,8 +119,9 @@ export function EmojiPickerButton({ onEmojiSelect }: EmojiPickerButtonProps) {
       {showPicker && typeof window !== 'undefined' && createPortal(
         <div
           ref={pickerRef}
-          className="fixed z-[10000]"
+          className="fixed isolate"
           style={{
+            zIndex: EMOJI_PICKER_Z,
             top: `${position.top}px`,
             left: `${position.left}px`,
           }}
@@ -126,6 +131,7 @@ export function EmojiPickerButton({ onEmojiSelect }: EmojiPickerButtonProps) {
             theme={'dark' as any}
             width={350}
             height={400}
+            style={{ zIndex: EMOJI_PICKER_Z }}
             previewConfig={{
               showPreview: false,
             }}

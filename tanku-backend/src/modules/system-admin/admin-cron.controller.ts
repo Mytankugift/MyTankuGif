@@ -6,6 +6,7 @@ import {
   EVENT_REMINDERS_JOB_KEY,
 } from '../cron-job-state/cron-job-state.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { getEventRemindersTimeZone } from '../events/event-reminders-timezone';
 
 const CRON_EXPRESSION = '0 0 * * *';
 
@@ -34,8 +35,9 @@ export class AdminCronController {
             jobKey: EVENT_REMINDERS_JOB_KEY,
             cronExpression: CRON_EXPRESSION,
             cronDescription:
-              'Diario a las 00:00 (medianoche) según la zona configurada en EVENT_REMINDERS_CRON_TZ o la del servidor Node',
-            timezoneEnv: process.env.EVENT_REMINDERS_CRON_TZ || null,
+              'Diario a las 00:00 (medianoche) en la zona IANA efectiva (EVENT_REMINDERS_CRON_TZ o America/Bogota por defecto); la lógica de recordatorios usa la misma zona',
+            timezoneEnv: process.env.EVENT_REMINDERS_CRON_TZ?.trim() || null,
+            effectiveTimezone: getEventRemindersTimeZone(),
             processTZ: process.env.TZ || null,
             lastStartedAt: state?.lastStartedAt?.toISOString() ?? null,
             lastCompletedAt: state?.lastCompletedAt?.toISOString() ?? null,

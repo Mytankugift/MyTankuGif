@@ -25,7 +25,10 @@ interface EventRemindersStatus {
   jobKey: string
   cronExpression: string
   cronDescription: string
+  /** Valor explícito de EVENT_REMINDERS_CRON_TZ; null si no está definida en el servidor. */
   timezoneEnv: string | null
+  /** IANA TZ que usa node-cron y la lógica de recordatorios (p. ej. America/Bogota por defecto). */
+  effectiveTimezone?: string
   processTZ: string | null
   lastStartedAt: string | null
   lastCompletedAt: string | null
@@ -178,23 +181,30 @@ export default function CronSettingsPage() {
             aria-label="Ayuda para leer esta pantalla"
           >
             <p className="font-medium text-blue-900 mb-2">Cómo leer esta pantalla</p>
-            <ul className="list-disc pl-5 space-y-1 text-blue-900/90">
+            <ul className="list-disc pl-5 space-y-2 text-blue-900/90">
               <li>
-                <strong>Reloj del API</strong> es la hora del proceso Node en el servidor (en ISO siempre en UTC). Sirve
-                para comparar con los timestamps del job.
+                <strong>Reloj del servidor (API)</strong> muestra la hora real del proceso (ISO en UTC) y el día en
+                calendario UTC. Eso <strong>no</strong> es el “hoy” que usa el job de recordatorios: el servidor puede
+                estar en UTC (p. ej. Railway) mientras el job usa otra zona para el día civil.
               </li>
               <li>
-                El job <strong>“recordatorios de eventos”</strong> corre una vez al día a medianoche según{' '}
-                <code className="text-xs bg-white/80 px-1 rounded">EVENT_REMINDERS_CRON_TZ</code> o la zona por defecto
-                del proceso.
+                <strong>Recordatorios de eventos</strong>: el cron y el cálculo de “hoy” / días hasta el evento usan la
+                misma zona IANA <strong>efectiva</strong> (campo abajo). Si no defines{' '}
+                <code className="text-xs bg-white/80 px-1 rounded">EVENT_REMINDERS_CRON_TZ</code>, el backend usa por
+                defecto <code className="text-xs bg-white/80 px-1 rounded">America/Bogota</code> — no depende de la
+                variable <code className="text-xs bg-white/80 px-1 rounded">TZ</code> del proceso salvo que la
+                sobreescribas con la env del cron.
               </li>
               <li>
-                <strong>Último inicio / fin</strong> son de la última ejecución (automática o el botón “Ejecutar
+                <strong>TZ del proceso Node</strong> solo afecta cómo Node interpreta fechas sin zona en algunos casos;
+                el job de recordatorios sigue la <strong>zona efectiva</strong>.
+              </li>
+              <li>
+                <strong>Último inicio / fin</strong>: última ejecución (cron automático o “Ejecutar recordatorios
                 ahora”).
               </li>
               <li>
-                <strong>Metadatos</strong> (si aparecen) suelen incluir p. ej. cuántos recordatorios se crearon en esa
-                pasada.
+                <strong>Metadatos</strong>: p. ej. cuántos recordatorios se crearon en esa pasada.
               </li>
             </ul>
           </div>
@@ -202,7 +212,11 @@ export default function CronSettingsPage() {
 
         {serverClock ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Reloj del servidor (API)</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Reloj del servidor (API)</h2>
+            <p className="text-xs text-gray-500 mb-3">
+              Referencia técnica del proceso (UTC). Para cuándo cambia el “día” en recordatorios, mira la{' '}
+              <strong>zona efectiva</strong> en la sección de cron.
+            </p>
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div className="sm:col-span-2">
                 <dt className="text-gray-500">Hora actual (UTC, ISO)</dt>
@@ -239,15 +253,31 @@ export default function CronSettingsPage() {
               <div>
                 <dt className="text-gray-500">Expresión cron</dt>
                 <dd className="font-mono text-gray-900">{job.cronExpression}</dd>
-                <dd className="text-xs text-gray-500 mt-1">Cada día a las 00:00 en la zona configurada</dd>
+                <dd className="text-xs text-gray-500 mt-1">
+                  Cada día a las 00:00 en la <strong>zona efectiva</strong> (no en la del reloj UTC de arriba).
+                </dd>
               </div>
               <div>
-                <dt className="text-gray-500">Zona del cron (EVENT_REMINDERS_CRON_TZ)</dt>
-                <dd className="text-gray-900">{job.timezoneEnv ?? '— (usa TZ del proceso o la del sistema)'}</dd>
+                <dt className="text-gray-500">Zona efectiva (cron + lógica de recordatorios)</dt>
+                <dd className="font-mono text-gray-900">
+                  {job.effectiveTimezone ?? 'America/Bogota'}
+                </dd>
+                <dd className="text-xs text-gray-500 mt-1">
+                  Valor que usa el API; coincide con medianoche del job y con el “hoy” al calcular avisos.
+                </dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">EVENT_REMINDERS_CRON_TZ (env)</dt>
+                <dd className="text-gray-900">
+                  {job.timezoneEnv ?? (
+                    <span className="text-gray-600">No definida — se aplica el default del servidor (p. ej. America/Bogota)</span>
+                  )}
+                </dd>
               </div>
               <div>
                 <dt className="text-gray-500">TZ del proceso Node</dt>
                 <dd className="text-gray-900">{job.processTZ ?? '—'}</dd>
+                <dd className="text-xs text-gray-500 mt-1">Informativo; el cron de recordatorios usa la zona efectiva.</dd>
               </div>
               <div className="sm:col-span-2">
                 <dt className="text-gray-500">Qué hace</dt>

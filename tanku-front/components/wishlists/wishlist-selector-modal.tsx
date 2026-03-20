@@ -5,6 +5,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useWishLists } from '@/lib/hooks/use-wishlists'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
@@ -30,14 +31,18 @@ export function WishlistSelectorModal({
   const [newWishlistName, setNewWishlistName] = useState('')
   const [isPublic, setIsPublic] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
 
   useEffect(() => {
     // Cargar wishlists cada vez que se abre el modal (para que no aparezca vacío)
     if (!isOpen) return
     fetchWishLists()
   }, [isOpen, fetchWishLists])
-
-  if (!isOpen) return null
 
   const handleAddToWishlist = async (wishListId: string) => {
     setIsAdding(true)
@@ -144,13 +149,19 @@ export function WishlistSelectorModal({
     }
   }
 
-  return (
+  if (!isOpen || !mounted) return null
+
+  const WISHLIST_MODAL_Z = 10052
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm max-md:pb-[max(1rem,calc(4.75rem+env(safe-area-inset-bottom,0px)))]"
+      style={{ zIndex: WISHLIST_MODAL_Z }}
       onClick={onClose}
+      role="presentation"
     >
       <div
-        className="w-full max-w-md mx-4 overflow-hidden flex flex-col relative"
+        className="relative flex w-full max-w-md max-md:max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px))] flex-col overflow-hidden"
         style={{ 
           backgroundColor: '#2C3137',
           border: '2px solid #73FFA2',
@@ -316,7 +327,8 @@ export function WishlistSelectorModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

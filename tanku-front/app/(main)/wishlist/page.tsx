@@ -31,7 +31,7 @@ function WishlistPageContent() {
     <>
       <WishlistNav />
       <div
-        className="min-h-screen overflow-x-hidden p-4 pt-28 sm:p-6 sm:pt-32 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:p-8 md:pt-36"
+        className="min-h-screen overflow-x-hidden p-4 pt-28 sm:p-6 sm:pt-32 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:p-8 md:pt-40 lg:pt-44"
         style={{ backgroundColor: '#1E1E1E' }}
       >
         <div className="max-w-7xl mx-auto">
@@ -94,7 +94,7 @@ function WishlistPageContent() {
 export default function WishlistPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 md:pt-28" style={{ backgroundColor: '#1E1E1E' }}>
+      <div className="min-h-screen p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 md:pt-40 lg:pt-44" style={{ backgroundColor: '#1E1E1E' }}>
         <div className="max-w-7xl mx-auto">
           <div className="text-center text-gray-400">Cargando...</div>
         </div>

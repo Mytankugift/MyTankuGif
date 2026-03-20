@@ -12,6 +12,13 @@ import {
   CronJobStateService,
   EVENT_REMINDERS_JOB_KEY,
 } from '../cron-job-state/cron-job-state.service';
+import {
+  addCalendarMonth,
+  calendarMonthYearInZone,
+  getEventRemindersTimeZone,
+  startOfZonedDay,
+  zonedDayBoundsUtc,
+} from './event-reminders-timezone';
 
 export class EventsRemindersService {
   private notificationsService: NotificationsService;
@@ -44,8 +51,15 @@ export class EventsRemindersService {
   }
 
   private async runRemindersLogic(): Promise<{ remindersCreated: number }> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const tz = getEventRemindersTimeZone();
+    const now = new Date();
+    const todayStart = startOfZonedDay(now, tz);
+    const { start: dedupeStart, end: dedupeEnd } = zonedDayBoundsUtc(now, tz);
+    const { year: calYear, month: calMonth } = calendarMonthYearInZone(
+      now,
+      tz,
+    );
+    const nextYm = addCalendarMonth(calYear, calMonth);
 
     // Obtener todos los eventos activos que tengan recordatorios configurados
     const events = await prisma.event.findMany({
@@ -65,66 +79,48 @@ export class EventsRemindersService {
       const reminders = (event.reminders as number[]) || [];
       if (reminders.length === 0) continue;
 
-      const eventDate = new Date(event.eventDate);
-      eventDate.setHours(0, 0, 0, 0);
-
       // Calcular fechas de recordatorio según el tipo de repetición
       let datesToCheck: Date[] = [];
 
       if (event.repeatType === 'NONE') {
-        // Solo la fecha original
-        datesToCheck = [eventDate];
+        datesToCheck = [new Date(event.eventDate)];
       } else {
-        // Para eventos con repetición, necesitamos calcular las próximas instancias
-        // Buscar instancias en los próximos 30 días
-        const endDate = new Date(today);
-        endDate.setDate(endDate.getDate() + 30);
-
-        // Usar el método del servicio para calcular repeticiones
         const calendarEvents = await this.eventsService.getEventsForMonth(
           event.userId,
-          today.getMonth() + 1,
-          today.getFullYear()
+          calMonth,
+          calYear,
         );
 
-        // También verificar el próximo mes
-        const nextMonth = today.getMonth() + 2;
-        const nextYear = nextMonth > 12 ? today.getFullYear() + 1 : today.getFullYear();
         const nextMonthEvents = await this.eventsService.getEventsForMonth(
           event.userId,
-          nextMonth > 12 ? 1 : nextMonth,
-          nextYear
+          nextYm.month,
+          nextYm.year,
         );
 
-        // Combinar eventos de ambos meses y filtrar solo los del evento actual
         const allInstances = [...calendarEvents, ...nextMonthEvents]
-          .filter(e => e.id === event.id)
-          .map(e => new Date(e.date));
+          .filter((e) => e.id === event.id)
+          .map((e) => new Date(e.date));
 
         datesToCheck = allInstances;
       }
 
       // Para cada fecha del evento, verificar si hoy corresponde a algún recordatorio
       for (const eventInstanceDate of datesToCheck) {
-        const daysUntilEvent = Math.floor(
-          (eventInstanceDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        const eventDayStart = startOfZonedDay(eventInstanceDate, tz);
+        const daysUntilEvent = Math.round(
+          (eventDayStart.getTime() - todayStart.getTime()) /
+            (1000 * 60 * 60 * 24),
         );
 
         // Verificar si hoy corresponde a algún recordatorio configurado
         if (reminders.includes(daysUntilEvent)) {
-          // Verificar si ya existe una notificación para este recordatorio
-          // Para evitar duplicados, buscamos notificaciones del tipo EVENT_REMINDER
-          // creadas hoy para este evento y recordatorio específico
-          const todayStart = new Date(today.getTime())
-          const todayEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000)
-          
           const existingNotifications = await prisma.notification.findMany({
             where: {
               userId: event.userId,
               type: 'EVENT_REMINDER',
               createdAt: {
-                gte: todayStart,
-                lt: todayEnd,
+                gte: dedupeStart,
+                lt: dedupeEnd,
               },
             },
           });
