@@ -18,18 +18,28 @@ export function initializeEventsRemindersCron(): void {
     remindersService = new EventsRemindersService();
   }
 
-  // Ejecutar cada día a las 00:00
-  // Formato: minuto hora día mes día-semana
-  cron.schedule('0 0 * * *', async () => {
-    console.log('[EVENTS-REMINDERS-CRON] Ejecutando verificación de recordatorios...');
-    try {
-      await remindersService!.checkAndCreateReminders();
-      console.log('[EVENTS-REMINDERS-CRON] Verificación de recordatorios completada');
-    } catch (error) {
-      console.error('[EVENTS-REMINDERS-CRON] Error ejecutando recordatorios:', error);
-    }
-  });
+  const tz = process.env.EVENT_REMINDERS_CRON_TZ?.trim();
+  const scheduleOpts = tz ? { timezone: tz } : undefined;
 
-  console.log('[EVENTS-REMINDERS-CRON] Cron job de recordatorios inicializado (00:00 diario)');
+  // Ejecutar cada día a las 00:00 (en EVENT_REMINDERS_CRON_TZ o zona del proceso)
+  cron.schedule(
+    '0 0 * * *',
+    async () => {
+      console.log('[EVENTS-REMINDERS-CRON] Ejecutando verificación de recordatorios...');
+      try {
+        const { remindersCreated } = await remindersService!.checkAndCreateReminders();
+        console.log(
+          `[EVENTS-REMINDERS-CRON] Verificación completada (${remindersCreated} recordatorio(s) nuevos)`
+        );
+      } catch (error) {
+        console.error('[EVENTS-REMINDERS-CRON] Error ejecutando recordatorios:', error);
+      }
+    },
+    scheduleOpts
+  );
+
+  console.log(
+    `[EVENTS-REMINDERS-CRON] Cron inicializado: 0 0 * * *${tz ? ` (timezone: ${tz})` : ' (zona por defecto del proceso Node)'}`
+  );
 }
 

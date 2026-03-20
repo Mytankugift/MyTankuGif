@@ -7,6 +7,8 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 
 export type RepeatType = 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 
+export type EventKind = 'CELEBRATION' | 'EVENT'
+
 export interface Event {
   id: string
   userId: string
@@ -14,6 +16,7 @@ export interface Event {
   description: string | null
   eventDate: string
   repeatType: RepeatType
+  kind: EventKind
   reminders: number[]
   color: string
   isActive: boolean
@@ -28,6 +31,7 @@ export interface CalendarEvent {
   date: string
   originalEventDate: string
   repeatType: RepeatType
+  kind: EventKind
   reminders: number[]
   color: string
   isActive: boolean
@@ -38,6 +42,7 @@ export interface CreateEventInput {
   description?: string
   eventDate: string
   repeatType: RepeatType
+  kind?: EventKind
   reminders: number[]
   color?: string
 }
@@ -47,6 +52,7 @@ export interface UpdateEventInput {
   description?: string
   eventDate?: string
   repeatType?: RepeatType
+  kind?: EventKind
   reminders?: number[]
   isActive?: boolean
   color?: string

@@ -111,6 +111,7 @@ export const API_ENDPOINTS = {
     CREATE: '/api/v1/events',
     UPDATE: (id: string) => `/api/v1/events/${id}`,
     DELETE: (id: string) => `/api/v1/events/${id}`,
+    COLOR_PRESETS: '/api/v1/events/color-presets',
   },
   // Wishlists
   WISHLISTS: {

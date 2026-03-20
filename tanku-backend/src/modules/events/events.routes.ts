@@ -17,6 +17,10 @@ router.post('/', authenticate, eventsController.createEvent);
 // Obtener eventos (con o sin filtros de mes/año)
 router.get('/', authenticate, eventsController.getEvents);
 
+// Tipos de color personalizados (antes de /:id)
+router.get('/color-presets', authenticate, eventsController.getEventColorPresets);
+router.put('/color-presets', authenticate, eventsController.putEventColorPresets);
+
 // Obtener evento por ID
 router.get('/:id', authenticate, eventsController.getEventById);
 

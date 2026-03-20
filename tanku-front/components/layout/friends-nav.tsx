@@ -66,6 +66,16 @@ export function FriendsNav({ onSearch, initialSearchQuery = '' }: FriendsNavProp
     </div>
   )
 
-  return <BaseNav showStories={true} canHide={false} isVisible={true} additionalContent={searchContent} />
+  return (
+    <BaseNav
+      showStories={true}
+      canHide={false}
+      isVisible={true}
+      pageTitle="Amigos"
+      pageSubtitle="Gestiona tus conexiones y descubre nuevas personas"
+      pageTitleColor="#66DEDB"
+      additionalContent={searchContent}
+    />
+  )
 }
 

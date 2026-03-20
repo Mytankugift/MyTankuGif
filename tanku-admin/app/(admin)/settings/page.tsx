@@ -1,15 +1,13 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useAdminAuthStore } from '@/lib/stores/admin-auth-store'
 import Link from 'next/link'
 import {
-  Cog6ToothIcon,
   CalculatorIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline'
 
 export default function SettingsPage() {
-  const router = useRouter()
   const { isAuthenticated, _hasHydrated: hasHydrated } = useAdminAuthStore()
 
   if (!hasHydrated || !isAuthenticated) {
@@ -28,7 +26,13 @@ export default function SettingsPage() {
       icon: CalculatorIcon,
       href: '/settings/price-formulas',
     },
-    // Aquí se pueden agregar más opciones de configuración en el futuro
+    {
+      id: 'cron',
+      name: 'Cron y recordatorios',
+      description: 'Estado del job de eventos, ejecutar manualmente y prueba de notificaciones',
+      icon: ClockIcon,
+      href: '/settings/cron',
+    },
   ]
 
   return (

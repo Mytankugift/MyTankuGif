@@ -57,6 +57,8 @@ model UserProfile {
   isPublic                        Boolean  @default(true) @map("is_public")
   allowPublicWishlistsWhenPrivate Boolean  @default(false) @map("allow_public_wishlists_when_private")
   socialLinks                     Json?    @map("social_links")
+  /// Tipos de color personalizados para eventos: [{ id, label, hex }]
+  eventColorPresets               Json?    @map("event_color_presets")
   allowGiftShipping               Boolean  @default(true) @map("allow_gift_shipping")
   useMainAddressForGifts          Boolean  @default(false) @map("use_main_address_for_gifts")
   user                            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -926,6 +928,11 @@ enum RepeatType {
   YEARLY
 }
 
+enum EventKind {
+  CELEBRATION
+  EVENT
+}
+
 model Event {
   id          String      @id @default(cuid())
   userId      String      @map("user_id")
@@ -933,6 +940,7 @@ model Event {
   description String?
   eventDate   DateTime    @map("event_date")
   repeatType  RepeatType  @default(NONE) @map("repeat_type")
+  kind        EventKind   @default(EVENT) @map("kind")
   reminders   Json        // Array de días antes: [7, 3, 1, 0]
   color       String      @default("#73FFA2") @db.VarChar(7) // hex tipo de evento
   isActive    Boolean     @default(true) @map("is_active")
@@ -944,6 +952,20 @@ model Event {
   @@index([userId, isActive])
   @@index([eventDate])
   @@map("events")
+}
+
+/// Estado de ejecución de jobs programados (p. ej. recordatorios de eventos)
+model CronJobState {
+  id              String    @id @default(cuid())
+  jobKey          String    @unique @map("job_key")
+  lastStartedAt   DateTime? @map("last_started_at")
+  lastCompletedAt DateTime? @map("last_completed_at")
+  lastStatus      String?   @map("last_status")
+  lastError       String?   @map("last_error")
+  metadata        Json?
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("cron_job_states")
 }
 
 model PriceFormula {

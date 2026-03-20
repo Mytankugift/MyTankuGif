@@ -22,10 +22,13 @@ export function WishlistNav() {
   }, [user?.id, fetchWishlistStories])
 
   return (
-    <BaseNav 
-      showStories={true} 
-      canHide={false} 
+    <BaseNav
+      showStories={true}
+      canHide={false}
       isVisible={true}
+      pageTitle="Wishlists"
+      pageSubtitle="Gestiona tus wishlists y descubre las de tus amigos"
+      pageTitleColor="#66DEDB"
       customStories={wishlistStories}
     />
   )

@@ -48,23 +48,19 @@ function MessagesClientContent() {
 
   return (
     <div
-      className="min-h-screen custom-scrollbar overflow-y-auto"
-      style={{ backgroundColor: '#1E1E1E', height: 'calc(100vh - 0px)' }}
+      className="min-h-screen overflow-x-hidden overflow-y-auto custom-scrollbar md:min-h-0 md:h-full md:max-h-full md:overflow-visible"
+      style={{ backgroundColor: '#1E1E1E' }}
     >
       {/* Nav con botones de carrito y notificaciones */}
-      <BaseNav showStories={true} />
+      <BaseNav
+        showStories={true}
+        pageTitle="Mensajes"
+        pageSubtitle="Chatea con tus amigos"
+        pageTitleColor="#66DEDB"
+      />
 
-      <div className="max-w-7xl mx-auto pt-16 sm:pt-20 md:pt-24">
-      <div className="mb-4 px-4 sm:px-6 md:px-8 flex items-end gap-3">
-        <h1 className="text-3xl font-bold text-[#66DEDB]">
-          Mensajes
-        </h1>
-
-        <p className="text-gray-400">
-          Chatea con tus amigos
-        </p>
-      </div>
-        <div className="flex h-[calc(100vh-10rem)] border-t border-gray-700">
+      <div className="max-w-7xl mx-auto pt-28 sm:pt-32 md:pt-36 px-4 sm:px-6 md:px-8">
+        <div className="flex h-[calc(100vh-12rem)] sm:h-[calc(100vh-13rem)] border-t border-gray-700">
           {/* Lista de conversaciones */}
           <div className="w-full md:w-80 border-r border-gray-700 bg-gray-900/50 flex flex-col">
             <div className="p-4 border-b border-gray-700">

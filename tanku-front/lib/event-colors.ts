@@ -16,12 +16,22 @@ export function normalizeEventColor(hex: string | undefined | null): string {
   return /^#[0-9A-Fa-f]{6}$/.test(h) ? h : DEFAULT_EVENT_COLOR
 }
 
+/** Día civil según UTC (API guarda mediodía UTC). */
 export function toDateInputValue(iso: string): string {
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
+  if (Number.isNaN(d.getTime())) return todayDateInputValue()
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** “Hoy” según el calendario local del dispositivo (coincide con lo que el usuario ve en la fecha del sistema). */
+export function todayDateInputValue(): string {
+  const t = new Date()
+  const y = t.getFullYear()
+  const m = String(t.getMonth() + 1).padStart(2, '0')
+  const day = String(t.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
 

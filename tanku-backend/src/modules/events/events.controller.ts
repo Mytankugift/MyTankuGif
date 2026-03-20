@@ -8,7 +8,12 @@ import { Request, Response, NextFunction } from 'express';
 import { EventsService } from './events.service';
 import { successResponse, errorResponse, ErrorCode } from '../../shared/response';
 import { RequestWithUser } from '../../shared/types';
-import { createEventSchema, updateEventSchema, getEventsSchema } from './events.schemas';
+import {
+  createEventSchema,
+  updateEventSchema,
+  getEventsSchema,
+  putEventColorPresetsBodySchema,
+} from './events.schemas';
 
 export class EventsController {
   private eventsService: EventsService;
@@ -84,6 +89,46 @@ export class EventsController {
       // Si no hay month/year, devolver todos los eventos originales (sin repeticiones)
       const events = await this.eventsService.getUserEvents(requestWithUser.user.id);
       res.status(200).json(successResponse(events));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/events/color-presets
+   */
+  getEventColorPresets = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      if (!requestWithUser.user?.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+      const presets = await this.eventsService.getEventColorPresets(requestWithUser.user.id);
+      res.status(200).json(successResponse({ presets }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * PUT /api/v1/events/color-presets
+   */
+  putEventColorPresets = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+      if (!requestWithUser.user?.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+      const validation = putEventColorPresetsBodySchema.safeParse(req.body ?? {});
+      if (!validation.success) {
+        const msg = validation.error.issues[0]?.message ?? 'Datos inválidos';
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, msg));
+      }
+      const presets = await this.eventsService.saveEventColorPresets(
+        requestWithUser.user.id,
+        validation.data.presets
+      );
+      res.status(200).json(successResponse({ presets }));
     } catch (error) {
       next(error);
     }

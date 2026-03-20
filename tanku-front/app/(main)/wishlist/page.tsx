@@ -30,14 +30,11 @@ function WishlistPageContent() {
   return (
     <>
       <WishlistNav />
-      <div className="min-h-screen p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 md:pt-28" style={{ backgroundColor: '#1E1E1E' }}>
+      <div
+        className="min-h-screen overflow-x-hidden p-4 pt-28 sm:p-6 sm:pt-32 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:p-8 md:pt-36"
+        style={{ backgroundColor: '#1E1E1E' }}
+      >
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-[#66DEDB] mb-2">Wishlists</h1>
-            <p className="text-gray-400">Gestiona tus wishlists y descubre las de tus amigos</p>
-          </div>
-
         {/* Tabs */}
         <div className="flex gap-2 border-b border-gray-700 mb-6">
           <button

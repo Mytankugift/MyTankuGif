@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useEvents, type CalendarEvent } from '@/lib/hooks/use-events'
 import { EventFormModal } from '@/components/events/event-form-modal'
 import { EventDayModal } from '@/components/events/event-day-modal'
@@ -9,13 +9,15 @@ import { es } from 'date-fns/locale'
 import { getCalendarGridDays } from '@/lib/events/calendar-grid'
 import { EVENT_COLOR_PRESETS, normalizeEventColor } from '@/lib/event-colors'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { useEventColorPresets } from '@/lib/hooks/use-event-color-presets'
+import { BaseNav } from '@/components/layout/base-nav'
 
 export default function EventsPage() {
   const { getEventsForMonth, deleteEvent, getEventById } = useEvents()
+  const { presets: savedColorPresets, loadPresets } = useEventColorPresets()
   const { isAuthenticated } = useAuthStore()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const [colorFilter, setColorFilter] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedEvents, setSelectedEvents] = useState<CalendarEvent[]>([])
@@ -23,6 +25,9 @@ export default function EventsPage() {
   const [editingEvent, setEditingEvent] = useState<string | null>(null)
   const [editingEventData, setEditingEventData] = useState<any>(null)
   const [showDayModal, setShowDayModal] = useState(false)
+  const [formDefaultDate, setFormDefaultDate] = useState<string | null>(null)
+  const [pastDateToast, setPastDateToast] = useState<string | null>(null)
+  const pastDateToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const loadEvents = useCallback(async () => {
     if (!isAuthenticated) {
@@ -30,7 +35,6 @@ export default function EventsPage() {
       return
     }
 
-    setIsRefreshing(true)
     try {
       const seen = new Set<string>()
       const merged: CalendarEvent[] = []
@@ -52,8 +56,6 @@ export default function EventsPage() {
       setEvents(merged)
     } catch (error) {
       console.error('Error cargando eventos:', error)
-    } finally {
-      setIsRefreshing(false)
     }
   }, [currentDate, getEventsForMonth, isAuthenticated])
 
@@ -62,6 +64,16 @@ export default function EventsPage() {
     loadEvents()
   }, [loadEvents])
 
+  useEffect(() => {
+    if (isAuthenticated) loadPresets()
+  }, [isAuthenticated, loadPresets])
+
+  useEffect(() => {
+    return () => {
+      if (pastDateToastTimer.current) clearTimeout(pastDateToastTimer.current)
+    }
+  }, [])
+
   const handleDateClick = (date: Date) => {
     setSelectedDate(date)
     const dayEvents = events.filter((e) => isSameDay(new Date(e.date), date))
@@ -69,9 +81,23 @@ export default function EventsPage() {
     setShowDayModal(true)
   }
 
-  const handleCreateEvent = () => {
+  const showPastDateHint = useCallback((message: string) => {
+    if (pastDateToastTimer.current) clearTimeout(pastDateToastTimer.current)
+    setPastDateToast(message)
+    pastDateToastTimer.current = setTimeout(() => {
+      setPastDateToast(null)
+      pastDateToastTimer.current = null
+    }, 3800)
+  }, [])
+
+  const handleCreateEvent = (date?: Date) => {
+    if (date && isBefore(startOfDay(date), startOfDay(new Date()))) {
+      showPastDateHint('No puedes crear eventos en fechas que ya pasaron')
+      return
+    }
     setEditingEvent(null)
     setEditingEventData(null)
+    setFormDefaultDate(date ? format(date, 'yyyy-MM-dd') : null)
     setShowFormModal(true)
   }
 
@@ -94,11 +120,13 @@ export default function EventsPage() {
 
   const handleEventCreated = () => {
     loadEvents()
+    loadPresets()
     setShowFormModal(false)
   }
 
   const handleEventUpdated = () => {
     loadEvents()
+    loadPresets()
     setShowFormModal(false)
     setEditingEvent(null)
   }
@@ -141,133 +169,229 @@ export default function EventsPage() {
     )
   }, [baseUpcomingEvents, colorFilter])
 
+  const knownPresetHexes = useMemo(() => {
+    const s = new Set<string>()
+    EVENT_COLOR_PRESETS.forEach((p) => s.add(p.hex.toLowerCase()))
+    savedColorPresets.forEach((p) =>
+      s.add(normalizeEventColor(p.hex).toLowerCase())
+    )
+    return s
+  }, [savedColorPresets])
+
+  const orphanColorsForFilter = useMemo(() => {
+    const s = new Set<string>()
+    for (const e of baseUpcomingEvents) {
+      const h = normalizeEventColor(e.color).toLowerCase()
+      if (!knownPresetHexes.has(h)) s.add(h)
+    }
+    return Array.from(s).sort()
+  }, [baseUpcomingEvents, knownPresetHexes])
+
+  /** Sin hover:scale en filas con ancho ajustado: evita overflow y mini-scrollbars al pasar el ratón */
+  const navButtonBase =
+    'px-4 py-2 font-semibold transition-all duration-300 rounded-full shrink-0 hover:brightness-110 active:brightness-95'
+  /** Flechas móvil: tamaño fijo para que la barra de mes no se mueva al cambiar el nombre del mes */
+  const monthNavArrowMobileClass =
+    'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-semibold transition-all duration-300 hover:brightness-110 active:brightness-95'
+  const navCyan = {
+    backgroundColor: '#66DEDB',
+    color: '#2C3137',
+    boxShadow: '0px 4px 4px 0px #00000040 inset',
+  } as const
+  const navGreen = {
+    backgroundColor: '#73FFA2',
+    color: '#2C3137',
+    boxShadow: '0px 4px 4px 0px #00000040 inset',
+  } as const
+
+  /**
+   * Móvil (dentro de caja fija): flex-1 + truncate. Desktop: ancho fijo 17rem.
+   */
+  const monthTitle = (
+    <h2 className="min-w-0 flex-1 truncate text-center text-base font-semibold tabular-nums capitalize px-1 sm:text-lg lg:w-[17rem] lg:min-w-[17rem] lg:flex-none lg:shrink-0 lg:text-xl">
+      {format(currentDate, 'MMMM yyyy', { locale: es })}
+    </h2>
+  )
+
+  const newEventButtonDesktop = (
+    <button
+      type="button"
+      onClick={() => handleCreateEvent()}
+      className={`${navButtonBase} px-5 flex items-center justify-center gap-2`}
+      style={navGreen}
+    >
+      <span className="text-xl leading-none">+</span>
+      Nuevo Evento
+    </button>
+  )
+
+  /** Móvil: mismo alto que Hoy; el ancho lo iguala la cuadrícula (grid-cols-2) */
+  const newEventButtonMobile = (
+    <button
+      type="button"
+      onClick={() => handleCreateEvent()}
+      className="flex h-11 w-full min-w-0 items-center justify-center gap-1 rounded-full px-2 text-sm font-semibold transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+      style={navGreen}
+    >
+      <span className="shrink-0 text-lg leading-none">+</span>
+      <span className="truncate">Nuevo evento</span>
+    </button>
+  )
+
+  const todayButtonDesktop = (
+    <button type="button" onClick={goToToday} className={navButtonBase} style={navGreen}>
+      Hoy
+    </button>
+  )
+
+  const monthArrowsOnly = (
+    <div className="flex w-full min-w-0 flex-nowrap items-center gap-2">
+      <button
+        type="button"
+        onClick={goToPreviousMonth}
+        className={monthNavArrowMobileClass}
+        style={navCyan}
+        aria-label="Mes anterior"
+      >
+        ←
+      </button>
+      {monthTitle}
+      <button
+        type="button"
+        onClick={goToNextMonth}
+        className={monthNavArrowMobileClass}
+        style={navCyan}
+        aria-label="Mes siguiente"
+      >
+        →
+      </button>
+    </div>
+  )
+
+  const todayButtonMobile = (
+    <button
+      type="button"
+      onClick={goToToday}
+      className="h-11 w-full rounded-full text-sm font-semibold transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+      style={navGreen}
+    >
+      Hoy
+    </button>
+  )
+
+  /** Desktop: barra única debajo del calendario (← mes → Hoy Nuevo). shrink-0: nunca genera scroll propio; scroll va al contenedor de página. */
+  const calendarToolbarDesktop = (
+    <div className="mx-auto hidden w-full min-w-0 max-w-full shrink-0 flex-nowrap items-center justify-center gap-2 overflow-x-hidden lg:mb-3 lg:flex lg:max-w-[min(100%,max(15rem,calc((100dvh-16rem)*7/6)))]">
+      <button type="button" onClick={goToPreviousMonth} className={navButtonBase} style={navCyan}>
+        ←
+      </button>
+      {monthTitle}
+      <button type="button" onClick={goToNextMonth} className={navButtonBase} style={navCyan}>
+        →
+      </button>
+      {todayButtonDesktop}
+      {newEventButtonDesktop}
+    </div>
+  )
+
   return (
-    <div className="min-h-screen text-white p-4 md:p-8" style={{ fontFamily: 'Poppins, sans-serif', backgroundColor: '#262626' }}>
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-4" style={{ color: '#73FFA2' }}>
-            Eventos
-          </h1>
-
-          {/* Navegación de mes */}
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={goToPreviousMonth}
-                className="px-4 py-2 font-semibold transition-all duration-300 hover:transform hover:scale-105 rounded-full"
-                style={{
-                  backgroundColor: '#66DEDB',
-                  color: '#2C3137',
-                  boxShadow: '0px 4px 4px 0px #00000040 inset'
-                }}
-              >
-                ←
-              </button>
-              <h2 className="text-xl font-semibold px-4 flex items-center gap-2">
-                {format(currentDate, 'MMMM yyyy', { locale: es })}
-                {isRefreshing && (
-                  <span className="text-xs font-normal text-[#73FFA2] animate-pulse whitespace-nowrap">
-                    Actualizando…
-                  </span>
-                )}
-              </h2>
-              <button
-                onClick={goToNextMonth}
-                className="px-4 py-2 font-semibold transition-all duration-300 hover:transform hover:scale-105 rounded-full"
-                style={{
-                  backgroundColor: '#66DEDB',
-                  color: '#2C3137',
-                  boxShadow: '0px 4px 4px 0px #00000040 inset'
-                }}
-              >
-                →
-              </button>
-              <button
-                onClick={goToToday}
-                className="px-4 py-2 font-semibold transition-all duration-300 hover:transform hover:scale-105 rounded-full"
-                style={{
-                  backgroundColor: '#73FFA2',
-                  color: '#2C3137',
-                  boxShadow: '0px 4px 4px 0px #00000040 inset'
-                }}
-              >
-                Hoy
-              </button>
-            </div>
-            <button
-              onClick={handleCreateEvent}
-              className="px-5 py-2 font-semibold transition-all duration-300 hover:transform hover:scale-105 flex items-center gap-2 rounded-full"
-              style={{
-                backgroundColor: '#73FFA2',
-                color: '#2C3137',
-                boxShadow: '0px 4px 4px 0px #00000040 inset'
-              }}
+    <>
+      <BaseNav
+        showStories={false}
+        canHide={false}
+        isVisible={true}
+        pageTitle="Eventos"
+        pageSubtitle="Consulta el calendario, crea recordatorios y gestiona tus fechas"
+        pageTitleColor="#66DEDB"
+      />
+      {/* Shell: ocupa el alto del main; el scroll (custom-scrollbar) es solo en la zona interior */}
+      <div
+        className="flex min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-hidden text-white"
+        style={{ fontFamily: 'Poppins, sans-serif', backgroundColor: '#262626' }}
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar p-3 pt-24 sm:p-4 sm:pt-28 md:p-6 md:pt-32 lg:p-6 lg:pt-32">
+          <div className="mx-auto w-full max-w-7xl">
+            {/* Contenido principal: Calendario y Próximos Eventos */}
+            <div className="grid grid-cols-1 gap-6 pb-2 lg:grid-cols-3 lg:pb-1">
+              {/* Calendario (+ controles solo en móvil debajo) */}
+              <div className="flex flex-col gap-4 lg:col-span-2 lg:items-start">
+            {calendarToolbarDesktop}
+            {/*
+              Tarjeta = ancho exacto del grid (móvil 100%, desktop max por altura + centrado).
+            */}
+            <div
+              className="relative w-full max-w-full rounded-2xl border border-gray-700 bg-gray-800 p-4 lg:mx-auto lg:max-w-[min(100%,max(15rem,calc((100dvh-16rem)*7/6)))] lg:p-3"
             >
-              <span className="text-xl">+</span>
-              Nuevo Evento
-            </button>
-          </div>
-        </div>
+              <div className="mb-3 grid w-full grid-cols-7 gap-1.5 lg:mb-2 lg:gap-1">
+                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
+                  <div
+                    key={day}
+                    className="py-1 text-center text-xs font-semibold text-gray-400 lg:py-1 lg:text-xs lg:leading-tight"
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
 
-        {/* Contenido principal: Calendario y Próximos Eventos */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Calendario */}
-          <div className="lg:col-span-2">
-              <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700 relative">
-            {/* Días de la semana */}
-            <div className="grid grid-cols-7 gap-2 mb-4">
-              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
-                <div key={day} className="text-center text-sm font-semibold text-gray-400 py-2">
-                  {day}
-                </div>
-              ))}
-            </div>
+              <div className="grid w-full grid-cols-7 gap-1.5 lg:gap-1">
+                {calendarDays.map((day) => {
+                  const dayEvents = getEventsForDay(day)
+                  const isToday = isSameDay(day, new Date())
+                  const isCurrentMonth = isSameMonth(day, currentDate)
 
-            {/* Días del mes */}
-            <div className="grid grid-cols-7 gap-2">
-              {calendarDays.map((day) => {
-                const dayEvents = getEventsForDay(day)
-                const isToday = isSameDay(day, new Date())
-                const isCurrentMonth = isSameMonth(day, currentDate)
-
-                return (
-                  <button
-                    key={day.toISOString()}
-                    onClick={() => handleDateClick(day)}
-                    className={`
-                      aspect-square p-2 rounded-lg border-2 transition-all
-                      ${isToday ? 'border-[#73FFA2] bg-[#73FFA2]/10' : 'border-gray-700 hover:border-gray-600'}
+                  return (
+                    <button
+                      key={day.toISOString()}
+                      onClick={() => handleDateClick(day)}
+                      className={`
+                      aspect-square rounded-lg border-2 p-1.5 transition-all
+                      lg:rounded-md lg:border lg:p-1 lg:text-xs
+                      ${isToday ? 'border-[#73FFA2] bg-[#73FFA2]/10 lg:ring-1 lg:ring-[#73FFA2]/40' : 'border-gray-700 hover:border-gray-600'}
                       ${!isCurrentMonth ? 'opacity-40 text-gray-500' : ''}
                       ${dayEvents.length > 0 && isCurrentMonth ? 'bg-[#73FFA2]/20' : dayEvents.length > 0 ? 'bg-[#73FFA2]/10' : isCurrentMonth ? 'bg-gray-700/50' : 'bg-gray-800/40'}
                     `}
-                  >
-                    <div className="text-sm font-medium mb-1">{format(day, 'd')}</div>
-                    {dayEvents.length > 0 && (
-                      <div className="flex gap-1 flex-wrap">
-                        {dayEvents.slice(0, 4).map((event) => (
-                          <div
-                            key={`${event.id}_${event.date}`}
-                            className="w-1.5 h-1.5 rounded-full flex-shrink-0 border border-white/10"
-                            style={{ backgroundColor: normalizeEventColor(event.color) }}
-                            title={event.title}
-                          />
-                        ))}
-                        {dayEvents.length > 4 && (
-                          <div className="text-xs text-gray-400">+{dayEvents.length - 4}</div>
-                        )}
+                    >
+                      <div className="mb-0.5 text-xs font-medium leading-none lg:mb-0 lg:leading-tight">
+                        {format(day, 'd')}
                       </div>
-                    )}
-                  </button>
-                )
-              })}
+                      {dayEvents.length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-0.5">
+                          {dayEvents.slice(0, 4).map((event) => (
+                            <div
+                              key={`${event.id}_${event.date}`}
+                              className="h-1.5 w-1.5 shrink-0 rounded-full border border-white/10"
+                              style={{ backgroundColor: normalizeEventColor(event.color) }}
+                              title={event.title}
+                            />
+                          ))}
+                          {dayEvents.length > 4 && (
+                            <div className="text-[10px] leading-none text-gray-400 lg:text-[9px]">
+                              +{dayEvents.length - 4}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Móvil: caja de ancho fijo centrada; mes estable; Hoy / Nuevo mismo ancho (grid) */}
+            <div className="sticky bottom-0 z-20 flex w-full justify-center border-t border-gray-700/60 bg-[#262626] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 lg:hidden">
+              <div className="flex w-[20rem] max-w-[calc(100vw-2rem)] shrink-0 flex-col gap-2.5">
+                {monthArrowsOnly}
+                <div className="grid w-full grid-cols-2 gap-2">
+                  {todayButtonMobile}
+                  {newEventButtonMobile}
+                </div>
+              </div>
             </div>
               </div>
-          </div>
 
-          {/* Próximos Eventos - Lista lateral */}
-          <div className="lg:col-span-1">
-            <div className="bg-gray-800 rounded-2xl p-4 border border-gray-700 sticky top-4 flex flex-col max-h-[min(520px,62vh)]">
+              {/* Próximos Eventos - Lista lateral */}
+              <div className="flex flex-col lg:col-span-1">
+                <div className="sticky top-4 flex min-h-0 max-h-[min(480px,62vh)] flex-col rounded-2xl border border-gray-700 bg-gray-800 p-4 lg:relative lg:top-auto lg:max-h-[min(520px,58vh)] lg:shrink-0">
               <h2 className="text-base font-bold mb-2 flex-shrink-0" style={{ color: '#73FFA2' }}>
                 Próximos eventos
               </h2>
@@ -290,12 +414,68 @@ export default function EventsPage() {
                     onClick={() =>
                       setColorFilter((f) => (f === p.hex ? null : p.hex))
                     }
-                    className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
-                      colorFilter === p.hex ? 'border-white scale-110' : 'border-transparent'
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[72px] transition-colors ${
+                      colorFilter === p.hex
+                        ? 'border-white text-white bg-white/10'
+                        : 'border-gray-600 text-gray-400 hover:border-gray-500'
                     }`}
-                    style={{ backgroundColor: p.hex }}
                     aria-label={p.label}
-                  />
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full shrink-0 border border-white/20"
+                      style={{ backgroundColor: p.hex }}
+                    />
+                    <span className="truncate">{p.label}</span>
+                  </button>
+                ))}
+                {savedColorPresets.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    title={p.label}
+                    onClick={() =>
+                      setColorFilter((f) =>
+                        f === normalizeEventColor(p.hex) ? null : normalizeEventColor(p.hex)
+                      )
+                    }
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[80px] transition-colors ${
+                      colorFilter?.toLowerCase() ===
+                      normalizeEventColor(p.hex).toLowerCase()
+                        ? 'border-white text-white bg-white/10'
+                        : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                    }`}
+                    aria-label={p.label}
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full shrink-0 border border-white/20"
+                      style={{ backgroundColor: p.hex }}
+                    />
+                    <span className="truncate">{p.label}</span>
+                  </button>
+                ))}
+                {orphanColorsForFilter.map((hex) => (
+                  <button
+                    key={hex}
+                    type="button"
+                    title={hex}
+                    onClick={() =>
+                      setColorFilter((f) =>
+                        f?.toLowerCase() === hex ? null : normalizeEventColor(hex)
+                      )
+                    }
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[64px] transition-colors ${
+                      colorFilter?.toLowerCase() === hex
+                        ? 'border-white text-white bg-white/10'
+                        : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                    }`}
+                    aria-label={`Color ${hex}`}
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full shrink-0 border border-white/20"
+                      style={{ backgroundColor: hex }}
+                    />
+                    <span className="truncate">{hex.slice(1, 5)}…</span>
+                  </button>
                 ))}
               </div>
               {upcomingEvents.length === 0 ? (
@@ -342,37 +522,56 @@ export default function EventsPage() {
                   })}
                 </div>
               )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+          </div>
 
-        {/* Modal de eventos del día */}
-        <EventDayModal
-          isOpen={showDayModal}
-          selectedDate={selectedDate}
-          events={selectedEvents}
-          onClose={() => setShowDayModal(false)}
-          onEditEvent={handleEditEvent}
-          onDeleteEvent={handleDeleteEvent}
-          onCreateEvent={handleCreateEvent}
-        />
-
-        {/* Modal de formulario */}
-        {showFormModal && (
-          <EventFormModal
-            isOpen={showFormModal}
-            onClose={() => {
-              setShowFormModal(false)
-              setEditingEvent(null)
-              setEditingEventData(null)
-            }}
-            onEventCreated={handleEventCreated}
-            onEventUpdated={handleEventUpdated}
-            event={editingEventData}
+          {/* Modal de eventos del día */}
+          <EventDayModal
+            isOpen={showDayModal}
+            selectedDate={selectedDate}
+            events={selectedEvents}
+            onClose={() => setShowDayModal(false)}
+            onEditEvent={handleEditEvent}
+            onDeleteEvent={handleDeleteEvent}
+            onCreateEvent={(d) => handleCreateEvent(d)}
+            allowCreateEvent={
+              selectedDate
+                ? !isBefore(startOfDay(selectedDate), startOfDay(new Date()))
+                : true
+            }
           />
-        )}
-      </div>
-    </div>
+
+          {pastDateToast ? (
+            <div
+              className="fixed bottom-24 left-1/2 z-[200000] max-w-[min(90vw,20rem)] -translate-x-1/2 rounded-xl border border-[#73FFA2]/40 bg-[#1E1E1E] px-4 py-3 text-center text-sm text-white shadow-lg md:bottom-8"
+              style={{ fontFamily: 'Poppins, sans-serif' }}
+              role="status"
+            >
+              {pastDateToast}
+            </div>
+          ) : null}
+
+          {/* Modal de formulario */}
+          {showFormModal && (
+            <EventFormModal
+              isOpen={showFormModal}
+              onClose={() => {
+                setShowFormModal(false)
+                setEditingEvent(null)
+                setEditingEventData(null)
+                setFormDefaultDate(null)
+              }}
+              onEventCreated={handleEventCreated}
+              onEventUpdated={handleEventUpdated}
+              event={editingEventData}
+              defaultDate={formDefaultDate ?? undefined}
+            />
+          )}
+        </div>
+    </>
   )
 }
 

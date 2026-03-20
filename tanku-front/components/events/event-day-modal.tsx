@@ -15,7 +15,9 @@ export interface EventDayModalProps {
   onClose: () => void
   onEditEvent: (eventId: string) => void
   onDeleteEvent: (eventId: string) => void
-  onCreateEvent: () => void
+  onCreateEvent: (date: Date) => void
+  /** Si es false, no se ofrece crear evento (día ya pasado en calendario local). */
+  allowCreateEvent?: boolean
   zIndex?: number
 }
 
@@ -27,6 +29,7 @@ export function EventDayModal({
   onEditEvent,
   onDeleteEvent,
   onCreateEvent,
+  allowCreateEvent = true,
   zIndex = 50,
 }: EventDayModalProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -255,23 +258,34 @@ export function EventDayModal({
             )}
           </div>
 
-          <div className="p-4 border-t border-[#4A4A4A] flex justify-center">
-            <button
-              onClick={() => {
-                onClose()
-                onCreateEvent()
-              }}
-              className="w-auto px-5 py-2 font-semibold transition-all duration-300 hover:transform hover:scale-105 flex items-center justify-center gap-2 rounded-full"
-              style={{
-                backgroundColor: '#73FFA2',
-                color: '#2C3137',
-                boxShadow: '0px 4px 4px 0px #00000040 inset',
-                fontFamily: 'Poppins, sans-serif',
-              }}
-            >
-              <span className="text-xl">+</span>
-              Nuevo Evento
-            </button>
+          <div className="p-4 border-t border-[#4A4A4A] flex flex-col items-center gap-2">
+            {allowCreateEvent ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose()
+                  onCreateEvent(selectedDate)
+                }}
+                className="w-auto px-5 py-2 font-semibold transition-all duration-300 hover:transform hover:scale-105 flex items-center justify-center gap-2 rounded-full"
+                style={{
+                  backgroundColor: '#73FFA2',
+                  color: '#2C3137',
+                  boxShadow: '0px 4px 4px 0px #00000040 inset',
+                  fontFamily: 'Poppins, sans-serif',
+                }}
+              >
+                <span className="text-xl">+</span>
+                Nuevo Evento
+              </button>
+            ) : (
+              <p
+                className="text-center text-sm px-2"
+                style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}
+              >
+                No puedes crear eventos en fechas que ya pasaron. Puedes editar o eliminar los que ya existen
+                en este día.
+              </p>
+            )}
           </div>
         </div>
       </div>

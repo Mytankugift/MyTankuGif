@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/layout/sidebar'
+import MobileBottomNav from '@/components/layout/mobile-bottom-nav'
 import { useAuthInit } from '@/lib/hooks/use-auth-init'
 import { OnboardingProvider } from '@/components/onboarding/onboarding-provider'
 import { ProfileNavigationProvider } from '@/lib/context/profile-navigation-context'
@@ -62,11 +63,19 @@ export default function MainLayout({
       <FeedInitProvider>
         <OnboardingProvider>
           <ProfileNavigationProvider>
-            <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#1E1E1E' }}>
+            <div
+              className="flex h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden md:h-screen md:max-h-none"
+              style={{ backgroundColor: '#1E1E1E' }}
+            >
               <Sidebar />
-              <main className="flex-1 overflow-y-auto md:ml-36 lg:ml-60 ml-0 pb-20 md:pb-0 lg:pb-0" style={{ backgroundColor: '#1E1E1E' }}>
+              <main
+                className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain pb-20 md:ml-36 md:pb-0 lg:ml-60 lg:pb-0 ml-0"
+                style={{ backgroundColor: '#1E1E1E' }}
+              >
                 {children}
               </main>
+              {/* Después de main para quedar por encima del contenido (scroll / stacking) en móvil */}
+              <MobileBottomNav />
             </div>
             {showConsentModal && (
               <DataPolicyConsentModal isOpen={showConsentModal} />

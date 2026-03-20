@@ -75,6 +75,9 @@ export const API_ENDPOINTS = {
     },
     SYSTEM: {
       PROXY_STATUS: `${API_BASE}/api/v1/admin/system/proxy/status`,
+      CRON_STATUS: `${API_BASE}/api/v1/admin/system/cron/status`,
+      CRON_RUN_EVENT_REMINDERS: `${API_BASE}/api/v1/admin/system/cron/event-reminders/run`,
+      NOTIFICATIONS_TEST: `${API_BASE}/api/v1/admin/system/notifications/test`,
     },
   },
 } as const

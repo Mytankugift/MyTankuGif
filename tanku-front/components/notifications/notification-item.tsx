@@ -50,6 +50,9 @@ export function NotificationItem({ notification, onMarkAsRead }: NotificationIte
           router.push('/stalkergift')
         }
         break
+      case 'admin_test':
+        router.push('/notifications')
+        break
       default:
         // No navegar para otros tipos
         break
@@ -69,6 +72,8 @@ export function NotificationItem({ notification, onMarkAsRead }: NotificationIte
         return '🎁'
       case 'stalker_gift_accepted':
         return '🎉'
+      case 'admin_test':
+        return '🧪'
       default:
         return '🔔'
     }

@@ -248,8 +248,18 @@ function ProfileContent() {
 
   return (
     <>
-      <BaseNav showStories={false} canHide={false} isVisible={true} />
-      <div className="min-h-screen w-full p-3 sm:p-4 md:p-6 pt-20 sm:pt-24 md:pt-28 custom-scrollbar overflow-y-auto" style={{ backgroundColor: '#1E1E1E', height: 'calc(100vh - 0px)' }}>
+      <BaseNav
+        showStories={false}
+        canHide={false}
+        isVisible={true}
+        pageTitle="Mi perfil"
+        pageSubtitle="Personaliza tu cuenta, revisa tu actividad y gestiona pedidos y regalos"
+        pageTitleColor="#66DEDB"
+      />
+      <div
+        className="min-h-screen w-full overflow-x-hidden overflow-y-auto p-3 pt-24 sm:p-4 sm:pt-28 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:p-6 md:pt-32 custom-scrollbar"
+        style={{ backgroundColor: '#1E1E1E' }}
+      >
         <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">
         {/* Sección principal - Dos columnas */}
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">

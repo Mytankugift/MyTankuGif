@@ -1,279 +1,260 @@
 /**
+
  * Events Service
- * 
- * Servicio para gestionar eventos de usuarios con soporte para repeticiones
+
+ *
+
+ * Servicio para gestionar eventos de usuarios con soporte para repeticiones.
+
+ * Fechas de calendario: ancla UTC mediodía para evitar desfases por zona horaria.
+
  */
 
-import { prisma } from '../../config/database';
-import { NotFoundError, BadRequestError, ForbiddenError } from '../../shared/errors/AppError';
+import { prisma } from "../../config/database";
+
+import {
+  NotFoundError,
+  BadRequestError,
+  ForbiddenError,
+} from "../../shared/errors/AppError";
+
 import {
   CreateEventDTO,
   UpdateEventDTO,
   EventDTO,
   CalendarEventDTO,
-} from '../../shared/dto/events.dto';
-import { RepeatType } from '@prisma/client';
+  EventColorPresetDTO,
+} from "../../shared/dto/events.dto";
 
-const DEFAULT_EVENT_COLOR = '#73FFA2';
+import { RepeatType } from "@prisma/client";
+
+const DEFAULT_EVENT_COLOR = "#73FFA2";
 
 export class EventsService {
   private normalizeColor(hex: string | undefined | null): string {
-    if (!hex || typeof hex !== 'string') return DEFAULT_EVENT_COLOR;
+    if (!hex || typeof hex !== "string") return DEFAULT_EVENT_COLOR;
+
     const h = hex.trim();
+
     if (/^#[0-9A-Fa-f]{6}$/.test(h)) return h.toUpperCase();
+
     return DEFAULT_EVENT_COLOR;
   }
 
-  /** Fecha calendario (sin hora relevante): mediodía local para evitar saltos TZ */
-  private parseEventDateInput(input: string): Date {
-    const dateOnly = input.slice(0, 10);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
-      const [y, m, d] = dateOnly.split('-').map(Number);
-      return new Date(y, m - 1, d, 12, 0, 0, 0);
-    }
-    const parsed = new Date(input);
-    if (isNaN(parsed.getTime())) {
-      throw new BadRequestError('Fecha inválida');
-    }
-    parsed.setHours(12, 0, 0, 0);
-    return parsed;
+  /** Día civil en UTC a mediodía (comparaciones y serialización estables). */
+
+  private utcNoon(y: number, month0: number, day: number): Date {
+    return new Date(Date.UTC(y, month0, day, 12, 0, 0));
   }
 
-  /**
-   * Mapear Event de Prisma a EventDTO
-   */
+  /** Parse YYYY-MM-DD o ISO → instante UTC mediodía de ese día civil. */
+
+  private parseEventDateInput(input: string): Date {
+    const dateOnly = input.slice(0, 10);
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+      const [y, m, d] = dateOnly.split("-").map(Number);
+
+      return this.utcNoon(y, m - 1, d);
+    }
+
+    const parsed = new Date(input);
+
+    if (isNaN(parsed.getTime())) {
+      throw new BadRequestError("Fecha inválida");
+    }
+
+    return this.utcNoon(
+      parsed.getUTCFullYear(),
+
+      parsed.getUTCMonth(),
+
+      parsed.getUTCDate(),
+    );
+  }
+
   private mapEventToDTO(event: any): EventDTO {
     return {
       id: event.id,
+
       userId: event.userId,
+
       title: event.title,
+
       description: event.description,
+
       eventDate: event.eventDate.toISOString(),
+
       repeatType: event.repeatType,
+
+      kind: event.kind ?? "EVENT",
+
       reminders: (event.reminders as number[]) || [],
+
       color: this.normalizeColor(event.color),
+
       isActive: event.isActive,
+
       createdAt: event.createdAt.toISOString(),
+
       updatedAt: event.updatedAt.toISOString(),
     };
   }
 
   /**
-   * Crear un nuevo evento
+
+   * Calcular fechas de repetición (todas en UTC mediodía del día civil).
+
    */
-  async createEvent(userId: string, data: CreateEventDTO): Promise<EventDTO> {
-    // Validar que el usuario existe
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
 
-    if (!user) {
-      throw new NotFoundError('Usuario no encontrado');
-    }
-
-    const eventDate = this.parseEventDateInput(data.eventDate);
-
-    // Crear evento
-    const event = await prisma.event.create({
-      data: {
-        userId,
-        title: data.title,
-        description: data.description || null,
-        eventDate,
-        repeatType: data.repeatType,
-        reminders: data.reminders || [],
-        color: this.normalizeColor(data.color),
-        isActive: true,
-      },
-    });
-
-    return this.mapEventToDTO(event);
-  }
-
-  /**
-   * Obtener evento por ID
-   */
-  async getEventById(eventId: string, userId: string): Promise<EventDTO> {
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-    });
-
-    if (!event) {
-      throw new NotFoundError('Evento no encontrado');
-    }
-
-    if (event.userId !== userId) {
-      throw new ForbiddenError('No tienes permiso para acceder a este evento');
-    }
-
-    return this.mapEventToDTO(event);
-  }
-
-  /**
-   * Actualizar evento
-   */
-  async updateEvent(eventId: string, userId: string, data: UpdateEventDTO): Promise<EventDTO> {
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-    });
-
-    if (!event) {
-      throw new NotFoundError('Evento no encontrado');
-    }
-
-    if (event.userId !== userId) {
-      throw new ForbiddenError('No tienes permiso para actualizar este evento');
-    }
-
-    // Preparar datos de actualización
-    const updateData: any = {};
-    if (data.title !== undefined) updateData.title = data.title;
-    if (data.description !== undefined) updateData.description = data.description;
-    if (data.eventDate !== undefined) {
-      updateData.eventDate = this.parseEventDateInput(data.eventDate);
-    }
-    if (data.repeatType !== undefined) updateData.repeatType = data.repeatType;
-    if (data.color !== undefined) updateData.color = this.normalizeColor(data.color);
-    if (data.reminders !== undefined) updateData.reminders = data.reminders;
-    if (data.isActive !== undefined) updateData.isActive = data.isActive;
-
-    const updatedEvent = await prisma.event.update({
-      where: { id: eventId },
-      data: updateData,
-    });
-
-    return this.mapEventToDTO(updatedEvent);
-  }
-
-  /**
-   * Eliminar evento
-   */
-  async deleteEvent(eventId: string, userId: string): Promise<void> {
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-    });
-
-    if (!event) {
-      throw new NotFoundError('Evento no encontrado');
-    }
-
-    if (event.userId !== userId) {
-      throw new ForbiddenError('No tienes permiso para eliminar este evento');
-    }
-
-    await prisma.event.delete({
-      where: { id: eventId },
-    });
-  }
-
-  /**
-   * Calcular fechas de repetición para un evento
-   * Esta función calcula las fechas virtuales según el tipo de repetición
-   */
   private calculateRecurrences(
     eventDate: Date,
+
     repeatType: RepeatType,
-    startDate: Date,
-    endDate: Date
+
+    rangeStart: Date,
+
+    rangeEnd: Date,
   ): Date[] {
     const dates: Date[] = [];
-    const originalDate = new Date(eventDate);
 
-    // Si el evento original está fuera del rango, no incluir
-    if (originalDate < startDate || originalDate > endDate) {
-      // Solo continuar si es repetición
-      if (repeatType === 'NONE') {
-        return [];
-      }
-    } else {
-      // Si está en el rango y es NONE, solo devolver esta fecha
-      if (repeatType === 'NONE') {
-        return [originalDate];
-      }
+    const originalDate = new Date(eventDate.getTime());
+
+    if (repeatType === "NONE") {
+      if (originalDate < rangeStart || originalDate > rangeEnd) return [];
+
+      return [originalDate];
     }
 
-    // En este punto repeatType nunca es NONE (ya devuelto arriba)
+    if (originalDate > rangeEnd) {
+      return [];
+    }
+
     switch (repeatType) {
-      case 'DAILY': {
-        // Cada día desde eventDate hasta endDate
-        let currentDate = new Date(Math.max(originalDate.getTime(), startDate.getTime()));
-        while (currentDate <= endDate) {
-          dates.push(new Date(currentDate));
-          currentDate.setDate(currentDate.getDate() + 1);
+      case "DAILY": {
+        let cur = new Date(
+          Math.max(originalDate.getTime(), rangeStart.getTime()),
+        );
+
+        cur = this.utcNoon(
+          cur.getUTCFullYear(),
+
+          cur.getUTCMonth(),
+
+          cur.getUTCDate(),
+        );
+
+        if (cur < rangeStart) {
+          cur = new Date(rangeStart);
         }
+
+        while (cur <= rangeEnd) {
+          dates.push(new Date(cur.getTime()));
+
+          cur = new Date(cur.getTime());
+
+          cur.setUTCDate(cur.getUTCDate() + 1);
+        }
+
         break;
       }
 
-      case 'WEEKLY': {
-        // Mismo día de la semana
-        const dayOfWeek = originalDate.getDay();
-        let currentDate = new Date(startDate);
-        
-        // Ir al primer día de la semana correspondiente en el rango
-        const daysUntilTarget = (dayOfWeek - currentDate.getDay() + 7) % 7;
-        if (daysUntilTarget > 0) {
-          currentDate.setDate(currentDate.getDate() + daysUntilTarget);
-        }
-        
-        // Si la fecha calculada es antes del evento original, avanzar una semana
-        if (currentDate < originalDate) {
-          currentDate.setDate(currentDate.getDate() + 7);
+      case "WEEKLY": {
+        const targetDow = originalDate.getUTCDay();
+
+        let cur = this.utcNoon(
+          rangeStart.getUTCFullYear(),
+
+          rangeStart.getUTCMonth(),
+
+          rangeStart.getUTCDate(),
+        );
+
+        let dow = cur.getUTCDay();
+
+        const add = (targetDow - dow + 7) % 7;
+
+        if (add > 0) {
+          cur.setUTCDate(cur.getUTCDate() + add);
         }
 
-        while (currentDate <= endDate) {
-          dates.push(new Date(currentDate));
-          currentDate.setDate(currentDate.getDate() + 7);
+        while (cur.getTime() < originalDate.getTime()) {
+          cur.setUTCDate(cur.getUTCDate() + 7);
         }
+
+        while (cur <= rangeEnd) {
+          dates.push(new Date(cur.getTime()));
+
+          cur.setUTCDate(cur.getUTCDate() + 7);
+        }
+
         break;
       }
 
-      case 'MONTHLY': {
-        // Mismo día del mes
-        const dayOfMonth = originalDate.getDate();
-        let currentDate = new Date(startDate);
-        currentDate.setDate(dayOfMonth);
+      case "MONTHLY": {
+        const dom = originalDate.getUTCDate();
 
-        // Si la fecha calculada es antes del evento original, avanzar un mes
-        if (currentDate < originalDate) {
-          currentDate.setMonth(currentDate.getMonth() + 1);
-          currentDate.setDate(dayOfMonth);
-        }
+        let y = rangeStart.getUTCFullYear();
 
-        while (currentDate <= endDate) {
-          // Verificar que el día existe en el mes (ej: 31 de febrero)
-          const testDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayOfMonth);
-          if (testDate.getDate() === dayOfMonth) {
-            dates.push(new Date(testDate));
+        let m0 = rangeStart.getUTCMonth();
+
+        const endY = rangeEnd.getUTCFullYear();
+
+        const endM = rangeEnd.getUTCMonth();
+
+        while (y < endY || (y === endY && m0 <= endM)) {
+          const cand = this.utcNoon(y, m0, dom);
+
+          if (
+            cand.getUTCDate() === dom &&
+            cand.getTime() >= originalDate.getTime() &&
+            cand >= rangeStart &&
+            cand <= rangeEnd
+          ) {
+            dates.push(cand);
           }
-          currentDate.setMonth(currentDate.getMonth() + 1);
-          currentDate.setDate(dayOfMonth);
+
+          m0++;
+
+          if (m0 > 11) {
+            m0 = 0;
+
+            y++;
+          }
         }
+
         break;
       }
 
-      case 'YEARLY': {
-        // Mismo día y mes cada año
-        const month = originalDate.getMonth();
-        const day = originalDate.getDate();
-        
-        let currentYear = startDate.getFullYear();
-        const endYear = endDate.getFullYear();
+      case "YEARLY": {
+        const m0 = originalDate.getUTCMonth();
 
-        // Si el evento original es en el futuro, empezar desde ese año
-        if (originalDate > startDate) {
-          currentYear = originalDate.getFullYear();
+        const dom = originalDate.getUTCDate();
+
+        let y = rangeStart.getUTCFullYear();
+
+        const endY = rangeEnd.getUTCFullYear();
+
+        if (originalDate > rangeStart) {
+          y = Math.max(y, originalDate.getUTCFullYear());
         }
 
-        while (currentYear <= endYear) {
-          const testDate = new Date(currentYear, month, day);
-          // Verificar que el día existe (ej: 29 de febrero en años no bisiestos)
-          if (testDate.getMonth() === month && testDate.getDate() === day) {
-            if (testDate >= startDate && testDate <= endDate) {
-              dates.push(testDate);
-            }
+        while (y <= endY) {
+          const cand = this.utcNoon(y, m0, dom);
+
+          if (
+            cand.getUTCMonth() === m0 &&
+            cand.getUTCDate() === dom &&
+            cand.getTime() >= originalDate.getTime() &&
+            cand >= rangeStart &&
+            cand <= rangeEnd
+          ) {
+            dates.push(cand);
           }
-          currentYear++;
+
+          y++;
         }
+
         break;
       }
     }
@@ -281,84 +262,244 @@ export class EventsService {
     return dates;
   }
 
-  /**
-   * Obtener eventos para un mes específico
-   * Calcula las repeticiones y devuelve eventos virtuales
-   */
+  async createEvent(userId: string, data: CreateEventDTO): Promise<EventDTO> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundError("Usuario no encontrado");
+    }
+
+    const kind = data.kind ?? "EVENT";
+
+    const repeatType = kind === "EVENT" ? "NONE" : data.repeatType;
+
+    const eventDate = this.parseEventDateInput(data.eventDate);
+
+    const event = await prisma.event.create({
+      data: {
+        userId,
+
+        title: data.title,
+
+        description: data.description || null,
+
+        eventDate,
+
+        repeatType,
+
+        reminders: data.reminders || [],
+
+        color: this.normalizeColor(data.color),
+
+        kind,
+
+        isActive: true,
+      },
+    });
+
+    return this.mapEventToDTO(event);
+  }
+
+  async getEventById(eventId: string, userId: string): Promise<EventDTO> {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundError("Evento no encontrado");
+    }
+
+    if (event.userId !== userId) {
+      throw new ForbiddenError("No tienes permiso para acceder a este evento");
+    }
+
+    return this.mapEventToDTO(event);
+  }
+
+  async updateEvent(
+    eventId: string,
+    userId: string,
+    data: UpdateEventDTO,
+  ): Promise<EventDTO> {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundError("Evento no encontrado");
+    }
+
+    if (event.userId !== userId) {
+      throw new ForbiddenError("No tienes permiso para actualizar este evento");
+    }
+
+    const nextKind =
+      data.kind !== undefined ? data.kind : (event.kind ?? "EVENT");
+
+    if (
+      nextKind === "EVENT" &&
+      data.repeatType !== undefined &&
+      data.repeatType !== "NONE"
+    ) {
+      throw new BadRequestError(
+        "Los eventos de una sola vez no admiten repetición",
+      );
+    }
+
+    const updateData: any = {};
+
+    if (data.title !== undefined) updateData.title = data.title;
+
+    if (data.description !== undefined)
+      updateData.description = data.description;
+
+    if (data.eventDate !== undefined) {
+      updateData.eventDate = this.parseEventDateInput(data.eventDate);
+    }
+
+    if (data.kind !== undefined) {
+      updateData.kind = data.kind;
+    }
+
+    if (data.repeatType !== undefined || data.kind !== undefined) {
+      if (nextKind === "EVENT") {
+        updateData.repeatType = "NONE";
+      } else if (data.repeatType !== undefined) {
+        updateData.repeatType = data.repeatType;
+      }
+    }
+
+    if (data.color !== undefined)
+      updateData.color = this.normalizeColor(data.color);
+
+    if (data.reminders !== undefined) updateData.reminders = data.reminders;
+
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+    const updatedEvent = await prisma.event.update({
+      where: { id: eventId },
+
+      data: updateData,
+    });
+
+    return this.mapEventToDTO(updatedEvent);
+  }
+
+  async deleteEvent(eventId: string, userId: string): Promise<void> {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundError("Evento no encontrado");
+    }
+
+    if (event.userId !== userId) {
+      throw new ForbiddenError("No tienes permiso para eliminar este evento");
+    }
+
+    await prisma.event.delete({
+      where: { id: eventId },
+    });
+  }
+
   async getEventsForMonth(
     userId: string,
+
     month: number,
-    year: number
+
+    year: number,
   ): Promise<CalendarEventDTO[]> {
-    // Validar mes y año
     if (month < 1 || month > 12) {
-      throw new BadRequestError('Mes inválido (debe ser 1-12)');
+      throw new BadRequestError("Mes inválido (debe ser 1-12)");
     }
+
     if (year < 2000 || year > 2100) {
-      throw new BadRequestError('Año inválido');
+      throw new BadRequestError("Año inválido");
     }
 
-    // Calcular rango del mes
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59, 999); // Último día del mes
+    const rangeStartDb = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
 
-    // Obtener todos los eventos activos del usuario
-    // Buscar eventos que puedan tener instancias en este mes
+    const rangeEndDb = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+
+    const rangeStart = this.utcNoon(year, month - 1, 1);
+
+    const rangeEnd = this.utcNoon(year, month, 0);
+
     const events = await prisma.event.findMany({
       where: {
         userId,
+
         isActive: true,
-        // Buscar eventos que:
-        // 1. Su fecha original está en este mes, O
-        // 2. Son repeticiones que pueden caer en este mes
+
         OR: [
           {
-            // Evento original en este mes
             eventDate: {
-              gte: startDate,
-              lte: endDate,
+              gte: rangeStartDb,
+
+              lte: rangeEndDb,
             },
           },
+
           {
-            // Repeticiones que pueden caer en este mes
             repeatType: {
-              not: 'NONE',
+              not: "NONE",
             },
-            // El evento original debe ser anterior o igual al fin del mes
+
             eventDate: {
-              lte: endDate,
+              lte: rangeEndDb,
             },
           },
         ],
       },
+
       orderBy: {
-        eventDate: 'asc',
+        eventDate: "asc",
       },
     });
 
-    // Calcular instancias virtuales para cada evento
     const calendarEvents: CalendarEventDTO[] = [];
 
     for (const event of events) {
       const eventDate = new Date(event.eventDate);
-      const recurrences = this.calculateRecurrences(eventDate, event.repeatType, startDate, endDate);
+
+      const recurrences = this.calculateRecurrences(
+        eventDate,
+
+        event.repeatType,
+
+        rangeStart,
+
+        rangeEnd,
+      );
 
       for (const recurrenceDate of recurrences) {
         calendarEvents.push({
           id: event.id,
+
           title: event.title,
+
           description: event.description,
+
           date: recurrenceDate.toISOString(),
+
           originalEventDate: eventDate.toISOString(),
+
           repeatType: event.repeatType,
+
           reminders: (event.reminders as number[]) || [],
+
           color: this.normalizeColor(event.color),
+
+          kind: event.kind ?? "EVENT",
+
           isActive: event.isActive,
         });
       }
     }
 
-    // Ordenar por fecha
     calendarEvents.sort((a, b) => {
       return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
@@ -366,21 +507,65 @@ export class EventsService {
     return calendarEvents;
   }
 
-  /**
-   * Obtener todos los eventos del usuario (sin cálculo de repeticiones)
-   * Útil para listar eventos originales
-   */
   async getUserEvents(userId: string): Promise<EventDTO[]> {
     const events = await prisma.event.findMany({
       where: {
         userId,
       },
+
       orderBy: {
-        eventDate: 'asc',
+        eventDate: "asc",
       },
     });
 
-    return events.map(event => this.mapEventToDTO(event));
+    return events.map((event) => this.mapEventToDTO(event));
+  }
+
+  async getEventColorPresets(userId: string): Promise<EventColorPresetDTO[]> {
+    const profile = await prisma.userProfile.findUnique({
+      where: { userId },
+      select: { eventColorPresets: true },
+    });
+    return this.parseStoredColorPresets(profile?.eventColorPresets);
+  }
+
+  async saveEventColorPresets(
+    userId: string,
+    presets: EventColorPresetDTO[]
+  ): Promise<EventColorPresetDTO[]> {
+    const normalized: EventColorPresetDTO[] = presets.map((p) => ({
+      id: p.id.trim(),
+      label: p.label.trim().slice(0, 40),
+      hex: this.normalizeColor(p.hex),
+    }));
+
+    await prisma.userProfile.upsert({
+      where: { userId },
+      update: { eventColorPresets: normalized },
+      create: { userId, eventColorPresets: normalized },
+    });
+
+    return normalized;
+  }
+
+  private parseStoredColorPresets(json: unknown): EventColorPresetDTO[] {
+    if (json == null) return [];
+    try {
+      const raw = Array.isArray(json) ? json : JSON.parse(String(json));
+      if (!Array.isArray(raw)) return [];
+      const out: EventColorPresetDTO[] = [];
+      for (const item of raw) {
+        if (item && typeof item === "object") {
+          const o = item as Record<string, unknown>;
+          const label = String(o.label ?? "").trim().slice(0, 40);
+          const hex = this.normalizeColor(String(o.hex ?? ""));
+          const id = String(o.id ?? "").trim() || `${hex}-${label}`;
+          if (label) out.push({ id, label, hex });
+        }
+      }
+      return out;
+    } catch {
+      return [];
+    }
   }
 }
-

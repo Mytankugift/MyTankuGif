@@ -48,6 +48,7 @@ export function EventsModal({ isOpen, onClose }: EventsModalProps) {
   const [showFormModal, setShowFormModal] = useState(false)
   const [editingEventData, setEditingEventData] = useState<Event | null>(null)
   const [showDayModal, setShowDayModal] = useState(false)
+  const [formDefaultDate, setFormDefaultDate] = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -233,6 +234,7 @@ export function EventsModal({ isOpen, onClose }: EventsModalProps) {
                 type="button"
                 onClick={() => {
                   setEditingEventData(null)
+                  setFormDefaultDate(null)
                   setShowFormModal(true)
                 }}
                 className="px-4 py-2 text-sm font-semibold transition-all duration-300 hover:scale-105 rounded-full"
@@ -341,8 +343,9 @@ export function EventsModal({ isOpen, onClose }: EventsModalProps) {
         onClose={() => setShowDayModal(false)}
         onEditEvent={handleEditEvent}
         onDeleteEvent={handleDeleteEvent}
-        onCreateEvent={() => {
+        onCreateEvent={(d) => {
           setEditingEventData(null)
+          setFormDefaultDate(format(d, 'yyyy-MM-dd'))
           setShowFormModal(true)
         }}
         zIndex={100000}
@@ -354,10 +357,12 @@ export function EventsModal({ isOpen, onClose }: EventsModalProps) {
           onClose={() => {
             setShowFormModal(false)
             setEditingEventData(null)
+            setFormDefaultDate(null)
           }}
           onEventCreated={handleEventCreated}
           onEventUpdated={handleEventUpdated}
           event={editingEventData}
+          defaultDate={formDefaultDate ?? undefined}
         />
       )}
     </>

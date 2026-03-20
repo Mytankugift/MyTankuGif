@@ -8,6 +8,10 @@
 import { prisma } from '../../config/database';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EventsService } from './events.service';
+import {
+  CronJobStateService,
+  EVENT_REMINDERS_JOB_KEY,
+} from '../cron-job-state/cron-job-state.service';
 
 export class EventsRemindersService {
   private notificationsService: NotificationsService;
@@ -20,9 +24,26 @@ export class EventsRemindersService {
 
   /**
    * Verificar y crear recordatorios para eventos
-   * Este método debe ejecutarse diariamente (cron job)
+   * Este método debe ejecutarse diariamente (cron job) o manualmente desde el ERP
    */
-  async checkAndCreateReminders(): Promise<void> {
+  async checkAndCreateReminders(): Promise<{ remindersCreated: number }> {
+    const cronJobState = new CronJobStateService();
+    await cronJobState.markStarted(EVENT_REMINDERS_JOB_KEY);
+
+    try {
+      const result = await this.runRemindersLogic();
+      await cronJobState.markSuccess(EVENT_REMINDERS_JOB_KEY, {
+        remindersCreated: result.remindersCreated,
+      });
+      return result;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await cronJobState.markFailure(EVENT_REMINDERS_JOB_KEY, msg);
+      throw err;
+    }
+  }
+
+  private async runRemindersLogic(): Promise<{ remindersCreated: number }> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -154,6 +175,7 @@ export class EventsRemindersService {
     }
 
     console.log(`[EVENTS-REMINDERS] Proceso completado. ${remindersCreated} recordatorios creados`);
+    return { remindersCreated };
   }
 }
 
