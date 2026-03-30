@@ -59,6 +59,7 @@ export const API_ENDPOINTS = {
   CHECKOUT: {
     ADD_ORDER: '/api/v1/checkout/add-order',
     GIFT_DIRECT: '/api/v1/checkout/gift-direct',
+    EPAYCO_SMART_SESSION: '/api/v1/checkout/epayco-smart-session',
   },
   // Users
   USERS: {

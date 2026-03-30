@@ -71,6 +71,12 @@ const envSchema = z.object({
   EPAYCO_TEST_MODE: z.string().transform((val) => val === 'true').default('true'),
   EPAYCO_CONFIRMATION_URL: z.string().url('EPAYCO_CONFIRMATION_URL debe ser una URL válida'),
   EPAYCO_PSE_CUSTOMER_ID: z.string().optional(),
+  /** Customer ID del dashboard ePayco (firma webhook x_signature). Recomendado en producción. */
+  EPAYCO_CUSTOMER_ID: z.string().optional(),
+  /** P_KEY del dashboard ePayco (firma webhook). Recomendado en producción. */
+  EPAYCO_P_KEY: z.string().optional(),
+  /** classic = checkout.js; smart = Apify + checkout-v2.js (predeterminado) */
+  EPAYCO_CHECKOUT_MODE: z.enum(['classic', 'smart']).default('smart'),
 
   // Webhooks
   WEBHOOK_BASE_URL: z.string().url('WEBHOOK_BASE_URL debe ser una URL válida').optional(),

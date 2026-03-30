@@ -16,6 +16,8 @@ import { CheckoutConfirmationModal } from '@/components/checkout/checkout-confir
 import Script from 'next/script'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { isEpaycoSmartMode, getEpaycoScriptUrlForMode } from '@/lib/epayco/config'
+import { openEpaycoSmartCheckout } from '@/lib/epayco/open-smart-checkout'
 
 // Declaración para TypeScript para el objeto ePayco en window
 declare global {
@@ -195,31 +197,33 @@ function CheckoutContent() {
         return
       }
 
-      // Verificar que se pueda configurar
-      try {
-        const epaycoKey = process.env.NEXT_PUBLIC_EPAYCO_KEY
-        if (!epaycoKey) {
-          setButtonTooltip('Error: NEXT_PUBLIC_EPAYCO_KEY no está configurada en las variables de entorno.')
-          console.error('[CHECKOUT] NEXT_PUBLIC_EPAYCO_KEY no está configurada')
+      // Checkout clásico: validar llave pública. Smart usa sessionId del backend (Apify).
+      if (!isEpaycoSmartMode()) {
+        try {
+          const epaycoKey = process.env.NEXT_PUBLIC_EPAYCO_KEY
+          if (!epaycoKey) {
+            setButtonTooltip('Error: NEXT_PUBLIC_EPAYCO_KEY no está configurada en las variables de entorno.')
+            console.error('[CHECKOUT] NEXT_PUBLIC_EPAYCO_KEY no está configurada')
+            return
+          }
+          const epaycoTestMode = process.env.NEXT_PUBLIC_EPAYCO_TEST_MODE !== 'false'
+          console.log('[CHECKOUT] Validando Epayco con key:', epaycoKey)
+          console.log('[CHECKOUT] Test mode:', epaycoTestMode)
+          const testHandler = window.ePayco.checkout.configure({
+            key: epaycoKey,
+            test: epaycoTestMode,
+          })
+          if (!testHandler) {
+            setButtonTooltip('No se pudo configurar ePayco. Por favor, intenta de nuevo.')
+            console.error('[CHECKOUT] No se pudo configurar el handler de Epayco')
+            return
+          }
+          console.log('[CHECKOUT] Epayco validado exitosamente')
+        } catch (epaycoTestError: any) {
+          console.error('[CHECKOUT] Error validando Epayco:', epaycoTestError)
+          setButtonTooltip('Error al validar ePayco: ' + (epaycoTestError?.message || 'Error desconocido'))
           return
         }
-        const epaycoTestMode = process.env.NEXT_PUBLIC_EPAYCO_TEST_MODE !== 'false'
-        console.log('[CHECKOUT] Validando Epayco con key:', epaycoKey)
-        console.log('[CHECKOUT] Test mode:', epaycoTestMode)
-        const testHandler = window.ePayco.checkout.configure({
-          key: epaycoKey,
-          test: epaycoTestMode,
-        })
-        if (!testHandler) {
-          setButtonTooltip('No se pudo configurar ePayco. Por favor, intenta de nuevo.')
-          console.error('[CHECKOUT] No se pudo configurar el handler de Epayco')
-          return
-        }
-        console.log('[CHECKOUT] Epayco validado exitosamente')
-      } catch (epaycoTestError: any) {
-        console.error('[CHECKOUT] Error validando Epayco:', epaycoTestError)
-        setButtonTooltip('Error al validar ePayco: ' + (epaycoTestError?.message || 'Error desconocido'))
-        return
       }
     }
 
@@ -283,7 +287,34 @@ function CheckoutContent() {
         })),
       }
 
-      // Llamar al endpoint de checkout
+      if (paymentMethod === 'epayco' && isEpaycoSmartMode()) {
+        setShowConfirmationModal(false)
+        try {
+          const smartRes = await apiClient.post<{ sessionId: string }>(
+            API_ENDPOINTS.CHECKOUT.EPAYCO_SMART_SESSION,
+            { flow: 'cart', dataForm, dataCart }
+          )
+          if (!smartRes.success || !smartRes.data?.sessionId) {
+            throw new Error(
+              (smartRes as { error?: { message?: string } }).error?.message ||
+                'No se pudo crear la sesión de pago'
+            )
+          }
+          if (typeof window !== 'undefined' && selectedItemIds.size > 0) {
+            localStorage.setItem('epayco-selected-items', JSON.stringify(Array.from(selectedItemIds)))
+          }
+          openEpaycoSmartCheckout(smartRes.data.sessionId)
+        } catch (epaycoSmartErr: any) {
+          console.error('[EPAYCO-SMART]', epaycoSmartErr)
+          setButtonTooltip(epaycoSmartErr.message || 'Error al iniciar el pago')
+          setShowConfirmationModal(false)
+        } finally {
+          setIsSubmitting(false)
+        }
+        return
+      }
+
+      // Llamar al endpoint de checkout (classic / contra entrega)
       const response = await apiClient.post<any>(
         API_ENDPOINTS.CHECKOUT.ADD_ORDER,
         {
@@ -691,7 +722,7 @@ function CheckoutContent() {
       {/* Script de Epayco */}
       <Script
         id="epayco-script"
-        src={process.env.NEXT_PUBLIC_EPAYCO_CHECKOUT_URL || 'https://checkout.epayco.co/checkout.js'}
+        src={getEpaycoScriptUrlForMode()}
         strategy="afterInteractive"
         onLoad={() => {
           console.log('[EPAYCO] Script cargado exitosamente')

@@ -13,6 +13,8 @@ import { CheckoutConfirmationModal } from '@/components/checkout/checkout-confir
 import Script from 'next/script'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { isEpaycoSmartMode, getEpaycoScriptUrlForMode } from '@/lib/epayco/config'
+import { openEpaycoSmartCheckout } from '@/lib/epayco/open-smart-checkout'
 
 // Declaración para TypeScript para el objeto ePayco en window
 declare global {
@@ -205,7 +207,31 @@ function GiftCheckoutContent() {
         })),
       }
 
-      // Llamar al endpoint de checkout
+      if (isEpaycoSmartMode()) {
+        setShowConfirmationModal(false)
+        try {
+          const smartRes = await apiClient.post<{ sessionId: string }>(
+            API_ENDPOINTS.CHECKOUT.EPAYCO_SMART_SESSION,
+            { flow: 'cart', dataForm, dataCart }
+          )
+          if (!smartRes.success || !smartRes.data?.sessionId) {
+            throw new Error(
+              (smartRes as { error?: { message?: string } }).error?.message ||
+                'No se pudo crear la sesión de pago'
+            )
+          }
+          openEpaycoSmartCheckout(smartRes.data.sessionId)
+        } catch (epaycoSmartErr: any) {
+          console.error('[GIFT CHECKOUT] [EPAYCO-SMART]', epaycoSmartErr)
+          setButtonTooltip(epaycoSmartErr.message || 'Error al iniciar el pago')
+          setShowConfirmationModal(false)
+        } finally {
+          setIsSubmitting(false)
+        }
+        return
+      }
+
+      // Llamar al endpoint de checkout (classic)
       const response = await apiClient.post<any>(
         API_ENDPOINTS.CHECKOUT.ADD_ORDER,
         {
@@ -445,7 +471,7 @@ function GiftCheckoutContent() {
       {/* Script de Epayco */}
       <Script
         id="epayco-script"
-        src={process.env.NEXT_PUBLIC_EPAYCO_CHECKOUT_URL || 'https://checkout.epayco.co/checkout.js'}
+        src={getEpaycoScriptUrlForMode()}
         strategy="afterInteractive"
         onLoad={() => {
           console.log('[EPAYCO] Script cargado exitosamente')

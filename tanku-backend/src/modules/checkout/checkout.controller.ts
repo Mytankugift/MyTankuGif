@@ -1,14 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
 import { CheckoutService, CheckoutOrderRequest, DataCart } from './checkout.service';
+import { EpaycoApifyService } from './epayco-apify.service';
+import { StalkerGiftService } from '../stalker-gift/stalker-gift.service';
 import { successResponse, errorResponse, ErrorCode } from '../../shared/response';
 import { BadRequestError } from '../../shared/errors/AppError';
 import { env } from '../../config/env';
 
+function buildEpaycoWebhookUrl(identifier: string): string {
+  const webhookBaseUrl = env.WEBHOOK_BASE_URL || 'http://72.61.79.91';
+  return `${webhookBaseUrl}/api/v1/webhook/epayco/${identifier}`;
+}
+
 export class CheckoutController {
   private checkoutService: CheckoutService;
+  private epaycoApifyService: EpaycoApifyService;
+  private stalkerGiftService: StalkerGiftService;
 
   constructor() {
     this.checkoutService = new CheckoutService();
+    this.epaycoApifyService = new EpaycoApifyService();
+    this.stalkerGiftService = new StalkerGiftService();
   }
 
   /**
@@ -32,11 +43,7 @@ export class CheckoutController {
       }
 
       // Obtener URL base del webhook desde variables de entorno
-      // En producción: http://72.61.79.91 (proxy) o https://api.mytanku.com
-      // En desarrollo: puede ser ngrok o localhost
-      const webhookBaseUrl = env.WEBHOOK_BASE_URL || 'http://72.61.79.91';
-      // El webhook ahora acepta tanto cartId como orderId
-      const webhookUrl = `${webhookBaseUrl}/api/v1/webhook/epayco/${identifier}`;
+      const webhookUrl = buildEpaycoWebhookUrl(identifier as string);
 
       console.log(`🔗 [CHECKOUT] URL de webhook generada: ${webhookUrl} (identifier: ${identifier})`);
 
@@ -222,6 +229,142 @@ export class CheckoutController {
       res.status(200).json(successResponse(result));
     } catch (error: any) {
       console.error(`❌ [CHECKOUT] Error creando orden de regalo directa:`, error);
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/checkout/epayco-smart-session
+   * Crea sesión ePayco Smart Checkout (Apify) para checkout-v2.js.
+   * Flujos: cart (prepare carrito), gift_direct (crea orden + sesión), stalker_gift (StalkerGift + sesión).
+   */
+  createEpaycoSmartSession = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as any;
+      const userId = requestWithUser.user?.id;
+      if (!userId) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'Debes iniciar sesión'));
+      }
+
+      const body = req.body || {};
+      const flow = body.flow as string;
+
+      if (!flow || !['cart', 'gift_direct', 'stalker_gift'].includes(flow)) {
+        throw new BadRequestError('flow debe ser cart, gift_direct o stalker_gift');
+      }
+
+      const frontendBase = env.FRONTEND_URL.replace(/\/$/, '');
+
+      let identifier: string;
+      let amount: number;
+      let description: string;
+      let responseUrl: string;
+
+      if (flow === 'cart') {
+        const { dataForm, dataCart } = body;
+        if (!dataForm || !dataCart) {
+          throw new BadRequestError('dataForm y dataCart son requeridos para flow cart');
+        }
+        const prepared = await this.checkoutService.prepareEpaycoCheckout(
+          dataForm as CheckoutOrderRequest,
+          dataCart as DataCart,
+          userId
+        );
+        identifier = prepared.cartId;
+        amount = prepared.total;
+        description = `Pedido Tanku — ${identifier.slice(0, 8)}`;
+        responseUrl = `${frontendBase}/checkout/success`;
+      } else if (flow === 'gift_direct') {
+        const { variant_id, quantity, recipient_id, email, payment_method } = body;
+        if (!variant_id || !recipient_id || !email || !payment_method) {
+          throw new BadRequestError(
+            'Faltan campos requeridos: variant_id, recipient_id, email, payment_method'
+          );
+        }
+        if (payment_method !== 'epayco') {
+          throw new BadRequestError('Los regalos solo se pueden pagar con Epayco');
+        }
+        const result = (await this.checkoutService.createDirectGiftOrder({
+          variantId: variant_id,
+          quantity: quantity || 1,
+          recipientId: recipient_id,
+          senderId: userId,
+          email,
+          paymentMethod: payment_method,
+        })) as { orderId?: string; total?: number };
+
+        if (!result.orderId) {
+          throw new BadRequestError('No se pudo crear la orden de regalo directa');
+        }
+        identifier = result.orderId;
+        amount = result.total ?? 0;
+        description = `Regalo Tanku — ${result.orderId.slice(0, 8)}`;
+        responseUrl = `${frontendBase}/checkout/success`;
+      } else {
+        const {
+          receiverId,
+          externalReceiverData,
+          productId,
+          variantId,
+          quantity,
+          senderAlias,
+          senderMessage,
+        } = body;
+
+        if (!productId || !senderAlias) {
+          throw new BadRequestError('productId y senderAlias son requeridos');
+        }
+        if (!receiverId && !externalReceiverData) {
+          throw new BadRequestError('Debes especificar receiverId o externalReceiverData');
+        }
+
+        const result = await this.stalkerGiftService.checkoutStalkerGift({
+          senderId: userId,
+          receiverId,
+          externalReceiverData,
+          productId,
+          variantId,
+          quantity: quantity || 1,
+          senderAlias,
+          senderMessage,
+        });
+
+        identifier = result.cartId;
+        amount = result.total;
+        description = `StalkerGift — ${result.stalkerGiftId.slice(0, 8)}`;
+        responseUrl = `${frontendBase}/stalkergift/success?stalkerGiftId=${encodeURIComponent(
+          result.stalkerGiftId
+        )}&cartId=${encodeURIComponent(result.cartId)}`;
+      }
+
+      const confirmation = buildEpaycoWebhookUrl(identifier);
+
+      const session = await this.epaycoApifyService.createSmartSession({
+        checkout_version: '2',
+        name: 'Tanku',
+        currency: 'COP',
+        amount: Math.round(Number(amount)),
+        description,
+        lang: 'ES',
+        country: 'CO',
+        invoice: identifier,
+        response: responseUrl,
+        confirmation,
+        method: 'POST',
+        extras: {
+          extra1: identifier,
+          extra2: flow,
+        },
+      });
+
+      return res.status(200).json(
+        successResponse({
+          sessionId: session.sessionId,
+          test: env.EPAYCO_TEST_MODE,
+        })
+      );
+    } catch (error: any) {
+      console.error('❌ [CHECKOUT] Error creando sesión Smart ePayco:', error);
       next(error);
     }
   };

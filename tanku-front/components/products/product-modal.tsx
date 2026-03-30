@@ -41,7 +41,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
       role="presentation"
     >
       <div
-        className="relative flex h-full w-full max-w-6xl flex-col overflow-hidden max-md:max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px))] md:max-h-[92vh]"
+        className="relative flex h-auto w-full max-w-6xl flex-col overflow-hidden max-md:max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px))] md:max-h-[min(75vh,580px)] lg:max-h-[min(88vh,900px)]"
         style={{
           backgroundColor: '#2C3137',
           border: '2px solid #66DEDB',
@@ -75,12 +75,12 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
 
         {/* Contenido usando componente compartido */}
         <div 
-          className="flex-1 overflow-y-auto min-h-0 custom-scrollbar"
+          className="min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar max-md:max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px)-7rem)] md:max-h-[calc(min(75vh,580px)-6.5rem)] lg:max-h-[calc(min(88vh,900px)-6.5rem)]"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           style={{
-            paddingBottom: '40px', // Espacio extra en móvil para ver todo el contenido
-            WebkitOverflowScrolling: 'touch', // Mejor scroll en iOS
+            paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
+            WebkitOverflowScrolling: 'touch',
           }}
         >
           <ProductDetailContent

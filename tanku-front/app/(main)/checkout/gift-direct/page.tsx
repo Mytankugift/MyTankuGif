@@ -7,6 +7,8 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import Script from 'next/script'
 import Link from 'next/link'
+import { isEpaycoSmartMode, getEpaycoScriptUrlForMode } from '@/lib/epayco/config'
+import { openEpaycoSmartCheckout } from '@/lib/epayco/open-smart-checkout'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { UserAvatar } from '@/components/shared/user-avatar'
@@ -282,6 +284,29 @@ function GiftDirectCheckoutContent() {
     setIsSubmitting(true)
 
     try {
+      if (isEpaycoSmartMode()) {
+        const smartRes = await apiClient.post<{ sessionId: string }>(
+          API_ENDPOINTS.CHECKOUT.EPAYCO_SMART_SESSION,
+          {
+            flow: 'gift_direct',
+            variant_id: variantId,
+            quantity,
+            recipient_id: finalRecipientId,
+            email,
+            payment_method: 'epayco',
+          }
+        )
+        if (!smartRes.success || !smartRes.data?.sessionId) {
+          setError(
+            (smartRes as { error?: { message?: string } }).error?.message ||
+              'No se pudo crear la sesión de pago'
+          )
+          return
+        }
+        openEpaycoSmartCheckout(smartRes.data.sessionId)
+        return
+      }
+
       const response = await apiClient.post<any>(API_ENDPOINTS.CHECKOUT.GIFT_DIRECT, {
         variant_id: variantId,
         quantity,
@@ -723,7 +748,7 @@ function GiftDirectCheckoutContent() {
       {/* Script de Epayco */}
       <Script
         id="epayco-script"
-        src={process.env.NEXT_PUBLIC_EPAYCO_CHECKOUT_URL || 'https://checkout.epayco.co/checkout.js'}
+        src={getEpaycoScriptUrlForMode()}
         strategy="afterInteractive"
         onLoad={() => {
           console.log('[EPAYCO] Script cargado exitosamente')

@@ -13,6 +13,8 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import type { User, ProductDTO } from '@/types/api'
+import { isEpaycoSmartMode, getEpaycoScriptUrlForMode } from '@/lib/epayco/config'
+import { openEpaycoSmartCheckout } from '@/lib/epayco/open-smart-checkout'
 
 // Declaración para TypeScript para el objeto ePayco en window
 declare global {
@@ -160,7 +162,25 @@ export function StalkerGiftModal({ isOpen, onClose, onSuccess }: StalkerGiftModa
         senderMessage: giftData.senderMessage.trim() || undefined,
       }
 
-      // Llamar al endpoint de checkout
+      if (isEpaycoSmartMode()) {
+        const smartRes = await apiClient.post<{ sessionId: string }>(
+          API_ENDPOINTS.CHECKOUT.EPAYCO_SMART_SESSION,
+          { flow: 'stalker_gift', ...checkoutData }
+        )
+        if (!smartRes.success || !smartRes.data?.sessionId) {
+          throw new Error(
+            (smartRes as { error?: { message?: string } }).error?.message ||
+              'No se pudo crear la sesión de pago'
+          )
+        }
+        onClose()
+        openEpaycoSmartCheckout(smartRes.data.sessionId)
+        onSuccess?.()
+        setIsSubmitting(false)
+        return
+      }
+
+      // Llamar al endpoint de checkout (classic)
       const response = await apiClient.post<any>(
         API_ENDPOINTS.STALKER_GIFT.CHECKOUT,
         checkoutData
@@ -285,7 +305,7 @@ export function StalkerGiftModal({ isOpen, onClose, onSuccess }: StalkerGiftModa
     // Crear y cargar script
     const script = document.createElement('script')
     script.id = 'epayco-script-stalkergift'
-    script.src = process.env.NEXT_PUBLIC_EPAYCO_CHECKOUT_URL || 'https://checkout.epayco.co/checkout.js'
+    script.src = getEpaycoScriptUrlForMode()
     script.async = true
 
     script.onload = () => {

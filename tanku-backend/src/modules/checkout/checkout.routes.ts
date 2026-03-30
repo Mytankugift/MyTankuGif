@@ -26,4 +26,10 @@ router.post('/add-order', authenticate, checkoutController.addOrder);
  */
 router.post('/gift-direct', authenticate, checkoutController.createDirectGiftOrder);
 
+/**
+ * POST /api/v1/checkout/epayco-smart-session
+ * ePayco Smart Checkout (Apify + sessionId para checkout-v2.js)
+ */
+router.post('/epayco-smart-session', authenticate, checkoutController.createEpaycoSmartSession);
+
 export default router;

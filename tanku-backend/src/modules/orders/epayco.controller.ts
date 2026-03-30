@@ -6,6 +6,7 @@ import { CheckoutService, CheckoutOrderRequest, DataCart } from '../checkout/che
 import { StalkerGiftService } from '../stalker-gift/stalker-gift.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { prisma } from '../../config/database';
+import { env } from '../../config/env';
 import { NotFoundError } from '../../shared/errors/AppError';
 
 export class EpaycoController {
@@ -228,8 +229,8 @@ export class EpaycoController {
       const cartId = identifier;
 
       // 1. VALIDAR FIRMA DE SEGURIDAD
-      const p_cust_id_cliente = process.env.EPAYCO_CUSTOMER_ID;
-      const p_key = process.env.EPAYCO_P_KEY;
+      const p_cust_id_cliente = env.EPAYCO_CUSTOMER_ID;
+      const p_key = env.EPAYCO_P_KEY;
 
       if (!p_cust_id_cliente || !p_key) {
         console.error('❌ [EPAYCO-WEBHOOK] EPAYCO_CUSTOMER_ID o EPAYCO_P_KEY no configurados');
