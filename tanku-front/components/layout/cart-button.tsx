@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useCartStore } from '@/lib/stores/cart-store'
 import type { CartItem } from '@/types/api'
+import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
 export function CartButton() {
   const { cart, fetchCart, removeItem, getItemCount } = useCartStore()
@@ -263,7 +264,7 @@ export function CartButton() {
                                 alt={productTitle}
                                 fill
                                 className="object-cover"
-                                unoptimized={productImage?.includes('cloudfront.net')}
+                                unoptimized={isRemoteImageSrc(productImage)}
                               />
                             </div>
                           </Link>
@@ -274,7 +275,7 @@ export function CartButton() {
                               alt={productTitle}
                               fill
                               className="object-cover"
-                              unoptimized={productImage?.includes('cloudfront.net')}
+                              unoptimized={isRemoteImageSrc(productImage)}
                             />
                           </div>
                         )}

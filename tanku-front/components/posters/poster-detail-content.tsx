@@ -11,6 +11,7 @@ import { CommentItem } from './comment-item'
 import { SharePostModal } from './share-post-modal'
 import { EmojiPickerButton } from './emoji-picker-button'
 import Image from 'next/image'
+import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 import { HeartIcon, ChatBubbleLeftIcon, TrashIcon, ShareIcon, ArrowLeftIcon, EllipsisVerticalIcon, PaperAirplaneIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 
@@ -629,7 +630,7 @@ export function PosterDetailContent({
               width={1200}
               height={1200}
               className="w-full h-full max-w-full max-h-full object-contain"
-              unoptimized={poster.imageUrl.startsWith('http')}
+              unoptimized={isRemoteImageSrc(poster.imageUrl)}
               style={{ 
                 maxHeight: '100%',
                 width: 'auto',

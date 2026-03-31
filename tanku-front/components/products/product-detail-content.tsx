@@ -16,6 +16,7 @@ import { CategoryLoginModal } from '@/components/feed/category-login-modal'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { ProductDTO, FeedItemDTO } from '@/types/api'
+import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
 interface ProductDetailContentProps {
   product: FeedItemDTO
@@ -297,7 +298,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
               width={1200}
               height={1200}
               className="max-w-full max-h-[90vh] object-contain"
-              unoptimized={allImages[currentImageIndex].startsWith('http')}
+              unoptimized={isRemoteImageSrc(allImages[currentImageIndex])}
             />
           </div>
         </div>
@@ -326,7 +327,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                     width={64}
                     height={64}
                     className="h-full w-full object-cover"
-                    unoptimized={img.startsWith('http')}
+                    unoptimized={isRemoteImageSrc(img)}
                   />
                 </button>
               ))
@@ -352,7 +353,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
                   alt={productTitle}
                   fill
                   className="object-contain group-hover:scale-105 transition-transform duration-300"
-                  unoptimized={allImages[currentImageIndex].startsWith('http')}
+                  unoptimized={isRemoteImageSrc(allImages[currentImageIndex])}
                 />
               </div>
             </div>

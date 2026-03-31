@@ -8,6 +8,7 @@ import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
 interface PosterCardProps {
   poster: {
@@ -31,7 +32,7 @@ interface PosterCardProps {
   }
   onOpenModal?: (poster: any) => void
   isLightMode?: boolean
-  isAboveFold?: boolean // ✅ Nuevo prop para indicar si está visible sin scroll
+  isAboveFold?: boolean // Nuevo prop: visible sin scroll (above the fold)
 }
 
 export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLightMode = false, isAboveFold = false }: PosterCardProps) {
@@ -47,7 +48,6 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
   const [isVideoVisible, setIsVideoVisible] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
 
-  // Inicializar activeMedia basado en el contenido disponible
   useEffect(() => {
     if (poster.imageUrl) {
       setActiveMedia('image')
@@ -56,7 +56,6 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
     }
   }, [poster.imageUrl, poster.videoUrl])
 
-  // IntersectionObserver para reproducir video solo cuando está visible
   useEffect(() => {
     if (!poster.videoUrl || activeMedia !== 'video') return
 
@@ -67,7 +66,7 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
             setIsVideoVisible(true)
             if (videoRef.current) {
               videoRef.current.play().catch((error) => {
-                console.warn('Error al reproducir video automáticamente:', error)
+                console.warn('Error al reproducir video automaticamente:', error)
               })
             }
           } else {
@@ -95,7 +94,6 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
     }
   }, [poster.videoUrl, activeMedia])
 
-  // Manejar cuando el video está listo para reproducir
   const handleVideoReady = () => {
     if (videoRef.current && isVideoVisible && activeMedia === 'video') {
       videoRef.current.play().catch((error) => {
@@ -104,7 +102,6 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
     }
   }
 
-  // Reproducir video cuando se cambia a la vista de video
   useEffect(() => {
     if (activeMedia === 'video' && videoRef.current && isVideoVisible) {
       videoRef.current.play().catch((error) => {
@@ -115,14 +112,12 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
     }
   }, [activeMedia, isVideoVisible])
 
-  // Actualizar el estado de mute del video
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.muted = isMuted
     }
   }, [isMuted])
 
-  // Función para toggle mute/unmute
   const handleToggleMute = (e: React.MouseEvent) => {
     e.stopPropagation()
     setIsMuted(!isMuted)
@@ -168,7 +163,6 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
       className="bg-transparent border-2 border-[#73FFA2] rounded-lg sm:rounded-2xl p-2 sm:p-3 md:p-4 hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer"
       onClick={handleCardClick}
     >
-      {/* Poster Header */}
       <div className="flex items-center mb-2 sm:mb-3">
         <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
           {poster.author?.avatar ? (
@@ -209,20 +203,18 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
         </div>
       </div>
 
-      {/* Poster Media */}
       <div className="w-full relative mb-2 sm:mb-3 md:mb-4 overflow-hidden rounded-lg">
         {(poster.imageUrl || poster.videoUrl) && (
           <>
-            {/* Caso 1: Tiene imagen */}
             {poster.imageUrl && (
               <div
                 className={`relative w-full overflow-hidden ${
                   activeMedia === 'image' ? 'block' : 'hidden'
                 }`}
-                style={{ 
+                style={{
                   width: '100%',
-                  aspectRatio: '3/4', // Mantener proporción consistente (ancho:alto = 3:4)
-                  maxHeight: 'none', // Permitir que aspectRatio controle la altura
+                  aspectRatio: '3/4',
+                  maxHeight: 'none',
                   minHeight: 'auto',
                 }}
               >
@@ -230,28 +222,31 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
                   <Image
                     key={poster.imageUrl}
                     src={poster.imageUrl}
-                    alt="Imagen de publicación"
+                    alt="Imagen de publicacion"
                     width={300}
                     height={400}
                     className="w-full h-full object-cover object-center"
-                    style={{ 
-                      width: '100%', 
+                    style={{
+                      width: '100%',
                       height: '100%',
                       objectFit: 'cover',
                     }}
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 25vw"
-                    loading={isAboveFold ? "eager" : "lazy"}
+                    loading={isAboveFold ? 'eager' : 'lazy'}
                     onError={() => {
                       console.warn('[PosterCard] Error cargando imagen:', poster.imageUrl)
                       setImageError(true)
                     }}
-                    unoptimized={poster.imageUrl?.includes('.gif')}
+                    unoptimized={
+                      isRemoteImageSrc(poster.imageUrl) ||
+                      poster.imageUrl?.includes('.gif') === true
+                    }
                     priority={isAboveFold}
                   />
                 ) : (
-                  <div 
-                    className="w-full h-full bg-gray-700/50 flex items-center justify-center" 
-                    style={{ 
+                  <div
+                    className="w-full h-full bg-gray-700/50 flex items-center justify-center"
+                    style={{
                       width: '100%',
                       height: '100%',
                       minHeight: '300px',
@@ -263,25 +258,24 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
               </div>
             )}
 
-            {/* Caso 2: Tiene video */}
             {poster.videoUrl && (
               <div
                 className={`relative w-full bg-gray-800 flex items-center justify-center overflow-hidden ${
                   activeMedia === 'video' ? 'block' : 'hidden'
                 }`}
-                style={{ 
+                style={{
                   width: '100%',
-                  aspectRatio: '3/4', // Mantener proporción consistente (ancho:alto = 3:4)
-                  maxHeight: 'none', // Permitir que aspectRatio controle la altura
+                  aspectRatio: '3/4',
+                  maxHeight: 'none',
                   minHeight: 'auto',
                 }}
               >
-                  <video
+                <video
                   ref={videoRef}
                   src={poster.videoUrl}
                   className="w-full h-full object-cover object-center"
-                  style={{ 
-                    width: '100%', 
+                  style={{
+                    width: '100%',
                     height: '100%',
                     objectFit: 'cover',
                   }}
@@ -294,7 +288,6 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity duration-200 pointer-events-none" />
 
-                {/* Botón de mute/unmute */}
                 <button
                   onClick={handleToggleMute}
                   className="absolute bottom-2 right-2 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full p-1.5 sm:p-2 transition-all duration-200 z-10"
@@ -341,7 +334,6 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
               </div>
             )}
 
-            {/* Flechas de navegación si hay ambos medios */}
             {poster.imageUrl && poster.videoUrl && (
               <>
                 <button
@@ -388,7 +380,6 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
                   />
                 </button>
 
-                {/* Indicadores de posición */}
                 <div className="absolute bottom-1 sm:bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1 sm:space-x-2">
                   <div
                     className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${
@@ -407,15 +398,14 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
         )}
       </div>
 
-      {/* Poster Actions */}
       <div className="flex justify-between items-center mt-1 sm:mt-2">
         <button
           className={`flex items-center transition-colors ${
             isLiked
               ? 'text-red-500 hover:text-red-400'
               : isLightMode
-              ? 'text-gray-700 hover:text-red-500'
-              : 'text-gray-300 hover:text-red-500'
+                ? 'text-gray-700 hover:text-red-500'
+                : 'text-gray-300 hover:text-red-500'
           }`}
           onClick={handleLike}
           disabled={!token || isLiking}
@@ -445,7 +435,6 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
     </div>
   )
 }, (prevProps, nextProps) => {
-  // Solo re-renderizar si cambian estas props
   return (
     prevProps.poster.id === nextProps.poster.id &&
     prevProps.poster.imageUrl === nextProps.poster.imageUrl &&
@@ -454,4 +443,3 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
     prevProps.isLightMode === nextProps.isLightMode
   )
 })
-

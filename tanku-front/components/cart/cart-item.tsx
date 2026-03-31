@@ -8,6 +8,7 @@ import { useProduct } from '@/lib/hooks/use-product'
 import { VariantSelector } from '@/components/products/variant-selector'
 import type { CartItem } from '@/types/api'
 import type { ProductVariantDTO } from '@/types/api'
+import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
 interface CartItemProps {
   item: CartItem
@@ -271,7 +272,7 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
                   alt={productTitle}
                   fill
                   className="object-cover"
-                  unoptimized={productImage?.includes('cloudfront.net')}
+                  unoptimized={isRemoteImageSrc(productImage)}
                 />
               </Link>
             ) : (
@@ -281,7 +282,7 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
                   alt={productTitle}
                   fill
                   className="object-cover"
-                  unoptimized={productImage?.includes('cloudfront.net')}
+                  unoptimized={isRemoteImageSrc(productImage)}
                 />
               </div>
             )}

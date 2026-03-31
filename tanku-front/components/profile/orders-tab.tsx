@@ -7,6 +7,7 @@ import type { OrderDTO } from '@/types/api'
 import { ShoppingBagIcon, CheckCircleIcon, XCircleIcon, ClockIcon, EyeIcon, XMarkIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
 interface OrdersTabProps {
   userId?: string
@@ -463,7 +464,10 @@ export function OrdersTab({ userId, initialOrderId }: OrdersTabProps) {
                                 fill
                                 className="object-cover"
                                 sizes="80px"
-                                unoptimized={item.product.images[0]?.includes('cloudfront.net') || item.product.images[0]?.includes('.gif')}
+                                unoptimized={
+                                  isRemoteImageSrc(item.product.images[0]) ||
+                                  item.product.images[0]?.includes('.gif') === true
+                                }
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">

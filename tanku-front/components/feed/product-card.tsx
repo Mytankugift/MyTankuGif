@@ -11,6 +11,7 @@ import { useWishLists } from '@/lib/hooks/use-wishlists'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { logger } from '@/lib/utils/logger'
+import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 import type { FeedItemDTO } from '@/types/api'
 
 interface ProductCardProps {
@@ -365,7 +366,10 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
                 }
                 setImageError(true)
               }}
-              unoptimized={product.imageUrl?.includes('.gif')}
+              unoptimized={
+                isRemoteImageSrc(product.imageUrl) ||
+                product.imageUrl?.includes('.gif') === true
+              }
               priority={isAboveFold}
             />
           ) : (

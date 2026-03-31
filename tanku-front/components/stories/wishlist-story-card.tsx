@@ -9,6 +9,7 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { getProfileUrl } from '@/lib/utils/profile-url'
+import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
 interface WishlistStoryCardProps {
   story: StoryDTO
@@ -191,7 +192,9 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
                 borderTopLeftRadius: '25px',
                 borderTopRightRadius: '25px',
               }}
-              unoptimized={productImage?.includes('cloudfront.net') || productImage?.includes('.gif')}
+              unoptimized={
+                isRemoteImageSrc(productImage) || productImage?.includes('.gif') === true
+              }
               onError={() => {
                 console.warn('[WishlistStoryCard] Error cargando imagen:', productImage)
                 setImageError(true)
