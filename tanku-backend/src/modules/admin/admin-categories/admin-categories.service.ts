@@ -3,6 +3,7 @@ import { NotFoundError, BadRequestError } from '../../../shared/errors/AppError'
 import { PriceFormulaType, PriceFormulaValue } from '../../../shared/utils/price-formula.utils';
 import { S3Service } from '../../../shared/services/s3.service';
 import { getAllChildrenIds } from '../../../shared/utils/category.utils';
+import { FeedService } from '../../feed/feed.service';
 
 /**
  * Genera un handle único desde el nombre de la categoría
@@ -663,7 +664,77 @@ export class AdminCategoryService {
     // ✅ NO modificar product.active
     // El filtro se aplica en queries públicas automáticamente
 
+    if (!blocked) {
+      await this.reinsertRankingForUnblockedCategoryTree(id, isParentCategory, unblockChildren);
+    }
+
     return await this.getCategoryById(id);
+  }
+
+  /**
+   * Tras desbloquear categoría(s), reinsertar en global_ranking los productos del árbol.
+   * Incluye productos con lockedByAdmin (solo afecta sync Dropi, no esta reinserción).
+   * Se omiten únicamente productos con active === false.
+   * initializeItemMetrics sigue aplicando título, imágenes, stock mínimo, etc.
+   */
+  private async reinsertRankingForUnblockedCategoryTree(
+    rootCategoryId: string,
+    isParentCategory: boolean,
+    unblockChildren?: boolean
+  ): Promise<void> {
+    let categoryIds: string[];
+    if (!isParentCategory) {
+      categoryIds = [rootCategoryId];
+    } else if (unblockChildren === true) {
+      const children = await getAllChildrenIds(rootCategoryId);
+      categoryIds = [rootCategoryId, ...children];
+    } else {
+      categoryIds = [rootCategoryId];
+    }
+
+    const products = await prisma.product.findMany({
+      where: {
+        categoryId: { in: categoryIds },
+        active: true,
+      },
+      select: { id: true },
+    });
+
+    if (products.length === 0) {
+      console.log(
+        `[ADMIN CATEGORIES] Sin productos activos para ranking tras desbloquear (categorías: ${categoryIds.length})`
+      );
+      new FeedService().invalidateCategoryCaches();
+      return;
+    }
+
+    const feedService = new FeedService();
+    const CHUNK = 25;
+    let ok = 0;
+    let fail = 0;
+
+    for (let i = 0; i < products.length; i += CHUNK) {
+      const chunk = products.slice(i, i + CHUNK);
+      const results = await Promise.allSettled(
+        chunk.map(async (p) => {
+          await feedService.initializeItemMetrics(p.id, 'product');
+          await feedService.recalculateRankingForItem(p.id, 'product');
+        })
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled') ok++;
+        else {
+          fail++;
+          console.warn(`[ADMIN CATEGORIES] Error reinsertando ranking:`, r.reason);
+        }
+      }
+    }
+
+    feedService.invalidateCategoryCaches();
+
+    console.log(
+      `[ADMIN CATEGORIES] Ranking tras desbloquear categoría: ${ok} OK, ${fail} fallos (${products.length} productos activos, ${categoryIds.length} categoría(s))`
+    );
   }
 
   /**

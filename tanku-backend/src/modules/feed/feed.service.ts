@@ -687,6 +687,16 @@ export class FeedService {
   }
 
   /**
+   * Invalidar caches de categorías bloqueadas y de hijos (p. ej. tras desbloquear categoría en admin).
+   * Así el feed vuelve a leer de BD sin esperar al TTL.
+   */
+  invalidateCategoryCaches(): void {
+    this.blockedCategoryIdsCache = null;
+    this.blockedCategoryIdsCacheTime = 0;
+    this.categoryChildrenCache.clear();
+  }
+
+  /**
    * Obtener categorías bloqueadas con cache (TTL de 1 hora)
    */
   private async getBlockedCategoryIdsCached(): Promise<string[]> {
