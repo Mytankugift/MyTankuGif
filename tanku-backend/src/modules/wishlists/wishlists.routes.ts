@@ -119,8 +119,8 @@ router.get('/pending-requests', authenticate, wishListsController.getPendingRequ
  * Obtener wishlist por token de compartir o por URL SEO (público)
  * IMPORTANTE: Esta ruta debe ir antes de /:userId para evitar conflictos
  */
-router.get('/share/:token', wishListsController.getWishlistByShareToken);
-router.get('/share/:username/:slug', wishListsController.getWishlistByShareToken);
+router.get('/share/:token', optionalAuthenticate, wishListsController.getWishlistByShareToken);
+router.get('/share/:username/:slug', optionalAuthenticate, wishListsController.getWishlistByShareToken);
 
 /**
  * GET /api/v1/wishlists/:wishlistId/access-grants

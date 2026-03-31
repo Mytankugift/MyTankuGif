@@ -16,6 +16,7 @@ import { SentRequestsList } from '@/components/friends/sent-requests-list'
 import { FriendSuggestions } from '@/components/friends/friend-suggestions'
 import { BlockedUsersList } from '@/components/friends/blocked-users-list'
 import { FriendsNav } from '@/components/layout/friends-nav'
+import type { FriendSuggestionDTO } from '@/types/api'
 
 interface Group {
   id: string
@@ -136,96 +137,97 @@ export default function FriendsPage() {
   }, []) // Solo una vez al montar
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [filteredFriends, setFilteredFriends] = useState<typeof friends>([])
-  const [filteredSuggestions, setFilteredSuggestions] = useState<typeof suggestions>([])
-  const [filteredBlockedUsers, setFilteredBlockedUsers] = useState<typeof blockedUsers>([])
+  /** Resultados del API /friends/search (null = aún no hay respuesta o no aplica) */
+  const [friendSearchResults, setFriendSearchResults] = useState<FriendSuggestionDTO[] | null>(null)
+  const [isFriendSearchLoading, setIsFriendSearchLoading] = useState(false)
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    
-    // Buscar según el tab activo
-    if (activeTab === 'friends') {
-      // Buscar en amigos por nombre completo y username
-      if (!query.trim()) {
-        setFilteredFriends(friends)
-      } else {
-        const queryLower = query.toLowerCase()
-        const filtered = friends.filter((friend) => {
-          const fullName = `${friend.friend.firstName || ''} ${friend.friend.lastName || ''}`.trim().toLowerCase()
-          const username = (friend.friend.username || '').toLowerCase()
-          return fullName.includes(queryLower) || username.includes(queryLower)
-        })
-        setFilteredFriends(filtered)
-      }
-    } else if (activeTab === 'suggestions') {
-      // Buscar en sugerencias por nombre completo y username
-      if (!query.trim()) {
-        setFilteredSuggestions(suggestions)
-      } else {
-        const queryLower = query.toLowerCase()
-        const filtered = suggestions.filter((suggestion) => {
-          const fullName = `${suggestion.user.firstName || ''} ${suggestion.user.lastName || ''}`.trim().toLowerCase()
-          const username = (suggestion.user.username || '').toLowerCase()
-          return fullName.includes(queryLower) || username.includes(queryLower)
-        })
-        setFilteredSuggestions(filtered)
-      }
-    } else if (activeTab === 'blocked') {
-      // Buscar en bloqueados por nombre completo y username
-      if (!query.trim()) {
-        setFilteredBlockedUsers(blockedUsers)
-      } else {
-        const queryLower = query.toLowerCase()
-        const filtered = blockedUsers.filter((blockedUser) => {
-          const fullName = `${blockedUser.blockedUser.firstName || ''} ${blockedUser.blockedUser.lastName || ''}`.trim().toLowerCase()
-          const username = (blockedUser.blockedUser.username || '').toLowerCase()
-          return fullName.includes(queryLower) || username.includes(queryLower)
-        })
-        setFilteredBlockedUsers(filtered)
-      }
-    }
   }
 
-  // Actualizar filtros cuando cambian los datos o el tab
-  useEffect(() => {
-    if (activeTab === 'friends') {
-      if (!searchQuery.trim()) {
-        setFilteredFriends(friends)
-      } else {
-        const queryLower = searchQuery.toLowerCase()
-        const filtered = friends.filter((friend) => {
-          const fullName = `${friend.friend.firstName || ''} ${friend.friend.lastName || ''}`.trim().toLowerCase()
-          const username = (friend.friend.username || '').toLowerCase()
-          return fullName.includes(queryLower) || username.includes(queryLower)
-        })
-        setFilteredFriends(filtered)
-      }
-    } else if (activeTab === 'suggestions') {
-      if (!searchQuery.trim()) {
-        setFilteredSuggestions(suggestions)
-      } else {
-        const queryLower = searchQuery.toLowerCase()
-        const filtered = suggestions.filter((suggestion) => {
-          const fullName = `${suggestion.user.firstName || ''} ${suggestion.user.lastName || ''}`.trim().toLowerCase()
-          const username = (suggestion.user.username || '').toLowerCase()
-          return fullName.includes(queryLower) || username.includes(queryLower)
-        })
-        setFilteredSuggestions(filtered)
-      }
-    } else if (activeTab === 'blocked') {
-      if (!searchQuery.trim()) {
-        setFilteredBlockedUsers(blockedUsers)
-      } else {
-        const queryLower = searchQuery.toLowerCase()
-        const filtered = blockedUsers.filter((blockedUser) => {
-          const fullName = `${blockedUser.blockedUser.firstName || ''} ${blockedUser.blockedUser.lastName || ''}`.trim().toLowerCase()
-          const username = (blockedUser.blockedUser.username || '').toLowerCase()
-          return fullName.includes(queryLower) || username.includes(queryLower)
-        })
-        setFilteredBlockedUsers(filtered)
-      }
+  const filteredFriendsMemo = useMemo(() => {
+    if (!searchQuery.trim()) return friends
+    const queryLower = searchQuery.toLowerCase()
+    return friends.filter((friend) => {
+      const fullName = `${friend.friend.firstName || ''} ${friend.friend.lastName || ''}`.trim().toLowerCase()
+      const username = (friend.friend.username || '').toLowerCase()
+      return fullName.includes(queryLower) || username.includes(queryLower)
+    })
+  }, [friends, searchQuery])
+
+  const suggestionsFilteredLocally = useMemo(() => {
+    if (!searchQuery.trim()) return suggestions
+    const queryLower = searchQuery.toLowerCase()
+    return suggestions.filter((suggestion) => {
+      const fullName = `${suggestion.user.firstName || ''} ${suggestion.user.lastName || ''}`.trim().toLowerCase()
+      const username = (suggestion.user.username || '').toLowerCase()
+      return fullName.includes(queryLower) || username.includes(queryLower)
+    })
+  }, [suggestions, searchQuery])
+
+  const filteredBlockedMemo = useMemo(() => {
+    if (!searchQuery.trim()) return blockedUsers
+    const queryLower = searchQuery.toLowerCase()
+    return blockedUsers.filter((blockedUser) => {
+      const fullName = `${blockedUser.blockedUser.firstName || ''} ${blockedUser.blockedUser.lastName || ''}`.trim().toLowerCase()
+      const username = (blockedUser.blockedUser.username || '').toLowerCase()
+      return fullName.includes(queryLower) || username.includes(queryLower)
+    })
+  }, [blockedUsers, searchQuery])
+
+  const searchTrim = searchQuery.trim()
+  const useFriendServerSearch = activeTab === 'suggestions' && searchTrim.length >= 2
+
+  const suggestionsForTab = useMemo(() => {
+    if (useFriendServerSearch && friendSearchResults !== null) {
+      return friendSearchResults
     }
-  }, [friends, suggestions, blockedUsers, activeTab, searchQuery])
+    return suggestionsFilteredLocally
+  }, [useFriendServerSearch, friendSearchResults, suggestionsFilteredLocally])
+
+  const suggestionsTabLoading =
+    activeTab === 'suggestions' &&
+    (isLoading || (useFriendServerSearch && friendSearchResults === null && isFriendSearchLoading))
+
+  const suggestionsEmptyMessage =
+    useFriendServerSearch && friendSearchResults !== null && friendSearchResults.length === 0 && !isFriendSearchLoading
+      ? 'No se encontró ningún usuario con ese nombre o usuario. Prueba con otras letras.'
+      : undefined
+
+  useEffect(() => {
+    if (activeTab !== 'suggestions') {
+      setFriendSearchResults(null)
+      return
+    }
+    if (searchTrim.length < 2) {
+      setFriendSearchResults(null)
+      return
+    }
+
+    let cancelled = false
+    const t = window.setTimeout(async () => {
+      setIsFriendSearchLoading(true)
+      try {
+        const url = `${API_ENDPOINTS.FRIENDS.SEARCH}?q=${encodeURIComponent(searchTrim)}`
+        const response = await apiClient.get<FriendSuggestionDTO[]>(url)
+        if (cancelled) return
+        if (response.success && Array.isArray(response.data)) {
+          setFriendSearchResults(response.data)
+        } else {
+          setFriendSearchResults([])
+        }
+      } catch {
+        if (!cancelled) setFriendSearchResults([])
+      } finally {
+        if (!cancelled) setIsFriendSearchLoading(false)
+      }
+    }, 400)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(t)
+    }
+  }, [searchTrim, activeTab])
 
   return (
     <>
@@ -250,7 +252,7 @@ export default function FriendsPage() {
 
           {activeTab === 'friends' && (
             <FriendsList 
-              friends={searchQuery ? filteredFriends : friends} 
+              friends={searchQuery.trim() ? filteredFriendsMemo : friends} 
               isLoading={isLoading} 
               onRefresh={fetchFriends}
               groupByFriendId={groupByFriendId}
@@ -283,9 +285,11 @@ export default function FriendsPage() {
 
           {activeTab === 'suggestions' && (
             <FriendSuggestions
-              suggestions={searchQuery ? filteredSuggestions : suggestions}
-              isLoading={isLoading}
+              suggestions={suggestionsForTab}
+              isLoading={suggestionsTabLoading}
+              emptyMessage={suggestionsEmptyMessage}
               onSendRequest={async (friendId) => {
+                setFriendSearchResults((prev) => (prev ? prev.filter((s) => s.userId !== friendId) : prev))
                 await fetchSuggestions()
                 await fetchSentRequests()
               }}
@@ -294,7 +298,7 @@ export default function FriendsPage() {
 
           {activeTab === 'blocked' && (
             <BlockedUsersList
-              blockedUsers={searchQuery ? filteredBlockedUsers : blockedUsers}
+              blockedUsers={searchQuery.trim() ? filteredBlockedMemo : blockedUsers}
               isLoading={isLoading}
               onRefresh={async () => {
                 await fetchBlockedUsers()

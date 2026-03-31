@@ -11,6 +11,8 @@ export interface ProductFilters {
   categoryId?: string;
   active?: boolean;
   lockedByAdmin?: boolean;
+  /** Filtra por la marca directa del producto (no por categoría) */
+  restrictToAdults?: boolean;
   inRanking?: boolean;
   sortBy?: 'default' | 'ranking';
 }
@@ -29,6 +31,8 @@ export interface ProductWithVariants {
   customImageUrls: string[]; // URLs de imágenes propias subidas a S3
   hiddenImages: string[];    // URLs bloqueadas (pueden ser Dropi o custom)
   categoryId: string | null;
+  /** Marca +18 solo en el producto; el efecto en catálogo también depende de la categoría */
+  restrictToAdults: boolean;
   active: boolean;
   lockedByAdmin: boolean;
   lockedAt: Date | null;
@@ -54,6 +58,7 @@ export interface ProductWithVariants {
     id: string;
     name: string;
     handle: string;
+    restrictToAdults: boolean;
   } | null;
   variants: Array<{
     id: string;
@@ -88,7 +93,9 @@ export interface ProductListItem {
   category: {
     id: string;
     name: string;
+    restrictToAdults: boolean;
   } | null;
+  restrictToAdults: boolean;
   price: number | null; // Precio base (mínimo de variantes)
   suggestedPrice: number | null; // Precio sugerido (mínimo de variantes)
   tankuPrice: number | null; // Precio Tanku (mínimo de variantes)
@@ -195,6 +202,10 @@ export class AdminProductService {
       where.lockedByAdmin = filters.lockedByAdmin;
     }
 
+    if (filters.restrictToAdults !== undefined) {
+      where.restrictToAdults = filters.restrictToAdults;
+    }
+
     // Filtro por inRanking (visible en frontend)
     if (filters.inRanking !== undefined) {
       // Necesitamos hacer una subconsulta para verificar si está en ranking
@@ -275,6 +286,12 @@ export class AdminProductService {
       paramIndex++;
     }
 
+    if (filters.restrictToAdults !== undefined) {
+      whereConditions.push(`p."restrict_to_adults" = $${paramIndex}`);
+      whereParams.push(filters.restrictToAdults);
+      paramIndex++;
+    }
+
     // Filtro por inRanking
     if (filters.inRanking !== undefined) {
       if (filters.inRanking) {
@@ -352,6 +369,7 @@ export class AdminProductService {
           select: {
             id: true,
             name: true,
+            restrictToAdults: true,
           },
         },
         variants: {
@@ -431,8 +449,10 @@ export class AdminProductService {
           ? {
               id: product.category.id,
               name: product.category.name,
+              restrictToAdults: product.category.restrictToAdults,
             }
           : null,
+        restrictToAdults: product.restrictToAdults,
         price: minPrice,
         suggestedPrice: minSuggestedPrice,
         tankuPrice: minTankuPrice,
@@ -508,6 +528,7 @@ export class AdminProductService {
             id: true,
             name: true,
             handle: true,
+            restrictToAdults: true,
           },
         },
         variants: {
@@ -606,6 +627,7 @@ export class AdminProductService {
       customImageUrls: product.customImageUrls || [],
       hiddenImages: product.hiddenImages || [],
       categoryId: product.categoryId,
+      restrictToAdults: product.restrictToAdults,
       active: product.active,
       lockedByAdmin: product.lockedByAdmin,
       lockedAt: product.lockedAt,
@@ -828,6 +850,7 @@ export class AdminProductService {
       title?: string;
       description?: string | null;
       categoryId?: string | null;
+      restrictToAdults?: boolean;
     },
     adminUserId: string
   ): Promise<ProductWithVariants> {
@@ -868,6 +891,10 @@ export class AdminProductService {
       }
     }
 
+    if (data.restrictToAdults !== undefined) {
+      updateData.restrictToAdults = data.restrictToAdults;
+    }
+
     // Actualizar producto y bloquear automáticamente
     const updatedProduct = await prisma.product.update({
       where: { id },
@@ -883,6 +910,7 @@ export class AdminProductService {
             id: true,
             name: true,
             handle: true,
+            restrictToAdults: true,
           },
         },
         variants: {
@@ -969,6 +997,7 @@ export class AdminProductService {
       customImageUrls: updatedProduct.customImageUrls || [],
       hiddenImages: updatedProduct.hiddenImages || [],
       categoryId: updatedProduct.categoryId,
+      restrictToAdults: updatedProduct.restrictToAdults,
       active: updatedProduct.active,
       lockedByAdmin: updatedProduct.lockedByAdmin,
       lockedAt: updatedProduct.lockedAt,
@@ -1116,6 +1145,7 @@ export class AdminProductService {
             id: true,
             name: true,
             handle: true,
+            restrictToAdults: true,
           },
         },
         variants: {
@@ -1186,6 +1216,7 @@ export class AdminProductService {
       customImageUrls: updatedProduct.customImageUrls || [],
       hiddenImages: updatedProduct.hiddenImages || [],
       categoryId: updatedProduct.categoryId,
+      restrictToAdults: updatedProduct.restrictToAdults,
       active: updatedProduct.active,
       lockedByAdmin: updatedProduct.lockedByAdmin,
       lockedAt: updatedProduct.lockedAt,
@@ -1251,7 +1282,7 @@ export class AdminProductService {
         lockedBy: adminUserId,
       },
       include: {
-        category: { select: { id: true, name: true, handle: true } },
+        category: { select: { id: true, name: true, handle: true, restrictToAdults: true } },
         variants: {
           include: {
             warehouseVariants: {
@@ -1311,6 +1342,7 @@ export class AdminProductService {
       customImageUrls: updatedProduct.customImageUrls || [],
       hiddenImages: updatedProduct.hiddenImages || [],
       categoryId: updatedProduct.categoryId,
+      restrictToAdults: updatedProduct.restrictToAdults,
       active: updatedProduct.active,
       lockedByAdmin: updatedProduct.lockedByAdmin,
       lockedAt: updatedProduct.lockedAt,
@@ -1394,7 +1426,7 @@ export class AdminProductService {
         lockedBy: adminUserId,
       },
       include: {
-        category: { select: { id: true, name: true, handle: true } },
+        category: { select: { id: true, name: true, handle: true, restrictToAdults: true } },
         variants: {
           include: {
             warehouseVariants: {
@@ -1454,6 +1486,7 @@ export class AdminProductService {
       customImageUrls: updatedProduct.customImageUrls || [],
       hiddenImages: updatedProduct.hiddenImages || [],
       categoryId: updatedProduct.categoryId,
+      restrictToAdults: updatedProduct.restrictToAdults,
       active: updatedProduct.active,
       lockedByAdmin: updatedProduct.lockedByAdmin,
       lockedAt: updatedProduct.lockedAt,

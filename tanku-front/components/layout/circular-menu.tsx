@@ -25,15 +25,15 @@ const CircularMenu = () => {
     return () => window.removeEventListener('resize', checkTablet)
   }, [])
 
-  const fontSize = isTablet ? '11' : '14'
+  /** Mismo tamaño para NUEVO POST y NUEVO EVENTO en el arco SVG */
+  const arcFontSize = isTablet ? '10' : '12'
 
   return (
     <div className="relative flex-shrink-0 w-64 h-64 md:w-48 md:h-48">
       <div
         className="absolute rounded-full z-0 bg-[#2D3A3A] w-[179.2px] h-[179.2px] left-[38.4px] top-[38.4px] md:w-[134.4px] md:h-[134.4px] md:left-[28.8px] md:top-[28.8px]"
       ></div>
-      {/* SVG for curved text - 4 posiciones: arriba, derecha, izquierda, abajo */}
-      {/* Solución simplificada: un solo arco base rotado para cada posición */}
+      {/* SVG: texto curvo arriba (NUEVO POST) y a la derecha (NUEVO EVENTO) */}
       <svg
         className="absolute pointer-events-none z-50 w-64 h-64 md:w-48 md:h-48"
         viewBox="0 0 256 256"
@@ -51,7 +51,7 @@ const CircularMenu = () => {
             className={`font-semibold tracking-wider transition-all duration-300 ${
               hoveredText === 'new-post' ? 'fill-white' : 'fill-gray-400'
             }`}
-            fontSize={fontSize}
+            fontSize={arcFontSize}
             style={{
               filter:
                 hoveredText === 'new-post'
@@ -67,53 +67,24 @@ const CircularMenu = () => {
           </text>
         </g>
 
-        {/* Texto EVENTOS a la derecha - rotación 90° */}
+        {/* NUEVO EVENTO a la derecha - rotación 90° */}
         <g transform="rotate(90 128 128)">
           <text
             className={`font-semibold tracking-wider transition-all duration-300 ${
-              hoveredText === 'events' ? 'fill-white' : 'fill-gray-400'
+              hoveredText === 'new-event' ? 'fill-white' : 'fill-gray-400'
             }`}
-            fontSize={fontSize}
+            fontSize={arcFontSize}
             style={{
               filter:
-                hoveredText === 'events'
+                hoveredText === 'new-event'
                   ? 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(255, 255, 255, 0.4))'
                   : 'none',
-              transform: hoveredText === 'events' ? 'scale(1.2)' : 'scale(1)',
+              transform: hoveredText === 'new-event' ? 'scale(1.2)' : 'scale(1)',
               transformOrigin: 'center',
             }}
           >
             <textPath href="#base-arc" startOffset="50%" textAnchor="middle">
-              EVENTOS
-            </textPath>
-          </text>
-        </g>
-
-        {/* Abajo: mismo #base-arc que arriba (misma distancia al centro); doble 180° = mismo anillo que NUEVO POST */}
-        <g transform="rotate(180 128 128)">
-          <text
-            className="font-semibold tracking-wider fill-gray-400"
-            fontSize={fontSize}
-            transform="rotate(180 128 198)"
-            style={{ transformOrigin: 'center' }}
-          >
-            <textPath href="#base-arc" startOffset="50%" textAnchor="middle">
-              EVENTOSasd
-            </textPath>
-          </text>
-        </g>
-
-        {/* Texto placeholder a la izquierda - rotación 270° */}
-        <g transform="rotate(270 128 128)">
-          <text
-            className="font-semibold tracking-wider fill-gray-400"
-            fontSize={fontSize}
-            style={{
-              transformOrigin: 'center',
-            }}
-          >
-            <textPath href="#base-arc" startOffset="50%" textAnchor="middle">
-            EVENTOS
+              NUEVO EVENTO
             </textPath>
           </text>
         </g>
@@ -134,7 +105,7 @@ const CircularMenu = () => {
         aria-label="New Post"
       />
 
-      {/* Invisible clickable button overlay - EVENTOS a la derecha */}
+      {/* Invisible clickable overlay - NUEVO EVENTO a la derecha */}
       <button
         className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-24 cursor-pointer z-50"
         onClick={() => {
@@ -144,9 +115,9 @@ const CircularMenu = () => {
             setShowLoginModal(true)
           }
         }}
-        onMouseEnter={() => setHoveredText('events')}
+        onMouseEnter={() => setHoveredText('new-event')}
         onMouseLeave={() => setHoveredText(null)}
-        aria-label="Events"
+        aria-label="Nuevo evento"
       />
 
       {/* Central Circle */}

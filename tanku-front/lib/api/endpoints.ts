@@ -181,6 +181,8 @@ export const API_ENDPOINTS = {
     CANCEL_REQUEST: (id: string) => `/api/v1/friends/requests/${id}`,
     REMOVE: (friendId: string) => `/api/v1/friends/${friendId}`,
     SUGGESTIONS: '/api/v1/friends/suggestions',
+    /** GET ?q=...&limit=24 — buscar usuarios por nombre o username */
+    SEARCH: '/api/v1/friends/search',
     BLOCK: '/api/v1/friends/block',
     UNBLOCK: (userId: string) => `/api/v1/friends/block/${userId}`,
     BLOCKED: '/api/v1/friends/blocked',

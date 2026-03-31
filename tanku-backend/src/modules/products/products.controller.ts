@@ -1,5 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { ProductsService, ProductListQuery, ProductListQueryOld } from './products.service';
+import {
+  ProductsService,
+  ProductListQuery,
+  ProductListQueryOld,
+  ProductViewerContext,
+} from './products.service';
 import { BadRequestError } from '../../shared/errors/AppError';
 import { successResponse, errorResponse, ErrorCode } from '../../shared/response';
 import { PaginationQuery } from '../../shared/pagination';
@@ -10,6 +15,11 @@ export class ProductsController {
 
   constructor() {
     this.productsService = new ProductsService();
+  }
+
+  private viewerFrom(req: Request): ProductViewerContext | undefined {
+    const id = (req as RequestWithUser).user?.id;
+    return id ? { userId: id } : undefined;
   }
 
   /**
@@ -68,7 +78,7 @@ export class ProductsController {
         throw new BadRequestError('El offset debe ser mayor o igual a 0');
       }
 
-      const result = await this.productsService.listProducts(query);
+      const result = await this.productsService.listProducts(query, this.viewerFrom(req));
 
       console.log(`✅ [PRODUCTS] Productos encontrados: ${result.products.length} de ${result.count} totales`);
       console.log(`📊 [PRODUCTS] Respuesta:`, {
@@ -108,7 +118,7 @@ export class ProductsController {
         search: req.query.search as string | undefined,
       };
 
-      const result = await this.productsService.listProducts(query);
+      const result = await this.productsService.listProducts(query, this.viewerFrom(req));
 
       // Formato compatible con SDK de Medusa
       res.status(200).json({
@@ -132,7 +142,7 @@ export class ProductsController {
         throw new BadRequestError('Handle es requerido');
       }
 
-      const product = await this.productsService.getProductByHandle(handle);
+      const product = await this.productsService.getProductByHandle(handle, this.viewerFrom(req));
 
       res.status(200).json({
         product,
@@ -160,7 +170,7 @@ export class ProductsController {
         sortOrder: (req.query.sortOrder as 'asc' | 'desc') || undefined,
       };
 
-      const result = await this.productsService.listProductsNormalized(query);
+      const result = await this.productsService.listProductsNormalized(query, this.viewerFrom(req));
 
       res.status(200).json(successResponse(result.items, result.meta));
     } catch (error) {
@@ -180,7 +190,7 @@ export class ProductsController {
         throw new BadRequestError('Handle es requerido');
       }
 
-      const product = await this.productsService.getProductByHandleNormalized(handle);
+      const product = await this.productsService.getProductByHandleNormalized(handle, this.viewerFrom(req));
 
       res.status(200).json(successResponse(product));
     } catch (error) {
@@ -201,7 +211,7 @@ export class ProductsController {
         throw new BadRequestError('El límite debe estar entre 1 y 100');
       }
 
-      const products = await this.productsService.getTopProducts(limit);
+      const products = await this.productsService.getTopProducts(limit, this.viewerFrom(req));
 
       res.status(200).json(successResponse(products));
     } catch (error) {
@@ -352,7 +362,7 @@ export class ProductsController {
         throw new BadRequestError('variantId es requerido');
       }
 
-      const variant = await this.productsService.getVariantById(variantId);
+      const variant = await this.productsService.getVariantById(variantId, this.viewerFrom(req));
 
       res.status(200).json(successResponse(variant));
     } catch (error) {

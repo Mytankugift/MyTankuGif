@@ -118,6 +118,12 @@ export type OnboardingDataDTO = {
   activities?: string[];
   completedSteps?: string[];
   lastCompletedAt?: string | null;
+  /** ISO 8601: confirmación explícita de mayoría (+18) en onboarding */
+  minorAcknowledgedAt?: string | null;
+  /** Versión del texto de disclaimer de edad aceptada */
+  minorDisclaimerVersion?: string | null;
+  /** Versión de términos vigente al aceptar (trazabilidad) */
+  acceptedTermsVersion?: string | null;
 };
 
 export type UpdateOnboardingDataDTO = {
@@ -125,5 +131,14 @@ export type UpdateOnboardingDataDTO = {
   categoryIds?: string[];
   activities?: string[];
   completedSteps?: string[];
+  /**
+   * Registra consentimiento de mayoría de edad (timestamp + versiones).
+   * Solo válido si la fecha de nacimiento en perfil indica ≥18 años.
+   */
+  recordAgeConsent?: boolean;
+  /** Opcional: forzar versión de disclaimer (por defecto la del servidor) */
+  minorDisclaimerVersion?: string | null;
+  /** Opcional: versión de términos aceptada en el mismo acto */
+  acceptedTermsVersion?: string | null;
 };
 

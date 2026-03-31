@@ -9,6 +9,8 @@ import { AuthService } from '../auth/auth.service';
 import { UsersService } from '../users/users.service';
 import { successResponse } from '../../shared/response';
 import { RequestWithUser } from '../../shared/types';
+import { getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
+import { viewerCannotSeeAdultCatalog } from '../../shared/catalog/catalog-age-policy';
 
 export class FeedController {
   private feedService: FeedService;
@@ -105,6 +107,8 @@ export class FeedController {
    */
   getPublicFeed = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const userId = (req as RequestWithUser).user?.id;
+
       // Leer cursor token del header (case-insensitive)
       const cursorToken = req.headers['x-feed-cursor'] as string | undefined;
       
@@ -114,7 +118,7 @@ export class FeedController {
       // Leer search de query params (opcional)
       const search = req.query.search as string | undefined;
 
-      const feed = await this.feedService.getPublicFeed(cursorToken, categoryId, search);
+      const feed = await this.feedService.getPublicFeed(cursorToken, categoryId, search, userId);
 
       res.status(200).json(successResponse(feed));
     } catch (error: any) {
@@ -147,7 +151,9 @@ export class FeedController {
   getFeedInit = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as RequestWithUser).user?.id;
-      
+      const birthDate = await getBirthDateForUserId(userId);
+      const hideAdultCategories = viewerCannotSeeAdultCatalog(Boolean(userId), birthDate);
+
       // Ejecutar todas las llamadas en paralelo para mejor performance
       const [
         feed,
@@ -164,8 +170,8 @@ export class FeedController {
         // Feed
         this.feedService.getFeed(undefined, userId),
         
-        // Categorías
-        this.categoriesService.listCategoriesNormalized(),
+        // Categorías (misma regla que GET /categories: ocultar +18 a anónimos/menores)
+        this.categoriesService.listCategoriesNormalized(hideAdultCategories),
         
         // Carrito (con manejo de errores si no autenticado)
         userId 

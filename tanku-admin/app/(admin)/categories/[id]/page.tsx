@@ -26,6 +26,8 @@ interface CategoryDetail {
   description: string | null
   imageUrl: string | null
   dropiId: number | null
+  /** Catálogo solo +18 para esta rama */
+  restrictToAdults: boolean
   blocked: boolean
   blockedAt: string | null
   blockedBy: string | null
@@ -59,6 +61,7 @@ export default function CategoryDetailPage() {
     name: '',
     description: '',
     parentId: '',
+    restrictToAdults: false,
   })
   const [allCategories, setAllCategories] = useState<CategoryDetail[]>([])
   const [priceFormulas, setPriceFormulas] = useState<Array<{
@@ -97,6 +100,7 @@ export default function CategoryDetailPage() {
         name: category.name,
         description: category.description || '',
         parentId: category.parentId || '',
+        restrictToAdults: category.restrictToAdults,
       })
       setSelectedFormulaId('')
     }
@@ -189,6 +193,7 @@ export default function CategoryDetailPage() {
         name: editData.name,
         description: editData.description || null,
         parentId: editData.parentId || null,
+        restrictToAdults: editData.restrictToAdults,
       })
 
       showNotification('Categoría actualizada exitosamente', 'success')
@@ -562,6 +567,25 @@ export default function CategoryDetailPage() {
                       ))}
                     </select>
                   </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editData.restrictToAdults}
+                        onChange={(e) =>
+                          setEditData({ ...editData, restrictToAdults: e.target.checked })
+                        }
+                        className="w-4 h-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500"
+                      />
+                      <span className="text-sm font-medium text-gray-800">
+                        Catálogo solo para mayores de edad (+18)
+                      </span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-7">
+                      Afecta a todos los productos de esta categoría (y la marca del producto sigue aplicando con OR).
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -582,6 +606,18 @@ export default function CategoryDetailPage() {
                           <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">
                             Activa
                           </span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Edad catálogo</span>
+                      <div className="mt-1">
+                        {category.restrictToAdults ? (
+                          <span className="px-2 py-1 bg-rose-100 text-rose-900 rounded text-sm font-semibold">
+                            Solo +18
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-700">Sin restricción +18 en categoría</span>
                         )}
                       </div>
                     </div>

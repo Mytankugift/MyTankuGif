@@ -23,6 +23,7 @@ export class AdminProductController {
         categoryId,
         active,
         lockedByAdmin,
+        restrictToAdults,
         inRanking,
         sortBy,
         page,
@@ -34,6 +35,8 @@ export class AdminProductController {
         ...(categoryId !== undefined && { categoryId: categoryId === 'null' ? 'null' : (categoryId as string) }),
         ...(active !== undefined && active !== '' && { active: active === 'true' }),
         ...(lockedByAdmin !== undefined && lockedByAdmin !== '' && { lockedByAdmin: lockedByAdmin === 'true' }),
+        ...(restrictToAdults !== undefined &&
+          restrictToAdults !== '' && { restrictToAdults: restrictToAdults === 'true' }),
         ...(inRanking !== undefined && inRanking !== '' && { inRanking: inRanking === 'true' }),
         ...(sortBy && { sortBy: sortBy as 'default' | 'ranking' }),
       };
@@ -110,7 +113,7 @@ export class AdminProductController {
   updateProduct = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const { title, description, categoryId } = req.body;
+      const { title, description, categoryId, restrictToAdults } = req.body;
       const requestWithAdmin = req as RequestWithAdminUser;
 
       if (!id) {
@@ -121,8 +124,17 @@ export class AdminProductController {
         throw new BadRequestError('Usuario admin no encontrado');
       }
 
+      if (restrictToAdults !== undefined && typeof restrictToAdults !== 'boolean') {
+        throw new BadRequestError('restrictToAdults debe ser un booleano');
+      }
+
       // Validar que al menos un campo se esté actualizando
-      if (title === undefined && description === undefined && categoryId === undefined) {
+      if (
+        title === undefined &&
+        description === undefined &&
+        categoryId === undefined &&
+        restrictToAdults === undefined
+      ) {
         throw new BadRequestError('Debe proporcionar al menos un campo para actualizar');
       }
 
@@ -132,6 +144,7 @@ export class AdminProductController {
           ...(title !== undefined && { title }),
           ...(description !== undefined && { description }),
           ...(categoryId !== undefined && { categoryId }),
+          ...(restrictToAdults !== undefined && { restrictToAdults }),
         },
         requestWithAdmin.adminUser.id
       );

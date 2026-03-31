@@ -7,17 +7,34 @@
 
 import { useState, useEffect } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
-import { Button } from '@/components/ui/button'
 import { OnboardingStepUsername } from './onboarding-step-username'
 import { OnboardingStepBirthday } from './onboarding-step-birthday'
 import { OnboardingStepCategories } from './onboarding-step-categories'
 import { OnboardingStepActivities } from './onboarding-step-activities'
 import { OnboardingStepAddress } from './onboarding-step-address'
+import { OnboardingAdultConfirmMiniModal } from './onboarding-adult-confirm-mini-modal'
 import { useOnboarding } from '@/lib/hooks/use-onboarding'
+import { isAdultFromBirthParts } from '@/lib/utils/age-policy'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { ONBOARDING_CATEGORIES, ONBOARDING_ACTIVITIES } from '@/lib/constants/onboarding'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
+
+type OnboardingContentStep =
+  | 'username'
+  | 'birthday'
+  | 'categories'
+  | 'activities'
+  | 'address'
+
+function getOnboardingContentStep(step: number): OnboardingContentStep {
+  if (step === 0) return 'username'
+  if (step === 1) return 'birthday'
+  if (step === 2) return 'categories'
+  if (step === 3) return 'activities'
+  if (step === 4) return 'address'
+  return 'username'
+}
 
 interface OnboardingModalProps {
   isOpen: boolean
@@ -40,6 +57,10 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
   const [addressData, setAddressData] = useState<any>(null) // Datos de dirección si se completa
   const [giftPreferences, setGiftPreferences] = useState<{ allowGiftShipping: boolean; useMainAddressForGifts: boolean } | null>(null)
   const [hasInitialized, setHasInitialized] = useState(false) // Flag para evitar resetear cuando ya estaba abierto
+  const [showAdultConfirmModal, setShowAdultConfirmModal] = useState(false)
+
+  const isAdult = isAdultFromBirthParts(year, month, day)
+  const totalStepsDisplay = 5
 
   // Cargar categorías del backend para mapear slugs a IDs
   useEffect(() => {
@@ -86,29 +107,44 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         try {
           const savedData = await getOnboardingData()
           if (savedData) {
+            let savedY: number | null = null
+            let savedM: number | null = null
+            let savedD: number | null = null
+
             // Restaurar fecha de nacimiento
             if (savedData.birthDate) {
               if (typeof savedData.birthDate === 'string') {
                 const parts = savedData.birthDate.split('-')
                 if (parts.length === 3) {
                   const [y, m, d] = parts.map(Number)
+                  savedY = y
+                  savedM = m
+                  savedD = d
                   setYear(y)
                   setMonth(m)
                   setDay(d)
                 } else if (parts.length === 2) {
                   // Formato legacy "MM-DD"
                   const [m, d] = parts.map(Number)
+                  savedY = 2000
+                  savedM = m
+                  savedD = d
                   setYear(2000) // Año por defecto para formato legacy
                   setMonth(m)
                   setDay(d)
                 }
               } else {
                 const date = new Date(savedData.birthDate)
-                setYear(date.getFullYear())
-                setMonth(date.getMonth() + 1)
-                setDay(date.getDate())
+                savedY = date.getFullYear()
+                savedM = date.getMonth() + 1
+                savedD = date.getDate()
+                setYear(savedY)
+                setMonth(savedM)
+                setDay(savedD)
               }
             }
+
+            const savedAdult = isAdultFromBirthParts(savedY, savedM, savedD)
 
             // Restaurar categorías seleccionadas - mapear IDs a slugs
             if (savedData.categoryIds && savedData.categoryIds.length > 0) {
@@ -128,15 +164,14 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
             }
 
             // Determinar en qué paso debería estar el usuario
-            // Si tiene username, birthday, categories y activities, ir al paso 4 (dirección)
             if (user?.username && savedData.birthDate && savedData.categoryIds && savedData.categoryIds.length > 0 && savedData.activities && savedData.activities.length > 0) {
-              setCurrentStep(4) // Ir directamente al paso de dirección
+              setCurrentStep(4) // Dirección
             } else if (user?.username && savedData.birthDate && savedData.categoryIds && savedData.categoryIds.length > 0) {
-              setCurrentStep(3) // Ir al paso de actividades
+              setCurrentStep(3) // Actividades
             } else if (user?.username && savedData.birthDate) {
-              setCurrentStep(2) // Ir al paso de categorías
+              setCurrentStep(2) // Categorías
             } else if (user?.username) {
-              setCurrentStep(1) // Ir al paso de birthday
+              setCurrentStep(1) // Cumpleaños
             }
           }
         } catch (error) {
@@ -159,25 +194,27 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
       setSelectedActivitySlugs([])
       setAddressData(null)
       setGiftPreferences(null)
+      setShowAdultConfirmModal(false)
       setHasInitialized(true)
     } else if (!isOpen) {
       setHasInitialized(false)
+      setShowAdultConfirmModal(false)
     }
   }, [isOpen, hasInitialized, user?.username])
 
   // Validar si se puede avanzar al siguiente paso
   const canProceed = () => {
-    switch (currentStep) {
-      case 0:
+    const content = getOnboardingContentStep(currentStep)
+    switch (content) {
+      case 'username':
         return username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)
-      case 1:
+      case 'birthday':
         return year !== null && month !== null && day !== null
-      case 2:
+      case 'categories':
         return selectedCategorySlugs.length >= 1
-      case 3:
+      case 'activities':
         return selectedActivitySlugs.length >= 1
-      case 4:
-        // El paso de dirección es opcional, siempre se puede proceder
+      case 'address':
         return true
       default:
         return false
@@ -187,19 +224,44 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
   // Guardar datos incrementales después de cada paso
   const handleNext = async () => {
     if (currentStep === 0) {
-      // El username ya se guardó en OnboardingStepUsername
       setCurrentStep(1)
-    } else if (currentStep < 4) {
-      // Guardar datos del paso actual antes de avanzar
+      return
+    }
+
+    const content = getOnboardingContentStep(currentStep)
+
+    if (currentStep === 1) {
+      await saveCurrentStep()
+      if (isAdult) {
+        setShowAdultConfirmModal(true)
+      } else {
+        setCurrentStep(2)
+      }
+      return
+    }
+
+    if (content === 'address') {
+      return
+    }
+
+    if (currentStep < 4) {
       await saveCurrentStep()
       setCurrentStep(currentStep + 1)
-    } else if (currentStep === 4) {
-      // Paso de dirección: guardar dirección y preferencias, luego completar
-      await handleComplete()
-    } else {
-      // Último paso: guardar y completar
-      await handleComplete()
     }
+  }
+
+  const handleAdultMiniConfirm = async () => {
+    try {
+      await updateOnboardingData({ recordAgeConsent: true })
+    } catch (e) {
+      console.error('Error registrando consentimiento de edad:', e)
+    }
+    setShowAdultConfirmModal(false)
+    setCurrentStep(2)
+  }
+
+  const handleAdultCorrectDate = () => {
+    setShowAdultConfirmModal(false)
   }
 
   const handleAddressComplete = async () => {
@@ -219,6 +281,10 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
   }
 
   const handleBack = () => {
+    if (showAdultConfirmModal) {
+      handleAdultCorrectDate()
+      return
+    }
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1)
     }
@@ -293,7 +359,8 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
 
   if (!isOpen) return null
 
-  const totalSteps = 5 // username, birthday, categories, activities, address
+  const contentStep = getOnboardingContentStep(currentStep)
+  const isAddressStep = currentStep === 4
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
@@ -312,7 +379,9 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
             <h1 className="text-4xl font-semibold" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>Bienvenido</h1>
-            <span className="text-sm" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>Paso {currentStep + 1}/5</span>
+            <span className="text-sm" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>
+              Paso {currentStep + 1}/{totalStepsDisplay}
+            </span>
           </div>
           {/* Solo permitir cerrar si el onboarding está completo */}
           {isOnboardingComplete() ? (
@@ -328,10 +397,10 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
           )}
         </div>
 
-        {/* Barra de progreso - 5 bloques */}
+        {/* Barra de progreso */}
         <div className="px-4 pb-4">
           <div className="flex gap-2">
-            {Array.from({ length: 5 }).map((_, index) => (
+            {Array.from({ length: totalStepsDisplay }).map((_, index) => (
               <div
                 key={index}
                 className="flex-1 h-2 rounded transition-all duration-300"
@@ -364,21 +433,21 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
             />
           )}
 
-          {currentStep === 2 && (
+          {contentStep === 'categories' && (
             <OnboardingStepCategories
               selectedCategorySlugs={selectedCategorySlugs}
               onToggleCategory={toggleCategory}
             />
           )}
 
-          {currentStep === 3 && (
+          {contentStep === 'activities' && (
             <OnboardingStepActivities
               selectedActivitySlugs={selectedActivitySlugs}
               onToggleActivity={toggleActivity}
             />
           )}
 
-          {currentStep === 4 && (
+          {contentStep === 'address' && (
             <OnboardingStepAddress
               onSkip={handleAddressSkip}
               onComplete={handleAddressComplete}
@@ -433,7 +502,7 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
             >
               Continuar
             </button>
-          ) : currentStep === 4 ? (
+          ) : isAddressStep ? (
             <button
               onClick={handleAddressSkip}
               className="font-semibold transition-all rounded-full"
@@ -465,6 +534,12 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
           )}
         </div>
       </div>
+
+      <OnboardingAdultConfirmMiniModal
+        open={showAdultConfirmModal}
+        onConfirm={handleAdultMiniConfirm}
+        onCorrectDate={handleAdultCorrectDate}
+      />
     </div>
   )
 }

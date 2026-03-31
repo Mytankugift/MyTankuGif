@@ -5,6 +5,8 @@ import { CartService } from '../cart/cart.service';
 import { GiftService } from '../gifts/gift.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { BadRequestError, NotFoundError } from '../../shared/errors/AppError';
+import { assertProductViewableForUser } from '../../shared/catalog/catalog-age-policy';
+import { assertGiftProductAllowedForRecipient, getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
 import type { Prisma } from '@prisma/client';
 
 export interface CheckoutOrderRequest {
@@ -520,6 +522,8 @@ export class CheckoutService {
             id: true,
             title: true,
             images: true,
+            restrictToAdults: true,
+            category: { select: { restrictToAdults: true } },
           },
         },
         warehouseVariants: {
@@ -547,6 +551,19 @@ export class CheckoutService {
     if (totalStock < input.quantity) {
       throw new BadRequestError(`Stock insuficiente. Disponible: ${totalStock}, Solicitado: ${input.quantity}`);
     }
+
+    const senderBirth = await getBirthDateForUserId(input.senderId);
+    assertProductViewableForUser(
+      { restrictToAdults: variant.product.restrictToAdults },
+      variant.product.category,
+      true,
+      senderBirth,
+    );
+    await assertGiftProductAllowedForRecipient(
+      { restrictToAdults: variant.product.restrictToAdults },
+      variant.product.category,
+      input.recipientId,
+    );
 
     // 5. Obtener dirección del destinatario
     const giftAddress = await this.giftService.getGiftAddress(input.recipientId);

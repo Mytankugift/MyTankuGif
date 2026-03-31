@@ -47,6 +47,7 @@ interface ProductDetail {
   customImageUrls: string[]
   hiddenImages: string[]
   categoryId: string | null
+  restrictToAdults: boolean
   active: boolean
   lockedByAdmin: boolean
   lockedAt: string | null
@@ -72,6 +73,7 @@ interface ProductDetail {
     id: string
     name: string
     handle: string
+    restrictToAdults: boolean
   } | null
   variants: ProductVariant[]
   locker: {
@@ -97,6 +99,7 @@ export default function ProductDetailPage() {
     title: '',
     description: '',
     categoryId: '',
+    restrictToAdults: false,
   })
   const [editingVariantTitle, setEditingVariantTitle] = useState<string | null>(null)
   const [variantTitleValue, setVariantTitleValue] = useState('')
@@ -165,6 +168,7 @@ export default function ProductDetailPage() {
         title: product.title,
         description: product.description || '',
         categoryId: product.categoryId || '',
+        restrictToAdults: product.restrictToAdults,
       })
     }
   }, [product, isEditing])
@@ -437,6 +441,7 @@ export default function ProductDetailPage() {
           title: editData.title,
           description: editData.description || null,
           categoryId: finalCategoryId,
+          restrictToAdults: editData.restrictToAdults,
         }
       )
       if (response.data.success) {
@@ -466,6 +471,7 @@ export default function ProductDetailPage() {
         title: product.title,
         description: product.description || '',
         categoryId: product.categoryId || '',
+        restrictToAdults: product.restrictToAdults,
       })
       // Resetear estados de categoría
       loadAllCategoriesForCheck()
@@ -479,6 +485,7 @@ export default function ProductDetailPage() {
         title: product.title,
         description: product.description || '',
         categoryId: product.categoryId || '',
+        restrictToAdults: product.restrictToAdults,
       })
       // Cargar información de categoría para determinar padre/hijo
       loadAllCategoriesForCheck()
@@ -1153,6 +1160,55 @@ export default function ProductDetailPage() {
                             ))}
                           </div>
                         </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Restricción de edad (+18)
+                  </label>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editData.restrictToAdults}
+                          onChange={(e) =>
+                            setEditData({ ...editData, restrictToAdults: e.target.checked })
+                          }
+                          className="w-4 h-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500"
+                        />
+                        <span className="text-sm text-gray-800">
+                          Marcar este producto como solo para mayores de edad
+                        </span>
+                      </label>
+                      {product.category?.restrictToAdults && (
+                        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded px-2 py-1.5">
+                          La categoría ya está marcada como +18; el catálogo aplica la restricción. Puedes marcar el
+                          producto además para dejarlo explícito.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-800 space-y-1">
+                      {product.restrictToAdults || product.category?.restrictToAdults ? (
+                        <span className="inline-flex flex-wrap items-center gap-2">
+                          <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-900 text-xs font-semibold">
+                            Solo mayores (+18)
+                          </span>
+                          <span className="text-gray-600">
+                            {product.restrictToAdults && product.category?.restrictToAdults
+                              ? 'Producto y categoría'
+                              : product.restrictToAdults
+                                ? 'Solo por producto'
+                                : 'Por categoría'}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-gray-600">
+                          Sin restricción +18 en producto ni categoría actual
+                        </span>
                       )}
                     </div>
                   )}

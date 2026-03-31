@@ -1,9 +1,11 @@
 'use client'
 
+import React from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { FEED_RESET_FILTERS_EVENT } from '@/lib/constants/feed-events'
 
 /**
  * Barra inferior móvil (< md). Vive fuera del Sidebar y se renderiza después de <main>
@@ -21,6 +23,13 @@ export default function MobileBottomNav() {
     return pathname === route || pathname.startsWith(route + '/')
   }
 
+  const handleFeedLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (pathname === '/feed' || pathname === '/') {
+      e.preventDefault()
+      window.dispatchEvent(new CustomEvent(FEED_RESET_FILTERS_EVENT))
+    }
+  }
+
   return (
     <nav
       className="pointer-events-auto md:hidden fixed bottom-0 left-0 right-0 z-[999999] flex items-center justify-around px-2 py-1"
@@ -34,6 +43,7 @@ export default function MobileBottomNav() {
     >
       <Link
         href="/feed"
+        onClick={handleFeedLinkClick}
         className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-all ${
           isActiveRoute('/feed') ? 'opacity-100' : 'opacity-50 hover:opacity-70'
         }`}

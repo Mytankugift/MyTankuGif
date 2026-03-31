@@ -56,10 +56,14 @@ export class AdminCategoryController {
       const requestWithAdmin = req as RequestWithAdminUser;
       const adminUserId = requestWithAdmin.adminUser!.id;
 
-      const { name, description, parentId, handle } = req.body;
+      const { name, description, parentId, handle, restrictToAdults } = req.body;
 
       if (!name || name.trim() === '') {
         throw new BadRequestError('El nombre de la categoría es requerido');
+      }
+
+      if (restrictToAdults !== undefined && typeof restrictToAdults !== 'boolean') {
+        throw new BadRequestError('restrictToAdults debe ser un booleano');
       }
 
       const category = await this.adminCategoryService.createCategory(
@@ -68,6 +72,7 @@ export class AdminCategoryController {
           description,
           parentId: parentId === 'null' || parentId === null ? null : parentId,
           handle,
+          ...(restrictToAdults !== undefined && { restrictToAdults }),
         },
         adminUserId
       );
@@ -88,7 +93,11 @@ export class AdminCategoryController {
       const adminUserId = requestWithAdmin.adminUser!.id;
 
       const { id } = req.params;
-      const { name, description, parentId } = req.body;
+      const { name, description, parentId, restrictToAdults } = req.body;
+
+      if (restrictToAdults !== undefined && typeof restrictToAdults !== 'boolean') {
+        throw new BadRequestError('restrictToAdults debe ser un booleano');
+      }
 
       // Validar que no se intente cambiar dropiId
       // (dropiId no debe estar en el body, pero por seguridad verificamos)
@@ -102,6 +111,7 @@ export class AdminCategoryController {
           name,
           description,
           parentId: parentId === 'null' || parentId === null ? null : parentId,
+          ...(restrictToAdults !== undefined && { restrictToAdults }),
         },
         adminUserId
       );

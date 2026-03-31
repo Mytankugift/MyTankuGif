@@ -3,28 +3,48 @@
 import { useState, useEffect } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { useAuthStore } from '@/lib/stores/auth-store'
 
-// Cache global para categorías (se mantiene durante la sesión)
-let categoriesCache: Array<{ id: string; name: string; image?: string | null }> | null = null
-let categoriesLoadingPromise: Promise<Array<{ id: string; name: string; image?: string | null }>> | null = null
+type CategoryItem = { id: string; name: string; image?: string | null }
+
+// Cache por contexto: anónimo vs JWT (el backend filtra +18 según edad del usuario)
+const categoriesCache: Record<string, CategoryItem[]> = {}
+const categoriesLoadingPromise: Record<string, Promise<CategoryItem[]> | null> = {}
+
+function cacheKeyForToken(token: string | null): string {
+  if (!token) return 'anon'
+  return `auth:${token.slice(-20)}`
+}
+
+const INVALIDATE_EVENT = 'tanku-categories-invalidate'
 
 export function useCategories() {
-  const [categories, setCategories] = useState<Array<{ id: string; name: string; image?: string | null }>>(
-    categoriesCache || []
-  )
-  const [isLoading, setIsLoading] = useState(!categoriesCache)
+  const token = useAuthStore((s) => s.token)
+  const key = cacheKeyForToken(token)
+
+  const [categories, setCategories] = useState<CategoryItem[]>(() => categoriesCache[key] || [])
+  const [isLoading, setIsLoading] = useState(!categoriesCache[key])
+  /** Se incrementa al llamar clearCategoriesCache() para forzar refetch en clientes montados */
+  const [invalidateSeq, setInvalidateSeq] = useState(0)
 
   useEffect(() => {
-    // Si ya tenemos el cache, actualizar estado y salir
-    if (categoriesCache) {
-      setCategories(categoriesCache)
+    const onInvalidate = () => setInvalidateSeq((n) => n + 1)
+    if (typeof window !== 'undefined') {
+      window.addEventListener(INVALIDATE_EVENT, onInvalidate)
+      return () => window.removeEventListener(INVALIDATE_EVENT, onInvalidate)
+    }
+    return undefined
+  }, [])
+
+  useEffect(() => {
+    if (categoriesCache[key]) {
+      setCategories(categoriesCache[key])
       setIsLoading(false)
       return
     }
 
-    // Si ya hay una petición en curso, esperarla
-    if (categoriesLoadingPromise) {
-      categoriesLoadingPromise
+    if (categoriesLoadingPromise[key]) {
+      categoriesLoadingPromise[key]!
         .then((data) => {
           setCategories(data)
           setIsLoading(false)
@@ -35,37 +55,32 @@ export function useCategories() {
       return
     }
 
-    // Crear nueva petición
     setIsLoading(true)
-    categoriesLoadingPromise = (async () => {
+    categoriesLoadingPromise[key] = (async () => {
       try {
-        const response = await apiClient.get<Array<{ id: string; name: string; handle: string; imageUrl?: string | null }>>(
-          API_ENDPOINTS.CATEGORIES.LIST
-        )
+        const response = await apiClient.get<
+          Array<{ id: string; name: string; handle: string; imageUrl?: string | null }>
+        >(API_ENDPOINTS.CATEGORIES.LIST)
 
         if (response.success && Array.isArray(response.data)) {
-          const mappedCategories = response.data.map(cat => ({
+          const mappedCategories = response.data.map((cat) => ({
             id: cat.id,
             name: cat.name,
             image: cat.imageUrl || null,
           }))
-          
-          // Guardar en cache
-          categoriesCache = mappedCategories
+          categoriesCache[key] = mappedCategories
           return mappedCategories
-        } else {
-          throw new Error('Error cargando categorías')
         }
+        throw new Error('Error cargando categorías')
       } catch (error) {
         console.error('Error cargando categorías:', error)
         throw error
       } finally {
-        categoriesLoadingPromise = null
+        categoriesLoadingPromise[key] = null
       }
     })()
 
-    // Esperar la petición y actualizar estado
-    categoriesLoadingPromise
+    categoriesLoadingPromise[key]!
       .then((data) => {
         setCategories(data)
         setIsLoading(false)
@@ -73,13 +88,15 @@ export function useCategories() {
       .catch(() => {
         setIsLoading(false)
       })
-  }, [])
+  }, [key, invalidateSeq])
 
   return { categories, isLoading }
 }
 
-// Función para limpiar el cache si es necesario (útil para testing o refresh manual)
 export function clearCategoriesCache() {
-  categoriesCache = null
-  categoriesLoadingPromise = null
+  Object.keys(categoriesCache).forEach((k) => delete categoriesCache[k])
+  Object.keys(categoriesLoadingPromise).forEach((k) => delete categoriesLoadingPromise[k])
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(INVALIDATE_EVENT))
+  }
 }

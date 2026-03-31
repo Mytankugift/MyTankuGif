@@ -61,7 +61,7 @@ router.get('/', optionalAuthenticate, feedController.getFeed);
  * 
  * Autenticación: No requerida
  */
-router.get('/public', feedController.getPublicFeed);
+router.get('/public', optionalAuthenticate, feedController.getPublicFeed);
 
 export default router;
 

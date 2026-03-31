@@ -33,6 +33,8 @@ interface BaseNavProps {
   pageSubtitle?: string
   /** Color del título (por defecto el verde Tanku de eventos) */
   pageTitleColor?: string
+  /** Contenido a la izquierda del título (ej. botón volver) */
+  startContent?: React.ReactNode
   /** Clase adicional para el contenedor */
   className?: string
   /** Historias personalizadas para pasar al StoriesCarousel */
@@ -48,6 +50,7 @@ export function BaseNav({
   pageTitle,
   pageSubtitle,
   pageTitleColor = '#73FFA2',
+  startContent,
   className = '',
   customStories,
 }: BaseNavProps) {
@@ -208,7 +211,14 @@ export function BaseNav({
             showPageHeading ? 'min-w-0 items-start justify-between' : 'items-center justify-end'
           }`}
         >
-          {renderPageHeading()}
+          {showPageHeading ? (
+            <div className="flex min-w-0 flex-1 items-start gap-2 sm:gap-3">
+              {startContent ? (
+                <div className="flex shrink-0 flex-col justify-start pt-0.5">{startContent}</div>
+              ) : null}
+              {renderPageHeading()}
+            </div>
+          ) : null}
           {renderActionIcons()}
         </div>
       )}

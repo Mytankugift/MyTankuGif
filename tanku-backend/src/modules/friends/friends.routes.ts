@@ -26,6 +26,9 @@ router.put('/requests/:id', authenticate, friendsController.updateFriendRequest)
 // Obtener lista de amigos (aceptados)
 router.get('/', authenticate, friendsController.getFriends);
 
+// Buscar usuarios para añadir (por nombre / username)
+router.get('/search', authenticate, friendsController.searchUsersForFriends);
+
 // Eliminar amigo
 router.delete('/:friendId', authenticate, friendsController.removeFriend);
 

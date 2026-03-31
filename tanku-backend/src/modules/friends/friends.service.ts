@@ -765,6 +765,58 @@ export class FriendsService {
   }
 
   /**
+   * Buscar usuarios por nombre de usuario o nombre (no limitado a intereses/actividades en común).
+   * Excluye: tú mismo, amigos, solicitudes pendientes, relaciones bloqueadas.
+   */
+  async searchUsersForFriends(
+    userId: string,
+    rawQuery: string,
+    limit: number = 24
+  ): Promise<FriendSuggestionDTO[]> {
+    const q = rawQuery.trim();
+    if (q.length < 2) {
+      return [];
+    }
+
+    const cappedLimit = Math.min(Math.max(limit, 1), 50);
+
+    const existingRelations = await prisma.friend.findMany({
+      where: {
+        OR: [{ userId }, { friendId: userId }],
+      },
+      select: {
+        userId: true,
+        friendId: true,
+      },
+    });
+
+    const excludedUserIds = new Set<string>([userId]);
+    for (const r of existingRelations) {
+      excludedUserIds.add(r.userId === userId ? r.friendId : r.userId);
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        id: { notIn: Array.from(excludedUserIds) },
+        OR: [
+          { username: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          { firstName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          { lastName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+        ],
+      },
+      include: { profile: true },
+      take: cappedLimit,
+      orderBy: [{ username: 'asc' }, { id: 'asc' }],
+    });
+
+    return users.map((u) => ({
+      userId: u.id,
+      user: this.mapUserToFriendUserDTO(u),
+      reason: 'search_match',
+    }));
+  }
+
+  /**
    * Cancelar solicitud enviada
    */
   async cancelSentRequest(requestId: string, userId: string): Promise<void> {

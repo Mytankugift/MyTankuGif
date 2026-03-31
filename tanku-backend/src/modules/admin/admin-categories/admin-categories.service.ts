@@ -47,6 +47,8 @@ export interface CategoryTreeNode {
   description: string | null;
   imageUrl: string | null;
   dropiId: number | null;
+  /** Catálogo solo para mayores de edad (+18) */
+  restrictToAdults: boolean;
   blocked: boolean;
   blockedAt: Date | null;
   blockedBy: string | null;
@@ -123,6 +125,7 @@ export class AdminCategoryService {
       description: string | null;
       imageUrl: string | null;
       dropiId: number | null;
+      restrictToAdults: boolean;
       blocked: boolean;
       blockedAt: Date | null;
       blockedBy: string | null;
@@ -197,6 +200,7 @@ export class AdminCategoryService {
           description: category.description,
           imageUrl: category.imageUrl,
           dropiId: category.dropiId,
+          restrictToAdults: category.restrictToAdults,
           blocked: category.blocked,
           blockedAt: category.blockedAt,
           blockedBy: category.blockedBy,
@@ -344,6 +348,7 @@ export class AdminCategoryService {
         description: category.description,
         imageUrl: category.imageUrl,
         dropiId: category.dropiId,
+        restrictToAdults: category.restrictToAdults,
         blocked: category.blocked,
         blockedAt: category.blockedAt,
         blockedBy: category.blockedBy,
@@ -371,6 +376,7 @@ export class AdminCategoryService {
       description?: string | null;
       parentId?: string | null;
       handle?: string;
+      restrictToAdults?: boolean;
     },
     adminUserId: string
   ): Promise<CategoryTreeNode> {
@@ -399,6 +405,7 @@ export class AdminCategoryService {
         handle,
         description: data.description?.trim() || null,
         parentId: data.parentId || null,
+        restrictToAdults: data.restrictToAdults ?? false,
         // dropiId se deja como null (categoría nueva manual)
       },
       include: {
@@ -427,6 +434,7 @@ export class AdminCategoryService {
       name?: string;
       description?: string | null;
       parentId?: string | null;
+      restrictToAdults?: boolean;
     },
     adminUserId: string
   ): Promise<CategoryTreeNode> {
@@ -489,6 +497,10 @@ export class AdminCategoryService {
 
     if (data.parentId !== undefined) {
       updateData.parentId = data.parentId;
+    }
+
+    if (data.restrictToAdults !== undefined) {
+      updateData.restrictToAdults = data.restrictToAdults;
     }
 
     // Actualizar categoría

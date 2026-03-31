@@ -86,6 +86,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
           <ProductDetailContent
             product={product}
             isPageView={false}
+            onAgeRestrictedClose={onClose}
           />
         </div>
       </div>

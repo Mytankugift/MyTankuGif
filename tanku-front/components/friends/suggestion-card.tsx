@@ -67,6 +67,8 @@ export function SuggestionCard({ suggestion, onSendRequest }: SuggestionCardProp
         return 'Intereses similares'
       case 'similar_activities':
         return 'Actividades similares'
+      case 'search_match':
+        return 'Coincidencia de búsqueda'
       default:
         return 'Te puede interesar'
     }
@@ -83,7 +85,7 @@ export function SuggestionCard({ suggestion, onSendRequest }: SuggestionCardProp
   const mutualCount = suggestion.mutualFriendsCount || 0
 
   return (
-    <div className="bg-gray-800 rounded-xl p-5 border border-gray-700 hover:border-[#73FFA2]/50 transition-all duration-300 hover:shadow-lg hover:shadow-[#73FFA2]/10 relative">
+    <div className="bg-gray-800 rounded-xl p-3 sm:p-4 border border-gray-700 hover:border-[#73FFA2]/50 transition-all duration-300 hover:shadow-lg hover:shadow-[#73FFA2]/10 relative">
       {/* Menú de 3 puntos en esquina superior derecha */}
       <div className="absolute top-3 right-3">
         <button
@@ -136,17 +138,17 @@ export function SuggestionCard({ suggestion, onSendRequest }: SuggestionCardProp
         )}
       </div>
 
-      <div className="flex gap-5">
-        {/* Imagen grande a la izquierda - clickeable */}
+      <div className="flex gap-3 sm:gap-4 items-start">
+        {/* Avatar compacto: más espacio para nombres largos */}
         <button
           onClick={() => router.push(suggestion.user.username ? `/profile/${suggestion.user.username}` : `/profile/${suggestion.userId}`)}
-          className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-xl overflow-hidden flex-shrink-0 border-2 border-gray-700 hover:border-[#73FFA2]/50 transition-colors cursor-pointer"
+          className="relative w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] rounded-lg overflow-hidden flex-shrink-0 border-2 border-gray-700 hover:border-[#73FFA2]/50 transition-colors cursor-pointer"
         >
           <Image
             src={imgSrc}
             alt={fullName}
-            width={128}
-            height={128}
+            width={72}
+            height={72}
             className="object-cover w-full h-full"
             onError={(e) => {
               if (imgSrc !== fallbackAvatar) {
@@ -162,24 +164,32 @@ export function SuggestionCard({ suggestion, onSendRequest }: SuggestionCardProp
         </button>
 
         {/* Información a la derecha */}
-        <div className="flex-1 min-w-0 flex flex-col gap-2.5">
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
           {/* Username primero (sin @), luego nombre y razón - clickeable */}
-          <div>
+          <div className="min-w-0 pr-6">
             <button
               onClick={() => router.push(suggestion.user.username ? `/profile/${suggestion.user.username}` : `/profile/${suggestion.userId}`)}
-              className="text-left"
+              className="text-left w-full min-w-0"
             >
               {suggestion.user.username ? (
                 <>
-                  <h3 className="text-white font-semibold text-lg mb-0.5 hover:text-[#73FFA2] transition-colors">
+                  <h3
+                    className="text-white font-semibold text-base sm:text-lg mb-0.5 hover:text-[#73FFA2] transition-colors truncate"
+                    title={suggestion.user.username}
+                  >
                     {suggestion.user.username}
                   </h3>
                   {fullName && fullName !== 'Sin nombre' && (
-                    <p className="text-sm text-gray-400 mb-1">{fullName}</p>
+                    <p className="text-sm text-gray-400 mb-1 line-clamp-2 break-words" title={fullName}>
+                      {fullName}
+                    </p>
                   )}
                 </>
               ) : (
-                <h3 className="text-white font-semibold text-lg mb-1 hover:text-[#73FFA2] transition-colors">
+                <h3
+                  className="text-white font-semibold text-base sm:text-lg mb-1 hover:text-[#73FFA2] transition-colors line-clamp-2 break-words"
+                  title={fullName}
+                >
                   {fullName}
                 </h3>
               )}

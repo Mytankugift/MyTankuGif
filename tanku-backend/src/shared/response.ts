@@ -19,6 +19,8 @@ export interface ErrorResponse {
   error: {
     code: string;
     message: string;
+    /** Vista previa opcional (p. ej. producto +18 con AGE_RESTRICTED) */
+    teaser?: unknown;
   };
 }
 
@@ -35,6 +37,8 @@ export enum ErrorCode {
   CONFLICT = 'CONFLICT',
   INTERNAL_ERROR = 'INTERNAL_ERROR',
   BAD_REQUEST = 'BAD_REQUEST',
+  /** Producto o recurso no disponible por política de edad (+18) */
+  AGE_RESTRICTED = 'AGE_RESTRICTED',
 }
 
 /**
@@ -61,13 +65,15 @@ export function successResponse<T>(
  */
 export function errorResponse(
   code: string | ErrorCode,
-  message: string
+  message: string,
+  extraFields?: Record<string, unknown>
 ): ErrorResponse {
   return {
     success: false,
     error: {
       code,
       message,
+      ...(extraFields || {}),
     },
   };
 }

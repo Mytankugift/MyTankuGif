@@ -12,6 +12,16 @@ import { openEpaycoSmartCheckout } from '@/lib/epayco/open-smart-checkout'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { UserAvatar } from '@/components/shared/user-avatar'
+import { BaseNav } from '@/components/layout/base-nav'
+import { ArrowLeftIcon } from '@heroicons/react/24/outline'
+
+/** Superficies discretas: verde + aqua solo en acentos, no bordes pesados */
+const surface =
+  'rounded-2xl bg-[#222222] p-5 sm:p-6 ring-1 ring-white/[0.06]'
+const inputClass =
+  'w-full rounded-xl border border-white/[0.08] bg-[#1a1a1a] px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-[#66DEDB]/45 focus:outline-none focus:ring-1 focus:ring-[#66DEDB]/20'
+const sectionLabel =
+  'mb-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#66DEDB]'
 
 // Declaración para TypeScript para el objeto ePayco en window
 declare global {
@@ -64,6 +74,8 @@ function GiftDirectCheckoutContent() {
     reason?: string
     canSendGift?: boolean
     sendGiftReason?: string
+    giftProductAllowed?: boolean
+    giftProductReason?: string
   } | null>(null)
   const [isCheckingEligibility, setIsCheckingEligibility] = useState(false)
   const [epaycoReady, setEpaycoReady] = useState(false)
@@ -229,15 +241,21 @@ function GiftDirectCheckoutContent() {
     setEligibility(null)
     
     try {
+      const variantQuery = variantId
+        ? `&variantId=${encodeURIComponent(variantId)}`
+        : ''
       const response = await apiClient.get<any>(
-        `${API_ENDPOINTS.GIFTS.VALIDATE_RECIPIENT}?recipientId=${recipientId}&senderId=${user.id}`
+        `${API_ENDPOINTS.GIFTS.VALIDATE_RECIPIENT}?recipientId=${recipientId}&senderId=${user.id}${variantQuery}`
       )
       
       if (response.success && response.data) {
-        setEligibility(response.data)
-        
-        if (!response.data.canReceive || response.data.canSendGift === false) {
-          setError(response.data.reason || response.data.sendGiftReason || 'El destinatario no puede recibir regalos')
+        const d = response.data
+        setEligibility(d)
+
+        if (!d.canReceive || d.canSendGift === false) {
+          setError(d.reason || d.sendGiftReason || 'El destinatario no puede recibir regalos')
+        } else if (d.giftProductAllowed === false) {
+          setError(null)
         } else {
           setError(null)
         }
@@ -275,9 +293,21 @@ function GiftDirectCheckoutContent() {
       return
     }
 
-    // Validar elegibilidad antes de continuar
-    if (!eligibility || !eligibility.canReceive || eligibility.canSendGift === false) {
-      setError(eligibility?.reason || eligibility?.sendGiftReason || 'El destinatario no puede recibir regalos')
+    // Validar elegibilidad antes de continuar (incl. producto +18 y destinatario menor)
+    if (
+      !eligibility ||
+      !eligibility.canReceive ||
+      eligibility.canSendGift === false ||
+      eligibility.giftProductAllowed === false
+    ) {
+      setError(
+        eligibility?.giftProductAllowed === false
+          ? eligibility?.giftProductReason ||
+              'Este producto no puede enviarse a un destinatario menor de edad'
+          : eligibility?.reason ||
+              eligibility?.sendGiftReason ||
+              'El destinatario no puede recibir regalos'
+      )
       return
     }
 
@@ -390,46 +420,93 @@ function GiftDirectCheckoutContent() {
     }
   }
 
+  const navBack = (
+    <Link
+      href="/feed"
+      aria-label="Volver"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
+    >
+      <ArrowLeftIcon className="h-5 w-5" strokeWidth={2} />
+    </Link>
+  )
+
   if (isLoading && !productInfo) {
     return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="text-center text-gray-400">Cargando...</div>
-      </div>
+      <>
+        <BaseNav
+          showStories={false}
+          pageTitle="Comprar como regalo"
+          pageSubtitle="Cargando datos del regalo…"
+          pageTitleColor="#73FFA2"
+          startContent={navBack}
+        />
+        <div
+          className="min-h-screen overflow-x-hidden overflow-y-auto px-4 pb-8 pt-24 sm:px-6 sm:pt-28 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:px-8 md:pt-32"
+          style={{ backgroundColor: '#1a1a1a' }}
+        >
+          <div className="mx-auto max-w-4xl text-center text-zinc-500">
+            <div className={`${surface} mx-auto max-w-md px-8 py-14`}>
+              <div className="mx-auto mb-3 h-7 w-7 animate-spin rounded-full border-2 border-[#73FFA2] border-t-transparent" />
+              <span className="text-sm">Cargando…</span>
+            </div>
+          </div>
+        </div>
+      </>
     )
   }
 
   if (error && !variantId) {
     return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="text-center">
-          <p className="text-red-400 mb-4">{error}</p>
-          <Link href="/feed">
-            <Button>Volver al feed</Button>
-          </Link>
+      <>
+        <BaseNav
+          showStories={false}
+          pageTitle="Comprar como regalo"
+          pageTitleColor="#73FFA2"
+          startContent={navBack}
+        />
+        <div
+          className="min-h-screen overflow-x-hidden overflow-y-auto px-4 pb-8 pt-24 sm:px-6 sm:pt-28 md:px-8 md:pt-32"
+          style={{ backgroundColor: '#1a1a1a' }}
+        >
+          <div className="mx-auto max-w-4xl text-center">
+            <div className={`${surface} mx-auto max-w-md`}>
+              <p className="mb-5 text-sm text-red-400/95">{error}</p>
+              <Link href="/feed">
+                <Button className="rounded-full bg-[#73FFA2] px-6 font-semibold text-[#1a1a1a] hover:brightness-95">
+                  Volver al feed
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="flex items-center gap-4 mb-8">
-        <Link href="/feed">
-          <Button type="button" variant="secondary" size="sm">
-            ← Volver
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold text-[#66DEDB]">Comprar como regalo</h1>
-      </div>
-
+    <>
+      <BaseNav
+        showStories={false}
+        canHide={false}
+        isVisible={true}
+        pageTitle="Comprar como regalo"
+        pageSubtitle="Destinatario, producto y pago"
+        pageTitleColor="#73FFA2"
+        startContent={navBack}
+      />
+      <div
+        className="min-h-screen overflow-x-hidden overflow-y-auto px-4 pb-12 pt-24 sm:px-6 sm:pt-28 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:px-8 md:pb-16 md:pt-32 custom-scrollbar"
+        style={{ backgroundColor: '#1a1a1a' }}
+      >
+        <div className="mx-auto max-w-4xl">
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Columna izquierda: Formularios */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10 lg:items-start">
+          {/* Columna principal */}
+          <div className="space-y-8 lg:col-span-7">
             {/* Selector de destinatario - Solo mostrar si NO viene recipientId */}
             {!recipientInfo && !recipientIdParam ? (
-              <div className="bg-gray-800/50 rounded-lg p-6">
-                <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Elegir destinatario</h2>
+              <div className={surface}>
+                <p className={sectionLabel}>Destinatario</p>
                 <div className="space-y-4">
                   {/* Buscador más pequeño */}
                   <div>
@@ -437,21 +514,21 @@ function GiftDirectCheckoutContent() {
                       type="text"
                       value={recipientSearch}
                       onChange={(e) => setRecipientSearch(e.target.value)}
-                      className="w-full px-3 py-2 text-sm bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                      className={inputClass}
                       placeholder="Buscar usuario o amigo..."
                     />
                   </div>
                   
                   {/* Mostrar amigos por defecto o resultados de búsqueda */}
                   {isLoadingFriends && recipientSearch.length < 2 && (
-                    <div className="text-center text-gray-400 text-sm py-4">
-                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-[#66DEDB]"></div>
+                    <div className="py-6 text-center text-sm text-zinc-500">
+                      <div className="mx-auto inline-block h-5 w-5 animate-spin rounded-full border-2 border-[#73FFA2] border-t-transparent" />
                     </div>
                   )}
                   
                   {isSearching && recipientSearch.length >= 2 && (
-                    <div className="text-center text-gray-400 text-sm py-4">
-                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-[#66DEDB]"></div>
+                    <div className="py-6 text-center text-sm text-zinc-500">
+                      <div className="mx-auto inline-block h-5 w-5 animate-spin rounded-full border-2 border-[#73FFA2] border-t-transparent" />
                     </div>
                   )}
                   
@@ -468,7 +545,7 @@ function GiftDirectCheckoutContent() {
                             key={friend.id}
                             type="button"
                             onClick={() => handleRecipientSelect(friend)}
-                            className="flex flex-col items-center gap-2 p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors"
+                            className="flex flex-col items-center gap-2 rounded-xl bg-[#1a1a1a] p-3 ring-1 ring-white/[0.06] transition-all hover:ring-[#66DEDB]/35"
                           >
                             <UserAvatar
                               user={{
@@ -507,7 +584,7 @@ function GiftDirectCheckoutContent() {
                             key={result.id}
                             type="button"
                             onClick={() => handleRecipientSelect(result)}
-                            className="flex flex-col items-center gap-2 p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors"
+                            className="flex flex-col items-center gap-2 rounded-xl bg-[#1a1a1a] p-3 ring-1 ring-white/[0.06] transition-all hover:ring-[#66DEDB]/35"
                           >
                             <UserAvatar
                               user={{
@@ -548,15 +625,13 @@ function GiftDirectCheckoutContent() {
                 </div>
               </div>
             ) : recipientInfo ? (
-              <div className="bg-[#66DEDB]/10 border border-[#66DEDB]/30 rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-[#66DEDB]">Destinatario</h2>
-                  {/* Solo permitir cambiar si NO vino de wishlist (sin recipientIdParam) */}
+              <div className={`${surface} border-l-[3px] border-l-[#73FFA2]`}>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <p className={sectionLabel}>Destinatario</p>
                   {!recipientIdParam && (
-                    <Button
+                    <button
                       type="button"
-                      variant="secondary"
-                      size="sm"
+                      className="shrink-0 text-xs font-medium text-[#66DEDB] transition-opacity hover:opacity-80"
                       onClick={() => {
                         setRecipientInfo(null)
                         setSelectedRecipientId(null)
@@ -565,64 +640,86 @@ function GiftDirectCheckoutContent() {
                       }}
                     >
                       Cambiar
-                    </Button>
+                    </button>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-4">
                   {recipientInfo.avatar ? (
                     <div className="flex-shrink-0">
                       <img
                         src={recipientInfo.avatar}
                         alt={recipientInfo.name}
-                        className="w-16 h-16 rounded-full object-cover border-2 border-[#66DEDB]"
+                        className="h-14 w-14 rounded-full object-cover ring-2 ring-white/10"
                       />
                     </div>
                   ) : (
-                    <span className="text-3xl flex-shrink-0">🎁</span>
+                    <span className="flex-shrink-0 text-2xl">🎁</span>
                   )}
-                  <div className="flex-1">
-                    <p className="text-[#66DEDB] font-semibold text-lg">
-                      {recipientInfo.name}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-lg font-medium text-zinc-100">{recipientInfo.name}</p>
                     {recipientInfo.username && (
-                      <p className="text-sm text-gray-400">@{recipientInfo.username}</p>
+                      <p className="text-sm text-zinc-500">@{recipientInfo.username}</p>
                     )}
-                    <p className="text-sm text-gray-400 mt-1">
-                      Este pedido será enviado como regalo. La dirección de envío se obtendrá automáticamente del destinatario.
+                    <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+                      La dirección de envío la tomamos del destinatario.
                     </p>
                   </div>
                 </div>
                 
                 {/* Estado de elegibilidad */}
                 {isCheckingEligibility ? (
-                  <div className="mt-4 p-3 bg-gray-700/50 rounded-lg">
-                    <p className="text-gray-400 text-sm">Validando elegibilidad...</p>
+                  <div className="mt-5 rounded-xl bg-[#1a1a1a] px-3 py-2.5 ring-1 ring-white/[0.06]">
+                    <p className="text-sm text-zinc-500">Validando elegibilidad…</p>
                   </div>
                 ) : eligibility ? (
-                  <div className={`mt-4 p-3 rounded-lg ${
-                    eligibility.canReceive && eligibility.canSendGift !== false
-                      ? 'bg-green-900/20 border border-green-500'
-                      : 'bg-red-900/20 border border-red-500'
-                  }`}>
-                    {eligibility.canReceive && eligibility.canSendGift !== false ? (
-                      <p className="text-green-400 text-sm">✓ Este usuario puede recibir regalos</p>
-                    ) : (
-                      <p className="text-red-400 text-sm">
-                        ✗ {eligibility.reason || eligibility.sendGiftReason || 'No puede recibir regalos'}
-                      </p>
-                    )}
-                  </div>
+                  (() => {
+                    const recipientFlowOk =
+                      eligibility.canReceive && eligibility.canSendGift !== false
+                    const productRecipientOk = eligibility.giftProductAllowed !== false
+                    const allOk = recipientFlowOk && productRecipientOk
+                    return (
+                      <div
+                        className={`mt-5 rounded-xl px-3 py-2.5 text-sm ring-1 ${
+                          allOk
+                            ? 'bg-[#73FFA2]/[0.07] text-[#73FFA2] ring-[#73FFA2]/25'
+                            : 'bg-red-950/40 text-red-400 ring-red-500/30'
+                        }`}
+                      >
+                        {allOk ? (
+                          <p>Puede recibir este regalo.</p>
+                        ) : (
+                          <div className="space-y-2 text-sm">
+                            {(!eligibility.canReceive || eligibility.canSendGift === false) && (
+                              <p className="text-red-400">
+                                ✗{' '}
+                                {eligibility.reason ||
+                                  eligibility.sendGiftReason ||
+                                  'No puede recibir regalos'}
+                              </p>
+                            )}
+                            {recipientFlowOk && eligibility.giftProductAllowed === false && (
+                              <p className="text-red-400">
+                                ✗{' '}
+                                {eligibility.giftProductReason ||
+                                  'Este producto no puede enviarse a un destinatario menor de edad'}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()
                 ) : null}
               </div>
             ) : null}
 
             {/* Información del producto */}
             {productInfo && (
-              <div className="bg-gray-800/50 rounded-lg p-6">
-                <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Producto</h2>
-                <div className="flex gap-4">
+              <div className={surface}>
+                <p className={sectionLabel}>Producto</p>
+                <div className="flex gap-5">
                   {productInfo.product?.thumbnail && (
-                    <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-700/30 flex-shrink-0">
+                    <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-[#1a1a1a] ring-1 ring-white/[0.06]">
                       <Image
                         src={productInfo.product.thumbnail}
                         alt={productInfo.product.title}
@@ -632,37 +729,37 @@ function GiftDirectCheckoutContent() {
                       />
                     </div>
                   )}
-                  <div className="flex-1">
-                    <h3 className="text-white font-semibold mb-1">{productInfo.product?.title}</h3>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-medium text-zinc-100">{productInfo.product?.title}</h3>
                     {productInfo.variant?.title && (
-                      <p className="text-sm text-gray-400 mb-2">{productInfo.variant.title}</p>
+                      <p className="mt-1 text-sm text-zinc-500">{productInfo.variant.title}</p>
                     )}
-                    <p className="text-lg font-bold text-[#3B9BC3]">
+                    <p className="mt-3 text-lg font-semibold tabular-nums text-[#66DEDB]">
                       {new Intl.NumberFormat('es-CO', {
                         style: 'currency',
                         currency: 'COP',
                         minimumFractionDigits: 0,
                       }).format(productInfo.price || 0)}
                     </p>
-                    <p className="text-sm text-gray-400 mt-2">Cantidad: {quantity}</p>
+                    <p className="mt-2 text-sm text-zinc-500">Cantidad · {quantity}</p>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Información de contacto */}
-            <div className="bg-gray-800/50 rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Información de contacto</h2>
+            <div className={surface}>
+              <p className={sectionLabel}>Contacto</p>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email *
+                <label className="mb-2 block text-xs font-medium text-zinc-500">
+                  Correo (facturación)
                 </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                  className={inputClass}
                   placeholder="tu@email.com"
                 />
               </div>
@@ -670,22 +767,22 @@ function GiftDirectCheckoutContent() {
 
             {/* Error */}
             {error && (
-              <div className="p-4 bg-red-900/20 border border-red-500 rounded-lg text-red-400">
+              <div className="rounded-2xl bg-red-950/25 px-4 py-3 text-sm text-red-400 ring-1 ring-red-500/25">
                 {error}
               </div>
             )}
           </div>
 
-          {/* Columna derecha: Resumen */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8 space-y-6">
-              <div className="bg-gray-800/50 rounded-lg p-6">
-                <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Resumen</h2>
+          {/* Columna pago / total */}
+          <div className="lg:col-span-5">
+            <div className="space-y-6 lg:sticky lg:top-28">
+              <div className={surface}>
+                <p className={sectionLabel}>Resumen</p>
                 {productInfo ? (
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Subtotal</span>
-                      <span className="text-white">
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between gap-4 text-zinc-400">
+                      <span>Subtotal</span>
+                      <span className="tabular-nums text-zinc-200">
                         {new Intl.NumberFormat('es-CO', {
                           style: 'currency',
                           currency: 'COP',
@@ -693,9 +790,9 @@ function GiftDirectCheckoutContent() {
                         }).format(total)}
                       </span>
                     </div>
-                    <div className="border-t border-gray-700 pt-3 flex justify-between">
-                      <span className="font-semibold text-white">Total</span>
-                      <span className="font-semibold text-[#3B9BC3]">
+                    <div className="flex justify-between gap-4 border-t border-white/[0.08] pt-3">
+                      <span className="font-medium text-zinc-100">Total</span>
+                      <span className="text-lg font-semibold tabular-nums text-[#73FFA2]">
                         {new Intl.NumberFormat('es-CO', {
                           style: 'currency',
                           currency: 'COP',
@@ -703,69 +800,74 @@ function GiftDirectCheckoutContent() {
                         }).format(total)}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">* El envío está incluido en el precio</p>
+                    <p className="text-xs text-zinc-600">Envío incluido en el precio.</p>
                   </div>
                 ) : (
-                  <p className="text-gray-400 text-sm">Cargando información...</p>
+                  <p className="text-sm text-zinc-500">Cargando…</p>
                 )}
               </div>
 
-              {/* Método de pago */}
-              <div className="bg-gray-800/50 rounded-lg p-6">
-                <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Método de pago</h2>
-                <p className="text-sm text-gray-400">
-                  Los regalos solo se pueden pagar con Epayco
+              <div className={surface}>
+                <p className={sectionLabel}>Pago</p>
+                <p className="text-sm text-zinc-500">
+                  Pasarela segura con Epayco.
                 </p>
-                <div className="mt-4 p-3 bg-[#66DEDB]/10 border border-[#66DEDB]/30 rounded-lg">
-                  <p className="text-[#66DEDB] font-medium">💳 Epayco</p>
+                <div className="mt-4 rounded-xl bg-[#1a1a1a] px-3 py-2.5 ring-1 ring-white/[0.06]">
+                  <p className="text-sm font-medium text-[#66DEDB]">Epayco</p>
                 </div>
               </div>
+
+              <Button
+                type="submit"
+                disabled={
+                  isSubmitting ||
+                  !epaycoReady ||
+                  !productInfo ||
+                  isLoading ||
+                  (!selectedRecipientId && !recipientIdParam) ||
+                  !eligibility ||
+                  !eligibility.canReceive ||
+                  eligibility.canSendGift === false ||
+                  eligibility.giftProductAllowed === false
+                }
+                className="w-full py-2.5 font-semibold text-sm sm:py-3 sm:text-base hover:!bg-[#5ac8c4] disabled:cursor-not-allowed disabled:opacity-50"
+                style={{
+                  backgroundColor: '#66DEDB',
+                  color: '#2C3137',
+                  borderRadius: '25px',
+                  boxShadow: '0px 4px 4px 0px #00000040 inset',
+                }}
+              >
+                {isLoading ? 'Cargando...' : isSubmitting ? 'Procesando...' : 'Completar pedido'}
+              </Button>
             </div>
           </div>
         </div>
-
-        {/* Botones de acción */}
-        <div className="mt-8 flex justify-end">
-          <Button
-            type="submit"
-            disabled={
-              isSubmitting || 
-              !epaycoReady || 
-              !productInfo || 
-              isLoading || 
-              (!selectedRecipientId && !recipientIdParam) ||
-              !eligibility ||
-              !eligibility.canReceive ||
-              eligibility.canSendGift === false
-            }
-            className="bg-[#66DEDB] hover:bg-[#5accc9] text-black font-semibold px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Cargando...' : isSubmitting ? 'Procesando...' : 'Completar pedido de regalo'}
-          </Button>
-        </div>
       </form>
 
-      {/* Script de Epayco */}
-      <Script
-        id="epayco-script"
-        src={getEpaycoScriptUrlForMode()}
-        strategy="afterInteractive"
-        onLoad={() => {
-          console.log('[EPAYCO] Script cargado exitosamente')
-          setEpaycoReady(true)
-        }}
-        onError={(e) => {
-          console.error('[EPAYCO] Error cargando script:', e)
-          setEpaycoReady(false)
-        }}
-        onReady={() => {
-          console.log('[EPAYCO] Script listo')
-          if (typeof window.ePayco !== 'undefined') {
+        {/* Script de Epayco */}
+        <Script
+          id="epayco-script"
+          src={getEpaycoScriptUrlForMode()}
+          strategy="afterInteractive"
+          onLoad={() => {
+            console.log('[EPAYCO] Script cargado exitosamente')
             setEpaycoReady(true)
-          }
-        }}
-      />
-    </div>
+          }}
+          onError={(e) => {
+            console.error('[EPAYCO] Error cargando script:', e)
+            setEpaycoReady(false)
+          }}
+          onReady={() => {
+            console.log('[EPAYCO] Script listo')
+            if (typeof window.ePayco !== 'undefined') {
+              setEpaycoReady(true)
+            }
+          }}
+        />
+        </div>
+      </div>
+    </>
   )
 }
 

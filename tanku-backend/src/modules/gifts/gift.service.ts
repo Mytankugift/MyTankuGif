@@ -8,6 +8,7 @@
 import { prisma } from '../../config/database';
 import { NotFoundError, BadRequestError } from '../../shared/errors/AppError';
 import { FriendsService } from '../friends/friends.service';
+import { checkGiftProductAllowedForRecipient } from '../../shared/catalog/catalog-age-viewer';
 
 export interface GiftRecipientEligibility {
   canReceive: boolean;
@@ -17,6 +18,9 @@ export interface GiftRecipientEligibility {
   reason?: string;
   canSendGift?: boolean; // Si el remitente puede enviar regalo a este destinatario
   sendGiftReason?: string; // Razón si no puede enviar
+  /** Con `variantId` en la validación: el producto (+18) puede enviarse a este destinatario */
+  giftProductAllowed?: boolean;
+  giftProductReason?: string;
 }
 
 export interface GiftAddressInfo {
@@ -47,7 +51,11 @@ export class GiftService {
    * @param senderId - ID del usuario remitente (opcional, para validar permisos de envío)
    * @returns Información sobre si puede recibir regalos y por qué
    */
-  async validateGiftRecipient(recipientId: string, senderId?: string): Promise<GiftRecipientEligibility> {
+  async validateGiftRecipient(
+    recipientId: string,
+    senderId?: string,
+    variantId?: string
+  ): Promise<GiftRecipientEligibility> {
     // Verificar que el usuario existe
     const user = await prisma.user.findUnique({
       where: { id: recipientId },
@@ -122,6 +130,38 @@ export class GiftService {
       // Si el perfil es público, cualquiera puede enviar regalos
     }
 
+    let giftProductAllowed: boolean | undefined;
+    let giftProductReason: string | undefined;
+
+    if (variantId) {
+      const variant = await prisma.productVariant.findUnique({
+        where: { id: variantId },
+        include: {
+          product: {
+            select: {
+              restrictToAdults: true,
+              category: { select: { restrictToAdults: true } },
+            },
+          },
+        },
+      });
+
+      if (!variant?.product) {
+        giftProductAllowed = false;
+        giftProductReason = 'Variante no encontrada';
+      } else {
+        const check = await checkGiftProductAllowedForRecipient(
+          { restrictToAdults: variant.product.restrictToAdults },
+          variant.product.category,
+          recipientId
+        );
+        giftProductAllowed = check.ok;
+        if (!check.ok) {
+          giftProductReason = check.reason;
+        }
+      }
+    }
+
     return {
       canReceive,
       hasAddress,
@@ -130,6 +170,7 @@ export class GiftService {
       reason,
       canSendGift,
       sendGiftReason,
+      ...(giftProductAllowed !== undefined ? { giftProductAllowed, giftProductReason } : {}),
     };
   }
 

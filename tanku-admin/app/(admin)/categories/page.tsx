@@ -26,6 +26,7 @@ interface CategoryTreeNode {
   description: string | null
   imageUrl: string | null
   dropiId: number | null
+  restrictToAdults: boolean
   blocked: boolean
   blockedAt: string | null
   blockedBy: string | null
@@ -122,6 +123,11 @@ function CategoryTreeItem({
             {category.dropiId && (
               <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                 Dropi: {category.dropiId}
+              </span>
+            )}
+            {category.restrictToAdults && (
+              <span className="text-xs font-semibold bg-rose-100 text-rose-900 px-2 py-0.5 rounded">
+                +18
               </span>
             )}
           </div>

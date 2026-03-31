@@ -299,7 +299,8 @@ export class WishListsController {
         throw new BadRequestError('Token o path es requerido');
       }
 
-      const wishList = await this.wishListsService.getWishlistByShareToken(tokenOrPath);
+      const viewerUserId = (req as RequestWithUser).user?.id;
+      const wishList = await this.wishListsService.getWishlistByShareToken(tokenOrPath, viewerUserId);
 
       if (!wishList) {
         return res.status(404).json(errorResponse(ErrorCode.NOT_FOUND, 'Wish list no encontrada'));

@@ -45,7 +45,8 @@ export class StoriesController {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'userId es requerido'));
       }
 
-      const stories = await this.storiesService.getStoriesByUserId(userId);
+      const viewerUserId = (req as RequestWithUser).user?.id;
+      const stories = await this.storiesService.getStoriesByUserId(userId, undefined, viewerUserId);
 
       res.status(200).json(successResponse(stories));
     } catch (error) {
@@ -106,9 +107,10 @@ export class StoriesController {
   getWishlistStories = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const requestWithUser = req as RequestWithUser;
-      const userId = requestWithUser.user?.id || req.query.userId as string | undefined;
+      const viewerUserId = requestWithUser.user?.id;
+      const filterCustomerId = req.query.userId as string | undefined;
 
-      const stories = await this.storiesService.getWishlistStories(userId);
+      const stories = await this.storiesService.getWishlistStories(filterCustomerId, viewerUserId);
 
       res.status(200).json(successResponse(stories));
     } catch (error) {

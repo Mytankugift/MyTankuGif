@@ -7,7 +7,7 @@ import { createServer } from 'http';
 import { env, getCorsOrigins } from './config/env';
 import { connectMongoDB, closeConnections } from './config/database';
 import { APP_CONSTANTS } from './config/constants';
-import { AppError } from './shared/errors/AppError';
+import { AppError, AgeRestrictedError } from './shared/errors/AppError';
 import { errorResponse, ErrorCode } from './shared/response';
 import { getSocketService } from './shared/realtime/socket.service';
 
@@ -375,13 +375,20 @@ app.use((req, res) => {
  */
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof AppError) {
-    // Mapear códigos de estado HTTP a códigos de error
-    let errorCode = ErrorCode.INTERNAL_ERROR;
-    if (err.statusCode === 400) errorCode = ErrorCode.BAD_REQUEST;
+    let errorCode: string = ErrorCode.INTERNAL_ERROR;
+    if (err.apiCode) {
+      errorCode = err.apiCode;
+    } else if (err.statusCode === 400) errorCode = ErrorCode.BAD_REQUEST;
     else if (err.statusCode === 401) errorCode = ErrorCode.UNAUTHORIZED;
     else if (err.statusCode === 403) errorCode = ErrorCode.FORBIDDEN;
     else if (err.statusCode === 404) errorCode = ErrorCode.NOT_FOUND;
     else if (err.statusCode === 409) errorCode = ErrorCode.CONFLICT;
+
+    if (err instanceof AgeRestrictedError && err.teaser) {
+      return res
+        .status(err.statusCode)
+        .json(errorResponse(errorCode, err.message, { teaser: err.teaser }));
+    }
 
     return res.status(err.statusCode).json(errorResponse(errorCode, err.message));
   }

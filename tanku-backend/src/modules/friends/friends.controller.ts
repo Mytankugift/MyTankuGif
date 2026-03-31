@@ -195,6 +195,33 @@ export class FriendsController {
   };
 
   /**
+   * GET /api/v1/friends/search?q=...
+   * Buscar usuarios por @username o nombre (no solo sugerencias por afinidad).
+   */
+  searchUsersForFriends = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user || !requestWithUser.user.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const q = typeof req.query.q === 'string' ? req.query.q : '';
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 24;
+
+      const results = await this.friendsService.searchUsersForFriends(
+        requestWithUser.user.id,
+        q,
+        Number.isFinite(limit) ? limit : 24
+      );
+
+      res.status(200).json(successResponse(results));
+    } catch (error: any) {
+      next(error);
+    }
+  };
+
+  /**
    * DELETE /api/v1/friends/requests/:id
    * Cancelar solicitud enviada
    */

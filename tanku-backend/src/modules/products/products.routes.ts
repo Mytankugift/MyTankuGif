@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { ProductsController } from './products.controller';
-import { authenticate } from '../../shared/middleware/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 const productsController = new ProductsController();
@@ -10,14 +10,14 @@ const productsController = new ProductsController();
  * Listar productos con paginación, filtros y ordenamiento
  * Query params: page, limit, category, priceMin, priceMax, active, search, sortBy, sortOrder
  */
-router.get('/', productsController.listProductsNormalized);
+router.get('/', optionalAuthenticate, productsController.listProductsNormalized);
 
 /**
  * GET /api/v1/products/top
  * Obtener top productos para StalkerGift (usuarios externos)
  * Query params: limit (default: 50)
  */
-router.get('/top', productsController.getTopProducts);
+router.get('/top', optionalAuthenticate, productsController.getTopProducts);
 
 /**
  * GET /api/v1/products/liked
@@ -55,14 +55,14 @@ router.get('/:productId/liked', authenticate, productsController.isProductLiked)
  * Obtener información de una variante por su ID
  * IMPORTANTE: Esta ruta debe ir antes de /:handle para evitar conflictos
  */
-router.get('/variant/:variantId', productsController.getVariantById);
+router.get('/variant/:variantId', optionalAuthenticate, productsController.getVariantById);
 
 /**
  * GET /api/v1/products/:handle
  * Obtener producto por handle
  * IMPORTANTE: Esta ruta debe ir al final para evitar conflictos con /:productId/like
  */
-router.get('/:handle', productsController.getProductByHandleNormalized);
+router.get('/:handle', optionalAuthenticate, productsController.getProductByHandleNormalized);
 
 export default router;
 

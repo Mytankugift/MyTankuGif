@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { FeedNav } from '@/components/feed/feed-nav'
 import { FeedGrid } from '@/components/feed/feed-grid'
@@ -12,6 +12,7 @@ import { useFeedInit } from '@/lib/hooks/use-feed-init'
 import { useInfiniteScroll } from '@/lib/hooks/use-infinite-scroll'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { logger } from '@/lib/utils/logger'
+import { FEED_RESET_FILTERS_EVENT } from '@/lib/constants/feed-events'
 import './feed-grid.css'
 
 export default function FeedPage() {
@@ -20,7 +21,11 @@ export default function FeedPage() {
   
   // ✅ MOVER TODOS LOS HOOKS ANTES DEL RETURN CONDICIONAL
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
+  /** Texto del input (cambia al escribir) */
+  const [searchInput, setSearchInput] = useState('')
+  /** Texto enviado al API tras debounce o Enter (búsqueda de productos) */
   const [searchQuery, setSearchQuery] = useState('')
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
@@ -35,6 +40,22 @@ export default function FeedPage() {
       router.replace('/')
     }
   }, [isAuthenticated, router])
+
+  // Debounce: no llamar al API en cada tecla; sí al terminar de escribir (~450 ms) o al pulsar Enter (onSearchCommit)
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    searchDebounceRef.current = setTimeout(() => {
+      setSearchQuery(searchInput.trim())
+    }, 450)
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    }
+  }, [searchInput])
+
+  const commitFeedSearch = useCallback(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    setSearchQuery(searchInput.trim())
+  }, [searchInput])
 
   // Calcular paddingTop dinámicamente según el dispositivo
   useEffect(() => {
@@ -177,6 +198,21 @@ export default function FeedPage() {
     }
   }, [lastScrollY, isAuthenticated])
 
+  // Sidebar / nav móvil: "My TANKU" en /feed → limpiar filtros como "Todas" + búsqueda vacía
+  useEffect(() => {
+    const onResetFilters = () => {
+      setSelectedCategoryId(null)
+      setSearchInput('')
+      setSearchQuery('')
+      requestAnimationFrame(() => {
+        const scrollContainer = document.querySelector('.custom-scrollbar') as HTMLElement | null
+        if (scrollContainer) scrollContainer.scrollTop = 0
+      })
+    }
+    window.addEventListener(FEED_RESET_FILTERS_EVENT, onResetFilters)
+    return () => window.removeEventListener(FEED_RESET_FILTERS_EVENT, onResetFilters)
+  }, [])
+
   // ✅ AHORA SÍ: return condicional DESPUÉS de todos los hooks
   // Si no está autenticado, no renderizar nada (se está redirigiendo)
   if (!isAuthenticated) {
@@ -202,8 +238,9 @@ export default function FeedPage() {
         categories={categories}
         selectedCategoryId={selectedCategoryId}
         onCategoryChange={setSelectedCategoryId}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        onSearchCommit={commitFeedSearch}
         isHeaderVisible={isHeaderVisible}
         // ✅ Pasar datos desde feedInit para evitar llamadas duplicadas
         conversations={useInitData ? feedInit.conversations : undefined}

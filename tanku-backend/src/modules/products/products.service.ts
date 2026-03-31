@@ -1,5 +1,14 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { NotFoundError, ConflictError } from '../../shared/errors/AppError';
+import {
+  assertProductViewableForUser,
+  isProductBlockedForMinor,
+  prismaWhereProductVisibleForMinorCatalog,
+  viewerCannotSeeAdultCatalog,
+} from '../../shared/catalog/catalog-age-policy';
+import { AgeRestrictedError } from '../../shared/errors/AppError';
+import { getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
 import { env } from '../../config/env';
 import {
   CategoryDTO,
@@ -56,6 +65,11 @@ export interface ProductResponse {
   created_at: Date;
   updated_at: Date;
 }
+
+export type ProductViewerContext = {
+  /** Usuario autenticado (JWT); sin token = catálogo como visitante */
+  userId?: string;
+};
 
 export class ProductsService {
   private wishListsService: WishListsService;
@@ -172,13 +186,16 @@ export class ProductsService {
   /**
    * Listar productos con paginación y filtros (NUEVO - Normalizado)
    */
-  async listProductsNormalized(query: ProductListQuery) {
+  async listProductsNormalized(query: ProductListQuery, viewer?: ProductViewerContext) {
     const { page, limit, skip } = normalizePagination(query, { page: 1, limit: 20 });
 
     // Obtener IDs de categorías bloqueadas
     const blockedCategoryIds = await getBlockedCategoryIds();
 
-    const where: any = {};
+    const birthDate = await getBirthDateForUserId(viewer?.userId);
+    const hideAdultCatalog = viewerCannotSeeAdultCatalog(Boolean(viewer?.userId), birthDate);
+
+    const where: Prisma.ProductWhereInput = {};
 
     // Filtro por categoría
     if (query.category) {
@@ -228,12 +245,17 @@ export class ProductsService {
       orderBy.push({ createdAt: 'desc' }); // Default
     }
 
+    const finalWhere: Prisma.ProductWhereInput =
+      hideAdultCatalog
+        ? { AND: [where, prismaWhereProductVisibleForMinorCatalog()] }
+        : where;
+
     // Contar total
-    const total = await prisma.product.count({ where });
+    const total = await prisma.product.count({ where: finalWhere });
 
     // Obtener productos
     const products = await prisma.product.findMany({
-      where,
+      where: finalWhere,
       include: {
         category: true,
         variants: {
@@ -258,7 +280,10 @@ export class ProductsService {
   /**
    * Listar productos con paginación y filtros (LEGACY - Mantener para compatibilidad)
    */
-  async listProducts(query: ProductListQueryOld): Promise<{
+  async listProducts(
+    query: ProductListQueryOld,
+    viewer?: ProductViewerContext
+  ): Promise<{
     products: ProductResponse[];
     count: number;
     hasMore: boolean;
@@ -266,12 +291,15 @@ export class ProductsService {
     const limit = Math.min(query.limit || 12, 100); // Máximo 100
     const offset = query.offset || 0;
 
+    const birthDate = await getBirthDateForUserId(viewer?.userId);
+    const hideAdultCatalog = viewerCannotSeeAdultCatalog(Boolean(viewer?.userId), birthDate);
+
     // Obtener IDs de categorías bloqueadas
     const blockedCategoryIds = await getBlockedCategoryIds();
 
     // Temporalmente mostrar todos los productos (activos e inactivos) para debugging
     // TODO: Volver a filtrar solo activos cuando esté listo
-    const where: any = {
+    const where: Prisma.ProductWhereInput = {
       // active: true, // Comentado temporalmente para ver todos los productos
       // Excluir productos de categorías bloqueadas
       ...(blockedCategoryIds.length > 0 && {
@@ -351,10 +379,15 @@ export class ProductsService {
 
     // Log de la query que se va a ejecutar
     console.log(`📦 [PRODUCTS SERVICE] Ejecutando query con where:`, JSON.stringify(where, null, 2));
-    
+
+    const finalWhere: Prisma.ProductWhereInput =
+      hideAdultCatalog
+        ? { AND: [where, prismaWhereProductVisibleForMinorCatalog()] }
+        : where;
+
     const [products, totalCount] = await Promise.all([
       prisma.product.findMany({
-        where,
+        where: finalWhere,
         include: {
           category: {
             select: {
@@ -379,7 +412,7 @@ export class ProductsService {
         take: limit,
         skip: offset,
       }),
-      prisma.product.count({ where }),
+      prisma.product.count({ where: finalWhere }),
     ]);
 
     console.log(`📦 [PRODUCTS SERVICE] ========== RESULTADO CONSULTA ==========`);
@@ -530,20 +563,11 @@ export class ProductsService {
   /**
    * Obtener producto por handle (NUEVO - Normalizado con DTO)
    */
-  async getProductByHandleNormalized(handle: string): Promise<ProductDTO> {
-    // Obtener IDs de categorías bloqueadas
+  async getProductByHandleNormalized(handle: string, viewer?: ProductViewerContext): Promise<ProductDTO> {
     const blockedCategoryIds = await getBlockedCategoryIds();
-    
+
     const product = await prisma.product.findUnique({
-      where: { 
-        handle,
-        // Excluir productos de categorías bloqueadas
-        ...(blockedCategoryIds.length > 0 && {
-          categoryId: {
-            notIn: blockedCategoryIds,
-          },
-        }),
-      },
+      where: { handle },
       include: {
         category: true,
         variants: {
@@ -556,11 +580,24 @@ export class ProductsService {
           },
         },
       },
-      // Incluir hiddenImages para filtrar
     });
 
     if (!product) {
       throw new NotFoundError('Producto no encontrado');
+    }
+
+    if (product.categoryId && blockedCategoryIds.includes(product.categoryId)) {
+      throw new NotFoundError('Producto no encontrado');
+    }
+
+    const birthDate = await getBirthDateForUserId(viewer?.userId);
+    const blocked = isProductBlockedForMinor(
+      { restrictToAdults: product.restrictToAdults },
+      product.category,
+    );
+    const cannotSeeAdult = viewerCannotSeeAdultCatalog(Boolean(viewer?.userId), birthDate);
+    if (blocked && cannotSeeAdult) {
+      throw new AgeRestrictedError('Producto no disponible para menores de edad', this.mapProductToDTO(product));
     }
 
     return this.mapProductToDTO(product);
@@ -569,7 +606,9 @@ export class ProductsService {
   /**
    * Obtener producto por handle (LEGACY - Mantener para compatibilidad)
    */
-  async getProductByHandle(handle: string): Promise<ProductResponse> {
+  async getProductByHandle(handle: string, viewer?: ProductViewerContext): Promise<ProductResponse> {
+    const blockedCategoryIds = await getBlockedCategoryIds();
+
     const product = await prisma.product.findUnique({
       where: { handle },
       include: {
@@ -591,6 +630,18 @@ export class ProductsService {
     if (!product) {
       throw new NotFoundError('Producto no encontrado');
     }
+
+    if (product.categoryId && blockedCategoryIds.includes(product.categoryId)) {
+      throw new NotFoundError('Producto no encontrado');
+    }
+
+    const birthDate = await getBirthDateForUserId(viewer?.userId);
+    assertProductViewableForUser(
+      { restrictToAdults: product.restrictToAdults },
+      product.category,
+      Boolean(viewer?.userId),
+      birthDate,
+    );
 
     // Normalizar URLs de imágenes
     const cdnBase = env.DROPI_CDN_BASE || 'https://d39ru7awumhhs2.cloudfront.net';
@@ -723,7 +774,7 @@ export class ProductsService {
   /**
    * Obtener información de una variante por su ID (incluye producto)
    */
-  async getVariantById(variantId: string): Promise<{
+  async getVariantById(variantId: string, viewer?: ProductViewerContext): Promise<{
     id: string;
     title: string;
     sku: string;
@@ -746,6 +797,8 @@ export class ProductsService {
             title: true,
             handle: true,
             images: true,
+            restrictToAdults: true,
+            category: { select: { restrictToAdults: true } },
           },
         },
         warehouseVariants: {
@@ -757,6 +810,14 @@ export class ProductsService {
     if (!variant) {
       throw new NotFoundError('Variante no encontrada');
     }
+
+    const birthDate = await getBirthDateForUserId(viewer?.userId);
+    assertProductViewableForUser(
+      { restrictToAdults: variant.product.restrictToAdults },
+      variant.product.category,
+      Boolean(viewer?.userId),
+      birthDate,
+    );
 
     // Calcular stock total
     const totalStock = variant.warehouseVariants?.reduce(
@@ -794,23 +855,29 @@ export class ProductsService {
    * Obtener top 50 productos para StalkerGift (usuarios externos)
    * Ordenados por popularidad/ventas
    */
-  async getTopProducts(limit: number = 50): Promise<ProductDTO[]> {
+  async getTopProducts(limit: number = 50, viewer?: ProductViewerContext): Promise<ProductDTO[]> {
     console.log(`📦 [PRODUCTS] Obteniendo top ${limit} productos para StalkerGift`);
+
+    const birthDate = await getBirthDateForUserId(viewer?.userId);
+    const hideAdultCatalog = viewerCannotSeeAdultCatalog(Boolean(viewer?.userId), birthDate);
+
+    const baseWhere: Prisma.ProductWhereInput = {
+      active: true,
+      variants: {
+        some: {
+          active: true,
+        },
+      },
+    };
+    const where: Prisma.ProductWhereInput = hideAdultCatalog
+      ? { AND: [baseWhere, prismaWhereProductVisibleForMinorCatalog()] }
+      : baseWhere;
 
     // Obtener productos activos (similar al feed, sin filtrar por stock)
     // Por ahora, ordenados por fecha de creación (desc) y luego por precio
     // TODO: Mejorar algoritmo con métricas de ventas/popularidad
     const products = await prisma.product.findMany({
-      where: {
-        active: true,
-        variants: {
-          some: {
-            active: true,
-            // No filtrar por stock aquí - el stock se valida después en el checkout
-            // Permitir todos los productos activos, similar al feed
-          },
-        },
-      },
+      where,
       include: {
         category: true,
         variants: {

@@ -6,7 +6,9 @@
  */
 
 import { prisma } from '../../config/database';
-import { NotFoundError, BadRequestError, ForbiddenError } from '../../shared/errors/AppError';
+import { NotFoundError, BadRequestError, ForbiddenError, AgeRestrictedError } from '../../shared/errors/AppError';
+import { assertProductViewableForUser, isProductBlockedForMinor } from '../../shared/catalog/catalog-age-policy';
+import { assertGiftProductAllowedForRecipient, getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
 import crypto from 'crypto';
 import { env } from '../../config/env';
 import { ChatService } from '../chat/chat.service';
@@ -52,7 +54,10 @@ export class StalkerGiftService {
     // Validar que el producto existe y está activo
     const product = await prisma.product.findUnique({
       where: { id: data.productId },
-      include: { variants: true },
+      include: {
+        variants: true,
+        category: { select: { restrictToAdults: true } },
+      },
     });
 
     if (!product) {
@@ -61,6 +66,27 @@ export class StalkerGiftService {
 
     if (!product.active) {
       throw new BadRequestError('El producto no está disponible');
+    }
+
+    const senderBirth = await getBirthDateForUserId(data.senderId);
+    assertProductViewableForUser(
+      { restrictToAdults: product.restrictToAdults },
+      product.category,
+      true,
+      senderBirth,
+    );
+
+    if (isProductBlockedForMinor({ restrictToAdults: product.restrictToAdults }, product.category)) {
+      if (!data.receiverId) {
+        throw new AgeRestrictedError(
+          'Los productos para mayores de edad solo pueden enviarse a usuarios registrados con edad verificada',
+        );
+      }
+      await assertGiftProductAllowedForRecipient(
+        { restrictToAdults: product.restrictToAdults },
+        product.category,
+        data.receiverId,
+      );
     }
 
     // Validar variante si se proporciona

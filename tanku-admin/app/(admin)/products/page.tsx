@@ -29,7 +29,9 @@ interface ProductListItem {
   category: {
     id: string
     name: string
+    restrictToAdults: boolean
   } | null
+  restrictToAdults: boolean
   price: number | null
   suggestedPrice: number | null
   tankuPrice: number | null
@@ -1311,7 +1313,18 @@ export default function ProductsPage() {
                               <LockClosedIcon className="w-5 h-5 text-amber-500" title="Bloqueado" />
                             )}
                             <div>
-                              <div className="text-sm font-medium text-gray-900">{product.title}</div>
+                              <div className="text-sm font-medium text-gray-900 flex flex-wrap items-center gap-2">
+                                {product.title}
+                                {(product.restrictToAdults ||
+                                  (product.category?.restrictToAdults ?? false)) && (
+                                  <span
+                                    className="text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded bg-rose-100 text-rose-800"
+                                    title="Restringido a mayores de edad (producto o categoría)"
+                                  >
+                                    +18
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-xs text-gray-500">{product.handle}</div>
                             </div>
                           </div>

@@ -78,6 +78,25 @@ export async function getBlockedCategoryIds(): Promise<string[]> {
 }
 
 /**
+ * IDs de categorías que no deben mostrarse en el catálogo a menores / anónimos:
+ * toda categoría con restrictToAdults y sus descendientes (mismo criterio que bloqueo).
+ */
+export async function getAdultRestrictedCategoryIds(): Promise<string[]> {
+  const adultRoots = await prisma.category.findMany({
+    where: { restrictToAdults: true },
+    select: { id: true },
+  });
+
+  const ids = new Set<string>();
+  for (const cat of adultRoots) {
+    ids.add(cat.id);
+    const children = await getAllChildrenIds(cat.id);
+    children.forEach((id) => ids.add(id));
+  }
+  return Array.from(ids);
+}
+
+/**
  * Verifica si un producto está en una categoría bloqueada
  */
 export async function isProductInBlockedCategory(productId: string): Promise<boolean> {

@@ -359,8 +359,11 @@ interface FeedNavProps {
   categories?: { id: string | number; name: string; image?: string | null }[]
   selectedCategoryId?: string | null
   onCategoryChange?: (categoryId: string | null) => void
-  searchQuery?: string
-  onSearchChange?: (query: string) => void
+  /** Valor del input de búsqueda de productos (el padre aplica debounce al API) */
+  searchInput?: string
+  onSearchInputChange?: (query: string) => void
+  /** Enter o acción explícita: aplicar búsqueda sin esperar al debounce */
+  onSearchCommit?: () => void
   isHeaderVisible?: boolean
   // ✅ Props opcionales desde feedInit para evitar llamadas duplicadas
   conversations?: any[]
@@ -374,8 +377,9 @@ export function FeedNav({
   categories = [],
   selectedCategoryId = null,
   onCategoryChange = () => {},
-  searchQuery = '',
-  onSearchChange = () => {},
+  searchInput = '',
+  onSearchInputChange = () => {},
+  onSearchCommit = () => {},
   isHeaderVisible = true,
   conversations: propConversations,
   unreadCount: propUnreadCount,
@@ -650,12 +654,13 @@ export function FeedNav({
           </div>
           <input
             type="text"
-            placeholder="Buscar"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Buscar productos…"
+            value={searchInput}
+            onChange={(e) => onSearchInputChange(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && searchQuery.trim()) {
-                // TODO: Implementar búsqueda
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                onSearchCommit()
               }
             }}
             disabled={!isAuthenticated}

@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useChat } from '@/lib/hooks/use-chat'
 import CircularMenu from './circular-menu'
 import { CreateStoryModal } from '@/components/stories/create-story-modal'
+import { FEED_RESET_FILTERS_EVENT } from '@/lib/constants/feed-events'
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -29,6 +30,13 @@ export default function Sidebar() {
   const handleLogout = () => {
     logout()
     window.location.href = '/feed'
+  }
+
+  const handleFeedLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (pathname === '/feed' || pathname === '/') {
+      e.preventDefault()
+      window.dispatchEvent(new CustomEvent(FEED_RESET_FILTERS_EVENT))
+    }
   }
 
   // Helper para verificar si una ruta está activa (incluye rutas anidadas)
@@ -65,34 +73,29 @@ export default function Sidebar() {
           />
           {/* Avatar con botón "+" para crear historia - Solo visible si está autenticado */}
           {isAuthenticated && user && (
-            <div className="flex flex-col items-center flex-shrink-0 cursor-pointer group relative">
+            <div className="flex flex-col items-center flex-shrink-0 cursor-pointer group relative mt-2">
               <div className="relative">
-                <div 
-                  className="w-16 h-16 rounded-full p-0.5 group-hover:opacity-90 transition-opacity relative z-10 cursor-pointer"
-                  style={{
-                    background: 'linear-gradient(45deg, #1A485C, #73FFA2)'
-                  }}
+                <div
+                  className="w-16 h-16 rounded-full overflow-hidden bg-gray-800 group-hover:opacity-90 transition-opacity relative z-10 cursor-pointer"
                   onClick={() => setCreateStoryModalOpen(true)}
                 >
-                  <div className="w-full h-full rounded-full overflow-hidden bg-gray-800">
-                    {imgSrc ? (
-                      <Image
-                        src={imgSrc}
-                        alt="Tu Historia"
-                        width={60}
-                        height={60}
-                        className="w-full h-full object-cover"
-                        priority
-                        unoptimized={imgSrc.startsWith('http')}
-                        onError={() => setImgSrc('')}
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-lg font-bold">
-                        {(user.firstName?.[0] || user.email?.[0] || 'U').toUpperCase()}
-                      </div>
-                    )}
-                  </div>
+                  {imgSrc ? (
+                    <Image
+                      src={imgSrc}
+                      alt="Tu Historia"
+                      width={64}
+                      height={64}
+                      className="w-full h-full object-cover"
+                      priority
+                      unoptimized={imgSrc.startsWith('http')}
+                      onError={() => setImgSrc('')}
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-lg font-bold">
+                      {(user.firstName?.[0] || user.email?.[0] || 'U').toUpperCase()}
+                    </div>
+                  )}
                 </div>
                 {/* Botón "+" verde Tanku en esquina inferior derecha */}
                 <button
@@ -125,6 +128,7 @@ export default function Sidebar() {
               {isAuthenticated ? (
                 <Link
                   href="/feed"
+                  onClick={handleFeedLinkClick}
                   className="flex items-center gap-2.5 group hover:opacity-80 transition-opacity px-3 py-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
                 >
                   <Image
@@ -477,32 +481,27 @@ export default function Sidebar() {
       {isAuthenticated && user && (
         <div className="mb-4 flex flex-col items-center cursor-pointer group relative flex-shrink-0">
           <div className="relative">
-            <div 
-              className="w-12 h-12 rounded-full p-0.5 group-hover:opacity-90 transition-opacity relative z-10 cursor-pointer"
-              style={{
-                background: 'linear-gradient(45deg, #1A485C, #73FFA2)'
-              }}
+            <div
+              className="w-12 h-12 rounded-full overflow-hidden bg-gray-800 group-hover:opacity-90 transition-opacity relative z-10 cursor-pointer"
               onClick={() => setCreateStoryModalOpen(true)}
             >
-              <div className="w-full h-full rounded-full overflow-hidden bg-gray-800">
-                {imgSrc ? (
-                  <Image
-                    src={imgSrc}
-                    alt="Tu Historia"
-                    width={44}
-                    height={44}
-                    className="w-full h-full object-cover"
-                    priority
-                    unoptimized={imgSrc.startsWith('http')}
-                    onError={() => setImgSrc('')}
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm font-bold">
-                    {(user.firstName?.[0] || user.email?.[0] || 'U').toUpperCase()}
-                  </div>
-                )}
-              </div>
+              {imgSrc ? (
+                <Image
+                  src={imgSrc}
+                  alt="Tu Historia"
+                  width={48}
+                  height={48}
+                  className="w-full h-full object-cover"
+                  priority
+                  unoptimized={imgSrc.startsWith('http')}
+                  onError={() => setImgSrc('')}
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm font-bold">
+                  {(user.firstName?.[0] || user.email?.[0] || 'U').toUpperCase()}
+                </div>
+              )}
             </div>
             {/* Botón "+" verde Tanku */}
             <button
@@ -535,6 +534,7 @@ export default function Sidebar() {
               {/* My TANKU */}
               <Link
                 href="/feed"
+                onClick={handleFeedLinkClick}
                 className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg transition-opacity hover:bg-white/10 ${
                   isActiveRoute('/feed') ? 'opacity-100' : 'opacity-70 hover:opacity-90'
                 }`}

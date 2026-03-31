@@ -3,6 +3,8 @@ import { NotFoundError, BadRequestError } from '../../shared/errors/AppError';
 import { CartDTO, CartItemDTO } from '../../shared/dto/cart.dto';
 import type { Cart, CartItem, ProductVariant, Product } from '@prisma/client';
 import { env } from '../../config/env';
+import { assertProductViewableForUser, shouldRemoveCartLineForAgePolicy } from '../../shared/catalog/catalog-age-policy';
+import { assertGiftProductAllowedForRecipient, getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
 
 // Interfaz legacy para compatibilidad temporal (se eliminará)
 export interface CartResponse {
@@ -37,6 +39,60 @@ export interface CartResponse {
 }
 
 export class CartService {
+  /**
+   * Elimina líneas que incumplen política de edad (comprador o regalo a menor).
+   */
+  private async pruneCartItemsByAgePolicy(cartId: string): Promise<void> {
+    const meta = await prisma.cart.findUnique({
+      where: { id: cartId },
+      select: { userId: true, isGiftCart: true, giftRecipientId: true },
+    });
+    if (!meta) return;
+
+    const buyerBirth = await getBirthDateForUserId(meta.userId ?? undefined);
+    const recipientBirth = meta.giftRecipientId
+      ? await getBirthDateForUserId(meta.giftRecipientId)
+      : undefined;
+
+    const full = await prisma.cart.findUnique({
+      where: { id: cartId },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: { include: { category: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!full?.items.length) return;
+
+    const toDelete: string[] = [];
+    for (const item of full.items) {
+      const p = item.variant.product;
+      if (!p) continue;
+      if (
+        shouldRemoveCartLineForAgePolicy(
+          { restrictToAdults: p.restrictToAdults },
+          p.category,
+          meta.userId,
+          buyerBirth,
+          meta.isGiftCart,
+          meta.giftRecipientId,
+          recipientBirth,
+        )
+      ) {
+        toDelete.push(item.id);
+      }
+    }
+    if (toDelete.length > 0) {
+      await prisma.cartItem.deleteMany({ where: { id: { in: toDelete } } });
+    }
+  }
+
   /**
    * LIMPIEZA DE DATOS CORRUPTOS:
    * Si existen carts con IDs inválidos (ej. "add-item", "update-item"), ejecutar:
@@ -137,6 +193,7 @@ export class CartService {
    * Obtener carrito por ID (NUEVO - Normalizado)
    */
   async getCartByIdNormalized(cartId: string): Promise<CartDTO | null> {
+    await this.pruneCartItemsByAgePolicy(cartId);
     const cart = await prisma.cart.findUnique({
       where: { id: cartId },
       include: {
@@ -261,7 +318,28 @@ export class CartService {
       return null;
     }
 
-    return this.mapCartToDTO(cart);
+    await this.pruneCartItemsByAgePolicy(cart.id);
+    const refreshed = await prisma.cart.findFirst({
+      where: { id: cart.id },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true,
+                warehouseVariants: {
+                  select: {
+                    stock: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return refreshed ? this.mapCartToDTO(refreshed) : this.mapCartToDTO(cart);
   }
 
   /**
@@ -324,7 +402,31 @@ export class CartService {
       });
     }
 
-    return this.mapCartToDTO(cart);
+    await this.pruneCartItemsByAgePolicy(cart.id);
+    const refreshedGift = await prisma.cart.findFirst({
+      where: { id: cart.id },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: true,
+                warehouseVariants: {
+                  select: {
+                    stock: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    return this.mapCartToDTO(refreshedGift || cart);
   }
 
   /**
@@ -332,6 +434,7 @@ export class CartService {
    * @param fields - Campos opcionales para formatear respuesta (compatibilidad con SDK)
    */
   async getCartById(cartId: string, fields?: string): Promise<CartResponse | null> {
+    await this.pruneCartItemsByAgePolicy(cartId);
     const cart = await prisma.cart.findUnique({
       where: { id: cartId },
       include: {
@@ -584,8 +687,10 @@ export class CartService {
     // Verificar que la variante existe
     const variant = await prisma.productVariant.findUnique({
       where: { id: variantId },
-      include: { 
-        product: true,
+      include: {
+        product: {
+          include: { category: true },
+        },
         warehouseVariants: {
           select: {
             stock: true,
@@ -611,6 +716,14 @@ export class CartService {
     if (totalStock < quantity) {
       throw new BadRequestError('Stock insuficiente');
     }
+
+    const birthDate = await getBirthDateForUserId(userId);
+    assertProductViewableForUser(
+      { restrictToAdults: variant.product.restrictToAdults },
+      variant.product.category,
+      Boolean(userId),
+      birthDate,
+    );
 
     // 5. Buscar CartItem por (cartId, variantId)
     // El constraint @@unique([cartId, variantId]) previene duplicados a nivel de BD
@@ -720,6 +833,9 @@ export class CartService {
       include: {
         variant: {
           include: {
+            product: {
+              include: { category: true },
+            },
             warehouseVariants: {
               select: {
                 stock: true,
@@ -750,6 +866,14 @@ export class CartService {
       if (totalStock < quantity) {
         throw new BadRequestError('Stock insuficiente');
       }
+
+      const birthDate = await getBirthDateForUserId(userId);
+      assertProductViewableForUser(
+        { restrictToAdults: item.variant.product.restrictToAdults },
+        item.variant.product.category,
+        Boolean(userId),
+        birthDate,
+      );
 
       // Actualizar cantidad
       await prisma.cartItem.update({
@@ -1097,8 +1221,10 @@ export class CartService {
     // Verificar que la variante existe
     const variant = await prisma.productVariant.findUnique({
       where: { id: variantId },
-      include: { 
-        product: true,
+      include: {
+        product: {
+          include: { category: true },
+        },
         warehouseVariants: {
           select: {
             stock: true,
@@ -1124,6 +1250,19 @@ export class CartService {
     if (totalStock < quantity) {
       throw new BadRequestError('Stock insuficiente');
     }
+
+    const senderBirth = await getBirthDateForUserId(senderId);
+    assertProductViewableForUser(
+      { restrictToAdults: variant.product.restrictToAdults },
+      variant.product.category,
+      true,
+      senderBirth,
+    );
+    await assertGiftProductAllowedForRecipient(
+      { restrictToAdults: variant.product.restrictToAdults },
+      variant.product.category,
+      recipientId,
+    );
 
     // Buscar si el item ya existe en el carrito
     const existingItem = await prisma.cartItem.findFirst({

@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
+import { isAgeRestrictedApiError, type ApiErrorWithCode } from '@/lib/api/error-codes'
 import { getProfileUrl } from '@/lib/utils/profile-url'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
@@ -97,7 +98,17 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
         setSelectedVariant(story.variantId || null)
       }
     } catch (error) {
-      console.error('Error cargando producto:', error)
+      if (isAgeRestrictedApiError(error) && (error as ApiErrorWithCode).teaser) {
+        const teaser = (error as ApiErrorWithCode).teaser!
+        setProduct(teaser)
+        if (story.variantId) {
+          setSelectedVariant(story.variantId)
+        } else if (teaser.variants?.length) {
+          setSelectedVariant(teaser.variants[0].id)
+        }
+      } else {
+        console.error('Error cargando producto:', error)
+      }
     } finally {
       setIsLoading(false)
     }

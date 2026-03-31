@@ -3,6 +3,12 @@ import { FeedItemDTO, FeedCursorDTO, FeedResponseDTO } from '../../shared/dto/fe
 import { Prisma } from '@prisma/client';
 import type { Product, ProductVariant, Category, Poster, User, UserProfile } from '@prisma/client';
 import { getBlockedCategoryIds, getAllChildrenIds } from '../../shared/utils/category.utils';
+import {
+  isProductBlockedForMinor,
+  prismaWhereProductVisibleForMinorCatalog,
+  viewerCannotSeeAdultCatalog,
+} from '../../shared/catalog/catalog-age-policy';
+import { getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
 
 /**
  * Feed Service
@@ -52,6 +58,8 @@ export class FeedService {
     timestamp: number;
     categoryId?: string;
     search?: string;
+    /** true = viewer no puede ver +18 (anónimo o menor) */
+    restricted?: boolean;
   } | null = null;
   private readonly PUBLIC_FEED_CACHE_TTL = 60000; // 60 segundos
 
@@ -85,6 +93,8 @@ export class FeedService {
     // Logs reducidos - solo información esencial
 
     try {
+      const birthDate = await getBirthDateForUserId(userId);
+
       // Limpiar tokens expirados
       this.cleanExpiredTokens();
 
@@ -113,25 +123,31 @@ export class FeedService {
       const estimatedProducts = Math.ceil((limit * postsPerProducts) / (postsPerProducts + 1));
       const estimatedPosts = Math.ceil(limit / (postsPerProducts + 1));
       
+      const hasSearch = !!(search && search.trim());
+
       // ✅ Ejecutar queries independientes en paralelo para mejor performance
       const [productsResult, postsResult, blockedCategoryIds] = await Promise.all([
         // Obtener productos por ranking o búsqueda (solo productos)
         (async () => {
           try {
             // Si hay búsqueda, usar método de búsqueda que busca en todos los productos
-            if (search && search.trim()) {
+            if (hasSearch) {
               return await this.getProductsBySearch(
-                search.trim(),
+                search!.trim(),
                 cursor,
                 estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
-                categoryId
+                categoryId,
+                userId,
+                birthDate
               );
             } else {
               return await this.getProductsByRanking(
                 cursor,
                 estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
                 boostFactor,
-                categoryId
+                categoryId,
+                userId,
+                birthDate
               );
             }
           } catch (productsError: any) {
@@ -148,21 +164,22 @@ export class FeedService {
             }
           }
         })(),
-        // Obtener posts por fecha (solo posts, filtrados por amigos + propio si hay userId)
-        (async () => {
-          try {
-            return await this.getPostsByDate(
-              cursor,
-              estimatedPosts + 2, // Buffer extra
-              userId // Pasar userId para filtrar por amigos + propio
-            );
-          } catch (postsError: any) {
-            console.error(`❌ [FEED-SERVICE] Error obteniendo posts:`, postsError?.message);
-            console.error(`❌ [FEED-SERVICE] Stack:`, postsError?.stack);
-            // Continuar con array vacío en lugar de fallar completamente
-            return [];
-          }
-        })(),
+        // Con búsqueda activa solo productos: no mezclar posters
+        hasSearch
+          ? Promise.resolve([])
+          : (async () => {
+              try {
+                return await this.getPostsByDate(
+                  cursor,
+                  estimatedPosts + 2, // Buffer extra
+                  userId // Pasar userId para filtrar por amigos + propio
+                );
+              } catch (postsError: any) {
+                console.error(`❌ [FEED-SERVICE] Error obteniendo posts:`, postsError?.message);
+                console.error(`❌ [FEED-SERVICE] Stack:`, postsError?.stack);
+                return [];
+              }
+            })(),
         // Obtener categorías bloqueadas (con cache)
         this.getBlockedCategoryIdsCached()
       ]);
@@ -710,14 +727,46 @@ export class FeedService {
   }
 
   /**
+   * Excluye entradas de ranking cuyo producto es +18 para menores cuando el viewer no puede verlo.
+   */
+  private async filterGlobalRankingItemsForAge(
+    rankingItems: Array<{ itemId: string; itemType: string; [key: string]: unknown }>,
+    userId?: string,
+    birthDate?: Date | null
+  ): Promise<typeof rankingItems> {
+    const hide = viewerCannotSeeAdultCatalog(Boolean(userId), birthDate);
+    if (!hide || rankingItems.length === 0) return rankingItems;
+
+    const productIds = rankingItems.filter((i) => i.itemType === 'product').map((i) => i.itemId);
+    if (productIds.length === 0) return rankingItems;
+
+    const rows = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, restrictToAdults: true, category: { select: { restrictToAdults: true } } },
+    });
+    const blocked = new Set<string>();
+    for (const p of rows) {
+      if (isProductBlockedForMinor({ restrictToAdults: p.restrictToAdults }, p.category)) {
+        blocked.add(p.id);
+      }
+    }
+    return rankingItems.filter((i) => i.itemType !== 'product' || !blocked.has(i.itemId));
+  }
+
+  /**
    * Obtener productos por ranking (solo productos)
    */
   private async getProductsByRanking(
     cursor: FeedCursorDTO | undefined,
     limit: number,
     boostFactor: number,
-    categoryId?: string
+    categoryId?: string,
+    userId?: string,
+    birthDate?: Date | null
   ) {
+    const hideAdult = viewerCannotSeeAdultCatalog(Boolean(userId), birthDate);
+    const fetchLimit = hideAdult ? Math.min(Math.max(limit * 4, limit), 500) : limit;
+
     // Obtener IDs de categorías bloqueadas (con cache)
     const blockedCategoryIds = await this.getBlockedCategoryIdsCached();
     
@@ -891,7 +940,7 @@ export class FeedService {
           { globalScore: 'desc' },
           { createdAt: 'desc' },
         ],
-        take: limit,
+        take: fetchLimit,
       });
     } catch (error: any) {
       // Verificar si es el error específico de tabla no existente (P2021)
@@ -919,7 +968,7 @@ export class FeedService {
             { globalScore: 'desc' },
             { createdAt: 'desc' },
           ],
-          take: limit,
+          take: fetchLimit,
         });
       } catch (fallbackError: any) {
         console.error('[FEED-SERVICE] Error crítico accediendo a globalRanking:', fallbackError?.message);
@@ -945,134 +994,177 @@ export class FeedService {
       });
     }
 
-    return rankingItems;
+    rankingItems = await this.filterGlobalRankingItemsForAge(rankingItems, userId, birthDate);
+    return rankingItems.slice(0, limit);
   }
 
   /**
-   * Obtener productos por búsqueda (cuando hay search query)
-   * Busca directamente en la tabla de productos usando el servicio de productos
-   * 
-   * @param searchQuery Query de búsqueda
-   * @param cursor Cursor para paginación (opcional)
-   * @param limit Límite de productos a retornar
-   * @param categoryId ID de categoría para filtrar (opcional)
+   * Obtener productos por búsqueda: solo título del producto, orden por global_ranking (mismo criterio que el feed sin búsqueda).
    */
   private async getProductsBySearch(
     searchQuery: string,
     cursor: FeedCursorDTO | undefined,
     limit: number,
-    categoryId?: string
+    categoryId?: string,
+    userId?: string,
+    birthDate?: Date | null
   ) {
-    
-    // Construir la query de búsqueda directamente en Prisma
-    // para tener mejor control sobre la paginación con cursor
-    const where: any = {};
-    
-    // Condiciones de búsqueda: buscar en título, descripción y variantes
-    const searchConditions = {
-      OR: [
-        { title: { contains: searchQuery, mode: 'insensitive' } },
-        { description: { contains: searchQuery, mode: 'insensitive' } },
-        { 
-          variants: {
-            some: {
-              OR: [
-                { sku: { contains: searchQuery, mode: 'insensitive' } },
-                { title: { contains: searchQuery, mode: 'insensitive' } },
-              ]
-            }
-          }
-        },
-      ],
-    };
-    
-    // Construir condiciones de where
-    const conditions: any[] = [searchConditions];
-    
-    // Filtro por categoría si se especifica (incluyendo subcategorías)
-    if (categoryId) {
-      // Obtener todos los IDs de subcategorías
-      const childrenIds = await getAllChildrenIds(categoryId);
-      const categoryIdsToSearch = [categoryId, ...childrenIds];
-      
-      conditions.push({ 
-        categoryId: {
-          in: categoryIdsToSearch,
-        }
-      });
-    }
-    
-    // Aplicar cursor si existe (paginación basada en fecha e ID)
-    if (cursor?.lastProductCreatedAt && cursor?.lastProductId) {
-      conditions.push({
-        OR: [
-          { createdAt: { lt: new Date(cursor.lastProductCreatedAt) } },
-          {
-            AND: [
-              { createdAt: new Date(cursor.lastProductCreatedAt) },
-              { id: { not: cursor.lastProductId } },
-            ],
-          },
-        ],
-      });
-    }
-    
-    // Obtener IDs de productos que están en el ranking global (solo estos son válidos para mostrar)
-    const productsInRanking = await (prisma as any).globalRanking.findMany({
-      where: {
-        itemType: 'product',
-      },
-      select: { itemId: true },
-    });
+    const hideAdult = viewerCannotSeeAdultCatalog(Boolean(userId), birthDate);
+    const fetchLimit = hideAdult ? Math.min(Math.max(limit * 4, limit), 500) : limit;
 
-    const validProductIds = new Set(productsInRanking.map((r: any) => r.itemId));
-
-    if (validProductIds.size === 0) {
-      // No hay productos válidos en el ranking
+    const blockedCategoryIds = await this.getBlockedCategoryIdsCached();
+    if (categoryId && blockedCategoryIds.includes(categoryId)) {
       return [];
     }
 
-    // Combinar todas las condiciones
-    if (conditions.length === 1) {
-      Object.assign(where, searchConditions);
-      if (categoryId) {
-        where.categoryId = categoryId;
-      }
-    } else {
-      where.AND = conditions;
+    const productsInRanking = await (prisma as any).globalRanking.findMany({
+      where: { itemType: 'product' },
+      select: { itemId: true },
+    });
+    const validProductIds = new Set<string>(
+      productsInRanking.map((r: { itemId: string }) => r.itemId)
+    );
+    if (validProductIds.size === 0) {
+      return [];
     }
 
-    // IMPORTANTE: Solo productos que están en el ranking global (cumplen requisitos)
-    where.id = {
-      in: Array.from(validProductIds),
+    const titleWhere: Prisma.ProductWhereInput = {
+      active: true,
+      title: { contains: searchQuery, mode: 'insensitive' },
+      id: { in: [...validProductIds] },
     };
 
-    // También filtrar por active: true
-    where.active = true;
-    
-    // Obtener productos con búsqueda y paginación
-    const products = await prisma.product.findMany({
-      where,
-      select: {
-        id: true,
-        createdAt: true,
-      },
-      orderBy: [
-        { createdAt: 'desc' }, // Más recientes primero
-      ],
-      take: limit,
+    if (categoryId) {
+      const childrenIds = await getAllChildrenIds(categoryId);
+      const categoryIdsToSearch = [categoryId, ...childrenIds];
+      (titleWhere as any).categoryId = { in: categoryIdsToSearch };
+    }
+
+    const productWhere: Prisma.ProductWhereInput = hideAdult
+      ? { AND: [titleWhere, prismaWhereProductVisibleForMinorCatalog()] }
+      : titleWhere;
+
+    const matchingProducts = await prisma.product.findMany({
+      where: productWhere,
+      select: { id: true },
     });
-    
-    
-    // Convertir productos a formato compatible con ranking items
-    const productsWithDates = products.map((product) => ({
-      itemId: product.id,
-      itemType: 'product' as const,
-      globalScore: 0, // No usado para búsqueda, pero necesario para compatibilidad
-      createdAt: product.createdAt,
-    }));
-    
-    return productsWithDates;
+    const matchingIds = matchingProducts.map((p) => p.id);
+    if (matchingIds.length === 0) {
+      return [];
+    }
+
+    const where: any = {
+      itemType: 'product',
+      itemId: { in: matchingIds },
+    };
+
+    if (cursor?.lastProductScore !== undefined) {
+      const cursorConditions: any[] = [
+        {
+          globalScore: {
+            lt: cursor.lastProductScore,
+          },
+        },
+        {
+          AND: [
+            {
+              globalScore: cursor.lastProductScore,
+            },
+            ...(cursor.lastProductCreatedAt
+              ? [
+                  {
+                    createdAt: {
+                      lt: new Date(cursor.lastProductCreatedAt),
+                    },
+                  },
+                ]
+              : []),
+          ],
+        },
+        {
+          AND: [
+            {
+              globalScore: cursor.lastProductScore,
+            },
+            ...(cursor.lastProductCreatedAt
+              ? [
+                  {
+                    createdAt: new Date(cursor.lastProductCreatedAt),
+                  },
+                ]
+              : []),
+            {
+              itemId: {
+                not: cursor.lastProductId,
+              },
+            },
+          ],
+        },
+      ];
+      where.AND = [
+        { itemId: { in: matchingIds } },
+        { OR: cursorConditions },
+      ];
+      delete where.itemId;
+    } else if (cursor?.lastGlobalScore !== undefined) {
+      const legacyCursorConditions: any[] = [
+        {
+          globalScore: {
+            lt: cursor.lastGlobalScore,
+          },
+        },
+        {
+          AND: [
+            {
+              globalScore: cursor.lastGlobalScore,
+            },
+            {
+              createdAt: {
+                lt: cursor.lastCreatedAt ? new Date(cursor.lastCreatedAt) : undefined,
+              },
+            },
+          ],
+        },
+        {
+          AND: [
+            {
+              globalScore: cursor.lastGlobalScore,
+            },
+            {
+              createdAt: cursor.lastCreatedAt ? new Date(cursor.lastCreatedAt) : undefined,
+            },
+            {
+              itemId: {
+                not: cursor.lastItemId,
+              },
+            },
+          ],
+        },
+      ];
+      where.AND = [{ itemId: { in: matchingIds } }, { OR: legacyCursorConditions }];
+      delete where.itemId;
+    }
+
+    let rankingItems: any[] = [];
+    try {
+      rankingItems = await prisma.globalRanking.findMany({
+        where,
+        orderBy: [{ globalScore: 'desc' }, { createdAt: 'desc' }],
+        take: fetchLimit,
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+        return [];
+      }
+      rankingItems = await (prisma as any).globalRanking.findMany({
+        where,
+        orderBy: [{ globalScore: 'desc' }, { createdAt: 'desc' }],
+        take: fetchLimit,
+      });
+    }
+
+    rankingItems = await this.filterGlobalRankingItemsForAge(rankingItems, userId, birthDate);
+    return rankingItems.slice(0, limit);
   }
 
   /**
@@ -1936,18 +2028,25 @@ export class FeedService {
   async getPublicFeed(
     cursorToken?: string,
     categoryId?: string,
-    search?: string
+    search?: string,
+    userId?: string
   ): Promise<FeedResponseDTO> {
     try {
+      const birthDate = await getBirthDateForUserId(userId);
+      const restricted = viewerCannotSeeAdultCatalog(Boolean(userId), birthDate);
+
       // Verificar cache primero
-      const cacheKey = this.getPublicFeedCacheKey(categoryId, search);
       const now = Date.now();
-      
-      if (this.publicFeedCache && 
-          this.publicFeedCache.categoryId === categoryId &&
-          this.publicFeedCache.search === search &&
-          (now - this.publicFeedCache.timestamp) < this.PUBLIC_FEED_CACHE_TTL &&
-          !cursorToken) { // Solo usar cache si no hay cursor (primera página)
+
+      if (
+        this.publicFeedCache &&
+        this.publicFeedCache.categoryId === categoryId &&
+        this.publicFeedCache.search === search &&
+        this.publicFeedCache.restricted === restricted &&
+        (now - this.publicFeedCache.timestamp) < this.PUBLIC_FEED_CACHE_TTL &&
+        !cursorToken
+      ) {
+        // Solo usar cache si no hay cursor (primera página)
         return this.publicFeedCache.data || { items: [], nextCursorToken: null };
       }
 
@@ -1973,7 +2072,9 @@ export class FeedService {
             search.trim(),
             cursor,
             limit > 0 ? limit + 100 : 0, // Buffer grande para compensar filtros
-            categoryId
+            categoryId,
+            userId,
+            birthDate
           );
         } else {
           // Para ranking, pedir más productos para asegurar 100 válidos
@@ -1981,7 +2082,9 @@ export class FeedService {
             cursor,
             limit > 0 ? limit + 100 : 0, // Buffer grande para compensar filtros
             1.0, // Sin boost (boostFactor = 1.0)
-            categoryId
+            categoryId,
+            userId,
+            birthDate
           );
         }
       } catch (productsError: any) {
@@ -2164,7 +2267,9 @@ export class FeedService {
               currentCursor,
               50, // Pedir 50 más
               1.0,
-              categoryId
+              categoryId,
+              userId,
+              birthDate
             );
             
             if (additionalProducts.length === 0) {
@@ -2247,6 +2352,7 @@ export class FeedService {
           timestamp: now,
           categoryId,
           search,
+          restricted,
         };
       }
 
@@ -2265,8 +2371,9 @@ export class FeedService {
   /**
    * Generar clave de cache para feed público
    */
-  private getPublicFeedCacheKey(categoryId?: string, search?: string): string {
+  private getPublicFeedCacheKey(categoryId?: string, search?: string, restricted?: boolean): string {
     const parts = ['feed_public_v1'];
+    parts.push(restricted ? 'restricted' : 'full');
     if (categoryId) parts.push(`cat_${categoryId}`);
     if (search) parts.push(`search_${search.trim().toLowerCase()}`);
     return parts.join('_');

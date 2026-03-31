@@ -1,5 +1,10 @@
 import { prisma } from '../../config/database';
 import { NotFoundError, BadRequestError } from '../../shared/errors/AppError';
+import { isUserMinorForPolicy } from '../../shared/catalog/catalog-age-policy';
+import {
+  DEFAULT_ACCEPTED_TERMS_SNAPSHOT_VERSION,
+  MINOR_DISCLAIMER_VERSION,
+} from '../../shared/constants/age-consent';
 import {
   AddressDTO,
   UserWithAddressesDTO,
@@ -901,6 +906,9 @@ export class UsersService {
       activities: onboardingMetadata.activities || [],
       completedSteps: onboardingMetadata.completedSteps || [],
       lastCompletedAt: onboardingMetadata.lastCompletedAt || null,
+      minorAcknowledgedAt: personalInfo.minorAcknowledgedAt?.toISOString() ?? null,
+      minorDisclaimerVersion: personalInfo.minorDisclaimerVersion ?? null,
+      acceptedTermsVersion: personalInfo.acceptedTermsVersion ?? null,
     };
   }
 
@@ -983,6 +991,24 @@ export class UsersService {
       }
     }
 
+    const effectiveBirthDate: Date | null =
+      updatePayload.birthDate !== undefined ? updatePayload.birthDate : personalInfo.birthDate;
+
+    if (updateData.recordAgeConsent === true) {
+      if (isUserMinorForPolicy(effectiveBirthDate)) {
+        throw new BadRequestError(
+          'No se puede registrar consentimiento de mayoría sin edad verificada (18+).'
+        );
+      }
+      updatePayload.minorAcknowledgedAt = new Date();
+      updatePayload.minorDisclaimerVersion =
+        updateData.minorDisclaimerVersion ?? MINOR_DISCLAIMER_VERSION;
+      updatePayload.acceptedTermsVersion =
+        updateData.acceptedTermsVersion !== undefined && updateData.acceptedTermsVersion !== null
+          ? updateData.acceptedTermsVersion
+          : DEFAULT_ACCEPTED_TERMS_SNAPSHOT_VERSION;
+    }
+
     // Actualizar metadata (actividades, pasos completados, fecha de nacimiento como string)
     const updatedMetadata = {
       ...currentMetadata,
@@ -1047,6 +1073,9 @@ export class UsersService {
       activities: finalOnboardingMetadata.activities || [],
       completedSteps: finalOnboardingMetadata.completedSteps || [],
       lastCompletedAt: finalOnboardingMetadata.lastCompletedAt || null,
+      minorAcknowledgedAt: updated.minorAcknowledgedAt?.toISOString() ?? null,
+      minorDisclaimerVersion: updated.minorDisclaimerVersion ?? null,
+      acceptedTermsVersion: updated.acceptedTermsVersion ?? null,
     };
   }
 

@@ -1,39 +1,49 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useProduct } from '@/lib/hooks/use-product'
 import { ProductDetailContent } from '@/components/products/product-detail-content'
+import { ProductAgeRestricted } from '@/components/products/product-age-restricted'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
-import type { FeedItemDTO } from '@/types/api'
+import { isAgeRestrictedApiError } from '@/lib/api/error-codes'
+import { useAuthStore } from '@/lib/stores/auth-store'
+import type { FeedItemDTO, ProductDTO } from '@/types/api'
+
+function toFeedItem(p: ProductDTO): FeedItemDTO {
+  return {
+    id: p.id,
+    type: 'product',
+    handle: p.handle,
+    title: p.title,
+    imageUrl: p.images?.[0] || '',
+    price: p.variants?.[0]?.tankuPrice || 0,
+    category: p.category || undefined,
+    createdAt: p.createdAt || new Date().toISOString(),
+  }
+}
 
 export default function ProductPage() {
+  const { isAuthenticated } = useAuthStore()
   const params = useParams()
   const router = useRouter()
   const handle = params.handle as string
   const [product, setProduct] = useState<FeedItemDTO | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Cargar producto completo
   const { product: fullProduct, isLoading: isLoadingProduct, error: productError } = useProduct(
     handle,
     { enabled: !!handle }
   )
 
+  const displayProduct = useMemo(() => {
+    if (fullProduct) return toFeedItem(fullProduct)
+    return product
+  }, [fullProduct, product])
+
   useEffect(() => {
     if (fullProduct) {
-      // Convertir producto completo a FeedItemDTO para el componente
-      const productDTO: FeedItemDTO = {
-        id: fullProduct.id,
-        type: 'product',
-        handle: fullProduct.handle,
-        title: fullProduct.title,
-        imageUrl: fullProduct.images?.[0] || '',
-        price: fullProduct.variants?.[0]?.tankuPrice || 0,
-        category: fullProduct.category || undefined,
-        createdAt: fullProduct.createdAt || new Date().toISOString(),
-      }
-      setProduct(productDTO)
+      setProduct(toFeedItem(fullProduct))
       setIsLoading(false)
     } else if (productError) {
       setIsLoading(false)
@@ -48,7 +58,17 @@ export default function ProductPage() {
     )
   }
 
-  if (productError || !product) {
+  if (productError && !fullProduct && isAgeRestrictedApiError(productError)) {
+    return (
+      <ProductAgeRestricted
+        isAuthenticated={isAuthenticated}
+        variant="page"
+        onBack={() => router.back()}
+      />
+    )
+  }
+
+  if (!displayProduct) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -64,33 +84,24 @@ export default function ProductPage() {
     )
   }
 
-  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/products/${handle}` : ''
-  const productImage = product.imageUrl || ''
-
   return (
     <div className="min-h-screen bg-gray-900">
-        {/* Header con botón volver */}
-        <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
-          <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800"
-              aria-label="Volver"
-            >
-              <ArrowLeftIcon className="w-6 h-6" />
-            </button>
-            <h1 className="text-white font-semibold text-lg">{product.title}</h1>
-          </div>
+      <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
+          <button
+            onClick={() => router.back()}
+            className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800"
+            aria-label="Volver"
+          >
+            <ArrowLeftIcon className="w-6 h-6" />
+          </button>
+          <h1 className="text-white font-semibold text-lg">{displayProduct.title}</h1>
         </div>
+      </div>
 
-      {/* Contenido del producto */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <ProductDetailContent
-          product={product}
-          isPageView={true}
-        />
+        <ProductDetailContent product={displayProduct} isPageView={true} />
       </div>
     </div>
   )
 }
-

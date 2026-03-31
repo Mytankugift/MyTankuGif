@@ -49,7 +49,8 @@ export type UpdateFriendRequestDTO = {
 export type FriendSuggestionDTO = {
   userId: string;
   user: FriendUserDTO;
-  reason: string; // 'mutual_friends' | 'similar_interests' | 'similar_activities' | 'recent_interaction'
+  /** mutual_friends | similar_interests | similar_activities | search_match | ... */
+  reason: string;
   mutualFriendsCount?: number;
   mutualFriendNames?: string[]; // Nombres de amigos en común (para tooltip)
   commonCategories?: string[]; // Nombres de categorías comunes

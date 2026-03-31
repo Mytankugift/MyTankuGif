@@ -31,7 +31,8 @@ export class GiftController {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'userId es requerido'));
       }
 
-      const eligibility = await this.giftService.validateGiftRecipient(userId, senderId);
+      const variantId = typeof req.query.variantId === 'string' ? req.query.variantId : undefined;
+      const eligibility = await this.giftService.validateGiftRecipient(userId, senderId, variantId);
 
       res.status(200).json(successResponse(eligibility));
     } catch (error) {
@@ -55,7 +56,12 @@ export class GiftController {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'recipientId es requerido'));
       }
 
-      const eligibility = await this.giftService.validateGiftRecipient(recipientId, finalSenderId);
+      const variantId = typeof req.query.variantId === 'string' ? req.query.variantId : undefined;
+      const eligibility = await this.giftService.validateGiftRecipient(
+        recipientId,
+        finalSenderId,
+        variantId
+      );
 
       res.status(200).json(successResponse(eligibility));
     } catch (error) {

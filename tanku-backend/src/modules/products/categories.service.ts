@@ -1,7 +1,7 @@
 import { prisma } from '../../config/database';
 import { CategoryDTO } from '../../shared/dto/products.dto';
 import type { Category } from '@prisma/client';
-import { getBlockedCategoryIds } from '../../shared/utils/category.utils';
+import { getAdultRestrictedCategoryIds, getBlockedCategoryIds } from '../../shared/utils/category.utils';
 
 export interface CategoryResponse {
   id: string;
@@ -28,17 +28,18 @@ export class CategoriesService {
   /**
    * Listar todas las categorías normalizadas (NUEVO)
    * Filtra categorías bloqueadas (recursivo: si un padre está bloqueado, sus hijos también se ocultan)
+   * @param hideAdultRestricted Si true, excluye categorías +18 y subárboles (visitantes y menores)
    */
-  async listCategoriesNormalized(): Promise<CategoryDTO[]> {
-    // Obtener IDs de categorías bloqueadas (incluyendo hijos)
+  async listCategoriesNormalized(hideAdultRestricted = false): Promise<CategoryDTO[]> {
     const blockedCategoryIds = await getBlockedCategoryIds();
+    const adultRestrictedIds = hideAdultRestricted ? await getAdultRestrictedCategoryIds() : [];
+    const excludedIds = [...new Set([...blockedCategoryIds, ...adultRestrictedIds])];
 
     const categories = await prisma.category.findMany({
       where: {
-        // Excluir categorías bloqueadas
-        ...(blockedCategoryIds.length > 0 && {
+        ...(excludedIds.length > 0 && {
           id: {
-            notIn: blockedCategoryIds,
+            notIn: excludedIds,
           },
         }),
       },
@@ -48,11 +49,10 @@ export class CategoriesService {
       ],
     });
 
-    // Filtrar también categorías cuyo padre esté bloqueado (validación adicional)
     const filteredCategories = categories.filter((category) => {
-      // Si tiene padre, verificar que el padre no esté bloqueado
       if (category.parentId) {
-        return !blockedCategoryIds.includes(category.parentId);
+        if (blockedCategoryIds.includes(category.parentId)) return false;
+        if (adultRestrictedIds.includes(category.parentId)) return false;
       }
       return true;
     });

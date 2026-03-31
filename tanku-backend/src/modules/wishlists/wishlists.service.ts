@@ -3,6 +3,8 @@ import { NotFoundError, BadRequestError, ForbiddenError, ConflictError } from '.
 import { WishListDTO, WishListItemDTO } from '../../shared/dto/wishlists.dto';
 import type { WishList, WishListItem } from '@prisma/client';
 import { env } from '../../config/env';
+import { isProductBlockedForMinor, viewerCannotSeeAdultCatalog } from '../../shared/catalog/catalog-age-policy';
+import { getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
 import { FeedService } from '../feed/feed.service';
 import * as crypto from 'crypto';
 
@@ -11,6 +13,37 @@ export class WishListsService {
 
   constructor() {
     this.feedService = new FeedService();
+  }
+
+  /**
+   * Oculta ítems +18 a visitantes y menores que miran wishlists de otro usuario (no al dueño).
+   */
+  private async filterWishlistDtosForViewer(
+    lists: WishListDTO[],
+    viewerUserId: string | undefined,
+    listOwnerId: string
+  ): Promise<WishListDTO[]> {
+    if (viewerUserId === listOwnerId) return lists;
+    const birthDate = await getBirthDateForUserId(viewerUserId);
+    if (!viewerCannotSeeAdultCatalog(Boolean(viewerUserId), birthDate)) return lists;
+
+    const productIds = [...new Set(lists.flatMap((l) => l.items.map((i) => i.productId)))];
+    if (productIds.length === 0) return lists;
+
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, restrictToAdults: true, category: { select: { restrictToAdults: true } } },
+    });
+    const blocked = new Set(
+      products
+        .filter((p) => isProductBlockedForMinor({ restrictToAdults: p.restrictToAdults }, p.category))
+        .map((p) => p.id),
+    );
+
+    return lists.map((list) => ({
+      ...list,
+      items: list.items.filter((i) => !blocked.has(i.productId)),
+    }));
   }
 
   /**
@@ -832,7 +865,7 @@ export class WishListsService {
    * Obtener wishlist por token de compartir o por URL SEO (público)
    * Acepta tanto el token antiguo como el nuevo formato: {username}/{slug}-{shortId}
    */
-  async getWishlistByShareToken(tokenOrPath: string): Promise<WishListDTO | null> {
+  async getWishlistByShareToken(tokenOrPath: string, viewerUserId?: string): Promise<WishListDTO | null> {
     let wishList = null;
 
     // Si es un token hexadecimal (64 caracteres), buscar directamente
@@ -934,7 +967,9 @@ export class WishListsService {
       return null;
     }
 
-    return this.mapWishListToDTO(wishList);
+    const dto = this.mapWishListToDTO(wishList);
+    const filtered = await this.filterWishlistDtosForViewer([dto], viewerUserId, wishList.userId);
+    return filtered[0] ?? null;
   }
 
   /**
@@ -964,9 +999,12 @@ export class WishListsService {
           ...w,
           items: [], // Ocultar items de wishlists privadas
         }));
-      
+
+      const merged = [...publicWishlists, ...privateWishlists];
+      const filtered = await this.filterWishlistDtosForViewer(merged, undefined, targetUserId);
+
       return {
-        wishlists: [...publicWishlists, ...privateWishlists],
+        wishlists: filtered,
         canViewPrivate: false,
       };
     }
@@ -1151,8 +1189,14 @@ export class WishListsService {
       console.log(`🔍 [WISHLISTS] FINAL: "${w.name}" (${w.public ? 'pública' : 'privada'}) - items=${itemsCount}, id=${w.id}`);
     });
 
+    const wishlistsFiltered = await this.filterWishlistDtosForViewer(
+      finalWishlists,
+      viewerUserId,
+      targetUserId,
+    );
+
     return {
-      wishlists: finalWishlists,
+      wishlists: wishlistsFiltered,
       canViewPrivate: approvedWishlistIds.size > 0, // true solo si hay acceso aprobado a alguna wishlist privada
       pendingRequestIds: pendingRequestIds || [], // Asegurar que siempre se devuelva
     };

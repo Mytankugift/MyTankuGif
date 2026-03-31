@@ -3,6 +3,20 @@ import { S3Service } from '../../shared/services/s3.service';
 import { StoryDTO, StoryFileDTO } from '../../shared/dto/stories.dto';
 import { NotFoundError, BadRequestError } from '../../shared/errors/AppError';
 import type { StoriesUser, StoryFile, User, UserProfile } from '@prisma/client';
+import {
+  isProductBlockedForMinor,
+  viewerCannotSeeAdultCatalog,
+} from '../../shared/catalog/catalog-age-policy';
+import { getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
+
+const storyProductInclude = {
+  select: {
+    id: true,
+    handle: true,
+    restrictToAdults: true,
+    category: { select: { restrictToAdults: true } },
+  },
+} as const;
 
 export class StoriesService {
   private s3Service: S3Service;
@@ -51,6 +65,31 @@ export class StoriesService {
   /**
    * Mapper: StoriesUser de Prisma a StoryDTO
    */
+  /**
+   * Historias con producto +18 no se muestran a menores ni visitantes sin poder ver catálogo adulto.
+   */
+  private async filterStoriesForViewerAge<
+    T extends {
+      productId: string | null;
+      product: {
+        restrictToAdults: boolean;
+        category: { restrictToAdults: boolean } | null;
+      } | null;
+    },
+  >(stories: T[], viewerUserId?: string): Promise<T[]> {
+    const birthDate = await getBirthDateForUserId(viewerUserId);
+    if (!viewerCannotSeeAdultCatalog(Boolean(viewerUserId), birthDate)) {
+      return stories;
+    }
+    return stories.filter((s) => {
+      if (!s.productId || !s.product) return true;
+      return !isProductBlockedForMinor(
+        { restrictToAdults: s.product.restrictToAdults },
+        s.product.category,
+      );
+    });
+  }
+
   private mapStoryToDTO(
     story: StoriesUser & {
       customer: User & { profile: UserProfile | null };
@@ -268,8 +307,10 @@ export class StoriesService {
 
   /**
    * Obtener solo historias de wishlist
+   * @param filterCustomerId - si se pasa, solo historias de ese usuario (customerId)
+   * @param viewerUserId - usuario que mira (política de edad sobre producto vinculado)
    */
-  async getWishlistStories(userId?: string): Promise<StoryDTO[]> {
+  async getWishlistStories(filterCustomerId?: string, viewerUserId?: string): Promise<StoryDTO[]> {
     try {
       const where: any = {
         storyType: 'WISHLIST',
@@ -279,8 +320,8 @@ export class StoriesService {
         },
       };
 
-      if (userId) {
-        where.customerId = userId;
+      if (filterCustomerId) {
+        where.customerId = filterCustomerId;
       }
 
       const stories = await prisma.storiesUser.findMany({
@@ -294,16 +335,13 @@ export class StoriesService {
           storyFiles: {
             orderBy: { orderIndex: 'asc' },
           },
-          product: {
-            select: {
-              handle: true,
-            },
-          },
+          product: storyProductInclude,
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      return stories.map((story) => this.mapStoryToDTO(story));
+      const filtered = await this.filterStoriesForViewerAge(stories, viewerUserId);
+      return filtered.map((story) => this.mapStoryToDTO(story));
     } catch (error: any) {
       console.error(`❌ [STORIES SERVICE] Error obteniendo historias de wishlist:`, error.message);
       return [];
@@ -367,17 +405,14 @@ export class StoriesService {
             storyFiles: {
               orderBy: { orderIndex: 'asc' },
             },
-            product: {
-              select: {
-                handle: true,
-              },
-            },
+            product: storyProductInclude,
           },
           orderBy: { createdAt: 'desc' },
           take: limit, // ✅ Agregar límite
         });
 
-        return stories.map((story) => this.mapStoryToDTO(story));
+        const filteredOwn = await this.filterStoriesForViewerAge(stories, userId);
+        return filteredOwn.map((story) => this.mapStoryToDTO(story));
       }
 
       // OPTIMIZACIÓN 4: Agregar límite y usar índices existentes
@@ -400,17 +435,14 @@ export class StoriesService {
           storyFiles: {
             orderBy: { orderIndex: 'asc' },
           },
-          product: {
-            select: {
-              handle: true,
-            },
-          },
+          product: storyProductInclude,
         },
         orderBy: { createdAt: 'desc' },
         take: limit, // ✅ Agregar límite para evitar cargar demasiadas stories
       });
 
-      return stories.map((story) => this.mapStoryToDTO(story));
+      const filteredFriends = await this.filterStoriesForViewerAge(stories, userId);
+      return filteredFriends.map((story) => this.mapStoryToDTO(story));
     } catch (error: any) {
       console.error(`❌ [STORIES SERVICE] Error obteniendo feed de historias:`, error.message);
       return [];
@@ -420,7 +452,11 @@ export class StoriesService {
   /**
    * Obtener stories del usuario con filtro opcional por tipo
    */
-  async getStoriesByUserId(userId: string, storyType?: 'NORMAL' | 'WISHLIST'): Promise<StoryDTO[]> {
+  async getStoriesByUserId(
+    userId: string,
+    storyType?: 'NORMAL' | 'WISHLIST',
+    viewerUserId?: string
+  ): Promise<StoryDTO[]> {
     try {
       // Verificar que las tablas existen
       try {
@@ -454,16 +490,13 @@ export class StoriesService {
           storyFiles: {
             orderBy: { orderIndex: 'asc' },
           },
-          product: {
-            select: {
-              handle: true,
-            },
-          },
+          product: storyProductInclude,
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      return stories.map((story) => this.mapStoryToDTO(story));
+      const filtered = await this.filterStoriesForViewerAge(stories, viewerUserId);
+      return filtered.map((story) => this.mapStoryToDTO(story));
     } catch (error: any) {
       console.error(`❌ [STORIES SERVICE] Error obteniendo stories:`, error.message);
       return [];

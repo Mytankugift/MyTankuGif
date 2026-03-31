@@ -122,7 +122,8 @@ export class ApiClient {
 
       if (!response.ok) {
         let errorData: any = {};
-        const isAuthError = response.status === 401 || response.status === 403;
+        let isAgeRestrictedError = false;
+        let isAuthError = response.status === 401 || response.status === 403;
         let isNotFoundError = false;
         let isConnectionTimeoutError = false;
         
@@ -133,6 +134,10 @@ export class ApiClient {
           if (text && text.trim()) {
             try {
               errorData = JSON.parse(text);
+              isAgeRestrictedError = errorData.error?.code === 'AGE_RESTRICTED';
+              if (isAgeRestrictedError) {
+                isAuthError = false;
+              }
               
               // Verificar si es un error NOT_FOUND o DIFFERENT_RECIPIENT (esperados)
               isNotFoundError = errorData.error?.code === 'NOT_FOUND' || 
@@ -153,8 +158,15 @@ export class ApiClient {
                                      (errorData.error?.message?.includes('Ya le diste like') ||
                                       errorData.error?.message?.includes('ya existe'));
               
-              // ✅ Solo loggear si no es un error de autenticación esperado, NOT_FOUND, DIFFERENT_RECIPIENT, CONFLICT o timeout de conexión
-              if (!isAuthError && !isNotFoundError && !isDifferentRecipient && !isConnectionTimeoutError && !isConflictError) {
+              // ✅ Solo loggear si no es un error de autenticación esperado, NOT_FOUND, DIFFERENT_RECIPIENT, CONFLICT, AGE_RESTRICTED o timeout de conexión
+              if (
+                !isAuthError &&
+                !isNotFoundError &&
+                !isDifferentRecipient &&
+                !isConnectionTimeoutError &&
+                !isConflictError &&
+                !isAgeRestrictedError
+              ) {
                 console.error('[API] Error response body:', text);
               }
             } catch (parseError) {
@@ -206,9 +218,13 @@ export class ApiClient {
                                       errorObj?.message?.includes('connection timeout') ||
                                       errorObj?.message?.includes('Connection terminated due to connection timeout'));
         }
+
+        if (!isAgeRestrictedError && errorObj?.code === 'AGE_RESTRICTED') {
+          isAgeRestrictedError = true;
+        }
         
-        // ✅ Solo loggear detalles si no es un error de autenticación esperado, NOT_FOUND, DIFFERENT_RECIPIENT o timeout de conexión
-        if (!isAuthError && !isNotFoundError && !isDifferentRecipient && !isConnectionTimeoutError) {
+        // ✅ Solo loggear detalles si no es un error de autenticación esperado, NOT_FOUND, DIFFERENT_RECIPIENT, AGE_RESTRICTED o timeout de conexión
+        if (!isAuthError && !isNotFoundError && !isDifferentRecipient && !isConnectionTimeoutError && !isAgeRestrictedError) {
           console.error('[API] Error data parsed:', errorData);
           console.error('[API] Error obj extracted:', errorObj);
         }
@@ -228,6 +244,7 @@ export class ApiClient {
             console.warn('[API] Error object missing code or message, constructing error');
           }
           errorObj = {
+            ...errorObj,
             code: errorObj.code || 'HTTP_ERROR',
             message: errorObj.message || errorObj.toString() || `HTTP ${response.status}: ${response.statusText}`
           };

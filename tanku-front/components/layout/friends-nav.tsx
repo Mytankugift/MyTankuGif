@@ -52,7 +52,7 @@ export function FriendsNav({ onSearch, initialSearchQuery = '' }: FriendsNavProp
       </div>
       <input
         type="text"
-        placeholder="Buscar amigos..."
+        placeholder="Buscar por nombre o @usuario…"
         value={searchQuery}
         onChange={handleSearchChange}
         onKeyDown={(e) => {

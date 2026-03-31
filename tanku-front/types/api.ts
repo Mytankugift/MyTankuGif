@@ -379,6 +379,9 @@ export interface OnboardingDataDTO {
   activities?: string[]
   completedSteps?: string[]
   lastCompletedAt?: string | null
+  minorAcknowledgedAt?: string | null
+  minorDisclaimerVersion?: string | null
+  acceptedTermsVersion?: string | null
 }
 
 export interface UpdateOnboardingDataDTO {
@@ -386,6 +389,9 @@ export interface UpdateOnboardingDataDTO {
   categoryIds?: string[]
   activities?: string[]
   completedSteps?: string[]
+  recordAgeConsent?: boolean
+  minorDisclaimerVersion?: string | null
+  acceptedTermsVersion?: string | null
 }
 
 // Friends

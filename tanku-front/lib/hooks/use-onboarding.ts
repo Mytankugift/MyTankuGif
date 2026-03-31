@@ -5,6 +5,7 @@
 import { useState, useCallback } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { clearCategoriesCache } from '@/lib/hooks/use-categories'
 import type { OnboardingDataDTO, UpdateOnboardingDataDTO } from '@/types/api'
 
 export function useOnboarding() {
@@ -65,6 +66,9 @@ export function useOnboarding() {
         )
 
         if (response.success && response.data) {
+          if (Object.prototype.hasOwnProperty.call(data, 'birthDate')) {
+            clearCategoriesCache()
+          }
           return response.data
         }
 

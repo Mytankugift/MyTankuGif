@@ -17,13 +17,24 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { ProductDTO, FeedItemDTO } from '@/types/api'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
+import { isAgeRestrictedApiError } from '@/lib/api/error-codes'
+import {
+  ProductAgeRestricted,
+  ProductAgeRestrictedModal,
+} from '@/components/products/product-age-restricted'
 
 interface ProductDetailContentProps {
   product: FeedItemDTO
   isPageView?: boolean
+  /** Si el producto es +18 bloqueado (modal feed), cerrar el modal en lugar de router.back */
+  onAgeRestrictedClose?: () => void
 }
 
-export function ProductDetailContent({ product, isPageView = false }: ProductDetailContentProps) {
+export function ProductDetailContent({
+  product,
+  isPageView = false,
+  onAgeRestrictedClose,
+}: ProductDetailContentProps) {
   const router = useRouter()
   const { isAuthenticated, user } = useAuthStore()
   const { addItem, isLoading: isCartLoading } = useCartStore()
@@ -177,7 +188,33 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
     }
   }
 
-  if (isLoadingProduct || !fullProduct) {
+  if (isLoadingProduct) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2]"></div>
+      </div>
+    )
+  }
+
+  if (productError && !fullProduct) {
+    if (isAgeRestrictedApiError(productError)) {
+      return (
+        <ProductAgeRestricted
+          isAuthenticated={isAuthenticated}
+          onClose={onAgeRestrictedClose ?? (() => router.back())}
+          variant="embedded"
+        />
+      )
+    }
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+        <p className="text-red-400 mb-2">{productError.message || 'No se pudo cargar el producto'}</p>
+        <p className="text-gray-500 text-sm">Intenta de nuevo más tarde.</p>
+      </div>
+    )
+  }
+
+  if (!fullProduct) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2]"></div>
@@ -275,10 +312,28 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
       ? productDescription.substring(0, 200) + '...'
       : productDescription
 
+  const showAgeGate = Boolean(
+    fullProduct && productError && isAgeRestrictedApiError(productError)
+  )
+
   return (
-    <div className={`${isPageView ? 'bg-gray-900 rounded-lg border border-gray-700' : ''}`}>
+    <div className={`relative ${isPageView ? 'bg-gray-900 rounded-lg border border-gray-700' : ''}`}>
+      {showAgeGate && (
+        <>
+          <div className="absolute inset-0 z-[50] bg-black/25 backdrop-blur-[1px]" aria-hidden />
+          <div className="absolute inset-0 z-[51] flex items-center justify-center p-3 sm:p-4">
+            <div className="pointer-events-auto w-full max-w-md">
+              <ProductAgeRestrictedModal
+                isAuthenticated={isAuthenticated}
+                onClose={onAgeRestrictedClose ?? (() => router.back())}
+              />
+            </div>
+          </div>
+        </>
+      )}
+      <div className={showAgeGate ? 'pointer-events-none select-none' : undefined}>
       {/* Lightbox para imagen ampliada */}
-      {isImageLightboxOpen && allImages.length > 0 && (
+      {isImageLightboxOpen && allImages.length > 0 && !showAgeGate && (
         <div
           className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-[60] p-4"
           onClick={() => setIsImageLightboxOpen(false)}
@@ -749,6 +804,7 @@ export function ProductDetailContent({ product, isPageView = false }: ProductDet
           setShowLoginModal(false)
         }}
       />
+      </div>
     </div>
   )
 }

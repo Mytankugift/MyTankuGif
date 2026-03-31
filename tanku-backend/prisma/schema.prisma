@@ -67,15 +67,21 @@ model UserProfile {
 }
 
 model PersonalInformation {
-  id            String    @id @default(cuid())
-  userId        String    @unique @map("user_id")
-  pseudonym     String?
-  statusMessage String?   @map("status_message")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  birthDate     DateTime? @map("birth_date")
-  metadata      Json?
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                       String    @id @default(cuid())
+  userId                   String    @unique @map("user_id")
+  pseudonym                String?
+  statusMessage            String?   @map("status_message")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+  birthDate                DateTime? @map("birth_date")
+  metadata                 Json?
+  /// Aceptación del disclaimer/checkbox de menores o edad
+  minorAcknowledgedAt      DateTime? @map("minor_acknowledged_at")
+  /// Versión de términos aceptada en el momento del consentimiento (si aplica)
+  acceptedTermsVersion     String?   @map("accepted_terms_version")
+  /// Versión del texto legal específico de menores/edad
+  minorDisclaimerVersion   String?   @map("minor_disclaimer_version")
+  user                     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("personal_information")
 }
@@ -117,6 +123,9 @@ model Category {
   defaultPriceFormulaType  PriceFormulaType? @map("default_price_formula_type")
   defaultPriceFormulaValue Json?             @map("default_price_formula_value")
 
+  /// Categoría completa restringida a mayores de edad (+18)
+  restrictToAdults Boolean @default(false) @map("restrict_to_adults")
+
   parent        Category?              @relation("CategoryTree", fields: [parentId], references: [id])
   children      Category[]             @relation("CategoryTree")
   products      Product[]
@@ -124,6 +133,7 @@ model Category {
   locker        AdminUser?             @relation("CategoryLocker", fields: [blockedBy], references: [id])
 
   @@index([dropiId])
+  @@index([restrictToAdults])
   @@map("categories")
 }
 
@@ -149,6 +159,9 @@ model Product {
   priceFormulaType  PriceFormulaType? @map("price_formula_type")
   priceFormulaValue Json?             @map("price_formula_value") // { percentage: 15 } o { fixed: 10000 } o { minMargin: 5000 }
 
+  /// Restricción puntual a mayores (+18) cuando la categoría no es +18
+  restrictToAdults Boolean @default(false) @map("restrict_to_adults")
+
   orderItems    OrderItem[]
   productLikes  ProductLike[]
   variants      ProductVariant[]
@@ -161,6 +174,7 @@ model Product {
   @@index([categoryId])
   @@index([active])
   @@index([categoryId, active]) // ✅ Índice compuesto para queries comunes del feed
+  @@index([restrictToAdults])
   @@map("products")
 }
 
