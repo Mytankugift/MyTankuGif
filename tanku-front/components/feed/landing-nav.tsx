@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { CategoryLoginModal } from './category-login-modal'
+import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
 // Componente CategorySelector (mismo que en feed-nav pero simplificado)
 const CategorySelector = ({
@@ -609,6 +610,7 @@ export function LandingNav({
                               alt={category.name}
                               fill
                               sizes="(max-width: 640px) 32px, 36px"
+                              unoptimized={isRemoteImageSrc(category.image)}
                               className="object-cover"
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none'

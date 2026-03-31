@@ -10,6 +10,7 @@ import { MessagesDropdown } from '@/components/layout/messages-dropdown'
 import { useChat } from '@/lib/hooks/use-chat'
 import { StoriesCarousel } from '@/components/stories/stories-carousel'
 import { CategoryLoginModal } from './category-login-modal'
+import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
 // Componente CategorySelector
 const CategorySelector = ({
@@ -792,6 +793,8 @@ export function FeedNav({
                               src={category.image}
                               alt={category.name}
                               fill
+                              sizes="(max-width: 640px) 32px, 36px"
+                              unoptimized={isRemoteImageSrc(category.image)}
                               className="object-cover"
                               onError={(e) => {
                                 // Si la imagen falla, ocultar y mostrar placeholder
