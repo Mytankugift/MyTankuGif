@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   CalculatorIcon,
   ClockIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline'
 
 export default function SettingsPage() {
@@ -32,6 +33,13 @@ export default function SettingsPage() {
       description: 'Estado del job de eventos, ejecutar manualmente y prueba de notificaciones',
       icon: ClockIcon,
       href: '/settings/cron',
+    },
+    {
+      id: 'email-test',
+      name: 'Email de prueba',
+      description: 'Enviar un correo de prueba para validar la configuración del proveedor de email',
+      icon: EnvelopeIcon,
+      href: '/settings/email-test',
     },
   ]
 

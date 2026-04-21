@@ -58,7 +58,7 @@ export function LandingNav({
 
   return (
     <div
-      className={`max-md:sticky max-md:top-0 md:fixed md:top-0 left-0 right-0 md:left-36 lg:left-[208px] md:right-0 z-40 flex-shrink-0 shadow-lg transition-all duration-150 ease-in-out max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150 md:bg-[var(--color-surface-191e23-20)] md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none] ${
+      className={`max-md:relative md:fixed md:top-0 left-0 right-0 md:left-36 lg:left-[208px] md:right-0 z-40 flex-shrink-0 shadow-lg transition-all duration-150 ease-in-out max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150 md:bg-[var(--color-surface-191e23-20)] md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none] ${
         isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
       }`}
       style={{

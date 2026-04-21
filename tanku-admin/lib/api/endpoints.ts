@@ -6,6 +6,9 @@ const normalizeUrl = (url: string): string => {
 const API_BASE = normalizeUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000')
 
 export const API_ENDPOINTS = {
+  EMAIL: {
+    TEST: `${API_BASE}/api/v1/email/test`,
+  },
   DROPI: {
     JOBS: {
       LIST: `${API_BASE}/api/v1/dropi/jobs`,
