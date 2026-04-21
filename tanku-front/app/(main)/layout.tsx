@@ -59,7 +59,7 @@ export default function MainLayout({
     }
   }, [user, isAuthenticated, isChecking, pathname])
 
-  /** Solo en landing sin sesión (móvil): el scroll principal lo lleva &lt;main&gt; para mejor UX en Safari */
+  /** Landing sin sesión en móvil: permitir scroll del documento (sin contenedor interno) */
   const isLandingGuest = pathname === '/' && !isAuthenticated
 
   /**

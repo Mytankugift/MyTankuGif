@@ -137,8 +137,7 @@ function LandingPageContent() {
   }, [allItems, searchQuery])
 
   // Handle scroll para mostrar/ocultar header
-  // Móvil landing guest: scroll del documento (window/body) para probar UX Safari nativo.
-  // Desktop: scroll en .custom-scrollbar dentro de la landing
+  // Mobile landing: scroll del documento; desktop: contenedor interno.
   useEffect(() => {
     let scrollEl: HTMLElement | Window | null = null
 
@@ -249,7 +248,7 @@ function LandingPageContent() {
       />
 
       <div
-        className="custom-scrollbar px-2 py-2 transition-all duration-300 ease-in-out max-md:flex-none max-md:overflow-visible max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:py-4 md:flex-1 md:overflow-y-auto md:px-4 md:py-5"
+        className="custom-scrollbar px-2 py-2 transition-all duration-300 ease-in-out max-md:flex-none max-md:overflow-visible max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:py-4 md:min-h-0 md:flex-1 md:overflow-y-auto md:overflow-x-hidden md:overscroll-y-contain md:[-webkit-overflow-scrolling:touch] md:px-4 md:py-5"
         style={{
           paddingTop: isHeaderVisible
             ? `max(${headerPadding},calc(env(safe-area-inset-top,0px)+5.25rem))`
