@@ -151,7 +151,8 @@ export function WishlistSelectorModal({
 
   if (!isOpen || !mounted) return null
 
-  const WISHLIST_MODAL_Z = 10052
+  // Debe quedar por encima de ProductModal (1000003) y otros overlays globales
+  const WISHLIST_MODAL_Z = 1_000_004
 
   return createPortal(
     <div
