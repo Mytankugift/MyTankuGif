@@ -62,14 +62,10 @@ export default function MainLayout({
   /** Landing (/): permitir scroll del documento para toolbar nativa móvil (Safari/Chrome). */
   const isLandingRoute = pathname === '/'
 
-  /**
-   * Feed (/feed): el scroll vive solo en `#feed-scroll-root`; sin pb en main para que las cards lleguen detrás del menú inferior translúcido.
-   */
-  const isFeedOverlayScroll = pathname === '/feed'
-  /** /feed: scroll siempre en `#feed-scroll-root` (también móvil); evita que el gesto parezca arrastrar desde el nav. */
-  /** /events en móvil: igual que feed (scroll nativo + skill tanku-mobile-vista). */
-  const isEventsNativeWindowScrollMobile = pathname === '/events'
-  /** /events: scroll en contenedor interno en md+; en móvil lo lleva <main> cuando isEventsNativeWindowScrollMobile */
+  /** /feed + /events en móvil: scroll en `<main>` como landing (Safari toolbar / gesto natural). En md+ el feed usa scroll interno en la página. */
+  const isFeedOrEventsNativeMainScrollMobile =
+    pathname === '/feed' || pathname === '/events'
+  /** /events: scroll en contenedor interno en md+; en móvil lo lleva `<main>` (mismo patrón que feed). */
   const isEventsInnerScroll = pathname === '/events'
   /** /profile y /profile/[username]: scroll interno para evitar doble scroll en móvil */
   const isProfileInnerScroll = pathname === '/profile' || pathname.startsWith('/profile/')
@@ -78,7 +74,6 @@ export default function MainLayout({
   /** /notifications: scroll interno + BaseNav (misma idea que perfil/eventos) */
   const isNotificationsInnerScroll = pathname === '/notifications'
   const mainOverlayScroll =
-    isFeedOverlayScroll ||
     isEventsInnerScroll ||
     isProfileInnerScroll ||
     isGiftDirectInnerScroll ||
@@ -92,7 +87,7 @@ export default function MainLayout({
             <div
               className={clsx(
                 'flex',
-                isLandingRoute || isEventsNativeWindowScrollMobile
+                isLandingRoute || isFeedOrEventsNativeMainScrollMobile
                   ? 'min-h-screen overflow-visible'
                   : 'h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden md:h-screen md:max-h-none'
               )}
@@ -105,7 +100,7 @@ export default function MainLayout({
                   'relative z-0 ml-0 flex min-h-0 min-w-0 flex-1 flex-col md:ml-36 lg:ml-[208px]',
                   isLandingRoute
                     ? 'overflow-visible pb-20 md:pb-0 lg:pb-0'
-                    : isEventsNativeWindowScrollMobile
+                    : isFeedOrEventsNativeMainScrollMobile
                     ? 'overflow-y-auto overscroll-y-contain pb-0 md:overflow-hidden md:pb-0'
                     : mainOverlayScroll
                     ? 'overflow-hidden pb-0'

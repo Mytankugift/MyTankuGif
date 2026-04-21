@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { clsx } from 'clsx'
 import { useRouter } from 'next/navigation'
 import { FeedNav } from '@/components/feed/feed-nav'
 import { FeedCategoryBar } from '@/components/feed/feed-category-bar'
@@ -45,8 +46,8 @@ export default function FeedPage() {
   const hasInitialized = useRef(false)
   const [feedExplorarActivated, setFeedExplorarActivated] = useState(false)
   const [categoriesModalOpen, setCategoriesModalOpen] = useState(false)
-  /** Siempre scroll en `#feed-scroll-root` (también móvil): coherente con nav + sin scroll «desde» la barra fija. */
-  const useWindowScroll = false
+  /** Móvil (&lt; md): scroll nativo en `#app-main` como landing (Safari). Desktop: scroll en `#feed-scroll-root`. */
+  const useWindowScroll = viewportWidth < 768
 
   const feedNavScroll = useFeedScrollNav(
     feedScrollRootRef,
@@ -209,7 +210,7 @@ export default function FeedPage() {
   const { sentinelRef } = useInfiniteScroll({
     scrollRootRef: feedScrollRootRef,
     scrollRootReady: feedScrollAttached,
-    useWindowRoot: false,
+    useWindowRoot: viewportWidth < 768,
     hasMore: currentHasMore && !!currentNextCursorToken,
     isLoadingMore: isLoadingMoreCombined,
     nextCursorToken: currentNextCursorToken,
@@ -224,7 +225,13 @@ export default function FeedPage() {
       setSearchInput('')
       setSearchQuery('')
       requestAnimationFrame(() => {
-        if (feedScrollRootRef.current) feedScrollRootRef.current.scrollTop = 0
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+          const mainEl = document.getElementById('app-main')
+          if (mainEl) mainEl.scrollTop = 0
+          window.scrollTo(0, 0)
+        } else if (feedScrollRootRef.current) {
+          feedScrollRootRef.current.scrollTop = 0
+        }
       })
     }
     window.addEventListener(FEED_RESET_FILTERS_EVENT, onResetFilters)
@@ -249,10 +256,14 @@ export default function FeedPage() {
 
   return (
     <div
-      className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden transition-colors duration-300"
+      className={clsx(
+        'relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col transition-colors duration-300',
+        'max-md:overflow-visible',
+        'md:overflow-hidden'
+      )}
       style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
     >
-      {/* Chrome fijo: altura 0 en el flujo flex para que #feed-scroll-root reciba todo el alto útil (scroll en el contenido, no “desde” el nav). */}
+      {/* Chrome fijo: overlay; en móvil el scroll va en `#app-main` (nativo). */}
       <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
         <div className="pointer-events-auto fixed inset-x-0 top-0 z-40 flex flex-col flex-shrink-0 overflow-visible border-b border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.35)] max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150 md:inset-x-auto md:left-36 md:right-0 md:bg-[var(--color-surface-191e23-20)] md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none] lg:left-[208px]">
         <FeedNav
@@ -304,7 +315,11 @@ export default function FeedPage() {
       <div
         ref={setFeedScrollRef}
         id="feed-scroll-root"
-        className="custom-scrollbar relative z-0 min-h-0 flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain px-2 pt-2 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:pt-4 md:px-4 md:py-5 md:pb-5 transition-[padding-top] duration-300 ease-out [-webkit-overflow-scrolling:touch]"
+        className={clsx(
+          'custom-scrollbar relative z-0 min-h-0 w-full px-2 pt-2 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:pt-4 md:px-4 md:py-5 md:pb-5 transition-[padding-top] duration-300 ease-out',
+          'max-md:overflow-x-hidden max-md:overflow-y-visible max-md:flex-none',
+          'md:flex-1 md:basis-0 md:touch-pan-y md:overflow-x-hidden md:overflow-y-auto md:overscroll-y-contain md:[-webkit-overflow-scrolling:touch]'
+        )}
         style={{
           paddingTop: scrollAreaPaddingTop,
           marginRight: '0',

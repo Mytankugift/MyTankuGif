@@ -98,10 +98,10 @@ export function useFeedScrollNav(
   }, [scrollRootRef, useWindowScroll])
 
   useEffect(() => {
-    if (!scrollRootAttached) return
-    const el = scrollRootRef.current
-    if (!useWindowScroll && !el) return
+    // Scroll interno: esperar al nodo `#feed-scroll-root`. Scroll en `<main>` (móvil): no depende del ref.
+    if (!useWindowScroll && (!scrollRootAttached || !scrollRootRef.current)) return
 
+    const el = scrollRootRef.current
     lastY.current = readScrollTop(useWindowScroll, el)
     update()
 

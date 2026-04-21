@@ -58,15 +58,9 @@ export function LandingNav({
 
   return (
     <div
-      className={`fixed inset-x-0 top-0 z-40 flex-shrink-0 shadow-lg transition-all duration-150 ease-in-out max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150 md:inset-x-auto md:left-36 md:right-0 md:bg-[var(--color-surface-191e23-20)] md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none] lg:left-[208px] ${
-        isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
-      }`}
-      style={{
-        transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)',
-        willChange: 'transform',
-      }}
+      className="fixed inset-x-0 top-0 z-40 flex flex-col flex-shrink-0 shadow-lg max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150 md:inset-x-auto md:left-36 md:right-0 md:bg-[var(--color-surface-191e23-20)] md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none] lg:left-[208px]"
     >
-      {/* Header con Logo, Texto y Botón */}
+      {/* Branding fijo: logo + eslogan + Únete (no se ocultan al deslizar) */}
       <div className="px-2 sm:px-3 md:px-4 pt-2 sm:pt-3 md:pt-4 pb-0 flex flex-col md:flex-row justify-between items-center w-full gap-0.5 sm:gap-1 md:gap-1">
         {/* Layout móvil: Logo fijo a la izquierda, Texto y Botón apilados verticalmente */}
         <div className="md:hidden w-full flex items-start gap-3 mb-2">
@@ -180,7 +174,14 @@ export function LandingNav({
         </div>
       </div>
 
-      {/* Buscador */}
+      {/* Buscador + categorías: solo esta zona se oculta al deslizar hacia abajo (scroll nativo / Safari UX) */}
+      <div className="overflow-hidden">
+        <div
+          className="transition-transform duration-150 ease-in-out will-change-transform"
+          style={{
+            transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)',
+          }}
+        >
       <div className="px-2 sm:px-3 md:px-4 mb-0.5 pt-2 sm:pt-3 md:pt-4">
         <div className="relative w-full">
           <div className="absolute left-2.5 top-1/2 transform -translate-y-1/2 z-10">
@@ -232,6 +233,8 @@ export function LandingNav({
           feedNavScroll={LANDING_CATEGORY_NAV_SCROLL}
         />
       )}
+        </div>
+      </div>
     </div>
   )
 }

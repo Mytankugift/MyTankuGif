@@ -237,7 +237,8 @@ function LandingPageContent() {
         style={{
           paddingTop: isHeaderVisible
             ? `max(${headerPadding},calc(env(safe-area-inset-top,0px)+5.25rem))`
-            : 'max(1rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))',
+            : /* Solo ocultan buscador+categorías; queda logo + eslogan + Únete */
+              'max(6.25rem, calc(env(safe-area-inset-top, 0px) + 5rem))',
           marginRight: '0',
           scrollBehavior: 'auto',
           overscrollBehavior: 'auto',
