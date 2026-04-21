@@ -81,7 +81,12 @@ export default function MainLayout({
         <OnboardingProvider>
           <ProfileNavigationProvider>
             <div
-              className="flex h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden md:h-screen md:max-h-none"
+              className={clsx(
+                'flex',
+                isLandingGuest
+                  ? 'min-h-screen overflow-visible'
+                  : 'h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden md:h-screen md:max-h-none'
+              )}
               style={{ backgroundColor: '#1E1E1E' }}
             >
               <Sidebar />
@@ -89,10 +94,11 @@ export default function MainLayout({
                 id="app-main"
                 className={clsx(
                   'relative z-0 ml-0 flex min-h-0 min-w-0 flex-1 flex-col md:ml-36 lg:ml-[208px]',
-                  mainOverlayScroll
+                  isLandingGuest
+                    ? 'overflow-visible pb-20 md:pb-0 lg:pb-0'
+                    : mainOverlayScroll
                     ? 'overflow-hidden pb-0'
-                    : 'overflow-y-auto overscroll-y-contain pb-20 md:pb-0 lg:pb-0',
-                  isLandingGuest && '[-webkit-overflow-scrolling:touch]'
+                    : 'overflow-y-auto overscroll-y-contain pb-20 md:pb-0 lg:pb-0'
                 )}
                 style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
               >

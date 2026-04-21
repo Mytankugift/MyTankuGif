@@ -137,15 +137,15 @@ function LandingPageContent() {
   }, [allItems, searchQuery])
 
   // Handle scroll para mostrar/ocultar header
-  // Móvil: el scroll va en <main id="app-main"> (un solo contenedor, mejor UX Safari)
+  // Móvil landing guest: scroll del documento (window/body) para probar UX Safari nativo.
   // Desktop: scroll en .custom-scrollbar dentro de la landing
   useEffect(() => {
-    let scrollEl: HTMLElement | null = null
+    let scrollEl: HTMLElement | Window | null = null
 
-    const resolveScrollTarget = (): HTMLElement | null => {
+    const resolveScrollTarget = (): HTMLElement | Window | null => {
       if (typeof window === 'undefined') return null
       if (window.matchMedia('(max-width: 767px)').matches) {
-        return document.getElementById('app-main')
+        return window
       }
       return document.querySelector('.custom-scrollbar') as HTMLElement | null
     }
@@ -161,7 +161,10 @@ function LandingPageContent() {
             return
           }
 
-          const scrollTop = target.scrollTop
+          const scrollTop =
+            target === window
+              ? window.scrollY || document.documentElement.scrollTop || 0
+              : target.scrollTop
 
           if (scrollTop <= 5) {
             setIsHeaderVisible(true)
