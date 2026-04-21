@@ -152,5 +152,28 @@ export class StoriesController {
       next(error);
     }
   };
+
+  /**
+   * DELETE /api/v1/stories/:storyId
+   */
+  deleteById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestWithUser = req as RequestWithUser;
+
+      if (!requestWithUser.user?.id) {
+        return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
+      }
+
+      const { storyId } = req.params;
+      if (!storyId) {
+        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'storyId es requerido'));
+      }
+
+      await this.storiesService.deleteStory(storyId, requestWithUser.user.id);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 

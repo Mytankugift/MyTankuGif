@@ -13,21 +13,13 @@ export function FeedInfiniteScroll({
 }: FeedInfiniteScrollProps) {
   return (
     <>
-      {hasMore && !isLoadingMore && (
+      {/* Sentinel siempre montado si hay más páginas (el IO no pierde el target al cargar) */}
+      {hasMore && (
         <div
           ref={sentinelRef}
-          className="h-20 w-full my-8 flex items-center justify-center"
-          style={{
-            visibility: 'visible',
-            opacity: 0.01,
-            pointerEvents: 'none',
-            position: 'relative',
-            zIndex: 10,
-            minHeight: '80px',
-          }}
-        >
-          <div className="text-white text-xs opacity-0">Cargando más...</div>
-        </div>
+          className="pointer-events-none h-8 w-full shrink-0"
+          aria-hidden
+        />
       )}
 
       {isLoadingMore && (

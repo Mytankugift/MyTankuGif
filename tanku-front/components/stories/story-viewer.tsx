@@ -3,23 +3,41 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
-import { useStories, type StoryDTO } from '@/lib/hooks/use-stories'
+import type { StoryDTO } from '@/lib/hooks/use-stories'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { useAuthStore } from '@/lib/stores/auth-store'
 import { WishlistStoryCard } from './wishlist-story-card'
 
 interface StoryViewerProps {
   userId: string
   isOpen: boolean
   onClose: () => void
+  /** Tras borrar una historia (p. ej. refrescar feed) */
+  onStoryDeleted?: () => void
 }
 
-export function StoryViewer({ userId, isOpen, onClose }: StoryViewerProps) {
+export function StoryViewer({ userId, isOpen, onClose, onStoryDeleted }: StoryViewerProps) {
+  const { user } = useAuthStore()
   const [stories, setStories] = useState<StoryDTO[]>([])
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const progressRef = useRef<HTMLDivElement>(null)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [menuOpen])
 
   // Cargar stories del usuario
   useEffect(() => {
@@ -100,6 +118,30 @@ export function StoryViewer({ userId, isOpen, onClose }: StoryViewerProps) {
     }
   }
 
+  const isViewingOwnStories = Boolean(user?.id && user.id === userId)
+
+  const handleDeleteCurrentStory = async () => {
+    if (!currentStory || deleting) return
+    if (!window.confirm('¿Eliminar esta historia? No se puede deshacer.')) return
+    setDeleting(true)
+    setMenuOpen(false)
+    try {
+      const res = await apiClient.delete<void>(API_ENDPOINTS.STORIES.DELETE(currentStory.id))
+      if (!res.success) return
+      const i = currentStoryIndex
+      const next = stories.filter((s) => s.id !== currentStory.id)
+      setStories(next)
+      onStoryDeleted?.()
+      if (next.length === 0) {
+        onClose()
+        return
+      }
+      setCurrentStoryIndex(Math.min(i, next.length - 1))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   // Manejar teclas
   useEffect(() => {
     if (!isOpen) return
@@ -121,14 +163,17 @@ export function StoryViewer({ userId, isOpen, onClose }: StoryViewerProps) {
   if (!isOpen) return null
 
   // Contenido del modal
+  /** Por encima de MobileBottomNav (z-[999999]) — fullscreen debe cubrir todo el viewport en móvil */
+  const viewerZ = 'z-[1000001]'
+
   const modalContent = (
     <>
       {isLoading ? (
-        <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center">
+        <div className={`fixed inset-0 ${viewerZ} bg-black/90 flex items-center justify-center min-h-[100dvh]`}>
           <div className="text-white">Cargando historias...</div>
         </div>
       ) : !currentStory || !currentFile ? (
-        <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center">
+        <div className={`fixed inset-0 ${viewerZ} bg-black/90 flex items-center justify-center min-h-[100dvh]`}>
           <div className="text-white">No hay historias disponibles</div>
           <button
             onClick={onClose}
@@ -139,7 +184,7 @@ export function StoryViewer({ userId, isOpen, onClose }: StoryViewerProps) {
         </div>
       ) : (
     <div 
-      className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
+      className={`fixed inset-0 ${viewerZ} bg-black flex items-center justify-center min-h-[100dvh]`}
       style={{
         position: 'fixed',
         top: 0,
@@ -147,7 +192,7 @@ export function StoryViewer({ userId, isOpen, onClose }: StoryViewerProps) {
         right: 0,
         bottom: 0,
         width: '100vw',
-        height: '100vh',
+        height: '100dvh',
       }}
       onClick={(e) => {
         // Cerrar al hacer click fuera del contenido
@@ -166,17 +211,51 @@ export function StoryViewer({ userId, isOpen, onClose }: StoryViewerProps) {
         {currentStoryIndex + 1} / {stories.length}
       </div>
 
-      {/* Botón cerrar - z-index alto y funcional */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          onClose()
-        }}
-        className="absolute top-4 right-4 z-[100] text-white text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors bg-black/50 backdrop-blur-sm"
-        aria-label="Cerrar"
-      >
-        ×
-      </button>
+      {/* Menú propias historias + cerrar */}
+      <div className="absolute top-4 right-4 z-[120] flex items-center gap-1">
+        {isViewingOwnStories && currentStory && (
+          <div className="relative" ref={menuRef}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setMenuOpen((v) => !v)
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-xl text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+              aria-label="Opciones de historia"
+              aria-expanded={menuOpen}
+              disabled={deleting}
+            >
+              ⋯
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 min-w-[180px] rounded-lg border border-gray-600 bg-[#1E1E1E] py-1 shadow-xl">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void handleDeleteCurrentStory()
+                  }}
+                  className="w-full px-4 py-2.5 text-left text-sm text-red-400 transition-colors hover:bg-white/10"
+                  disabled={deleting}
+                >
+                  Eliminar esta historia
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onClose()
+          }}
+          className="text-white text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors bg-black/50 backdrop-blur-sm"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </div>
 
       {/* Información del autor - Arriba izquierda, para todas las historias */}
       <div className="absolute top-16 left-4 z-50 flex items-center gap-3 text-white bg-black/50 backdrop-blur-sm rounded-full px-4 py-2 max-w-[calc(100%-8rem)]">
@@ -233,24 +312,18 @@ export function StoryViewer({ userId, isOpen, onClose }: StoryViewerProps) {
 
         {/* Contenedor principal centrado - Ocupa toda la pantalla visible */}
         <div 
-          className="relative flex items-center justify-center"
-          style={{
-            width: '100vw',
-            height: '100vh',
-            maxWidth: '100%',
-            maxHeight: '100%',
-          }}
+          className="relative flex h-[100dvh] w-[100vw] max-w-full max-h-[100dvh] items-center justify-center md:h-[100vh] md:max-h-none"
           onClick={(e) => e.stopPropagation()}
         >
           {currentStory.storyType === 'WISHLIST' && currentStory.productId ? (
-            <div className="w-full h-full flex items-center justify-center p-4" style={{ maxWidth: '380px', maxHeight: '600px' }}>
+            <div className="flex h-full max-h-[100dvh] w-full max-w-full items-center justify-center p-4 md:max-h-[600px] md:max-w-[380px]">
               <WishlistStoryCard
                 story={currentStory}
                 onClose={onClose}
               />
             </div>
           ) : (
-            <div className="relative flex items-center justify-center" style={{ width: '100%', height: '100%', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <div className="relative flex h-full max-h-[100dvh] w-full max-w-[100vw] items-center justify-center md:max-h-[90vh] md:max-w-[90vw]">
               {currentFile.fileType === 'image' ? (
                 <Image
                   src={currentFile.fileUrl}
@@ -265,8 +338,7 @@ export function StoryViewer({ userId, isOpen, onClose }: StoryViewerProps) {
                   autoPlay
                   loop
                   muted
-                  className="w-full h-full object-contain"
-                  style={{ maxWidth: '90vw', maxHeight: '90vh' }}
+                  className="max-h-[100dvh] max-w-[100vw] object-contain md:max-h-[90vh] md:max-w-[90vw]"
                 />
               )}
             </div>

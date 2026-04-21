@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { getGoogleOAuthUrl } from '@/lib/auth/google-oauth'
 
 function RegisterForm() {
   const router = useRouter()
@@ -80,13 +81,8 @@ function RegisterForm() {
   }
 
   const handleGoogleLogin = () => {
-    const redirect = searchParams.get('redirect')
-    const returnUrl = redirect 
-      ? encodeURIComponent(redirect)
-      : encodeURIComponent('/feed')
-    
-    // Redirección directa en la misma ventana
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'}/api/v1/auth/google?return_url=${returnUrl}`
+    const redirect = searchParams.get('redirect') || '/feed'
+    window.location.href = getGoogleOAuthUrl(redirect)
   }
 
   if (isAuthenticated) {
@@ -258,13 +254,13 @@ function RegisterForm() {
               {/* Login */}
               <div className="text-center text-xs text-gray-600 mt-4">
                 <span>¿Ya tienes una cuenta? </span>
-                <Link 
-                  href="/auth/login"
+                <a
+                  href={getGoogleOAuthUrl(searchParams.get('redirect') || '/feed')}
                   className="text-[#66DEDB] hover:text-[#73FFA2] font-semibold"
                   style={{ fontFamily: 'Poppins, sans-serif' }}
                 >
                   Inicia Sesión
-                </Link>
+                </a>
               </div>
             </form>
           </motion.div>

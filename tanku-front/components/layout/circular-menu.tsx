@@ -29,13 +29,14 @@ const CircularMenu = () => {
   const arcFontSize = isTablet ? '10' : '12'
 
   return (
-    <div className="relative flex-shrink-0 w-64 h-64 md:w-48 md:h-48">
+    <div className="relative flex h-64 w-64 flex-shrink-0 md:h-48 md:w-48 lg:h-56 lg:w-56">
       <div
-        className="absolute rounded-full z-0 bg-[#2D3A3A] w-[179.2px] h-[179.2px] left-[38.4px] top-[38.4px] md:w-[134.4px] md:h-[134.4px] md:left-[28.8px] md:top-[28.8px]"
-      ></div>
+        className="absolute left-[38.4px] top-[38.4px] z-0 h-[179.2px] w-[179.2px] rounded-full bg-[#2D3A3A]/0 backdrop-blur-md md:left-[28.8px] md:top-[28.8px] md:h-[134.4px] md:w-[134.4px] lg:left-[33.6px] lg:top-[33.6px] lg:h-[156.8px] lg:w-[156.8px]"
+        aria-hidden
+      />
       {/* SVG: texto curvo arriba (NUEVO POST) y a la derecha (NUEVO EVENTO) */}
       <svg
-        className="absolute pointer-events-none z-50 w-64 h-64 md:w-48 md:h-48"
+        className="pointer-events-none absolute z-50 h-64 w-64 md:h-48 md:w-48 lg:h-56 lg:w-56"
         viewBox="0 0 256 256"
         preserveAspectRatio="xMidYMid meet"
         style={{ top: 0, left: 0 }}
@@ -123,7 +124,7 @@ const CircularMenu = () => {
       {/* Central Circle */}
       <div className="absolute inset-0 flex items-center justify-center z-10">
         <div
-          className="w-28 h-28 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 border-4 md:border-3 border-greenTanku flex items-center justify-center relative overflow-hidden"
+          className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-greenTanku bg-gradient-to-br from-gray-800 to-gray-900 md:h-20 md:w-20 md:border-3 lg:h-24 lg:w-24 lg:border-4"
           style={{
             boxShadow: `
               0 0 10px rgba(115, 255, 162, 0.4),
@@ -135,8 +136,11 @@ const CircularMenu = () => {
         >
           {/* Glowing effect */}
           <div className="absolute inset-0 rounded-full bg-[#73FFA2] opacity-20 animate-pulse"></div>
-          <div className="relative z-10 text-center px-2 md:px-1">
-            <h3 className="text-white text-sm md:text-xs font-bold leading-tight" style={{ fontFamily: 'Poppins, sans-serif' }}>
+          <div className="relative z-10 px-2 text-center md:px-1 lg:px-2">
+            <h3
+              className="text-xs font-bold leading-tight text-white md:text-[10px] lg:text-xs"
+              style={{ fontFamily: 'Poppins, sans-serif' }}
+            >
               ¿Qué<br />
               Quieres<br />
               Hacer<br />

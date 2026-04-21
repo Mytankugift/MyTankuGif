@@ -137,20 +137,31 @@ function LandingPageContent() {
   }, [allItems, searchQuery])
 
   // Handle scroll para mostrar/ocultar header
-  // IMPORTANTE: Todos los hooks deben ir ANTES del return condicional
+  // Móvil: el scroll va en <main id="app-main"> (un solo contenedor, mejor UX Safari)
+  // Desktop: scroll en .custom-scrollbar dentro de la landing
   useEffect(() => {
+    let scrollEl: HTMLElement | null = null
+
+    const resolveScrollTarget = (): HTMLElement | null => {
+      if (typeof window === 'undefined') return null
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        return document.getElementById('app-main')
+      }
+      return document.querySelector('.custom-scrollbar') as HTMLElement | null
+    }
+
     let ticking = false
 
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const scrollContainer = document.querySelector('.custom-scrollbar') as HTMLElement
-          if (!scrollContainer) {
+          const target = resolveScrollTarget()
+          if (!target) {
             ticking = false
             return
           }
 
-          const scrollTop = scrollContainer.scrollTop
+          const scrollTop = target.scrollTop
 
           if (scrollTop <= 5) {
             setIsHeaderVisible(true)
@@ -171,10 +182,19 @@ function LandingPageContent() {
       }
     }
 
-    const scrollContainer = document.querySelector('.custom-scrollbar')
-    if (scrollContainer) {
-      scrollContainer.addEventListener('scroll', handleScroll)
-      return () => scrollContainer.removeEventListener('scroll', handleScroll)
+    const attach = () => {
+      if (scrollEl) {
+        scrollEl.removeEventListener('scroll', handleScroll)
+      }
+      scrollEl = resolveScrollTarget()
+      scrollEl?.addEventListener('scroll', handleScroll, { passive: true })
+    }
+
+    attach()
+    window.addEventListener('resize', attach)
+    return () => {
+      window.removeEventListener('resize', attach)
+      scrollEl?.removeEventListener('scroll', handleScroll)
     }
   }, [lastScrollY])
 
@@ -201,7 +221,7 @@ function LandingPageContent() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: '#1E1E1E' }}
+        style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
       >
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
@@ -213,8 +233,8 @@ function LandingPageContent() {
 
   return (
     <div
-      className="w-full overflow-x-hidden flex flex-col transition-colors duration-300"
-      style={{ backgroundColor: '#1E1E1E', height: 'calc(100vh - 0px)' }}
+      className="flex w-full max-md:min-h-0 flex-col overflow-x-hidden transition-colors duration-300 md:min-h-0 md:flex-1"
+      style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
     >
       <LandingNav
         categories={categories}
@@ -226,12 +246,12 @@ function LandingPageContent() {
       />
 
       <div
-        className="flex-1 overflow-y-auto px-2 sm:px-3 md:px-4 py-2 sm:py-4 md:py-5 custom-scrollbar transition-all duration-300 ease-in-out"
+        className="custom-scrollbar px-2 py-2 transition-all duration-300 ease-in-out max-md:overflow-visible max-md:flex-none sm:px-3 sm:py-4 md:flex-1 md:overflow-y-auto md:px-4 md:py-5"
         style={{
           paddingTop: isHeaderVisible ? headerPadding : '20px',
           marginRight: '0',
-          scrollBehavior: 'auto', // Cambiar de 'smooth' a 'auto' para evitar problemas de scroll
-          overscrollBehavior: 'contain', // Prevenir scroll bounce
+          scrollBehavior: 'auto',
+          overscrollBehavior: 'auto',
         }}
       >
         {isLoading && items.length === 0 ? (
@@ -270,7 +290,7 @@ function LandingPageContent() {
 export default function LandingPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#1E1E1E' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
           <p className="text-white">Cargando...</p>

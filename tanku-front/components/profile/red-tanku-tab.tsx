@@ -55,6 +55,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAddMembersModal, setShowAddMembersModal] = useState(false)
+  const [showManageMembersModal, setShowManageMembersModal] = useState(false)
   const [showRecommendedGroups, setShowRecommendedGroups] = useState(false)
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
   const [editingGroup, setEditingGroup] = useState<Group | null>(null)
@@ -139,6 +140,14 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
     }
   }
 
+  const redTankuActionButtonClass =
+    'rounded-full text-[11px] sm:text-xs font-semibold text-black shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-opacity hover:opacity-90'
+  const modalActionButtonClass =
+    'rounded-[25px] px-3 py-2 text-[11px] sm:px-4 sm:py-2.5 sm:text-xs font-semibold transition-colors shadow-[inset_0_4px_4px_rgba(0,0,0,0.25)]'
+  const tankuModalSurfaceClass = 'rounded-[24px] border border-[#414141] bg-[#171B21]'
+  const tankuModalInputClass =
+    'w-full rounded-[20px] border border-[#66DEDB]/55 bg-[#11161d] px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-[#73FFA2]'
+
   const handleEditGroup = (group: Group) => {
     setEditingGroup(group)
     setFormData({
@@ -160,6 +169,12 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
     const available = friendsList.filter(f => !groupMemberIds.has(f.friend.id))
     setAvailableFriends(available)
     setShowAddMembersModal(true)
+  }
+
+  const handleManageMembers = (group: Group) => {
+    setSelectedGroup(group)
+    setError(null)
+    setShowManageMembersModal(true)
   }
 
   const handleSaveGroup = async () => {
@@ -286,20 +301,14 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-xl font-bold text-[#73FFA2]">RED TANKU</h3>
-          <p className="text-sm text-gray-400 mt-1">
-            Organiza tus amigos en grupos privados
-          </p>
-        </div>
+      {/* Acciones superiores */}
+      <div className="flex items-center justify-end">
         <div className="flex gap-2">
           {/* Botón de sugerencias - siempre visible si hay sugerencias */}
           {recommendedGroups.length > 0 && !showRecommendedGroups && (
             <button
               onClick={handleShowRecommendedGroups}
-              className="text-sm text-gray-400 hover:text-[#73FFA2] transition-colors"
+              className="text-xs text-gray-300 hover:text-[#73FFA2] transition-colors"
             >
               Ver Sugerencias
             </button>
@@ -307,38 +316,43 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
           <button
             onClick={handleCreateGroup}
             type="button"
-            className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-gray-900 px-4 py-2 rounded-lg font-medium hover:from-[#73FFA2] hover:to-[#66DEDB] transition-all flex items-center gap-2"
+            className={`h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center ${redTankuActionButtonClass}`}
+            style={{ background: 'linear-gradient(90deg, #73FFA2 0%, #1A485C 100%)' }}
+            title="Crear grupo"
           >
-            <PlusIcon className="w-5 h-5" />
-            Crear Grupo
+            <PlusIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
         </div>
       </div>
 
       {/* Grupos recomendados */}
       {showRecommendedGroups && recommendedGroups.length > 0 && (
-        <div className="bg-gray-800/50 rounded-lg p-3 relative">
-          <button
-            onClick={handleCloseRecommendedGroups}
-            className="absolute top-2 right-2 text-gray-500 hover:text-gray-300 transition-colors"
-            title="Cerrar"
-          >
-            <XMarkIcon className="w-4 h-4" />
-          </button>
-          <h4 className="text-xs font-medium text-gray-400 mb-2 pr-6">Sugerencias</h4>
-          <div className="flex flex-wrap gap-1.5">
-            {recommendedGroups.map((rec, index) => (
+        <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/60 p-4" onClick={handleCloseRecommendedGroups}>
+          <div className={`w-full max-w-sm p-3.5 sm:p-4 ${tankuModalSurfaceClass}`} onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-[#66DEDB]">Sugerencias de red</h4>
               <button
-                key={index}
-                onClick={() => {
-                  useRecommendedGroup(rec)
-                  setShowRecommendedGroups(false)
-                }}
-                className="text-left px-2.5 py-1.5 rounded bg-gray-700/50 hover:bg-gray-700 transition-colors text-xs"
+                onClick={handleCloseRecommendedGroups}
+                className="text-gray-500 transition-colors hover:text-gray-300"
+                title="Cerrar"
               >
-                <div className="text-white font-medium">{rec.name}</div>
+                <XMarkIcon className="h-4 w-4" />
               </button>
-            ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {recommendedGroups.map((rec, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    useRecommendedGroup(rec)
+                    setShowRecommendedGroups(false)
+                  }}
+                  className="rounded-[14px] border border-white/10 bg-[#10161d] px-3 py-2 text-left text-xs transition-colors hover:border-[#73FFA2]/45 hover:bg-white/[0.03]"
+                >
+                  <div className="font-medium text-white">{rec.name}</div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -356,7 +370,8 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
             <button
               onClick={handleCreateGroup}
               type="button"
-              className="bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-gray-900 px-4 py-2 rounded-lg font-medium hover:from-[#73FFA2] hover:to-[#66DEDB] transition-all"
+              className={`px-3 sm:px-4 py-1 ${redTankuActionButtonClass}`}
+              style={{ background: 'linear-gradient(90deg, #73FFA2 0%, #1A485C 100%)' }}
             >
               Crear mi primer grupo
             </button>
@@ -366,7 +381,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
           {groups.map((group) => (
             <div
               key={group.id}
-              className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-[#73FFA2] transition-colors"
+              className="rounded-[20px] border border-[#3b434f] bg-[#171B21] p-4 transition-colors hover:border-[#73FFA2]/55"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
@@ -378,14 +393,14 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                 <div className="flex gap-1">
                   <button
                     onClick={() => handleEditGroup(group)}
-                    className="p-1.5 rounded hover:bg-gray-700 transition-colors"
+                    className="p-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
                     title="Editar grupo"
                   >
                     <PencilIcon className="w-4 h-4 text-gray-400" />
                   </button>
                   <button
                     onClick={() => handleDeleteGroup(group.id)}
-                    className="p-1.5 rounded hover:bg-gray-700 transition-colors"
+                    className="p-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
                     title="Eliminar grupo"
                   >
                     <TrashIcon className="w-4 h-4 text-red-400" />
@@ -398,13 +413,22 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                   <span className="text-xs text-gray-400">
                     {group.membersCount} miembro{group.membersCount !== 1 ? 's' : ''}
                   </span>
-                  <button
-                    onClick={() => handleAddMembers(group)}
-                    className="text-xs text-[#73FFA2] hover:text-[#66DEDB] transition-colors flex items-center gap-1"
-                  >
-                    <UserPlusIcon className="w-3 h-3" />
-                    Agregar
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleManageMembers(group)}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#73FFA2]/40 bg-[#73FFA2]/10 text-[#73FFA2] transition-colors hover:bg-[#73FFA2]/20"
+                      title="Gestionar miembros"
+                    >
+                      <UserMinusIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleAddMembers(group)}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#73FFA2]/40 bg-[#73FFA2]/10 text-[#73FFA2] transition-colors hover:bg-[#73FFA2]/20"
+                      title="Agregar miembros"
+                    >
+                      <UserPlusIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {group.members.slice(0, 5).map((member) => (
@@ -429,13 +453,6 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                           </span>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleRemoveMember(group.id, member.userId)}
-                        className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Eliminar del grupo"
-                      >
-                        <XMarkIcon className="w-3 h-3 text-white" />
-                      </button>
                     </div>
                   ))}
                   {group.membersCount > 5 && (
@@ -452,7 +469,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
 
       {/* Modal crear/editar grupo */}
       {(showCreateModal || showEditModal) && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-[100]" onClick={(e) => {
+        <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/70 p-3 sm:p-4" onClick={(e) => {
           if (e.target === e.currentTarget) {
             setShowCreateModal(false)
             setShowEditModal(false)
@@ -462,10 +479,10 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
             setError(null)
           }
         }}>
-          <div className="bg-gray-900 rounded-lg max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-[#73FFA2]">
-                {editingGroup ? 'Editar Grupo' : 'Crear Nuevo Grupo'}
+          <div className={`w-full max-w-md overflow-hidden p-4 sm:p-5 ${tankuModalSurfaceClass}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-lg sm:text-xl font-bold text-[#66DEDB]">
+                {editingGroup ? 'Editar red' : 'Crear nueva red'}
               </h3>
               <button
                 onClick={() => {
@@ -479,66 +496,65 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                 className="text-gray-400 hover:text-white transition-colors"
                 type="button"
               >
-                <XMarkIcon className="w-6 h-6" />
+                <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
 
             {error && (
-              <div className="mb-4 bg-red-900/20 border border-red-400/30 text-red-400 px-4 py-2 rounded text-sm">
+              <div className="mb-3 rounded-lg border border-red-400/30 bg-red-900/20 px-3 py-2 text-xs text-red-400 sm:text-sm">
                 {error}
               </div>
             )}
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Nombre del Grupo
+                <label className="mb-1.5 block text-xs font-medium text-gray-300 sm:text-sm">
+                  Nombre de la red
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-[#73FFA2]"
-                  placeholder="Ej: Familia, Amigos Cercanos..."
+                  className={tankuModalInputClass}
+                  placeholder="Ej: Amigos cercanos"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="mb-1.5 block text-xs font-medium text-gray-300 sm:text-sm">
                   Descripción (opcional)
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-gray-700 focus:outline-none focus:border-[#73FFA2]"
+                  className={`${tankuModalInputClass} resize-none`}
                   rows={3}
-                  placeholder="Describe el grupo..."
+                  placeholder="Describe esta red..."
                 />
               </div>
 
               {!editingGroup && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-300 sm:text-sm">
                     Agregar Amigos (opcional)
                   </label>
-                  <div className="bg-gray-800 rounded p-3 max-h-40 overflow-y-auto">
+                  <div className="max-h-44 overflow-y-auto rounded-[20px] border border-white/10 bg-[#11161d] p-2.5">
                     {friends.length === 0 ? (
                       <p className="text-sm text-gray-400 text-center py-2">
                         No tienes amigos aún
                       </p>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {friends.map((friend) => (
-                          <label
+                          <div
                             key={friend.friend.id}
-                            className="flex items-center gap-2 p-2 rounded hover:bg-gray-700 cursor-pointer"
+                            className={`flex cursor-pointer items-center gap-2 rounded-[14px] px-2 py-1.5 transition-colors ${
+                              selectedFriends.includes(friend.friend.id)
+                                ? 'bg-white/[0.06] ring-1 ring-[#73FFA2]/60'
+                                : 'hover:bg-white/[0.04]'
+                            }`}
+                            onClick={() => toggleFriendSelection(friend.friend.id)}
                           >
-                            <input
-                              type="checkbox"
-                              checked={selectedFriends.includes(friend.friend.id)}
-                              onChange={() => toggleFriendSelection(friend.friend.id)}
-                              className="w-4 h-4 text-[#73FFA2] bg-gray-700 border-gray-600 rounded focus:ring-[#73FFA2]"
-                            />
                             <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-600 flex items-center justify-center flex-shrink-0">
                               {friend.friend.profile?.avatar ? (
                                 <Image
@@ -558,7 +574,12 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                             <span className="text-sm text-white">
                               {friend.friend.firstName || friend.friend.email}
                             </span>
-                          </label>
+                            {selectedFriends.includes(friend.friend.id) && (
+                              <span className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#73FFA2] text-[#262626]">
+                                <CheckIcon className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                          </div>
                         ))}
                       </div>
                     )}
@@ -566,25 +587,12 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-4">
-                <button
-                  onClick={() => {
-                    setShowCreateModal(false)
-                    setShowEditModal(false)
-                    setEditingGroup(null)
-                    setFormData({ name: '', description: '' })
-                    setSelectedFriends([])
-                    setError(null)
-                  }}
-                  className="px-4 py-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
-                >
-                  Cancelar
-                </button>
+              <div className="flex justify-center pt-3">
                 <button
                   onClick={handleSaveGroup}
                   disabled={isSaving || !formData.name.trim()}
                   type="button"
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-gray-900 font-medium hover:from-[#73FFA2] hover:to-[#66DEDB] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className={`${modalActionButtonClass} min-w-[150px] bg-[#73FFA2] text-[#262626] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 sm:gap-2`}
                 >
                   {isSaving ? (
                     <>
@@ -594,7 +602,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                   ) : (
                     <>
                       <CheckIcon className="w-4 h-4" />
-                      {editingGroup ? 'Guardar Cambios' : 'Crear Grupo'}
+                      {editingGroup ? 'Guardar cambios' : 'Crear red'}
                     </>
                   )}
                 </button>
@@ -606,10 +614,20 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
 
       {/* Modal agregar miembros */}
       {showAddMembersModal && selectedGroup && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 rounded-lg max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-[#73FFA2]">
+        <div
+          className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/70 p-3 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAddMembersModal(false)
+              setSelectedGroup(null)
+              setSelectedFriends([])
+              setError(null)
+            }
+          }}
+        >
+          <div className={`w-full max-w-md p-4 sm:p-5 ${tankuModalSurfaceClass}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-base sm:text-lg font-bold text-[#66DEDB]">
                 Agregar Miembros a {selectedGroup.name}
               </h3>
               <button
@@ -619,9 +637,9 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                   setSelectedFriends([])
                   setError(null)
                 }}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white transition-colors"
               >
-                <XMarkIcon className="w-6 h-6" />
+                <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
 
@@ -632,7 +650,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
             )}
 
             <div className="space-y-4">
-              <div className="bg-gray-800 rounded p-3 max-h-60 overflow-y-auto">
+              <div className="max-h-60 overflow-y-auto rounded-[20px] border border-white/10 bg-[#11161d] p-2.5">
                 {availableFriends.length === 0 ? (
                   <p className="text-sm text-gray-400 text-center py-2">
                     Todos tus amigos ya están en este grupo
@@ -640,16 +658,15 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                 ) : (
                   <div className="space-y-2">
                     {availableFriends.map((friend) => (
-                      <label
+                      <div
                         key={friend.friend.id}
-                        className="flex items-center gap-2 p-2 rounded hover:bg-gray-700 cursor-pointer"
+                        className={`flex cursor-pointer items-center gap-2 rounded-[14px] px-2 py-1.5 transition-colors ${
+                          selectedFriends.includes(friend.friend.id)
+                            ? 'bg-white/[0.06] ring-1 ring-[#73FFA2]/60'
+                            : 'hover:bg-white/[0.04]'
+                        }`}
+                        onClick={() => toggleFriendSelection(friend.friend.id)}
                       >
-                        <input
-                          type="checkbox"
-                          checked={selectedFriends.includes(friend.friend.id)}
-                          onChange={() => toggleFriendSelection(friend.friend.id)}
-                          className="w-4 h-4 text-[#73FFA2] bg-gray-700 border-gray-600 rounded focus:ring-[#73FFA2]"
-                        />
                         <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-600 flex items-center justify-center flex-shrink-0">
                           {friend.friend.profile?.avatar ? (
                             <Image
@@ -669,28 +686,22 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                         <span className="text-sm text-white">
                           {friend.friend.firstName || friend.friend.email}
                         </span>
-                      </label>
+                        {selectedFriends.includes(friend.friend.id) && (
+                          <span className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#73FFA2] text-[#262626]">
+                            <CheckIcon className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              <div className="flex justify-end gap-2 pt-4">
-                <button
-                  onClick={() => {
-                    setShowAddMembersModal(false)
-                    setSelectedGroup(null)
-                    setSelectedFriends([])
-                    setError(null)
-                  }}
-                  className="px-4 py-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
-                >
-                  Cancelar
-                </button>
+              <div className="flex justify-center pt-3">
                 <button
                   onClick={handleAddSelectedMembers}
                   disabled={isSaving || selectedFriends.length === 0}
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-gray-900 font-medium hover:from-[#73FFA2] hover:to-[#66DEDB] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className={`${modalActionButtonClass} min-w-[170px] bg-[#73FFA2] text-[#262626] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
                 >
                   {isSaving ? (
                     <>
@@ -705,6 +716,80 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal gestionar miembros (clave para mobile) */}
+      {showManageMembersModal && selectedGroup && (
+        <div
+          className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/70 p-3 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowManageMembersModal(false)
+              setSelectedGroup(null)
+            }
+          }}
+        >
+          <div className={`w-full max-w-md p-4 sm:p-5 ${tankuModalSurfaceClass}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-base sm:text-lg font-bold text-[#66DEDB]">
+                Miembros de {selectedGroup.name}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowManageMembersModal(false)
+                  setSelectedGroup(null)
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="max-h-64 overflow-y-auto rounded-[20px] border border-white/10 bg-[#11161d] p-2.5">
+              {selectedGroup.members.length === 0 ? (
+                <p className="py-2 text-center text-sm text-gray-400">No hay miembros en esta red.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {selectedGroup.members.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center gap-2 rounded-[14px] px-2 py-1.5 hover:bg-white/[0.04]"
+                    >
+                      <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gray-600">
+                        {member.user.profile?.avatar ? (
+                          <Image
+                            src={member.user.profile.avatar}
+                            alt="Avatar"
+                            width={32}
+                            height={32}
+                            className="h-full w-full object-cover"
+                            unoptimized={member.user.profile.avatar.startsWith('http')}
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-xs text-gray-300">
+                            {(member.user.firstName?.[0] || member.user.email?.[0] || 'U').toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <span className="truncate text-sm text-white">
+                        {`${member.user.firstName || ''} ${member.user.lastName || ''}`.trim() || member.user.email}
+                      </span>
+                      <button
+                        onClick={async () => {
+                          await handleRemoveMember(selectedGroup.id, member.userId)
+                        }}
+                        className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/90 text-white transition-colors hover:bg-red-500"
+                        title="Eliminar del grupo"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

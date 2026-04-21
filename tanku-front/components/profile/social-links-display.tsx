@@ -1,19 +1,18 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 
 type SocialLink = {
   platform: string
   url: string
 }
 
-const PLATFORM_INFO: Record<string, { name: string; icon: string; color: string }> = {
-  facebook: { name: 'Facebook', icon: 'f', color: 'bg-blue-600' },
-  instagram: { name: 'Instagram', icon: 'ig', color: 'bg-gradient-to-br from-purple-500 to-pink-500' },
-  twitter: { name: 'Twitter', icon: '🐦', color: 'bg-blue-400' },
-  youtube: { name: 'YouTube', icon: '▶', color: 'bg-red-600' },
-  tiktok: { name: 'TikTok', icon: '♪', color: 'bg-black' },
-  linkedin: { name: 'LinkedIn', icon: 'in', color: 'bg-blue-700' },
+const PLATFORM_INFO: Record<string, { name: string; iconPath: string }> = {
+  facebook: { name: 'Facebook', iconPath: '/icons_tanku/tanku_perfil_logo_facebook.svg' },
+  instagram: { name: 'Instagram', iconPath: '/icons_tanku/tanku_perfil_logo_instagram.svg' },
+  twitter: { name: 'Twitter', iconPath: '/icons_tanku/tanku_perfil_logo_twiter.svg' },
+  x: { name: 'X', iconPath: '/icons_tanku/tanku_perfil_logo_twiter.svg' },
 }
 
 interface SocialLinksDisplayProps {
@@ -26,9 +25,9 @@ export function SocialLinksDisplay({ socialLinks = [] }: SocialLinksDisplayProps
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto scrollbar-hide">
       {socialLinks.map((link) => {
-        const platformInfo = PLATFORM_INFO[link.platform]
+        const platformInfo = PLATFORM_INFO[link.platform.toLowerCase()]
         if (!platformInfo) return null
 
         return (
@@ -37,15 +36,17 @@ export function SocialLinksDisplay({ socialLinks = [] }: SocialLinksDisplayProps
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-800/50 hover:bg-gray-800 transition-colors group"
+            className="inline-flex items-center justify-center p-0.5 rounded-md hover:opacity-85 transition-opacity shrink-0"
             title={platformInfo.name}
           >
-            <div className={`w-5 h-5 rounded-full ${platformInfo.color} flex items-center justify-center flex-shrink-0`}>
-              <span className="text-white text-[10px] font-bold">{platformInfo.icon}</span>
-            </div>
-            <span className="text-xs text-gray-300 group-hover:text-white transition-colors hidden sm:inline">
-              {platformInfo.name}
-            </span>
+            <Image
+              src={platformInfo.iconPath}
+              alt={platformInfo.name}
+              width={25}
+              height={25}
+              className="h-[25px] w-[25px] object-contain"
+              unoptimized
+            />
           </Link>
         )
       })}

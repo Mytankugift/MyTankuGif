@@ -176,7 +176,7 @@ export function EventsModal({ isOpen, onClose }: EventsModalProps) {
         style={{
           position: 'fixed',
           inset: 0,
-          zIndex: 99999,
+          zIndex: 1000002,
           cursor: 'default',
           userSelect: 'none',
         }}

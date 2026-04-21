@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import Link from 'next/link'
+import { startGoogleOAuth } from '@/lib/auth/google-oauth'
 
 interface CategoryLoginModalProps {
   isOpen: boolean
@@ -44,7 +44,7 @@ export function CategoryLoginModal({ isOpen, onClose, onLogin }: CategoryLoginMo
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999,
+        zIndex: 1000003,
         overflow: 'auto',
       }}
     >
@@ -62,7 +62,7 @@ export function CategoryLoginModal({ isOpen, onClose, onLogin }: CategoryLoginMo
           flexDirection: 'column',
           position: 'relative',
           margin: 'auto',
-          zIndex: 10000,
+          zIndex: 1000004,
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -117,9 +117,12 @@ export function CategoryLoginModal({ isOpen, onClose, onLogin }: CategoryLoginMo
 
         {/* Botón Únete a Tanku */}
         <div className="flex items-center justify-center">
-          <Link
-            href="/auth/login"
-            onClick={onLogin}
+          <button
+            type="button"
+            onClick={() => {
+              onLogin()
+              startGoogleOAuth()
+            }}
             className="text-black font-semibold px-4 py-2 rounded-full hover:shadow-lg transition-all duration-300 hover:transform hover:scale-105 inline-block text-center whitespace-nowrap"
             style={{ 
               fontFamily: 'Poppins, sans-serif', 
@@ -129,7 +132,7 @@ export function CategoryLoginModal({ isOpen, onClose, onLogin }: CategoryLoginMo
             }}
           >
             Únete a TANKU
-          </Link>
+          </button>
         </div>
       </div>
     </div>

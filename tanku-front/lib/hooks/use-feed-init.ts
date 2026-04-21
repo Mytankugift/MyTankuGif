@@ -35,6 +35,7 @@ export function useFeedInit() {
   const [user, setUser] = useState<any | null>(null)
   const [onboardingData, setOnboardingData] = useState<any | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [nextCursorToken, setNextCursorToken] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -162,10 +163,11 @@ export function useFeedInit() {
 
   // Cargar más items del feed (usando endpoint normal, no batch)
   const loadMore = useCallback(async () => {
-    if (!nextCursorToken || !hasMore) {
+    if (!nextCursorToken || !hasMore || isLoadingMore) {
       return
     }
 
+    setIsLoadingMore(true)
     try {
       const headers: HeadersInit = {
         'X-Feed-Cursor': nextCursorToken,
@@ -195,8 +197,10 @@ export function useFeedInit() {
       }
     } catch (err) {
       console.error('Error cargando más items:', err)
+    } finally {
+      setIsLoadingMore(false)
     }
-  }, [nextCursorToken, hasMore, token, isAuthenticated])
+  }, [nextCursorToken, hasMore, isLoadingMore, token, isAuthenticated])
 
   // Cargar datos al montar (solo una vez)
   useEffect(() => {
@@ -225,6 +229,7 @@ export function useFeedInit() {
     // Feed data
     items: feedItems,
     isLoading,
+    isLoadingMore,
     hasMore,
     nextCursorToken,
     error,

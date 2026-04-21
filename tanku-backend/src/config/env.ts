@@ -100,6 +100,11 @@ const envSchema = z.object({
   // Feature Flags
   ENABLE_SOCIAL_FEATURES: z.string().transform((val) => val === 'true').default('true'),
   ENABLE_STALKER_GIFT: z.string().transform((val) => val === 'true').default('true'),
+
+  // Email (Gmail SMTP vía provider; credenciales requeridas para enviar)
+  EMAIL_USER: z.string().default(''),
+  EMAIL_PASS: z.string().default(''),
+  EMAIL_PROVIDER: z.enum(['gmail', 'sendgrid', 'ses']).default('gmail'),
 });
 
 /**

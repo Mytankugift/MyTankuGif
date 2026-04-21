@@ -316,6 +316,10 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/stalker-gift`, stalkerGiftRoutes);
 import giftRoutes from './modules/gifts/gift.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/gifts`, giftRoutes);
 
+// Email (prueba SMTP / provider)
+import emailRoutes from './routes/email.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/email`, emailRoutes);
+
 // Events routes
 import eventsRoutes from './modules/events/events.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/events`, eventsRoutes);

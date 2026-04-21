@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useChat } from '@/lib/hooks/use-chat'
 import { useChatService } from '@/lib/hooks/use-chat-service'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import type { Conversation } from '@/lib/hooks/use-chat'
 
 interface MessagesDropdownProps {
   isOpen: boolean
@@ -21,12 +21,14 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const lastFetchedConversationRef = useRef<string | null>(null)
 
-  // Filtrar solo conversaciones tipo FRIENDS
-  const friendsConversations = conversations.filter(c => c.type === 'FRIENDS')
+  const rowDividerStyle = {
+    borderImage: 'linear-gradient(90deg, #414141 0%, #73FFA2 34%, #73FFA2 70%, #414141 100%) 1',
+  } as const
   
   // Obtener conversación seleccionada
   const selectedConversation = selectedConversationId 
@@ -116,18 +118,47 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
   // NO poner unreadCount = 0 solo por estar seleccionado
   // El indicador debe desaparecer solo cuando realmente se marca como leído
   const conversationsData = useMemo(() => {
-    return friendsConversations.map(conversation => {
+    const friendsConversations = conversations.filter((c) => c.type === 'FRIENDS' && !c.id.startsWith('temp-'))
+
+    return friendsConversations
+      .map((conversation) => {
       const allMessages = getAllMessagesForConversation(conversation.id)
+      // Solo mostrar conversaciones con mensajes reales
+      if (allMessages.length === 0) {
+        return null
+      }
       // ✅ Calcular correctamente, sin forzar a 0 solo por estar seleccionado
       const unreadCount = getUnreadCountForConversation(conversation.id, user?.id || '')
+      const otherParticipant = getOtherParticipant(conversation, user?.id || '')
+      if (!otherParticipant) {
+        return null
+      }
       return {
         conversation,
-        lastMessage: allMessages[0]?.content || 'Sin mensajes',
+        otherParticipant,
+        lastMessage: allMessages[0]?.content || '',
         lastMessageTime: allMessages[0]?.createdAt || conversation.updatedAt,
         unreadCount,
       }
     })
-  }, [friendsConversations, getAllMessagesForConversation, getUnreadCountForConversation, user?.id, lastReceivedMessage])
+      .filter((item): item is NonNullable<typeof item> => Boolean(item))
+      .filter(({ otherParticipant }) => {
+        const username = otherParticipant.user?.username?.toLowerCase() || ''
+        const firstName = otherParticipant.user?.firstName?.toLowerCase() || ''
+        const lastName = otherParticipant.user?.lastName?.toLowerCase() || ''
+        const alias = otherParticipant.alias?.toLowerCase() || ''
+        const deletedEmail = otherParticipant.deletedUserEmail?.toLowerCase() || ''
+        const q = searchQuery.trim().toLowerCase()
+        if (!q) return true
+        return (
+          username.includes(q) ||
+          firstName.includes(q) ||
+          lastName.includes(q) ||
+          alias.includes(q) ||
+          deletedEmail.includes(q)
+        )
+      })
+  }, [conversations, getAllMessagesForConversation, getUnreadCountForConversation, getOtherParticipant, user?.id, lastReceivedMessage, searchQuery])
 
   // Cerrar al hacer clic fuera
   useEffect(() => {
@@ -193,28 +224,28 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
   if (!isOpen) return null
 
   const otherParticipant = selectedConversation ? getOtherParticipant(selectedConversation, user?.id || '') : null
-  const displayName = otherParticipant?.alias || 
+  const displayName = otherParticipant?.user?.username ||
+    otherParticipant?.alias ||
     `${otherParticipant?.user?.firstName || ''} ${otherParticipant?.user?.lastName || ''}`.trim() ||
     otherParticipant?.user?.email || 'Usuario'
 
   return (
     <div
       ref={dropdownRef}
-      className={`absolute top-full right-0 mt-2 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-[600px] flex flex-col transition-all duration-200 ${
-        selectedConversationId ? 'w-96' : 'w-80'
-      }`}
+      className="absolute right-0 top-full z-50 mt-2 flex h-[500px] w-[400px] flex-col rounded-xl border border-[#414141] shadow-xl"
+      style={{ backgroundColor: '#171B21' }}
     >
       {/* Header */}
-      <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+      <div className="p-4 border-b" style={rowDividerStyle}>
         {selectedConversationId ? (
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Botón atrás con flecha */}
             <button
               onClick={() => setSelectedConversationId(null)}
-              className="flex-shrink-0 p-1.5 hover:bg-gray-800 rounded-full transition-colors"
+              className="flex-shrink-0 rounded-full p-1.5 transition-colors hover:bg-white/10"
               title="Volver a conversaciones"
             >
-              <svg className="w-5 h-5 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-[#D7D7D7] hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
@@ -237,11 +268,44 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white truncate">{displayName}</p>
-              <p className="text-xs text-gray-400">En línea</p>
             </div>
           </div>
         ) : (
-          <h3 className="text-lg font-semibold text-white">Mensajes</h3>
+          <div className="flex w-full flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/icons_tanku/tanku_nav_mensajes_verde_modal_abierto.svg"
+                  alt=""
+                  width={28}
+                  height={28}
+                  className="h-7 w-7 object-contain"
+                  unoptimized
+                />
+                <h3 className="text-base font-semibold leading-none text-white">Mensajes</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.location.assign('/messages?new=1')}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#66DEDB] text-[#0B1217] transition-transform hover:scale-105"
+                title="Nueva conversación"
+              >
+                <span className="text-[28px] leading-none">+</span>
+              </button>
+            </div>
+            <div className="relative w-[82%]">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar conversación..."
+                className="tanku-pill-search-input h-8 w-full rounded-full border border-white/10 bg-transparent pl-9 pr-3 text-sm text-white placeholder:text-[#A7A7A7] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
+              />
+              <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#73FFA2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
         )}
       </div>
 
@@ -282,7 +346,7 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
           </div>
 
           {/* Input */}
-          <div className="p-3 border-t border-gray-700 bg-gray-800/50">
+          <div className="p-3 border-t bg-transparent" style={rowDividerStyle}>
             <div className="flex items-end gap-2">
               <textarea
                 ref={textareaRef}
@@ -322,10 +386,10 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#66DEDB]"></div>
               </div>
-            ) : friendsConversations.length === 0 ? (
+            ) : conversationsData.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                <p className="text-sm">No tienes conversaciones</p>
-                <p className="text-xs mt-1">Inicia una conversación desde tus amigos</p>
+                <p className="text-sm">No tienes conversaciones con mensajes</p>
+                <p className="text-xs mt-1">Usa + para iniciar una nueva</p>
               </div>
             ) : (
               conversationsData.map(({ conversation, lastMessage, lastMessageTime, unreadCount }) => {
@@ -336,7 +400,8 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
                 if (!otherParticipant.user && !otherParticipant.deletedUserEmail) return null
 
                 // Mostrar nombre: Usar user si existe, sino usar deletedUserEmail
-                const displayName = otherParticipant.alias || 
+                const displayName = otherParticipant.user?.username ||
+                  otherParticipant.alias ||
                   (otherParticipant.user 
                     ? `${otherParticipant.user?.firstName || ''} ${otherParticipant.user?.lastName || ''}`.trim()
                     : otherParticipant.deletedUserEmail || 'Usuario eliminado') ||
@@ -350,7 +415,8 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
                     onClick={() => {
                       setSelectedConversationId(conversation.id)
                     }}
-                    className="w-full p-3 border-b border-gray-700 hover:bg-gray-800/50 transition-colors text-left flex items-center gap-3"
+                    className="w-full p-3 border-b hover:bg-white/[0.03] transition-colors text-left flex items-center gap-3"
+                    style={rowDividerStyle}
                   >
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
@@ -383,7 +449,7 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-sm font-semibold text-white truncate">{displayName}</p>
-                        <span className="text-xs text-gray-400 flex-shrink-0 ml-2">{formatTime(lastMessageTime)}</span>
+                        <span className="text-sm text-gray-300 flex-shrink-0 ml-2">{formatTime(lastMessageTime)}</span>
                       </div>
                       <p className={`text-xs truncate ${unreadCount > 0 ? 'text-white font-medium' : 'text-gray-400'}`}>
                         {lastMessage}
@@ -396,13 +462,10 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
           </div>
 
           {/* Footer - Link a mensajes completos */}
-          <div className="p-3 border-t border-gray-700">
-            <a
-              href="/messages"
-              className="block text-center text-sm text-[#66DEDB] hover:text-[#73FFA2] transition-colors font-medium"
-            >
+          <div className="p-3 border-t" style={rowDividerStyle}>
+            <Link href="/messages" className="block text-center text-sm font-medium leading-none text-[#73FFA2] transition-opacity hover:opacity-85">
               Ver todos los mensajes
-            </a>
+            </Link>
           </div>
         </>
       )}

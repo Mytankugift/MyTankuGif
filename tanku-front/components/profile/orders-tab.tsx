@@ -235,19 +235,18 @@ export function OrdersTab({ userId, initialOrderId }: OrdersTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <ShoppingBagIcon className="w-6 h-6 text-[#73FFA2]" />
-        <h3 className="text-xl font-bold text-[#73FFA2]">MIS COMPRAS</h3>
-      </div>
-
       {/* Orders Table */}
       {orders.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mb-4">
-            <ShoppingBagIcon className="w-8 h-8 text-gray-400" />
-          </div>
-          <h4 className="text-white text-lg font-medium mb-2">No hay órdenes</h4>
+          <Image
+            src="/icons_tanku/tanku_nav_carrito_verde.svg"
+            alt=""
+            width={46}
+            height={46}
+            className="mb-3 h-[46px] w-[46px] object-contain opacity-80"
+            unoptimized
+          />
+          <h4 className="text-white text-lg font-medium mb-2">Aun no has comprado nada</h4>
           <p className="text-gray-400 text-sm">Cuando realices compras, aparecerán aquí.</p>
         </div>
       ) : (

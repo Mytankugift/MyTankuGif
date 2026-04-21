@@ -312,12 +312,12 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
       const variantResponse = await apiClient.get<any>(API_ENDPOINTS.PRODUCTS.VARIANT_BY_ID(item.variantId))
       if (variantResponse.success && variantResponse.data) {
         const stock = variantResponse.data.stock || 0
-        if (stock <= 0) {
-          showError('Este producto está agotado y no está disponible para regalo')
+                                    if (stock <= 0) {
+                                      showError('Este producto está agotado')
           return
         }
         if (stock < 1) {
-          showError(`Stock insuficiente. Solo hay ${stock} unidad(es) disponible(s)`)
+                                      showError('Stock insuficiente')
           return
         }
       } else {
@@ -395,7 +395,7 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
         return (
           <div key={wishlist.id} className="space-y-3">
             {/* Header de wishlist */}
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <h4 className="text-base font-semibold text-white truncate">{wishlist.name}</h4>
                 {isPrivate ? (
@@ -404,7 +404,25 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
                   <span className="text-xs text-gray-400">🌐 Pública</span>
                 )}
               </div>
-              <div className="flex items-center gap-4 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {isPrivate && !isOwnWishlist && !canView && (
+                  hasPendingRequest ? (
+                    <button
+                      onClick={() => handleCancelAccessRequest(wishlist.id)}
+                      className="px-2.5 py-1 text-[10px] font-semibold rounded-full border border-gray-600/60 text-gray-300 hover:bg-white/5 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleRequestAccess(wishlist.id)}
+                      className="px-2.5 py-1 text-[10px] font-semibold rounded-full text-black shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] hover:opacity-90 transition-opacity"
+                      style={{ background: 'linear-gradient(90deg, #73FFA2 0%, #1A485C 100%)' }}
+                    >
+                      Solicitar acceso
+                    </button>
+                  )
+                )}
                 {canView && itemsArray.length > 0 ? (
                   <span className="text-sm text-gray-400">
                     {itemsArray.length} producto{itemsArray.length !== 1 ? 's' : ''}
@@ -450,14 +468,15 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
 
             {/* Carrusel de productos con diseño minimalista (solo si puede ver y tiene items) */}
             {canView && itemsArray.length > 0 ? (
-              <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                {itemsArray.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex-shrink-0 w-[120px]"
-                  >
+              <div className="flex items-start gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
+                  {itemsArray.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex-shrink-0 w-[142px] sm:w-[152px]"
+                    >
                     <div className="relative">
-                      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-700/30">
+                      <div className="relative h-[88px] w-full rounded-lg overflow-hidden bg-gray-700/30">
                         {item.product.thumbnail ? (
                           <Image
                             src={item.product.thumbnail}
@@ -477,7 +496,7 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
                     <div className="mt-1 border border-gray-700/30 rounded-lg p-2 bg-gray-800/20">
                       {/* Nombre con tooltip */}
                       <div
-                        className="text-xs text-white line-clamp-1 cursor-default"
+                        className="text-xs text-white line-clamp-2 min-h-[2rem] cursor-default"
                         title={item.product.title}
                       >
                         {item.product.title}
@@ -514,7 +533,7 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
                               e.stopPropagation()
                               await handleSendAsGift(item)
                             }}
-                            className="px-2.5 py-1 rounded bg-[#3B9BC3] hover:bg-[#2a8ba8] transition-colors flex-shrink-0"
+                            className="px-2.5 py-1 rounded-full bg-[linear-gradient(90deg,#3B9BC3_0%,#2A5B74_100%)] hover:opacity-90 transition-all duration-200 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] flex-shrink-0"
                             aria-label="Dar Tanku"
                             title="Dar Tanku"
                           >
@@ -523,15 +542,17 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
                         )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  ))}
+                </div>
 
-                {/* Ver más como texto azul al final */}
+                {/* Ver más siempre visible fuera del slider */}
                 <button
                   onClick={() => setSelectedWishlist(wishlist)}
-                  className="flex-shrink-0 text-sm text-[#3B9BC3] hover:underline px-2"
+                  className="self-center flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold text-black shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-opacity hover:opacity-90"
+                  style={{ background: 'linear-gradient(90deg, #73FFA2 0%, #1A485C 100%)' }}
                 >
-                  Ver más
+                  Abrir
                 </button>
               </div>
             ) : canView && itemsArray.length === 0 ? (
@@ -540,33 +561,9 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
               </div>
             ) : null}
 
-            {/* Botón para solicitar acceso a wishlist privada - mostrar para TODOS si es privada y no es propia */}
             {isPrivate && !isOwnWishlist && !canView && (
-              <div className="space-y-3">
-                <div className="text-center py-4 text-gray-400 text-sm">
-                  Esta wishlist es privada
-                </div>
-                {hasPendingRequest ? (
-                  <button
-                    onClick={() => handleCancelAccessRequest(wishlist.id)}
-                    className="w-full py-2.5 px-4 text-sm bg-gray-800/50 hover:bg-gray-800 text-gray-300 font-medium rounded-lg border border-gray-700/50 hover:border-gray-600 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Cancelar solicitud
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleRequestAccess(wishlist.id)}
-                    className="w-full py-2.5 px-4 text-sm bg-gradient-to-r from-[#73FFA2] to-[#66DEDB] hover:from-[#66DEDB] hover:to-[#73FFA2] text-gray-900 font-semibold rounded-lg transition-all duration-300 shadow-lg shadow-[#73FFA2]/20 hover:shadow-[#73FFA2]/40 flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    Solicitar acceso
-                  </button>
-                )}
+              <div className="text-center py-3 text-gray-400 text-xs">
+                Esta wishlist es privada
               </div>
             )}
           </div>

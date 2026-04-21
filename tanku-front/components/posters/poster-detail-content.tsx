@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
@@ -12,8 +13,7 @@ import { SharePostModal } from './share-post-modal'
 import { EmojiPickerButton } from './emoji-picker-button'
 import Image from 'next/image'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
-import { HeartIcon, ChatBubbleLeftIcon, TrashIcon, ShareIcon, ArrowLeftIcon, EllipsisVerticalIcon, PaperAirplaneIcon, XMarkIcon } from '@heroicons/react/24/outline'
-import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
+import { ChatBubbleLeftIcon, TrashIcon, EllipsisVerticalIcon, PaperAirplaneIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
 interface PosterDetailContentProps {
   posterId: string
@@ -36,6 +36,8 @@ interface PosterDetailContentProps {
     }
   } | null
   isPageView?: boolean
+  /** Modal mobile con UX tipo página (acciones debajo + comentarios en sheet) */
+  mobilePageLike?: boolean
   /** Cerrar modal (solo vista modal): muestra … y X en la barra superior */
   onModalClose?: () => void
   onPostDeleted?: (posterId: string) => void
@@ -84,6 +86,7 @@ export function PosterDetailContent({
   posterId, 
   initialPosterData, 
   isPageView = false,
+  mobilePageLike = false,
   onModalClose,
   onPostDeleted,
   onPostUpdated 
@@ -112,7 +115,15 @@ export function PosterDetailContent({
   const [replyingTo, setReplyingTo] = useState<{ commentId: string; authorName: string; authorId: string } | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [isCommentsSheetOpen, setIsCommentsSheetOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+  const [mediaOrientation, setMediaOrientation] = useState<'landscape' | 'portrait' | 'square'>('square')
   const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setIsMounted(true)
+    return () => setIsMounted(false)
+  }, [])
 
   // Inicializar con datos del feed si están disponibles
   useEffect(() => {
@@ -474,58 +485,66 @@ export function PosterDetailContent({
   const authorName = poster.author?.firstName && poster.author?.lastName
     ? `${poster.author.firstName} ${poster.author.lastName}`
     : poster.author?.email?.split('@')[0] || 'Usuario'
+  const postDateLabel = new Date(poster.createdAt).toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
 
   const isOwner = user?.id === poster.author?.id
+  const usePageLikeMobile = isPageView || mobilePageLike
 
   return (
     <div className={`${isPageView ? 'h-full flex flex-col' : 'flex flex-col'} ${isPageView ? '' : 'h-full'}`}>
       {/* Header - Solo en pageView */}
       {isPageView && (
-        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-700">
-          <div className="flex items-center gap-4">
+        <div className="flex-shrink-0 border-b border-gray-700 bg-[#191E23]">
+          <div className="relative flex items-center justify-between px-4 py-3">
             <button
               onClick={() => router.back()}
-              className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800"
+              className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-white/10"
               aria-label="Volver"
             >
-              <ArrowLeftIcon className="w-6 h-6" />
+              <Image
+                src="/icons_tanku/mobile_tanku_menu_ir_atras_Universal.svg"
+                alt=""
+                width={24}
+                height={24}
+                className="h-6 w-6 object-contain"
+                unoptimized
+              />
             </button>
+            <h2 className="absolute left-1/2 -translate-x-1/2 text-sm font-semibold text-white">Publicación</h2>
+            <div className="w-9" />
+          </div>
+          <div className="flex items-center justify-between border-t border-gray-700/70 px-4 py-2.5">
             <button
               onClick={() => router.push(poster.author.username ? `/profile/${poster.author.username}` : `/profile/${poster.author.id}`)}
-              className="flex items-center gap-4 hover:opacity-80 transition-opacity"
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
-              <UserAvatar user={poster.author} size={40} />
+              <UserAvatar user={poster.author} size={36} />
               <div>
                 <p className="text-white font-semibold hover:text-[#73FFA2] transition-colors">{authorName}</p>
-                <p className="text-gray-400 text-sm">
-                  {new Date(poster.createdAt).toLocaleDateString('es-ES', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </p>
               </div>
             </button>
-          </div>
-          <div className="flex items-center gap-2">
             {isOwner && (
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setShowMenu(!showMenu)}
-                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                  className="p-2 text-white hover:opacity-80 transition-opacity"
                   title="Más opciones"
                 >
                   <EllipsisVerticalIcon className="w-5 h-5" />
                 </button>
                 {showMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10">
+                  <div className="absolute right-0 mt-2 bg-[#2A3036] rounded-xl shadow-lg border border-[#73FFA2]/40 z-20 px-3 py-2">
                     <button
                       onClick={() => {
                         handleDelete()
                         setShowMenu(false)
                       }}
                       disabled={isDeleting}
-                      className="w-full text-left px-4 py-2 text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                      className="whitespace-nowrap text-sm text-white hover:text-[#73FFA2] transition-colors disabled:opacity-50"
                     >
                       {isDeleting ? 'Eliminando...' : 'Eliminar publicación'}
                     </button>
@@ -539,7 +558,7 @@ export function PosterDetailContent({
 
       {/* Header para modal (no pageView) */}
       {!isPageView && (
-        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-700">
+        <div className="flex-shrink-0 flex items-center justify-between border-b border-gray-700 p-4 bg-[linear-gradient(180deg,#20262D_0%,#191E23_100%)]">
           <button
             onClick={() => router.push(poster.author.username ? `/profile/${poster.author.username}` : `/profile/${poster.author.id}`)}
             className="flex items-center gap-3 hover:opacity-80 transition-opacity"
@@ -548,11 +567,7 @@ export function PosterDetailContent({
             <div>
               <p className="text-white font-semibold hover:text-[#73FFA2] transition-colors">{authorName}</p>
               <p className="text-gray-400 text-sm">
-                {new Date(poster.createdAt).toLocaleDateString('es-ES', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
+                {postDateLabel}
               </p>
             </div>
           </button>
@@ -576,9 +591,9 @@ export function PosterDetailContent({
                       router.push(`/posts/${posterId}`)
                       setShowMenu(false)
                     }}
-                    className="w-full px-4 py-2 text-left text-white transition-colors hover:bg-gray-700"
+                    className="w-full whitespace-nowrap px-3 py-2 text-left text-xs text-white transition-colors hover:bg-gray-700"
                   >
-                    Abrir en nueva página
+                    Ver publicación
                   </button>
                   {isOwner && (
                     <button
@@ -588,7 +603,7 @@ export function PosterDetailContent({
                         setShowMenu(false)
                       }}
                       disabled={isDeleting}
-                      className="w-full px-4 py-2 text-left text-red-400 transition-colors hover:bg-red-900/20 disabled:opacity-50"
+                      className="w-full whitespace-nowrap px-3 py-2 text-left text-xs text-red-400 transition-colors hover:bg-red-900/20 disabled:opacity-50"
                     >
                       {isDeleting ? 'Eliminando...' : 'Eliminar publicación'}
                     </button>
@@ -614,14 +629,27 @@ export function PosterDetailContent({
       )}
 
       {/* Content */}
-      <div className={`flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden ${isPageView ? '' : 'overflow-y-auto'}`}>
+      <div className={`flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden ${isPageView ? '' : 'overflow-y-auto'} bg-[#11161B]`}>
         {/* Media */}
-        <div className="lg:w-3/5 bg-black flex items-center justify-center min-h-[300px] lg:min-h-0 lg:h-full relative">
+        <div className="lg:w-3/5 bg-black flex items-center justify-center min-h-[58dvh] lg:min-h-0 lg:h-full relative">
           {poster.videoUrl ? (
             <video
               src={poster.videoUrl}
               controls
-              className="w-full h-full max-h-full object-contain"
+              onLoadedMetadata={(e) => {
+                const el = e.currentTarget
+                if (!el.videoWidth || !el.videoHeight) return
+                if (el.videoWidth > el.videoHeight) setMediaOrientation('landscape')
+                else if (el.videoHeight > el.videoWidth) setMediaOrientation('portrait')
+                else setMediaOrientation('square')
+              }}
+              className={`max-h-full max-w-full ${
+                usePageLikeMobile
+                  ? mediaOrientation === 'portrait'
+                    ? 'h-full w-auto object-contain'
+                    : 'w-full h-auto object-contain'
+                  : 'w-full h-full object-contain'
+              }`}
             />
           ) : (
             <Image
@@ -629,41 +657,69 @@ export function PosterDetailContent({
               alt="Post"
               width={1200}
               height={1200}
-              className="w-full h-full max-w-full max-h-full object-contain"
+              onLoadingComplete={(img) => {
+                if (!img.naturalWidth || !img.naturalHeight) return
+                if (img.naturalWidth > img.naturalHeight) setMediaOrientation('landscape')
+                else if (img.naturalHeight > img.naturalWidth) setMediaOrientation('portrait')
+                else setMediaOrientation('square')
+              }}
+              className={`${
+                usePageLikeMobile
+                  ? mediaOrientation === 'portrait'
+                    ? 'h-full w-auto max-w-full object-contain'
+                    : 'w-full h-auto max-h-full object-contain'
+                  : 'w-full h-full max-w-full max-h-full object-contain'
+              }`}
               unoptimized={isRemoteImageSrc(poster.imageUrl)}
-              style={{ 
+              style={isPageView ? undefined : {
                 maxHeight: '100%',
                 width: 'auto',
                 height: 'auto',
               }}
             />
           )}
-          
-          {/* Contadores de like y comentarios en esquina inferior izquierda */}
-          <div className="absolute bottom-4 left-4 flex flex-col gap-2 z-10">
-            <button
-              onClick={handleLike}
-              disabled={isLiking}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-black/60 backdrop-blur-sm transition-colors ${
-                poster.isLiked ? 'text-red-500' : 'text-white hover:text-red-500'
-              }`}
-            >
-              {poster.isLiked ? (
-                <HeartSolidIcon className="w-5 h-5" />
-              ) : (
-                <HeartIcon className="w-5 h-5" />
-              )}
-              <span className="font-semibold text-sm">{poster.likesCount}</span>
-            </button>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/60 backdrop-blur-sm text-white">
-              <ChatBubbleLeftIcon className="w-5 h-5" />
-              <span className="font-semibold text-sm">{poster.commentsCount}</span>
-            </div>
-          </div>
         </div>
 
+        {/* Bloque inferior en mobile page view: acciones + fecha + descripción */}
+        {usePageLikeMobile && (
+          <div className="lg:hidden border-t border-gray-700 bg-[#191E23] px-4 py-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleLike}
+                  disabled={isLiking}
+                  className={`flex items-center gap-1.5 transition-colors ${
+                    poster.isLiked ? 'text-red-500' : 'text-white hover:text-red-500'
+                  }`}
+                >
+                  <Image
+                    src={poster.isLiked ? '/icons_tanku/tanku_megusta_relleno.svg' : '/icons_tanku/tanku_megusta_lineas_azul.svg'}
+                    alt={poster.isLiked ? 'Quitar me gusta' : 'Me gusta'}
+                    width={20}
+                    height={20}
+                    className="w-5 h-5 object-contain"
+                    unoptimized
+                  />
+                  <span className="text-sm font-semibold">{poster.likesCount}</span>
+                </button>
+                <button
+                  onClick={() => setIsCommentsSheetOpen(true)}
+                  className="flex items-center gap-1.5 text-white hover:text-[#73FFA2] transition-colors"
+                >
+                  <ChatBubbleLeftIcon className="w-5 h-5" />
+                  <span className="text-sm font-semibold">{poster.commentsCount}</span>
+                </button>
+              </div>
+              <p className="text-xs text-gray-400">{postDateLabel}</p>
+            </div>
+            {poster.description ? (
+              <p className="text-white text-sm leading-relaxed">{poster.description}</p>
+            ) : null}
+          </div>
+        )}
+
         {/* Details */}
-        <div className="lg:w-2/5 flex flex-col min-h-0 h-full lg:border-l border-t lg:border-t-0 border-gray-700">
+        <div className={`${usePageLikeMobile ? 'hidden lg:flex' : 'flex'} lg:w-2/5 flex-col min-h-0 h-full lg:border-l border-t lg:border-t-0 border-gray-700 bg-[#191E23]`}>
           {/* Description */}
           {poster.description && (
             <div className="flex-shrink-0 p-4 border-b border-gray-700 relative">
@@ -674,7 +730,14 @@ export function PosterDetailContent({
                 className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition-colors"
                 title="Compartir con amigos"
               >
-                <ShareIcon className="w-5 h-5" />
+                <Image
+                  src="/icons_tanku/tanku_card_compartir_verde.svg"
+                  alt="Compartir"
+                  width={20}
+                  height={20}
+                  className="w-5 h-5 object-contain"
+                  unoptimized
+                />
               </button>
             </div>
           )}
@@ -687,7 +750,14 @@ export function PosterDetailContent({
                 className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition-colors"
                 title="Compartir con amigos"
               >
-                <ShareIcon className="w-5 h-5" />
+                <Image
+                  src="/icons_tanku/tanku_card_compartir_verde.svg"
+                  alt="Compartir"
+                  width={20}
+                  height={20}
+                  className="w-5 h-5 object-contain"
+                  unoptimized
+                />
               </button>
             </div>
           )}
@@ -799,6 +869,132 @@ export function PosterDetailContent({
           )}
         </div>
       </div>
+
+      {usePageLikeMobile && isMounted
+        ? createPortal(
+            <div
+              className={`fixed inset-0 z-[1000002] bg-black/60 transition-opacity duration-200 lg:hidden ${
+                isCommentsSheetOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+              }`}
+              onClick={() => setIsCommentsSheetOpen(false)}
+              role="presentation"
+            >
+              <div
+                className={`absolute bottom-0 left-0 right-0 h-[72dvh] rounded-t-2xl border-t border-white/10 bg-[#191E23] transition-transform duration-200 flex flex-col ${
+                  isCommentsSheetOpen ? 'translate-y-0' : 'translate-y-full'
+                }`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-gray-700 px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsCommentsSheetOpen(false)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-white/10"
+                    aria-label="Cerrar comentarios"
+                  >
+                    <Image
+                      src="/icons_tanku/mobile_tanku_menu_ir_atras_Universal.svg"
+                      alt=""
+                      width={24}
+                      height={24}
+                      className="h-6 w-6 object-contain"
+                      unoptimized
+                    />
+                  </button>
+                  <h3 className="text-sm font-semibold text-white">Comentarios</h3>
+                  <div className="w-9" />
+                </div>
+
+                <div className="flex-1 overflow-y-auto">
+                  <div className="space-y-4 p-4">
+                    {poster.comments && poster.comments.length > 0 ? (
+                      <>
+                        {poster.comments
+                          .filter(comment => !comment.parentId)
+                          .map((comment) => (
+                            <CommentItem
+                              key={comment.id}
+                              comment={comment}
+                              posterId={poster.id}
+                              mentionedUsers={mentionedUsers}
+                              allComments={poster.comments || []}
+                              onReplyClick={handleReplyClick}
+                              onUpdate={() => loadComments(0)}
+                              parentComment={null}
+                              rootComment={null}
+                              isPostOwner={isOwner}
+                            />
+                          ))}
+                        {hasMoreComments && (poster?.comments?.length || 0) >= 20 && (
+                          <button
+                            onClick={() => loadComments(commentsPage + 1)}
+                            disabled={isLoadingComments}
+                            className="w-full py-2 text-[#73FFA2] hover:text-[#66e891] text-sm font-medium disabled:opacity-50"
+                          >
+                            {isLoadingComments ? 'Cargando...' : 'Cargar más comentarios'}
+                          </button>
+                        )}
+                      </>
+                    ) : isLoadingComments ? (
+                      <div className="flex justify-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#73FFA2]"></div>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-8">No hay comentarios aún</p>
+                    )}
+                  </div>
+                </div>
+
+                {token && (
+                  <div className="border-t border-gray-700 bg-[#191E23] p-4 pb-[max(1rem,calc(1rem+env(safe-area-inset-bottom,0px)))]">
+                    <form onSubmit={handleComment} className="flex gap-3">
+                      {user && (
+                        <UserAvatar
+                          user={{
+                            avatar: user.profile?.avatar || null,
+                            firstName: user.firstName,
+                            lastName: user.lastName,
+                            email: user.email,
+                          }}
+                          size={40}
+                          className="flex-shrink-0"
+                        />
+                      )}
+                      <div className="flex-1 flex gap-2">
+                        <div className="flex-1 relative">
+                          <UserMentionAutocomplete
+                            value={commentText}
+                            onChange={setCommentText}
+                            placeholder="Escribe un comentario..."
+                            disabled={isCommenting}
+                          />
+                          <EmojiPickerButton
+                            onEmojiSelect={(emoji) => {
+                              setCommentText(prev => prev + emoji)
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={!commentText.trim() || isCommenting}
+                          className="w-10 h-10 flex items-center justify-center bg-[#73FFA2] hover:bg-[#66e891] text-black rounded-[14px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                          title={isCommenting ? 'Publicando...' : 'Publicar'}
+                        >
+                          {isCommenting ? (
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                          ) : (
+                            <PaperAirplaneIcon className="w-5 h-5" />
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       {/* Modal de compartir */}
       {poster && (

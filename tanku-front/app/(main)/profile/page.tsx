@@ -17,7 +17,7 @@ import { PosterCard } from '@/components/feed/poster-card'
 import { CreatePostModal } from '@/components/posters/create-post-modal'
 import { PosterDetailModal } from '@/components/posters/poster-detail-modal'
 import Image from 'next/image'
-import { Cog6ToothIcon, CameraIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { CameraIcon, PlusIcon } from '@heroicons/react/24/outline'
 import { BaseNav } from '@/components/layout/base-nav'
 
 
@@ -41,6 +41,8 @@ function ProfileContent() {
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
+  const tabsScrollRef = useRef<HTMLDivElement>(null)
+  const tabButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
   
   // Usar el avatar de user_profiles.avatar si existe (similar a suggestion-card)
   // IMPORTANTE: Todos los hooks deben estar antes de cualquier return condicional
@@ -78,6 +80,18 @@ function ProfileContent() {
     }
     loadFriendsCount()
   }, [user?.id])
+
+  useEffect(() => {
+    const activeButton = tabButtonRefs.current[activeTab]
+    const container = tabsScrollRef.current
+    if (!activeButton || !container) return
+
+    activeButton.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest',
+    })
+  }, [activeTab])
 
   // Función para cargar posters
   const loadPosters = React.useCallback(async () => {
@@ -253,20 +267,22 @@ function ProfileContent() {
         canHide={false}
         isVisible={true}
         pageTitle="Mi perfil"
-        pageSubtitle="Personaliza tu cuenta, revisa tu actividad y gestiona pedidos y regalos"
         pageTitleColor="#66DEDB"
+        mobileBackCenterTitleCartOnly
+        mobileTranslucentNav
       />
-      <div
-        className="min-h-screen w-full overflow-x-hidden overflow-y-auto p-3 pt-24 sm:p-4 sm:pt-28 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:p-6 md:pt-32 custom-scrollbar"
-        style={{ backgroundColor: '#1E1E1E' }}
-      >
+      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" id="profile-scroll-root">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar max-md:px-3 max-md:pt-[max(5rem,calc(env(safe-area-inset-top,0px)+4rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20"
+          style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
+        >
         <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">
         {/* Sección principal - Dos columnas */}
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           {/* Columna principal - 75% */}
           <div className="flex-1 w-full md:w-3/4">
             {/* Banner */}
-            <div className="w-full h-24 sm:h-28 md:h-48 bg-gradient-to-r from-[#1A485C] to-[#73FFA2] rounded-lg mb-3 sm:mb-4 overflow-hidden relative group">
+            <div className="w-full h-32 sm:h-36 md:h-56 bg-gradient-to-r from-[#1A485C] to-[#73FFA2] rounded-[25px] mb-3 sm:mb-4 overflow-hidden relative group">
               {bannerUrl ? (
                 <Image
                   src={bannerUrl}
@@ -315,28 +331,32 @@ function ProfileContent() {
             )}
             
             {/* Información del usuario */}
-            <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+            <div className="space-y-2 sm:space-y-2.5 md:space-y-3 -mt-10 sm:-mt-12 md:-mt-14 relative z-10">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2 sm:gap-3 ml-4 sm:ml-6 md:ml-10">
                   {/* Avatar */}
                   <div className="relative group flex-shrink-0">
-                    <div className={`w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center ${isUploadingAvatar ? 'opacity-50' : ''}`}>
-                      {imgSrc ? (
-                        <Image
-                          src={imgSrc}
-                          alt="Avatar del usuario"
-                          width={96}
-                          height={96}
-                          className="object-cover rounded-full w-full h-full"
-                          unoptimized={imgSrc.startsWith('http')}
-                          onError={() => setImgSrc('')}
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-xl font-bold">
-                          {(user.firstName?.[0] || user.email?.[0] || 'U').toUpperCase()}
-                        </div>
-                      )}
+                    <div
+                      className={`p-[5px] sm:p-[6px] rounded-full bg-[linear-gradient(180deg,#73FFA2_0%,#1A485C_100%)] ${isUploadingAvatar ? 'opacity-50' : ''}`}
+                    >
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+                        {imgSrc ? (
+                          <Image
+                            src={imgSrc}
+                            alt="Avatar del usuario"
+                            width={112}
+                            height={112}
+                            className="object-cover rounded-full w-full h-full"
+                            unoptimized={imgSrc.startsWith('http')}
+                            onError={() => setImgSrc('')}
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-xl font-bold">
+                            {(user.firstName?.[0] || user.email?.[0] || 'U').toUpperCase()}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {/* Botón de editar avatar */}
                     <button
@@ -361,18 +381,18 @@ function ProfileContent() {
                     />
                   </div>
                   
-                  <div>
+                  <div className="pt-10 sm:pt-11 md:pt-14">
                     {user?.username ? (
                       <>
-                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#73FFA2] break-words">
+                        <h1 className="text-base sm:text-lg md:text-xl font-bold text-[#73FFA2] break-words leading-tight">
                           {user.username}
                         </h1>
                         {userName && userName !== 'Usuario' && (
-                          <p className="text-gray-400 text-sm mt-1">{userName}</p>
+                          <p className="text-gray-400 text-xs sm:text-sm mt-1">{userName}</p>
                         )}
                       </>
                     ) : (
-                      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#73FFA2] break-words">
+                      <h1 className="text-base sm:text-lg md:text-xl font-bold text-[#73FFA2] break-words leading-tight">
                         {userName}
                       </h1>
                     )}
@@ -380,21 +400,16 @@ function ProfileContent() {
                 </div>
                 <button
                   onClick={() => setIsSettingsModalOpen(true)}
-                  className="p-1.5 sm:p-2 rounded-full hover:bg-gray-700 transition-colors"
-                  title="Configuración"
+                  className="px-3 sm:px-4 py-1 rounded-full text-[11px] sm:text-xs font-semibold text-black transition-opacity hover:opacity-90 mt-10 sm:mt-11 md:mt-14 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)]"
+                  style={{ background: 'linear-gradient(90deg, #73FFA2 0%, #1A485C 100%)' }}
+                  title="Editar perfil"
                 >
-                  <Cog6ToothIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#73FFA2]" />
+                  Editar perfil
                 </button>
               </div>
               
               <p className="text-gray-300 text-xs sm:text-sm">
                 {user.profile?.bio || 'Miembro de la comunidad TANKU'}
-              </p>
-              <p className="text-gray-400 text-xs sm:text-sm flex items-center gap-1">
-                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
-                Bogotá, Colombia
               </p>
             </div>
           </div>
@@ -402,23 +417,26 @@ function ProfileContent() {
           {/* Columna lateral - 25% */}
           <div className="w-full md:w-1/4 mt-3 sm:mt-4 md:mt-0">
             {/* Estadísticas */}
-            <div className="text-center space-y-1 sm:space-y-2 mb-6">
-              <div className="flex justify-center space-x-4 sm:space-x-6">
-                <div>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-[#73FFA2]">{friendsCount}</p>
-                  <p className="text-gray-400 text-xs sm:text-sm">Amigos</p>
+            <div
+              className="text-center space-y-0.5 mb-6 rounded-[15px] py-2 px-3 sm:py-2.5 sm:px-3.5"
+              style={{ background: 'linear-gradient(135deg, #73FFA2 0%, #4A6153 20%, #4A6153 81%, #73FFA2 100%)' }}
+            >
+              <div className="grid grid-cols-2 items-center px-1 sm:px-2">
+                <div className="flex flex-col items-center justify-center">
+                  <p className="text-lg sm:text-xl md:text-xl font-bold text-white">{friendsCount}</p>
+                  <p className="text-[#73FFA2] text-xs sm:text-sm md:text-xs font-semibold">Amigos</p>
                 </div>
-                <div>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-[#73FFA2]">{postsCount}</p>
-                  <p className="text-gray-400 text-xs sm:text-sm">Publicaciones</p>
+                <div className="flex flex-col items-center justify-center">
+                  <p className="text-lg sm:text-xl md:text-xl font-bold text-white">{postsCount}</p>
+                  <p className="text-[#73FFA2] text-xs sm:text-sm md:text-xs font-semibold">Publicaciones</p>
                 </div>
               </div>
             </div>
 
             {/* Redes sociales */}
             {user?.profile?.socialLinks && user.profile.socialLinks.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs sm:text-sm font-medium text-gray-400 mb-2">Redes Sociales</h4>
+              <div className="space-y-2 flex flex-col items-center md:items-stretch">
+                <h4 className="text-xs sm:text-sm font-medium text-gray-400 mb-2 text-center md:text-left">Redes Sociales</h4>
                 <SocialLinksDisplay socialLinks={user.profile.socialLinks} />
               </div>
             )}
@@ -426,15 +444,21 @@ function ProfileContent() {
         </div>
 
         {/* Navegación de tabs */}
-        <div className="flex justify-start sm:justify-center space-x-2 sm:space-x-3 md:space-x-8 border-b border-gray-600 pb-1.5 sm:pb-2 mb-3 sm:mb-4 md:mb-6 overflow-x-auto scrollbar-hide px-1">
+        <div
+          ref={tabsScrollRef}
+          className="flex justify-start sm:justify-center space-x-2 sm:space-x-3 md:space-x-8 border-b border-gray-600 pb-1.5 sm:pb-2 mb-3 sm:mb-4 md:mb-6 overflow-x-auto scrollbar-hide px-1"
+        >
           {tabs.map((tab) => (
             <button
               key={tab}
+              ref={(el) => {
+                tabButtonRefs.current[tab] = el
+              }}
               onClick={() => setActiveTab(tab)}
               className={`px-1.5 sm:px-2 md:px-4 py-0.5 sm:py-1 md:py-2 text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === tab
                   ? 'text-[#73FFA2] border-b-2 border-[#73FFA2]'
-                  : 'text-gray-400 hover:text-white'
+                  : 'text-[#66DEDB] hover:text-[#73FFA2]'
               }`}
             >
               {tab}
@@ -447,12 +471,13 @@ function ProfileContent() {
           {activeTab === 'PUBLICACIONES' && (
               <div className="w-full">
                 {/* Botón de crear post */}
-                <div className="mb-4 sm:mb-6">
+                <div className="mb-4 sm:mb-6 flex justify-end">
                   <button
                     onClick={() => setCreatePostModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#73FFA2] hover:bg-[#66e891] text-gray-900 font-semibold rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-4 sm:px-5 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold text-black transition-opacity hover:opacity-90 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)]"
+                    style={{ background: 'linear-gradient(90deg, #73FFA2 0%, #1A485C 100%)' }}
                   >
-                    <PlusIcon className="w-5 h-5" />
+                    <PlusIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>Crear Nuevo Post</span>
                   </button>
                 </div>
@@ -472,7 +497,7 @@ function ProfileContent() {
                     <p className="text-gray-400 text-xs sm:text-sm">Las publicaciones aparecerán aquí cuando estén disponibles.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-1 sm:gap-1.5 md:gap-2">
                     {posters.map((poster) => (
                       <PosterCard
                         key={poster.id}
@@ -489,10 +514,10 @@ function ProfileContent() {
                           author: poster.author,
                         }}
                         onOpenModal={(poster) => {
-                          setSelectedPosterId(poster.id)
-                          setIsPosterModalOpen(true)
+                          router.push(`/posts/${poster.id}?from=profile`)
                         }}
                         isLightMode={false}
+                        variant="profile"
                       />
                     ))}
                   </div>
@@ -566,6 +591,7 @@ function ProfileContent() {
         }}
         />
         </div>
+      </div>
       </div>
     </>
   )

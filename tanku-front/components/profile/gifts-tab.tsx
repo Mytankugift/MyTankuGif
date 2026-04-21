@@ -235,12 +235,6 @@ export function GiftsTab({ userId }: GiftsTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <GiftIcon className="w-6 h-6 text-[#73FFA2]" />
-        <h3 className="text-xl font-bold text-[#73FFA2]">REGALOS</h3>
-      </div>
-
       {/* Tabs para enviados/recibidos */}
       <div className="flex gap-2 border-b border-gray-700 mb-6">
         <button
@@ -251,7 +245,7 @@ export function GiftsTab({ userId }: GiftsTabProps) {
               : 'text-gray-400 hover:text-gray-300'
           }`}
         >
-          Regalos Enviados ({sentGifts.length})
+          Regalos Enviados
         </button>
         <button
           onClick={() => setActiveSection('received')}
@@ -261,7 +255,7 @@ export function GiftsTab({ userId }: GiftsTabProps) {
               : 'text-gray-400 hover:text-gray-300'
           }`}
         >
-          Regalos Recibidos ({receivedGifts.length})
+          Regalos Recibidos
         </button>
       </div>
 

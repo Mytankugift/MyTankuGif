@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { startGoogleOAuth } from '@/lib/auth/google-oauth'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 
 const btnPrimary =
@@ -58,9 +59,9 @@ export function ProductAgeRestrictedModal({
           </>
         ) : (
           <>
-            <Link href="/auth/login" className={btnPrimary}>
+            <button type="button" onClick={() => startGoogleOAuth()} className={btnPrimary}>
               Iniciar sesión
-            </Link>
+            </button>
             <Link href="/auth/register" className={btnOutline}>
               Crear cuenta
             </Link>

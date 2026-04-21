@@ -102,6 +102,7 @@ export const API_ENDPOINTS = {
     FEED: '/api/v1/stories',
     BY_USER: (userId: string) => `/api/v1/stories/user/${userId}`,
     CREATE: '/api/v1/stories',
+    DELETE: (storyId: string) => `/api/v1/stories/${storyId}`,
     WISHLIST: '/api/v1/stories/wishlist',
     CREATE_WISHLIST: '/api/v1/stories/wishlist',
   },

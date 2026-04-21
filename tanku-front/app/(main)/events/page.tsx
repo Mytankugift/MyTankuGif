@@ -380,13 +380,15 @@ export default function EventsPage() {
         pageTitle="Eventos"
         pageSubtitle="Consulta el calendario, crea recordatorios y gestiona tus fechas"
         pageTitleColor="#66DEDB"
+        mobileTranslucentNav
       />
-      {/* Shell: ocupa el alto del main; el scroll (custom-scrollbar) es solo en la zona interior */}
+      {/* Shell: ocupa el alto del main; el scroll es solo aquí (móvil: como /feed, main sin scroll) */}
       <div
+        id="events-scroll-root"
         className="flex min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-hidden text-white"
         style={{ fontFamily: 'Poppins, sans-serif', backgroundColor: '#262626' }}
       >
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar p-3 pt-20 sm:p-4 sm:pt-24 md:px-8 md:pb-6 md:pt-28 lg:px-10 lg:pb-6 lg:pt-28 xl:px-12">
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] md:px-8 md:pb-6 md:pt-28 lg:px-10 lg:pb-6 lg:pt-28 xl:px-12 sm:max-md:px-4">
           <div className="mx-auto w-full max-w-7xl">
             {/* Contenido principal: Calendario y Próximos Eventos */}
             <div className="grid grid-cols-1 gap-6 pb-2 lg:grid-cols-3 lg:grid-rows-[auto_minmax(12rem,1fr)] lg:items-start lg:gap-x-8 lg:gap-y-3 lg:pb-1">

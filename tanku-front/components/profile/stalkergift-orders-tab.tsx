@@ -179,8 +179,15 @@ export function StalkerGiftOrdersTab({ userId, initialOrderId }: StalkerGiftOrde
   if (orders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <GiftIcon className="w-16 h-16 text-gray-600 mb-4" />
-        <h3 className="text-white text-lg font-medium mb-2">No hay órdenes de StalkerGift</h3>
+        <Image
+          src="/icons_tanku/tanku_logo_menu_stalkergift_verde.svg"
+          alt=""
+          width={52}
+          height={52}
+          className="mb-4 h-[52px] w-[52px] object-contain opacity-90"
+          unoptimized
+        />
+        <h3 className="text-white text-lg font-medium mb-2">Aun no has hecho un regalo secreto</h3>
         <p className="text-gray-400 text-sm">Las órdenes de tus regalos aparecerán aquí.</p>
       </div>
     )
@@ -266,7 +273,7 @@ export function StalkerGiftOrdersTab({ userId, initialOrderId }: StalkerGiftOrde
 
       {/* Modal de detalles (simplificado - similar a OrdersTab pero con filtros de privacidad) */}
       {showOrderDetails && selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000000] p-4">
           <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">

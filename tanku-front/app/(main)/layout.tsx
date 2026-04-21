@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { clsx } from 'clsx'
 import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/layout/sidebar'
 import MobileBottomNav from '@/components/layout/mobile-bottom-nav'
@@ -58,6 +59,22 @@ export default function MainLayout({
     }
   }, [user, isAuthenticated, isChecking, pathname])
 
+  /** Solo en landing sin sesión (móvil): el scroll principal lo lleva &lt;main&gt; para mejor UX en Safari */
+  const isLandingGuest = pathname === '/' && !isAuthenticated
+
+  /**
+   * Feed (/feed): el scroll vive solo en `#feed-scroll-root`; sin pb en main para que las cards lleguen detrás del menú inferior translúcido.
+   */
+  const isFeedOverlayScroll = pathname === '/feed'
+  /** /events: scroll en contenedor interno (como feed), no en <main> — solo afecta layout; el nav móvil lo marca la página */
+  const isEventsInnerScroll = pathname === '/events'
+  /** /profile y /profile/[username]: scroll interno para evitar doble scroll en móvil */
+  const isProfileInnerScroll = pathname === '/profile' || pathname.startsWith('/profile/')
+  /** /checkout/gift-direct: scroll interno (evita doble scroll con navs fijos en móvil) */
+  const isGiftDirectInnerScroll = pathname === '/checkout/gift-direct'
+  const mainOverlayScroll =
+    isFeedOverlayScroll || isEventsInnerScroll || isProfileInnerScroll || isGiftDirectInnerScroll
+
   return (
     <MainLayoutErrorBoundary>
       <FeedInitProvider>
@@ -69,8 +86,15 @@ export default function MainLayout({
             >
               <Sidebar />
               <main
-                className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain pb-20 md:ml-36 md:pb-0 lg:ml-60 lg:pb-0 ml-0"
-                style={{ backgroundColor: '#1E1E1E' }}
+                id="app-main"
+                className={clsx(
+                  'relative z-0 ml-0 flex min-h-0 min-w-0 flex-1 flex-col md:ml-36 lg:ml-[208px]',
+                  mainOverlayScroll
+                    ? 'overflow-hidden pb-0'
+                    : 'overflow-y-auto overscroll-y-contain pb-20 md:pb-0 lg:pb-0',
+                  isLandingGuest && '[-webkit-overflow-scrolling:touch]'
+                )}
+                style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
               >
                 {children}
               </main>

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PosterDetailContent } from './poster-detail-content'
 
-/** Por encima del nav (z-40–50) y del bottom nav móvil (z-100); fuera de <main overflow> vía portal */
+/** Modal normal (puede quedar por debajo del bottom nav); comentarios se elevan aparte */
 const POSTER_MODAL_Z = 10050
 
 interface PosterDetailModalProps {
@@ -94,13 +94,13 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
   /** Espacio para MobileBottomNav solo &lt; md (barra fija + safe area) */
   const modal = (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black/80 p-4 max-md:pb-[max(1rem,calc(4.75rem+env(safe-area-inset-bottom,0px)))]"
+      className="fixed inset-0 flex items-center justify-center bg-black/80 p-4 max-md:p-0"
       style={{ zIndex: POSTER_MODAL_Z }}
       onClick={handleClose}
       role="presentation"
     >
       <div
-        className="flex w-[95vw] max-w-[1400px] flex-col overflow-hidden rounded-lg border border-gray-700 bg-gray-900 shadow-2xl max-md:max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px))] md:h-[90vh] md:max-h-[90vh]"
+        className="flex w-[95vw] max-w-[1400px] flex-col overflow-hidden rounded-lg border border-gray-700 bg-gray-900 shadow-2xl md:h-[90vh] md:max-h-[90vh] max-md:h-[100dvh] max-md:w-full max-md:max-w-none max-md:rounded-none max-md:border-0"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex-1 overflow-y-auto min-h-0">
@@ -108,6 +108,7 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
             posterId={posterId}
             initialPosterData={initialPosterData}
             isPageView={false}
+            mobilePageLike
             onModalClose={handleClose}
             onPostDeleted={handlePostDeleted}
             onPostUpdated={onPostUpdated}

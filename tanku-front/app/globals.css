@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .tanku-pill-search-input {
+    background-color: var(--tanku-search-bar-fill);
+    color: #fff;
+  }
+  .tanku-pill-search-input::placeholder {
+    color: rgba(255, 255, 255, 0.45);
+  }
+}
+
 
 :root {
   /* Colors */
@@ -21,7 +31,11 @@
   --color-greenTanku: #73FFA2;
   --color-greenBlueTanku: #3B9BC3;
   --color-sidebarBg: #2D3A3A;
-  
+  /** Superficie contenido + navbar: #191E23 al 20% (sobre base #1E1E1E del layout) */
+  --color-surface-191e23-20: rgba(25, 30, 35,1);
+  /** Barra de búsqueda tipo pill (feed, landing, amigos, etc.) */
+  --tanku-search-bar-fill: #464D53;
+
   /* Font Family */
   --font-family-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Ubuntu', sans-serif;
   
@@ -224,4 +238,50 @@ html, body {
 
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
+}
+
+/** Modal categorías feed: entrada desde la parte superior del viewport */
+@keyframes tanku-modal-from-top {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-tanku-modal-from-top {
+  animation: tanku-modal-from-top 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/** Cierre: el panel vuelve a subir (inverso de la entrada) */
+@keyframes tanku-modal-to-top {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+.animate-tanku-modal-to-top {
+  animation: tanku-modal-to-top 0.38s cubic-bezier(0.4, 0, 1, 0.58) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-tanku-modal-from-top {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .animate-tanku-modal-to-top {
+    animation: none;
+    opacity: 0;
+    transform: translateY(-100%);
+  }
 }

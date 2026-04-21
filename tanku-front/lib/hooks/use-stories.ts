@@ -54,6 +54,7 @@ interface UseStoriesResult {
   fetchWishlistStories: (userId?: string) => Promise<void>
   markStoryAsViewed: (storyId: string) => Promise<void>
   refreshStories: () => Promise<void>
+  deleteStoryById: (storyId: string) => Promise<boolean>
 }
 
 export function useStories(): UseStoriesResult {
@@ -147,6 +148,25 @@ export function useStories(): UseStoriesResult {
     await Promise.all([fetchFeedStories(), fetchWishlistStories()])
   }, [fetchFeedStories, fetchWishlistStories])
 
+  /**
+   * Eliminar historia propia (API + estado local del feed)
+   */
+  const deleteStoryById = useCallback(async (storyId: string) => {
+    try {
+      const response = await apiClient.delete<void>(API_ENDPOINTS.STORIES.DELETE(storyId))
+      if (!response.success) {
+        setError(response.error?.message || 'No se pudo eliminar la historia')
+        return false
+      }
+      setFeedStories((prev) => prev.filter((s) => s.id !== storyId))
+      setWishlistStories((prev) => prev.filter((s) => s.id !== storyId))
+      return true
+    } catch (err: any) {
+      setError(err.message || 'No se pudo eliminar la historia')
+      return false
+    }
+  }, [])
+
   // ✅ Guard para evitar fetch si ya hay datos
   const hasLoadedRef = useRef(false)
 
@@ -192,6 +212,7 @@ export function useStories(): UseStoriesResult {
     fetchWishlistStories,
     markStoryAsViewed,
     refreshStories,
+    deleteStoryById,
   }
 }
 

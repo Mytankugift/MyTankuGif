@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { createPortal } from 'react-dom'
 import { ProductDetailContent } from './product-detail-content'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import type { FeedItemDTO } from '@/types/api'
 
-const PRODUCT_MODAL_Z = 10050
+const PRODUCT_MODAL_Z = 1000003
 
 interface ProductModalProps {
   product: FeedItemDTO | null
@@ -15,18 +15,12 @@ interface ProductModalProps {
 }
 
 export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-    return () => setMounted(false)
-  }, [])
-
-  if (!isOpen || !product || !mounted) return null
+  if (!isOpen || !product) return null
+  if (typeof document === 'undefined') return null
 
   const modal = (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black/75 px-2 pt-2 max-md:pb-[max(0.5rem,calc(4.75rem+env(safe-area-inset-bottom,0px)))] sm:px-4 sm:pt-4 md:p-4"
+      className="fixed inset-0 flex items-center justify-center bg-black/75 px-2 py-2 sm:px-4 sm:pt-4 md:p-4"
       onClick={onClose}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) {
@@ -41,7 +35,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
       role="presentation"
     >
       <div
-        className="relative flex h-auto w-full max-w-6xl flex-col overflow-hidden max-md:max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px))] md:max-h-[min(75vh,580px)] lg:max-h-[min(88vh,900px)]"
+        className="relative flex h-auto w-full max-w-6xl flex-col overflow-hidden max-md:max-h-[calc(100dvh-1rem-env(safe-area-inset-bottom,0px))] md:max-h-[min(75vh,580px)] lg:max-h-[min(88vh,900px)]"
         style={{
           backgroundColor: '#2C3137',
           border: '2px solid #66DEDB',
@@ -75,7 +69,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
 
         {/* Contenido usando componente compartido */}
         <div 
-          className="min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar max-md:max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px)-7rem)] md:max-h-[calc(min(75vh,580px)-6.5rem)] lg:max-h-[calc(min(88vh,900px)-6.5rem)]"
+          className="min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar max-md:max-h-[calc(100dvh-1rem-env(safe-area-inset-bottom,0px)-7rem)] md:max-h-[calc(min(75vh,580px)-6.5rem)] lg:max-h-[calc(min(88vh,900px)-6.5rem)]"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           style={{

@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { getGoogleOAuthUrl } from '@/lib/auth/google-oauth'
 
 type AuthPersistApi = {
   hasHydrated: () => boolean
@@ -18,10 +18,9 @@ function getAuthPersist(): AuthPersistApi | undefined {
 
 /**
  * Bloquea /events hasta hidratar auth; opcionalmente valida token con el API.
- * Sin sesión → /auth/login?redirect=/events
+ * Sin sesión → OAuth Google con return /events (sin pasar por /auth/login).
  */
 export function EventsAuthGate({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const checkAuth = useAuthStore((s) => s.checkAuth)
   const [hydrated, setHydrated] = useState(false)
@@ -59,9 +58,9 @@ export function EventsAuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!resolved) return
     if (!isAuthenticated) {
-      router.replace(`/auth/login?redirect=${encodeURIComponent('/events')}`)
+      window.location.replace(getGoogleOAuthUrl('/events'))
     }
-  }, [resolved, isAuthenticated, router])
+  }, [resolved, isAuthenticated])
 
   if (!resolved) {
     return (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
+import { getGoogleOAuthUrl } from '@/lib/auth/google-oauth'
 
 interface PromotionalBannerProps {
   variant: 1 | 2
@@ -348,8 +348,8 @@ export function PromotionalBanner({ variant }: PromotionalBannerProps) {
           zIndex: 20,
         }}
       >
-        <Link
-          href="/auth/login"
+        <a
+          href={getGoogleOAuthUrl('/feed')}
           className="inline-block font-semibold rounded-full transition-all duration-300 hover:transform hover:scale-105"
           style={{
             fontFamily: 'Poppins, sans-serif',
@@ -364,7 +364,7 @@ export function PromotionalBanner({ variant }: PromotionalBannerProps) {
           }}
         >
           Únete a TANKU
-        </Link>
+        </a>
       </div>
     </div>
   )

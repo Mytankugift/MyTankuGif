@@ -37,7 +37,7 @@ export function FriendsNav({ onSearch, initialSearchQuery = '' }: FriendsNavProp
         >
           <path
             d="M26.8334 8.76545L30.1099 22.6447L20.9442 31.156L8.1482 27.8382L4.84774 14.0188L14.8779 5.75197L26.8334 8.76545Z"
-            stroke="#262626"
+            stroke="#B8C4CC"
             strokeWidth="3"
           />
           <line
@@ -45,7 +45,7 @@ export function FriendsNav({ onSearch, initialSearchQuery = '' }: FriendsNavProp
             x2="20.427"
             y2="-1.5"
             transform="matrix(0.709973 0.704229 -0.70423 0.709971 24.3841 27.5551)"
-            stroke="#262626"
+            stroke="#B8C4CC"
             strokeWidth="3"
           />
         </svg>
@@ -60,7 +60,7 @@ export function FriendsNav({ onSearch, initialSearchQuery = '' }: FriendsNavProp
             onSearch?.(searchQuery.trim())
           }
         }}
-        className="w-full pl-10 pr-3 py-2 text-sm bg-white text-black rounded-full border border-gray-300 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20 transition-all duration-200"
+        className="tanku-pill-search-input w-full pl-10 pr-3 py-2 text-sm rounded-full border border-white/10 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20 transition-all duration-200"
         style={{ fontFamily: 'Poppins, sans-serif' }}
       />
     </div>

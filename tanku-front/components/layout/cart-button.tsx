@@ -8,13 +8,17 @@ import { useCartStore } from '@/lib/stores/cart-store'
 import type { CartItem } from '@/types/api'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
-export function CartButton() {
+interface CartButtonProps {
+  /** Nav móvil: icono y badge más pequeños */
+  compact?: boolean
+}
+
+export function CartButton({ compact = false }: CartButtonProps = {}) {
   const { cart, fetchCart, removeItem, getItemCount } = useCartStore()
   const [isOpen, setIsOpen] = useState(false)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
-  const buttonRef = useRef<HTMLAnchorElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null)
   const prevItemCountRef = useRef(0)
   const hasInitializedRef = useRef(false)
@@ -85,20 +89,32 @@ export function CartButton() {
     }
   }
 
-  // Manejar hover para abrir/cerrar
-  const handleMouseEnter = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-    }
-    updateDropdownPosition()
-    setIsOpen(true)
+  const toggleDropdown = () => {
+    setIsOpen((prev) => {
+      const next = !prev
+      if (next) {
+        updateDropdownPosition()
+      }
+      return next
+    })
   }
 
-  const handleMouseLeave = () => {
-    timeoutRef.current = setTimeout(() => {
+  // Cerrar al clic fuera (mismo patrón que NotificationsButton)
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (
+        buttonRef.current?.contains(e.target as Node) ||
+        dropdownRef.current?.contains(e.target as Node)
+      ) {
+        return
+      }
       setIsOpen(false)
-    }, 200) // Pequeño delay para permitir mover el mouse al dropdown
-  }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', onClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [isOpen])
 
   // Actualizar posición cuando cambia el scroll o el tamaño de la ventana
   useEffect(() => {
@@ -115,27 +131,9 @@ export function CartButton() {
     }
   }, [isOpen])
 
-  const handleDropdownMouseEnter = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-    }
-    // Cancelar auto-cierre si el usuario está interactuando con el dropdown
-    if (autoCloseTimerRef.current) {
-      clearTimeout(autoCloseTimerRef.current)
-      autoCloseTimerRef.current = null
-    }
-  }
-
-  const handleDropdownMouseLeave = () => {
-    setIsOpen(false)
-  }
-
-  // Limpiar timeouts
+  // Limpiar timers al desmontar
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
       if (autoCloseTimerRef.current) {
         clearTimeout(autoCloseTimerRef.current)
       }
@@ -177,6 +175,10 @@ export function CartButton() {
     }).format(price)
   }
 
+  const rowDividerStyle = {
+    borderImage: 'linear-gradient(90deg, #414141 0%, #73FFA2 34%, #73FFA2 70%, #414141 100%) 1',
+  } as const
+
   const handleRemoveItem = async (itemId: string, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -189,58 +191,77 @@ export function CartButton() {
 
   return (
     <>
-      <div
-        className="relative"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        {/* Botón del carrito */}
-        <Link
+      <div className="relative">
+        <button
           ref={buttonRef}
-          href="/cart"
-          className="relative p-2 hover:opacity-80 transition-opacity flex items-center justify-center"
+          type="button"
+          onClick={toggleDropdown}
+          className={`relative flex cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-white/10 ${
+            compact ? 'p-1' : 'p-2'
+          }`}
+          aria-label="Carrito"
+          aria-expanded={isOpen}
         >
-        <Image
-          src="/icons_tanku/tanku_nav_carrito_verde.svg"
-          alt="Carrito"
-          width={30}
-          height={30}
-          className="object-contain"
-          style={{ width: '30px', height: '30px' }}
-          unoptimized
-        />
-        {itemCount > 0 && (
-          <span
-            className="absolute -top-1 -right-1 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold"
-            style={{ backgroundColor: '#dc2626' }}
-          >
-            {itemCount > 99 ? '99+' : itemCount}
-          </span>
-        )}
-        </Link>
+          <Image
+            src="/icons_tanku/tanku_nav_carrito_verde.svg"
+            alt=""
+            width={compact ? 22 : 30}
+            height={compact ? 22 : 30}
+            className="object-contain"
+            style={{ width: compact ? '22px' : '30px', height: compact ? '22px' : '30px' }}
+            unoptimized
+          />
+          {itemCount > 0 && (
+            <span
+              className={`absolute flex items-center justify-center rounded-full font-semibold text-white ${
+                compact
+                  ? '-right-0.5 -top-0.5 min-h-[14px] min-w-[14px] text-[9px] px-0.5'
+                  : '-right-1 -top-1 h-5 w-5 text-xs'
+              }`}
+              style={{ backgroundColor: '#dc2626' }}
+            >
+              {itemCount > 99 ? '99+' : itemCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Dropdown - Fixed positioning para que aparezca correctamente incluso cuando nav está oculto */}
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="fixed w-[320px] bg-[#1E1E1E] border border-gray-600 rounded-lg shadow-xl z-50"
+          className="fixed z-50 flex h-[500px] w-[400px] flex-col rounded-xl border border-[#414141] shadow-xl"
           style={{
             top: `${dropdownPosition.top}px`,
             right: `${dropdownPosition.right}px`,
+            backgroundColor: '#171B21',
           }}
-          onMouseEnter={handleDropdownMouseEnter}
-          onMouseLeave={handleDropdownMouseLeave}
+          onMouseEnter={() => {
+            if (autoCloseTimerRef.current) {
+              clearTimeout(autoCloseTimerRef.current)
+              autoCloseTimerRef.current = null
+            }
+          }}
         >
           {/* Header */}
-          <div className="p-3 border-b border-gray-700">
-            <h3 className="text-sm font-semibold text-[#66DEDB]">Carrito</h3>
+          <div className="border-b p-4" style={rowDividerStyle}>
+            <div className="flex items-center gap-2">
+              <Image
+                src="/icons_tanku/tanku_nav_carrito_verde.svg"
+                alt=""
+                width={28}
+                height={28}
+                className="h-7 w-7 object-contain"
+                unoptimized
+              />
+              <h3 className="text-base font-semibold text-white">Carrito</h3>
+            </div>
           </div>
 
           {/* Items */}
           {items.length > 0 ? (
             <>
-              <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <div className="p-3 space-y-3">
                   {[...items].sort((a, b) => {
                     const dateA = new Date(a.createdAt || 0).getTime()
@@ -254,7 +275,7 @@ export function CartButton() {
                     const itemTotal = item.total || item.unitPrice * item.quantity
 
                     return (
-                      <div key={item.id} className="flex gap-3 pb-3 border-b border-gray-800 last:border-0 last:pb-0">
+                      <div key={item.id} className="flex gap-3 border-b pb-3 last:border-0 last:pb-0" style={rowDividerStyle}>
                         {/* Imagen */}
                         {productHandle ? (
                           <Link href={`/products/${productHandle}`} className="flex-shrink-0">
@@ -285,12 +306,12 @@ export function CartButton() {
                           {productHandle ? (
                             <Link
                               href={`/products/${productHandle}`}
-                              className="block text-sm font-medium text-[#3B9BC3] hover:text-[#66DEDB] transition-colors truncate mb-1"
+                              className="mb-1 block truncate text-sm font-medium text-[#66DEDB] transition-colors hover:text-[#73FFA2]"
                             >
                               {productTitle}
                             </Link>
                           ) : (
-                            <div className="text-sm font-medium text-[#3B9BC3] truncate mb-1">
+                            <div className="mb-1 truncate text-sm font-medium text-[#66DEDB]">
                               {productTitle}
                             </div>
                           )}
@@ -317,20 +338,21 @@ export function CartButton() {
               </div>
 
               {/* Footer con total y botón */}
-              <div className="p-3 border-t border-gray-700 bg-gray-800/50">
+              <div className="border-t p-3" style={rowDividerStyle}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-[#66DEDB]">Total</span>
-                  <span className="text-base font-bold text-[#66DEDB]">{formatPrice(total)}</span>
+                  <span className="text-sm font-semibold text-[#73FFA2]">Total</span>
+                  <span className="text-base font-bold text-[#73FFA2]">{formatPrice(total)}</span>
                 </div>
-                <Link href="/cart">
-                  <button className="w-full bg-[#66DEDB] hover:bg-[#5accc9] text-black font-semibold py-2 px-4 rounded-lg transition-colors text-sm">
-                    Ver carrito
-                  </button>
+                <Link
+                  href="/cart"
+                  className="block w-full text-center text-sm font-medium text-[#73FFA2] transition-opacity hover:opacity-85"
+                >
+                  Ver carrito
                 </Link>
               </div>
             </>
           ) : (
-            <div className="p-6 text-center">
+            <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
               <p className="text-gray-400 text-sm mb-4">Tu carrito está vacío</p>
               <Link href="/feed">
                 <button className="text-[#66DEDB] hover:text-[#5accc9] text-sm font-medium transition-colors">

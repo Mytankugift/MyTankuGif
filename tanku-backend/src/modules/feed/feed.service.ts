@@ -124,6 +124,8 @@ export class FeedService {
       const estimatedPosts = Math.ceil(limit / (postsPerProducts + 1));
       
       const hasSearch = !!(search && search.trim());
+      /** Con categoría solo productos de esa categoría; no mezclar posters (muy repetitivos en vista filtrada). */
+      const hasCategoryFilter = !!(categoryId && String(categoryId).trim());
 
       // ✅ Ejecutar queries independientes en paralelo para mejor performance
       const [productsResult, postsResult, blockedCategoryIds] = await Promise.all([
@@ -164,8 +166,8 @@ export class FeedService {
             }
           }
         })(),
-        // Con búsqueda activa solo productos: no mezclar posters
-        hasSearch
+        // Con búsqueda o filtro por categoría: solo productos (no mezclar posters)
+        hasSearch || hasCategoryFilter
           ? Promise.resolve([])
           : (async () => {
               try {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import { Poppins, Plus_Jakarta_Sans } from "next/font/google";
 import { QueryProvider } from "@/lib/providers/query-provider";
 import { ToastProvider } from "@/lib/contexts/toast-context";
 import { ToastContainer } from "@/components/ui/toast-container";
@@ -9,6 +9,12 @@ const poppins = Poppins({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-poppins",
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-plus-jakarta",
 });
 
 export const metadata: Metadata = {
@@ -23,7 +29,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${poppins.variable} antialiased`} style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}>
+      <body
+        className={`${poppins.variable} ${plusJakartaSans.variable} antialiased`}
+        style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}
+      >
         <QueryProvider>
           <ToastProvider>
             {children}

@@ -1,11 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { PosterDetailContent } from '@/components/posters/poster-detail-content'
-import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 
 interface PosterDetail {
   id: string
@@ -29,16 +28,25 @@ interface PosterDetail {
 export default function PostPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const posterId = params.id as string
+  const fromProfile = searchParams.get('from') === 'profile'
   const [poster, setPoster] = useState<PosterDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [animateIn, setAnimateIn] = useState(false)
 
   useEffect(() => {
     if (posterId) {
       loadPoster()
     }
   }, [posterId])
+
+  useEffect(() => {
+    if (!fromProfile) return
+    const raf = requestAnimationFrame(() => setAnimateIn(true))
+    return () => cancelAnimationFrame(raf)
+  }, [fromProfile])
 
   const loadPoster = async () => {
     setIsLoading(true)
@@ -83,13 +91,12 @@ export default function PostPage() {
     )
   }
 
-  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/posts/${posterId}` : ''
-  const authorName = poster.author?.firstName && poster.author?.lastName
-    ? `${poster.author.firstName} ${poster.author.lastName}`
-    : poster.author?.email?.split('@')[0] || 'Usuario'
-
   return (
-    <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
+    <div
+      className={`h-screen bg-gray-900 flex flex-col overflow-hidden transition-all duration-300 ease-out ${
+        fromProfile ? (animateIn ? 'opacity-100 scale-100' : 'opacity-0 scale-95') : ''
+      }`}
+    >
       <PosterDetailContent
         posterId={posterId}
         initialPosterData={{

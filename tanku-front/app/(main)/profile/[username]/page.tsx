@@ -14,6 +14,7 @@ import { ArrowLeftIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline
 import { UserWishlistsTab } from '@/components/profile/user-wishlists-tab'
 import { SocialLinksDisplay } from '@/components/profile/social-links-display'
 import { useFriends } from '@/lib/hooks/use-friends'
+import { BaseNav } from '@/components/layout/base-nav'
 
 type UserProfile = {
   id: string
@@ -266,7 +267,7 @@ export default function OtherUserProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen" style={{ backgroundColor: '#1E1E1E' }}>
+      <div className="flex items-center justify-center h-screen" style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
           <p className="text-gray-400">Cargando perfil...</p>
@@ -277,7 +278,7 @@ export default function OtherUserProfilePage() {
 
   if (!profileUser) {
     return (
-      <div className="flex items-center justify-center h-screen" style={{ backgroundColor: '#1E1E1E' }}>
+      <div className="flex items-center justify-center h-screen" style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}>
         <div className="text-center">
           <p className="text-gray-400 text-xl mb-4">Usuario no encontrado</p>
           <button
@@ -300,14 +301,28 @@ export default function OtherUserProfilePage() {
   const avatarUrl = profileUser.profile?.avatar || null
 
   return (
-    <div className="min-h-screen w-full p-3 sm:p-4 md:p-6" style={{ backgroundColor: '#1E1E1E' }}>
+    <>
+      <BaseNav
+        showStories={false}
+        canHide={false}
+        isVisible={true}
+        pageTitle={profileUser.username || userName}
+        pageTitleColor="#66DEDB"
+        mobileBackCenterTitleCartOnly
+        mobileTranslucentNav
+      />
+      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" id="profile-public-scroll-root">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar max-md:px-3 max-md:pt-[max(5rem,calc(env(safe-area-inset-top,0px)+4rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20"
+          style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
+        >
       <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">
         {/* Sección principal - Dos columnas */}
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           {/* Columna principal - 75% */}
           <div className="flex-1 w-full md:w-3/4">
             {/* Banner */}
-            <div className="w-full h-24 sm:h-28 md:h-48 bg-gradient-to-r from-[#1A485C] to-[#73FFA2] rounded-lg mb-3 sm:mb-4 overflow-hidden relative">
+            <div className="w-full h-32 sm:h-36 md:h-56 bg-gradient-to-r from-[#1A485C] to-[#73FFA2] rounded-[25px] mb-3 sm:mb-4 overflow-hidden relative">
               {bannerUrl ? (
                 <Image
                   src={bannerUrl}
@@ -320,12 +335,13 @@ export default function OtherUserProfilePage() {
             </div>
             
             {/* Información del usuario */}
-            <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+            <div className="space-y-2 sm:space-y-2.5 md:space-y-3 -mt-10 sm:-mt-12 md:-mt-14 relative z-10">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2 sm:gap-3 ml-4 sm:ml-6 md:ml-10">
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+                    <div className="p-[5px] sm:p-[6px] rounded-full bg-[linear-gradient(180deg,#73FFA2_0%,#1A485C_100%)]">
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
                       {avatarUrl ? (
                         <Image
                           src={avatarUrl}
@@ -343,9 +359,10 @@ export default function OtherUserProfilePage() {
                         </div>
                       )}
                     </div>
+                    </div>
                   </div>
                   
-                  <div>
+                  <div className="pt-10 sm:pt-11 md:pt-14">
                     {profileUser.username ? (
                       <>
                         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#73FFA2] break-words">
@@ -363,32 +380,44 @@ export default function OtherUserProfilePage() {
                   </div>
                 </div>
                 
-                {/* Botón de menú (3 puntos) - solo si son amigos */}
-                {currentUser?.id && userId !== currentUser.id && areFriends && (
-                  <div className="relative" ref={menuRef}>
-                    <button
-                      onClick={() => setShowMenu(!showMenu)}
-                      className="p-1.5 sm:p-2 rounded-full hover:bg-gray-700 transition-colors"
-                      title="Más opciones"
-                    >
-                      <EllipsisVerticalIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#73FFA2]" />
-                    </button>
-                    {showMenu && (
-                      <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10">
+                {currentUser?.id && userId !== currentUser.id && (
+                  <div className="flex items-center gap-2 mt-10 sm:mt-11 md:mt-14">
+                    {areFriends && (
+                      <Link
+                        href={`/messages?userId=${userId}`}
+                        className="inline-block px-3 sm:px-4 py-1 rounded-full text-[11px] sm:text-xs font-semibold text-black transition-opacity hover:opacity-90 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)]"
+                        style={{ background: 'linear-gradient(90deg, #73FFA2 0%, #1A485C 100%)' }}
+                      >
+                        Mensaje
+                      </Link>
+                    )}
+                    {areFriends && (
+                      <div className="relative" ref={menuRef}>
                         <button
-                          onClick={handleRemoveFriend}
-                          disabled={isRemovingFriend}
-                          className="w-full text-left px-4 py-2 text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-50 rounded-t-lg"
+                          onClick={() => setShowMenu(!showMenu)}
+                          className="p-1.5 sm:p-2 rounded-full hover:bg-gray-700 transition-colors"
+                          title="Más opciones"
                         >
-                          {isRemovingFriend ? 'Eliminando...' : 'Eliminar amigo'}
+                          <EllipsisVerticalIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#73FFA2]" />
                         </button>
-                        <button
-                          onClick={handleBlock}
-                          disabled={isBlocking}
-                          className="w-full text-left px-4 py-2 text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-50 rounded-b-lg"
-                        >
-                          {isBlocking ? 'Bloqueando...' : 'Bloquear usuario'}
-                        </button>
+                        {showMenu && (
+                          <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10">
+                            <button
+                              onClick={handleRemoveFriend}
+                              disabled={isRemovingFriend}
+                              className="w-full text-left px-4 py-2 text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-50 rounded-t-lg"
+                            >
+                              {isRemovingFriend ? 'Eliminando...' : 'Eliminar amigo'}
+                            </button>
+                            <button
+                              onClick={handleBlock}
+                              disabled={isBlocking}
+                              className="w-full text-left px-4 py-2 text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-50 rounded-b-lg"
+                            >
+                              {isBlocking ? 'Bloqueando...' : 'Bloquear usuario'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -400,30 +429,25 @@ export default function OtherUserProfilePage() {
                 {profileUser.profile?.bio || 'Miembro de la comunidad TANKU'}
               </p>
               
-                {/* Botón de Mensaje - solo si son amigos */}
-              {currentUser?.id && userId !== currentUser.id && areFriends && (
-                <Link
-                  href={`/messages?userId=${userId}`}
-                  className="inline-block px-4 py-2 bg-[#66DEDB] hover:bg-[#73FFA2] text-gray-900 font-semibold rounded-lg transition-colors text-sm"
-                >
-                  Mensaje
-                </Link>
-              )}
+              {/* Mensaje se muestra arriba a la derecha, en la zona de Editar perfil */}
             </div>
           </div>
 
           {/* Columna lateral - 25% */}
           <div className="w-full md:w-1/4 mt-3 sm:mt-4 md:mt-0">
             {/* Estadísticas */}
-            <div className="text-center space-y-1 sm:space-y-2 mb-6">
-              <div className="flex justify-center space-x-4 sm:space-x-6">
+            <div
+              className="text-center space-y-0.5 mb-6 rounded-[15px] py-2 px-3 sm:py-2.5 sm:px-3.5"
+              style={{ background: 'linear-gradient(135deg, #73FFA2 0%, #4A6153 20%, #4A6153 81%, #73FFA2 100%)' }}
+            >
+              <div className="grid grid-cols-2 items-center px-1 sm:px-2">
                 <div>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-[#73FFA2]">{friendsCount}</p>
-                  <p className="text-gray-400 text-xs sm:text-sm">Amigos</p>
+                  <p className="text-lg sm:text-xl md:text-xl font-bold text-white">{friendsCount}</p>
+                  <p className="text-[#73FFA2] text-xs sm:text-sm md:text-xs font-semibold">Amigos</p>
                 </div>
                 <div>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-[#73FFA2]">{postsCount}</p>
-                  <p className="text-gray-400 text-xs sm:text-sm">Publicaciones</p>
+                  <p className="text-lg sm:text-xl md:text-xl font-bold text-white">{postsCount}</p>
+                  <p className="text-[#73FFA2] text-xs sm:text-sm md:text-xs font-semibold">Publicaciones</p>
                 </div>
               </div>
             </div>
@@ -477,7 +501,7 @@ export default function OtherUserProfilePage() {
             className={`px-1.5 sm:px-2 md:px-4 py-0.5 sm:py-1 md:py-2 text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
               activeTab === 'PUBLICACIONES'
                 ? 'text-[#73FFA2] border-b-2 border-[#73FFA2]'
-                : 'text-gray-400 hover:text-white'
+                : 'text-[#66DEDB] hover:text-[#73FFA2]'
             }`}
           >
             PUBLICACIONES
@@ -487,7 +511,7 @@ export default function OtherUserProfilePage() {
             className={`px-1.5 sm:px-2 md:px-4 py-0.5 sm:py-1 md:py-2 text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
               activeTab === 'WISHLISTS'
                 ? 'text-[#73FFA2] border-b-2 border-[#73FFA2]'
-                : 'text-gray-400 hover:text-white'
+                : 'text-[#66DEDB] hover:text-[#73FFA2]'
             }`}
           >
             WISHLISTS
@@ -522,7 +546,7 @@ export default function OtherUserProfilePage() {
                 <p className="text-gray-400 text-xs sm:text-sm">Las publicaciones aparecerán aquí cuando estén disponibles.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-1 sm:gap-1.5 md:gap-2">
                 {posters.map((poster) => (
                   <PosterCard
                     key={poster.id}
@@ -539,10 +563,10 @@ export default function OtherUserProfilePage() {
                       author: poster.author,
                     }}
                     onOpenModal={(poster) => {
-                      setSelectedPosterId(poster.id)
-                      setIsPosterModalOpen(true)
+                      router.push(`/posts/${poster.id}?from=profile`)
                     }}
                     isLightMode={false}
+                    variant="profile"
                   />
                 ))}
               </div>
@@ -588,6 +612,8 @@ export default function OtherUserProfilePage() {
           }}
         />
       )}
-    </div>
+      </div>
+      </div>
+    </>
   )
 }

@@ -19,11 +19,9 @@ export function SearchBar() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Buscar productos..."
-          className="w-full px-4 py-2 pl-10 rounded-lg focus:outline-none"
-          style={{ 
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          className="tanku-pill-search-input w-full px-4 py-2 pl-10 rounded-full border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
+          style={{
             color: 'white',
-            border: '1px solid rgba(255, 255, 255, 0.2)'
           }}
         />
         <svg 

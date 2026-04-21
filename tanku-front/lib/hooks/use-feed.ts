@@ -227,7 +227,10 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
         })
         
         // Preservar posición del scroll antes de actualizar items
-        const scrollContainer = document.querySelector('.custom-scrollbar') as HTMLElement
+        const scrollContainer =
+          (typeof document !== 'undefined' &&
+            (document.getElementById('feed-scroll-root') as HTMLElement | null)) ||
+          (document.querySelector('.custom-scrollbar') as HTMLElement | null)
         const scrollTop = scrollContainer?.scrollTop || 0
         
         // Filtrar duplicados: solo agregar items que no estén ya en la lista

@@ -11,6 +11,7 @@ import { AddressSelector } from '@/components/addresses/address-selector'
 import { Button } from '@/components/ui/button'
 import type { StalkerGiftDTO, AddressDTO, CreateAddressDTO, UpdateAddressDTO } from '@/types/api'
 import { GiftIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import { getGoogleOAuthUrl } from '@/lib/auth/google-oauth'
 
 export default function StalkerGiftAcceptPage() {
   const params = useParams()
@@ -154,9 +155,7 @@ export default function StalkerGiftAcceptPage() {
         sessionStorage.setItem('redirect-after-login', `/stalkergift/accept/${token}`)
       }
       
-      // Redirigir a OAuth con return_url
-      const returnUrl = encodeURIComponent(`/stalkergift/accept/${token}`)
-      window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'}/api/v1/auth/google?return_url=${returnUrl}`
+      window.location.href = getGoogleOAuthUrl(`/stalkergift/accept/${token}`)
       return
     }
 

@@ -36,5 +36,11 @@ router.get('/wishlist', optionalAuthenticate, storiesController.getWishlistStori
  */
 router.post('/wishlist', authenticate, storiesController.createWishlistStory);
 
+/**
+ * DELETE /api/v1/stories/:storyId
+ * Eliminar historia propia (tras rutas estáticas como /wishlist)
+ */
+router.delete('/:storyId', authenticate, storiesController.deleteById);
+
 export default router;
 

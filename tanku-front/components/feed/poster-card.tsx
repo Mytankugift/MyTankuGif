@@ -3,12 +3,11 @@
 import React, { useState, useRef, useEffect, memo } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { HeartIcon } from '@heroicons/react/24/outline'
-import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
+import { SharePostModal } from '@/components/posters/share-post-modal'
 
 interface PosterCardProps {
   poster: {
@@ -33,9 +32,16 @@ interface PosterCardProps {
   onOpenModal?: (poster: any) => void
   isLightMode?: boolean
   isAboveFold?: boolean // Nuevo prop: visible sin scroll (above the fold)
+  variant?: 'feed' | 'profile'
 }
 
-export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLightMode = false, isAboveFold = false }: PosterCardProps) {
+export const PosterCard = memo(function PosterCard({
+  poster,
+  onOpenModal,
+  isLightMode = false,
+  isAboveFold = false,
+  variant = 'feed',
+}: PosterCardProps) {
   const router = useRouter()
   const { token } = useAuthStore()
   const [activeMedia, setActiveMedia] = useState<'image' | 'video'>('image')
@@ -47,6 +53,7 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
   const cardRef = useRef<HTMLDivElement>(null)
   const [isVideoVisible, setIsVideoVisible] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
   useEffect(() => {
     if (poster.imageUrl) {
@@ -129,6 +136,11 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
     }
   }
 
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsShareModalOpen(true)
+  }
+
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!token || isLiking) return
@@ -156,54 +168,61 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
     poster.author?.firstName && poster.author?.lastName
       ? `${poster.author.firstName} ${poster.author.lastName}`
       : poster.author?.email || 'Usuario'
+  const isProfileVariant = variant === 'profile'
 
   return (
     <div
       ref={cardRef}
-      className="bg-transparent border-2 border-[#73FFA2] rounded-lg sm:rounded-2xl p-2 sm:p-3 md:p-4 hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer"
+      className={`bg-transparent rounded-lg sm:rounded-2xl cursor-pointer ${
+        isProfileVariant
+          ? 'p-0 hover:opacity-95 transition-opacity duration-200'
+          : 'p-2 sm:p-3 md:p-4 hover:shadow-lg transition-all duration-300 hover:scale-105'
+      }`}
       onClick={handleCardClick}
     >
-      <div className="flex items-center mb-2 sm:mb-3">
-        <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
-          {poster.author?.avatar ? (
-            <Image
-              src={poster.author.avatar}
-              alt={authorName}
-              width={32}
-              height={32}
-              className="object-cover w-full h-full"
-              unoptimized={poster.author.avatar.startsWith('http')}
-            />
-          ) : (
-            <span className="text-xs text-gray-400 font-bold">
-              {(poster.author?.firstName?.[0] || poster.author?.email?.[0] || 'U').toUpperCase()}
-            </span>
-          )}
+      {!isProfileVariant && (
+        <div className="flex items-center mb-2 sm:mb-3">
+          <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+            {poster.author?.avatar ? (
+              <Image
+                src={poster.author.avatar}
+                alt={authorName}
+                width={32}
+                height={32}
+                className="object-cover w-full h-full"
+                unoptimized={poster.author.avatar.startsWith('http')}
+              />
+            ) : (
+              <span className="text-xs text-gray-400 font-bold">
+                {(poster.author?.firstName?.[0] || poster.author?.email?.[0] || 'U').toUpperCase()}
+              </span>
+            )}
+          </div>
+          <div className="ml-1.5 sm:ml-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                if (poster.author?.id) {
+                  router.push(poster.author.username ? `/profile/${poster.author.username}` : `/profile/${poster.author.id}`)
+                }
+              }}
+              className={`font-medium text-xs sm:text-sm truncate max-w-[80px] sm:max-w-full text-left hover:text-[#73FFA2] transition-colors ${
+                isLightMode ? 'text-black' : 'text-white'
+              }`}
+            >
+              {authorName}
+            </button>
+            <p className={`text-xs ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+              {new Date(poster.createdAt).toLocaleDateString('es-ES', {
+                month: 'short',
+                day: 'numeric',
+              })}
+            </p>
+          </div>
         </div>
-        <div className="ml-1.5 sm:ml-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              if (poster.author?.id) {
-                router.push(poster.author.username ? `/profile/${poster.author.username}` : `/profile/${poster.author.id}`)
-              }
-            }}
-            className={`font-medium text-xs sm:text-sm truncate max-w-[80px] sm:max-w-full text-left hover:text-[#73FFA2] transition-colors ${
-              isLightMode ? 'text-black' : 'text-white'
-            }`}
-          >
-            {authorName}
-          </button>
-          <p className={`text-xs ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-            {new Date(poster.createdAt).toLocaleDateString('es-ES', {
-              month: 'short',
-              day: 'numeric',
-            })}
-          </p>
-        </div>
-      </div>
+      )}
 
-      <div className="w-full relative mb-2 sm:mb-3 md:mb-4 overflow-hidden rounded-lg">
+      <div className={`w-full relative overflow-hidden rounded-lg ${isProfileVariant ? '' : 'mb-2 sm:mb-3 md:mb-4'}`}>
         {(poster.imageUrl || poster.videoUrl) && (
           <>
             {poster.imageUrl && (
@@ -398,40 +417,46 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
         )}
       </div>
 
-      <div className="flex justify-between items-center mt-1 sm:mt-2">
-        <button
-          className={`flex items-center transition-colors ${
-            isLiked
-              ? 'text-red-500 hover:text-red-400'
-              : isLightMode
-                ? 'text-gray-700 hover:text-red-500'
-                : 'text-gray-300 hover:text-red-500'
-          }`}
-          onClick={handleLike}
-          disabled={!token || isLiking}
-        >
-          {isLiked ? (
-            <HeartSolidIcon className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-1 sm:mr-1.5 md:mr-2" />
-          ) : (
-            <HeartIcon className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-1 sm:mr-1.5 md:mr-2" />
-          )}
-          <span className={`text-xs sm:text-sm ${isLightMode ? 'text-black' : 'text-white'}`}>
-            {likesCount}
-          </span>
-        </button>
-        <button
-          className="p-1 sm:p-1.5 md:p-2 hover:bg-gray-700 rounded-full transition-colors duration-200"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Image
-            src="/feed/arrow-right 4.svg"
-            alt="Share"
-            width={16}
-            height={16}
-            className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5"
-          />
-        </button>
-      </div>
+      {!isProfileVariant && (
+        <div className="flex justify-between items-center mt-1 sm:mt-2">
+          <button
+            className="flex items-center transition-colors hover:opacity-80"
+            onClick={handleLike}
+            disabled={!token || isLiking}
+          >
+            <Image
+              src={isLiked ? '/icons_tanku/tanku_megusta_relleno.svg' : '/icons_tanku/tanku_megusta_lineas.svg'}
+              alt={isLiked ? 'Quitar me gusta' : 'Me gusta'}
+              width={20}
+              height={20}
+              className="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5 mr-1 sm:mr-1.5 md:mr-2"
+              unoptimized
+            />
+            <span className={`text-xs sm:text-sm ${isLightMode ? 'text-black' : 'text-white'}`}>
+              {likesCount}
+            </span>
+          </button>
+          <button
+            className="p-1 sm:p-1.5 md:p-2 hover:bg-gray-700 rounded-full transition-colors duration-200"
+            onClick={handleShareClick}
+          >
+            <Image
+              src="/icons_tanku/tanku_card_compartir_verde.svg"
+              alt="Compartir"
+              width={20}
+              height={20}
+              className="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5"
+              unoptimized
+            />
+          </button>
+        </div>
+      )}
+      <SharePostModal
+        isOpen={isShareModalOpen}
+        postUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${poster.id}`}
+        postDescription={poster.description}
+        onClose={() => setIsShareModalOpen(false)}
+      />
     </div>
   )
 }, (prevProps, nextProps) => {
@@ -440,6 +465,7 @@ export const PosterCard = memo(function PosterCard({ poster, onOpenModal, isLigh
     prevProps.poster.imageUrl === nextProps.poster.imageUrl &&
     prevProps.poster.likesCount === nextProps.poster.likesCount &&
     prevProps.poster.isLiked === nextProps.poster.isLiked &&
-    prevProps.isLightMode === nextProps.isLightMode
+    prevProps.isLightMode === nextProps.isLightMode &&
+    prevProps.variant === nextProps.variant
   )
 })

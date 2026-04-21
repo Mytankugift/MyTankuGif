@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
 import { WishlistProductsModal } from '@/components/wishlists/wishlist-products-modal'
+import { startGoogleOAuth } from '@/lib/auth/google-oauth'
 import Image from 'next/image'
 import { ArrowLeftIcon, BookmarkIcon } from '@heroicons/react/24/outline'
 import type { WishListDTO } from '@/types/api'
@@ -52,8 +53,9 @@ export default function SharedWishlistPage() {
 
   const handleAcceptWishlist = async () => {
     if (!isAuthenticated || !user?.id || !wishlist) {
-      // Redirigir a login
-      router.push('/auth/login?redirect=' + encodeURIComponent(window.location.pathname))
+      startGoogleOAuth(
+        `${window.location.pathname}${window.location.search || ''}`
+      )
       return
     }
 
@@ -146,7 +148,11 @@ export default function SharedWishlistPage() {
             )}
             {!isAuthenticated && (
               <button
-                onClick={() => router.push('/auth/login?redirect=' + encodeURIComponent(window.location.pathname))}
+                onClick={() =>
+                  startGoogleOAuth(
+                    `${window.location.pathname}${window.location.search || ''}`
+                  )
+                }
                 className="px-4 py-2 bg-[#73FFA2] text-gray-900 rounded-lg hover:bg-[#66DEDB] transition-colors font-semibold"
               >
                 Iniciar sesión para aceptar

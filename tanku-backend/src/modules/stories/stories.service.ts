@@ -1,7 +1,7 @@
 import { prisma } from '../../config/database';
 import { S3Service } from '../../shared/services/s3.service';
 import { StoryDTO, StoryFileDTO } from '../../shared/dto/stories.dto';
-import { NotFoundError, BadRequestError } from '../../shared/errors/AppError';
+import { NotFoundError, BadRequestError, ForbiddenError } from '../../shared/errors/AppError';
 import type { StoriesUser, StoryFile, User, UserProfile } from '@prisma/client';
 import {
   isProductBlockedForMinor,
@@ -501,6 +501,36 @@ export class StoriesService {
       console.error(`❌ [STORIES SERVICE] Error obteniendo stories:`, error.message);
       return [];
     }
+  }
+
+  /**
+   * Eliminar una historia propia (S3 + BD). StoryFiles en cascade.
+   */
+  async deleteStory(storyId: string, requestingUserId: string): Promise<void> {
+    const story = await prisma.storiesUser.findUnique({
+      where: { id: storyId },
+      include: { storyFiles: true },
+    });
+
+    if (!story) {
+      throw new NotFoundError('Historia no encontrada');
+    }
+
+    if (story.customerId !== requestingUserId) {
+      throw new ForbiddenError('No puedes eliminar esta historia');
+    }
+
+    for (const file of story.storyFiles) {
+      try {
+        await this.s3Service.deleteFile(file.fileUrl);
+      } catch (err) {
+        console.warn('[StoriesService] No se pudo borrar archivo en S3:', err);
+      }
+    }
+
+    await prisma.storiesUser.delete({
+      where: { id: storyId },
+    });
   }
 }
 

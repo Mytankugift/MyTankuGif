@@ -1,66 +1,98 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
 
 interface UseInfiniteScrollOptions {
+  /** Contenedor con `overflow-y: auto` que hace scroll (obligatorio para IO correcto) */
+  scrollRootRef: RefObject<HTMLElement | null>
+  /** true cuando el nodo ya está montado (ref callback) */
+  scrollRootReady: boolean
   hasMore: boolean
-  isLoading: boolean
+  isLoadingMore: boolean
   nextCursorToken: string | null
-  onLoadMore: () => void
+  onLoadMore: () => void | Promise<void>
+  /** Margen inferior para disparar antes (px) */
   rootMargin?: string
-  threshold?: number
+  threshold?: number | number[]
 }
 
+/**
+ * IntersectionObserver anclado al scroll root (no al viewport), con refs para evitar
+ * closures obsoletas y dobles cargas.
+ */
 export function useInfiniteScroll({
+  scrollRootRef,
+  scrollRootReady,
   hasMore,
-  isLoading,
+  isLoadingMore,
   nextCursorToken,
   onLoadMore,
-  rootMargin = '100px',
-  threshold = 0.1,
+  rootMargin = '0px 0px 320px 0px',
+  threshold = 0,
 }: UseInfiniteScrollOptions) {
   const sentinelRef = useRef<HTMLDivElement>(null)
-  const isLoadingRef = useRef(false)
+  const loadLockRef = useRef(false)
+  const hasMoreRef = useRef(hasMore)
+  const cursorRef = useRef(nextCursorToken)
+  const loadingRef = useRef(isLoadingMore)
+  const onLoadMoreRef = useRef(onLoadMore)
 
   useEffect(() => {
-    // Solo crear observer si hay más contenido Y hay cursor token
-    if (!hasMore || !nextCursorToken || isLoading) {
-      return
-    }
+    hasMoreRef.current = hasMore
+  }, [hasMore])
+  useEffect(() => {
+    cursorRef.current = nextCursorToken
+  }, [nextCursorToken])
+  useEffect(() => {
+    loadingRef.current = isLoadingMore
+  }, [isLoadingMore])
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore
+  }, [onLoadMore])
 
+  useLayoutEffect(() => {
+    if (!scrollRootReady) return
+    const root = scrollRootRef.current
     const sentinel = sentinelRef.current
-    if (!sentinel) return
-
-    const scrollContainer = document.querySelector('.custom-scrollbar') as HTMLElement
+    if (!root || !sentinel) return
+    if (!hasMore || !nextCursorToken) return
 
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !isLoadingRef.current && hasMore && nextCursorToken) {
-            isLoadingRef.current = true
-            onLoadMore()
-            
-            // Resetear flag después de un delay
-            setTimeout(() => {
-              isLoadingRef.current = false
-            }, 2000)
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          if (loadLockRef.current || loadingRef.current) continue
+          if (!hasMoreRef.current || !cursorRef.current) continue
+
+          loadLockRef.current = true
+          const done = () => {
+            window.setTimeout(() => {
+              loadLockRef.current = false
+            }, 350)
           }
-        })
+
+          try {
+            const p = onLoadMoreRef.current() as void | Promise<void>
+            if (p && typeof (p as Promise<void>).then === 'function') {
+              ;(p as Promise<void>).finally(done)
+            } else {
+              done()
+            }
+          } catch {
+            done()
+          }
+        }
       },
       {
-        threshold,
+        root,
         rootMargin,
-        root: scrollContainer || null,
+        threshold,
       }
     )
 
     observer.observe(sentinel)
-
-    return () => {
-      observer.disconnect()
-    }
-  }, [hasMore, isLoading, nextCursorToken, onLoadMore, rootMargin, threshold])
+    return () => observer.disconnect()
+  }, [scrollRootRef, scrollRootReady, hasMore, nextCursorToken, rootMargin, threshold])
 
   return { sentinelRef }
 }
-

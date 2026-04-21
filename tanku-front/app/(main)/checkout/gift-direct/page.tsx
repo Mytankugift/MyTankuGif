@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { UserAvatar } from '@/components/shared/user-avatar'
 import { BaseNav } from '@/components/layout/base-nav'
-import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 
 /** Superficies discretas: verde + aqua solo en acentos, no bordes pesados */
 const surface =
@@ -424,9 +423,16 @@ function GiftDirectCheckoutContent() {
     <Link
       href="/feed"
       aria-label="Volver"
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/[0.06]"
     >
-      <ArrowLeftIcon className="h-5 w-5" strokeWidth={2} />
+      <Image
+        src="/icons_tanku/mobile_tanku_menu_ir_atras_Universal.svg"
+        alt=""
+        width={24}
+        height={24}
+        className="h-6 w-6 object-contain"
+        unoptimized
+      />
     </Link>
   )
 
@@ -435,10 +441,11 @@ function GiftDirectCheckoutContent() {
       <>
         <BaseNav
           showStories={false}
-          pageTitle="Comprar como regalo"
-          pageSubtitle="Cargando datos del regalo…"
-          pageTitleColor="#73FFA2"
+          pageTitle="Regala un TANKU"
+          pageTitleColor="#FFFFFF"
           startContent={navBack}
+          mobileBackCenterTitleCartOnly
+          mobileTranslucentNav
         />
         <div
           className="min-h-screen overflow-x-hidden overflow-y-auto px-4 pb-8 pt-24 sm:px-6 sm:pt-28 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:px-8 md:pt-32"
@@ -460,9 +467,11 @@ function GiftDirectCheckoutContent() {
       <>
         <BaseNav
           showStories={false}
-          pageTitle="Comprar como regalo"
-          pageTitleColor="#73FFA2"
+          pageTitle="Regala un TANKU"
+          pageTitleColor="#FFFFFF"
           startContent={navBack}
+          mobileBackCenterTitleCartOnly
+          mobileTranslucentNav
         />
         <div
           className="min-h-screen overflow-x-hidden overflow-y-auto px-4 pb-8 pt-24 sm:px-6 sm:pt-28 md:px-8 md:pt-32"
@@ -489,15 +498,17 @@ function GiftDirectCheckoutContent() {
         showStories={false}
         canHide={false}
         isVisible={true}
-        pageTitle="Comprar como regalo"
-        pageSubtitle="Destinatario, producto y pago"
-        pageTitleColor="#73FFA2"
+        pageTitle="Regala un TANKU"
+        pageTitleColor="#FFFFFF"
         startContent={navBack}
+        mobileBackCenterTitleCartOnly
+        mobileTranslucentNav
       />
-      <div
-        className="min-h-screen overflow-x-hidden overflow-y-auto px-4 pb-12 pt-24 sm:px-6 sm:pt-28 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:px-8 md:pb-16 md:pt-32 custom-scrollbar"
-        style={{ backgroundColor: '#1a1a1a' }}
-      >
+      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" id="gift-direct-scroll-root">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar max-md:px-4 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:px-8 md:pb-16 md:pt-32"
+          style={{ backgroundColor: '#1a1a1a' }}
+        >
         <div className="mx-auto max-w-4xl">
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10 lg:items-start">
@@ -510,13 +521,32 @@ function GiftDirectCheckoutContent() {
                 <div className="space-y-4">
                   {/* Buscador más pequeño */}
                   <div>
-                    <input
-                      type="text"
-                      value={recipientSearch}
-                      onChange={(e) => setRecipientSearch(e.target.value)}
-                      className={inputClass}
-                      placeholder="Buscar usuario o amigo..."
-                    />
+                    <div className="relative">
+                      <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="text-[#B8C4CC]"
+                        >
+                          <circle cx="11" cy="11" r="8" />
+                          <path d="m21 21-4.3-4.3" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        value={recipientSearch}
+                        onChange={(e) => setRecipientSearch(e.target.value)}
+                        className={`${inputClass} pl-10`}
+                        placeholder="Buscar usuario o amigo..."
+                      />
+                    </div>
                   </div>
                   
                   {/* Mostrar amigos por defecto o resultados de búsqueda */}
@@ -534,7 +564,7 @@ function GiftDirectCheckoutContent() {
                   
                   {/* Mostrar amigos cuando no hay búsqueda */}
                   {!isLoadingFriends && recipientSearch.length < 2 && friends.length > 0 && (
-                    <div className="grid grid-cols-4 gap-4 max-h-80 overflow-y-auto custom-scrollbar">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-3 max-h-80 overflow-y-auto custom-scrollbar">
                       {friends.map((friend) => {
                         const userName = friend.firstName && friend.lastName
                           ? `${friend.firstName} ${friend.lastName}`
@@ -545,7 +575,7 @@ function GiftDirectCheckoutContent() {
                             key={friend.id}
                             type="button"
                             onClick={() => handleRecipientSelect(friend)}
-                            className="flex flex-col items-center gap-2 rounded-xl bg-[#1a1a1a] p-3 ring-1 ring-white/[0.06] transition-all hover:ring-[#66DEDB]/35"
+                            className="flex items-center gap-2.5 rounded-xl bg-[#20252B] px-2.5 py-2 ring-1 ring-white/[0.08] transition-all hover:ring-[#66DEDB]/35"
                           >
                             <UserAvatar
                               user={{
@@ -555,16 +585,18 @@ function GiftDirectCheckoutContent() {
                                 email: friend.email,
                                 username: friend.username,
                               }}
-                              size={64}
+                              size={42}
                             />
-                            <p className="text-white text-xs text-center max-w-full truncate font-medium">
-                              {userName}
-                            </p>
-                            {friend.username && (
-                              <p className="text-gray-400 text-xs text-center max-w-full truncate">
-                                @{friend.username}
+                            <div className="min-w-0 text-left">
+                              <p className="text-white text-xs md:text-sm max-w-full truncate font-medium">
+                                {userName}
                               </p>
-                            )}
+                              {friend.username && (
+                                <p className="text-gray-400 text-[11px] md:text-xs max-w-full truncate">
+                                  @{friend.username}
+                                </p>
+                              )}
+                            </div>
                           </button>
                         )
                       })}
@@ -573,7 +605,7 @@ function GiftDirectCheckoutContent() {
                   
                   {/* Mostrar resultados de búsqueda cuando hay búsqueda */}
                   {!isSearching && recipientSearch.length >= 2 && searchResults.length > 0 && (
-                    <div className="grid grid-cols-4 gap-4 max-h-80 overflow-y-auto custom-scrollbar">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-3 max-h-80 overflow-y-auto custom-scrollbar">
                       {searchResults.map((result) => {
                         const userName = result.firstName && result.lastName
                           ? `${result.firstName} ${result.lastName}`
@@ -584,7 +616,7 @@ function GiftDirectCheckoutContent() {
                             key={result.id}
                             type="button"
                             onClick={() => handleRecipientSelect(result)}
-                            className="flex flex-col items-center gap-2 rounded-xl bg-[#1a1a1a] p-3 ring-1 ring-white/[0.06] transition-all hover:ring-[#66DEDB]/35"
+                            className="flex items-center gap-2.5 rounded-xl bg-[#20252B] px-2.5 py-2 ring-1 ring-white/[0.08] transition-all hover:ring-[#66DEDB]/35"
                           >
                             <UserAvatar
                               user={{
@@ -594,16 +626,18 @@ function GiftDirectCheckoutContent() {
                                 email: result.email,
                                 username: result.username,
                               }}
-                              size={64}
+                              size={42}
                             />
-                            <p className="text-white text-xs text-center max-w-full truncate font-medium">
-                              {userName}
-                            </p>
-                            {result.username && (
-                              <p className="text-gray-400 text-xs text-center max-w-full truncate">
-                                @{result.username}
+                            <div className="min-w-0 text-left">
+                              <p className="text-white text-xs md:text-sm max-w-full truncate font-medium">
+                                {userName}
                               </p>
-                            )}
+                              {result.username && (
+                                <p className="text-gray-400 text-[11px] md:text-xs max-w-full truncate">
+                                  @{result.username}
+                                </p>
+                              )}
+                            </div>
                           </button>
                         )
                       })}
@@ -866,6 +900,7 @@ function GiftDirectCheckoutContent() {
           }}
         />
         </div>
+      </div>
       </div>
     </>
   )

@@ -79,11 +79,11 @@ export function WishlistProductsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[1000002] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 border border-[#73FFA2]/40 rounded-[25px] w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-[#262626] border border-[#73FFA2]/45 rounded-[25px] w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_16px_48px_rgba(0,0,0,0.55)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -97,20 +97,20 @@ export function WishlistProductsModal({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors text-2xl"
+            className="h-9 w-9 rounded-full bg-white/10 text-gray-200 hover:bg-white/20 transition-colors text-xl"
           >
             ✕
           </button>
         </div>
 
-        {/* Content - Grid de 2 columnas con diseño horizontal */}
+        {/* Content - móvil 1 por fila para priorizar legibilidad */}
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
           {wishlist.items.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               Esta wishlist está vacía
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {wishlist.items.map((item) => {
                 const stock = item.variantId ? (productStocks[item.variantId] ?? null) : null
                 const isLoadingStock = item.variantId ? loadingStocks[item.variantId] : false
@@ -195,7 +195,7 @@ export function WishlistProductsModal({
                           <div className="mb-1">
                             {isLoadingStock ? (
                               <p className="text-xs text-gray-500">Verificando stock...</p>
-                            ) : stock !== null ? (
+                            ) : stock !== null && (isOutOfStock || isLowStock) ? (
                               <p className={`text-xs font-medium ${
                                 isOutOfStock 
                                   ? 'text-red-400' 
@@ -203,12 +203,11 @@ export function WishlistProductsModal({
                                   ? 'text-yellow-400' 
                                   : 'text-[#73FFA2]'
                               }`}>
-                                {isOutOfStock 
-                                  ? '❌ Agotado' 
-                                  : isLowStock 
-                                  ? `⚠️ Solo ${stock}` 
-                                  : `✓ ${stock} disponible${stock !== 1 ? 's' : ''}`
-                                }
+                                {isOutOfStock
+                                  ? '❌ Agotado'
+                                  : isLowStock
+                                  ? '⚠️ Stock bajo'
+                                  : null}
                               </p>
                             ) : null}
                           </div>
@@ -404,11 +403,11 @@ export function WishlistProductsModal({
                                   if (variantResponse.success && variantResponse.data) {
                                     const stock = variantResponse.data.stock || 0
                                     if (stock <= 0) {
-                                      showError('Este producto está agotado y no está disponible para regalo')
+                                      showError('Este producto está agotado')
                                       return
                                     }
                                     if (stock < 1) {
-                                      showError(`Stock insuficiente. Solo hay ${stock} unidad(es) disponible(s)`)
+                                      showError('Stock insuficiente')
                                       return
                                     }
                                   } else {
@@ -440,10 +439,10 @@ export function WishlistProductsModal({
                                 router.push(`/checkout/gift-direct?variantId=${item.variantId}&recipientId=${wishlistOwnerId}&quantity=1`)
                               }}
                               disabled={isOutOfStock}
-                              className={`px-3 py-1.5 text-xs font-semibold rounded-[25px] transition-colors flex-1 ${
+                              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all duration-200 flex-1 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] ${
                                 isOutOfStock
                                   ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                  : 'bg-[#3B9BC3] text-white hover:bg-[#2a8ba8]'
+                                  : 'bg-[linear-gradient(90deg,#3B9BC3_0%,#2A5B74_100%)] text-white hover:opacity-90'
                               }`}
                             >
                               Dar Tanku

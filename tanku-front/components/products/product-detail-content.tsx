@@ -190,8 +190,17 @@ export function ProductDetailContent({
 
   if (isLoadingProduct) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2]"></div>
+      <div className="min-h-[62dvh] max-md:min-h-[68dvh] w-full animate-pulse p-4 sm:p-5 md:p-6">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="h-[42dvh] rounded-2xl bg-[#20252B]" />
+          <div className="space-y-3">
+            <div className="h-7 w-2/3 rounded-xl bg-[#20252B]" />
+            <div className="h-5 w-1/3 rounded-xl bg-[#20252B]" />
+            <div className="h-20 w-full rounded-2xl bg-[#20252B]" />
+            <div className="h-11 w-full rounded-2xl bg-[#20252B]" />
+            <div className="h-11 w-full rounded-2xl bg-[#20252B]" />
+          </div>
+        </div>
       </div>
     )
   }
@@ -216,8 +225,17 @@ export function ProductDetailContent({
 
   if (!fullProduct) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2]"></div>
+      <div className="min-h-[62dvh] max-md:min-h-[68dvh] w-full animate-pulse p-4 sm:p-5 md:p-6">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="h-[42dvh] rounded-2xl bg-[#20252B]" />
+          <div className="space-y-3">
+            <div className="h-7 w-2/3 rounded-xl bg-[#20252B]" />
+            <div className="h-5 w-1/3 rounded-xl bg-[#20252B]" />
+            <div className="h-20 w-full rounded-2xl bg-[#20252B]" />
+            <div className="h-11 w-full rounded-2xl bg-[#20252B]" />
+            <div className="h-11 w-full rounded-2xl bg-[#20252B]" />
+          </div>
+        </div>
       </div>
     )
   }
