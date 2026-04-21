@@ -11,9 +11,18 @@ function getTransporter() {
         'EMAIL_USER y EMAIL_PASS deben estar definidos en el entorno para usar el proveedor gmail'
       );
     }
+    // SMTP explícito + family: 4 evita ENETUNREACH a IPv6 (p. ej. Railway sin salida IPv6).
+    // 587 + STARTTLS es el flujo recomendado por Google para clientes.
     transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      family: 4,
       auth: { user, pass },
+      connectionTimeout: 30000,
+      socketTimeout: 30000,
+      greetingTimeout: 15000,
     });
   }
   return transporter;
@@ -36,7 +45,8 @@ async function send({ to, subject, html, text }) {
     console.log('[email][gmail] Correo enviado:', { to, subject, messageId: info.messageId });
     return info;
   } catch (err) {
-    console.error('[email][gmail] Error enviando correo:', err.message);
+    const code = err && typeof err === 'object' && 'code' in err ? err.code : undefined;
+    console.error('[email][gmail] Error enviando correo:', err.message, code ? { code } : '');
     throw err;
   }
 }
