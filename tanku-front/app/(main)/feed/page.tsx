@@ -251,12 +251,12 @@ export default function FeedPage() {
 
   return (
     <div
-      className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden transition-colors duration-300"
+      className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden transition-colors duration-300"
       style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
     >
-      <div
-        className="fixed inset-x-0 top-0 z-40 flex flex-col flex-shrink-0 overflow-visible border-b border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.35)] max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150 md:inset-x-auto md:left-36 md:right-0 md:bg-[var(--color-surface-191e23-20)] md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none] lg:left-[208px]"
-      >
+      {/* Chrome fijo: altura 0 en el flujo flex para que #feed-scroll-root reciba todo el alto útil (scroll en el contenido, no “desde” el nav). */}
+      <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
+        <div className="pointer-events-auto fixed inset-x-0 top-0 z-40 flex flex-col flex-shrink-0 overflow-visible border-b border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.35)] max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150 md:inset-x-auto md:left-36 md:right-0 md:bg-[var(--color-surface-191e23-20)] md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none] lg:left-[208px]">
         <FeedNav
           searchInput={searchInput}
           onSearchInputChange={setSearchInput}
@@ -282,6 +282,7 @@ export default function FeedPage() {
             feedNavScroll={feedNavScroll}
           />
         </div>
+        </div>
       </div>
 
       {/* Pastilla categoría: flotante en móvil (no baja con el scroll) */}
@@ -305,7 +306,7 @@ export default function FeedPage() {
       <div
         ref={setFeedScrollRef}
         id="feed-scroll-root"
-        className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden px-2 pt-2 max-md:overflow-visible max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:pt-4 md:overflow-y-auto md:overscroll-y-contain md:px-4 md:py-5 md:pb-5 transition-[padding-top] duration-300 ease-out [-webkit-overflow-scrolling:touch]"
+        className="custom-scrollbar relative z-0 min-h-0 flex-1 basis-0 overflow-x-hidden px-2 pt-2 max-md:overflow-visible max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:pt-4 md:overflow-y-auto md:overscroll-y-contain md:px-4 md:py-5 md:pb-5 transition-[padding-top] duration-300 ease-out [-webkit-overflow-scrolling:touch]"
         style={{
           paddingTop: scrollAreaPaddingTop,
           marginRight: '0',
