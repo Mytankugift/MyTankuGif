@@ -121,7 +121,7 @@ export function FeedCategoriesMobileModal({
     >
       <div
         className={clsx(
-          'flex h-[min(92vh,736px)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-24px)] w-full max-w-lg shrink-0 flex-col overflow-hidden rounded-[22px] bg-[#161616] shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-white/10 md:h-[min(91vh,780px)] md:max-h-[min(91vh,780px,calc(100dvh-5rem))]',
+          'flex h-[min(86vh,680px)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-24px)] w-full max-w-lg shrink-0 flex-col overflow-hidden rounded-[22px] bg-[#161616] shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-white/10 md:h-[min(91vh,780px)] md:max-h-[min(91vh,780px,calc(100dvh-5rem))]',
           isExiting ? 'animate-tanku-modal-to-top' : 'animate-tanku-modal-from-top'
         )}
         onMouseDown={(e) => e.stopPropagation()}
