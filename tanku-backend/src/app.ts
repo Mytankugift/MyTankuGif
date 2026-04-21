@@ -4,12 +4,16 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import { createServer } from 'http';
+import dns from 'node:dns';
 import { env, getCorsOrigins } from './config/env';
 import { connectMongoDB, closeConnections } from './config/database';
 import { APP_CONSTANTS } from './config/constants';
 import { AppError, AgeRestrictedError } from './shared/errors/AppError';
 import { errorResponse, ErrorCode } from './shared/response';
 import { getSocketService } from './shared/realtime/socket.service';
+
+// En entornos PaaS sin salida IPv6, priorizar IPv4 evita ENETUNREACH en SMTP.
+dns.setDefaultResultOrder('ipv4first');
 
 /**
  * Crear aplicación Express

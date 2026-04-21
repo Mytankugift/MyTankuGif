@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const dns = require('node:dns');
 
 let transporter;
 
@@ -19,6 +20,8 @@ function getTransporter() {
       secure: false,
       requireTLS: true,
       family: 4,
+      lookup: (hostname, options, callback) =>
+        dns.lookup(hostname, { ...options, family: 4, all: false }, callback),
       auth: { user, pass },
       connectionTimeout: 30000,
       socketTimeout: 30000,
