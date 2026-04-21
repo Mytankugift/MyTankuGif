@@ -28,17 +28,8 @@ export default function MobileBottomNav() {
     setCenterMenuOpen(false)
   }, [pathname])
 
-  /** Landing sin sesión: misma barra y botón +, iconos laterales ocultos (espaciadores) */
+  /** Landing sin sesión: solo botón circular central (sin barra translúcida). */
   const isLandingGuest = pathname === '/' && !isAuthenticated
-
-  const iconSlotPlaceholder = (
-    <div
-      className="invisible pointer-events-none flex flex-col items-center justify-center p-1.5"
-      aria-hidden
-    >
-      <span className="block h-8 w-8" />
-    </div>
-  )
 
   const isActiveRoute = (route: string) => {
     if (route === '/feed') {
@@ -57,18 +48,20 @@ export default function MobileBottomNav() {
   return (
     <>
     <nav
-      className="pointer-events-auto md:hidden fixed bottom-0 left-0 right-0 z-[999999] flex items-center justify-around border-t border-white/[0.08] px-2 py-1 shadow-[0_-8px_32px_rgba(0,0,0,0.35)] backdrop-blur-xl backdrop-saturate-150"
+      className={`pointer-events-auto md:hidden fixed z-[999999] ${
+        isLandingGuest
+          ? 'bottom-[max(12px,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2'
+          : 'bottom-0 left-0 right-0 flex items-center justify-around border-t border-white/[0.08] px-2 py-1 shadow-[0_-8px_32px_rgba(0,0,0,0.35)] backdrop-blur-xl backdrop-saturate-150'
+      }`}
       style={{
-        WebkitBackdropFilter: 'blur(20px) saturate(1.1)',
-        backgroundColor: 'rgba(38, 38, 38, 0.52)',
-        minHeight: '50px',
-        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+        WebkitBackdropFilter: isLandingGuest ? 'none' : 'blur(20px) saturate(1.1)',
+        backgroundColor: isLandingGuest ? 'transparent' : 'rgba(38, 38, 38, 0.52)',
+        minHeight: isLandingGuest ? undefined : '50px',
+        paddingBottom: isLandingGuest ? undefined : 'max(8px, env(safe-area-inset-bottom))',
       }}
       aria-label="Navegación principal"
     >
-      {isLandingGuest ? (
-        iconSlotPlaceholder
-      ) : (
+      {!isLandingGuest && (
         <Link
           href="/feed"
           onClick={handleFeedLinkClick}
@@ -92,9 +85,7 @@ export default function MobileBottomNav() {
         </Link>
       )}
 
-      {isLandingGuest ? (
-        iconSlotPlaceholder
-      ) : isAuthenticated ? (
+      {!isLandingGuest && (isAuthenticated ? (
         <Link
           href="/notifications"
           className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-all ${
@@ -126,13 +117,15 @@ export default function MobileBottomNav() {
             style={{ width: '32px', height: '32px' }}
           />
         </div>
-      )}
+      ))}
 
       <button
         type="button"
-        className="w-16 h-16 rounded-full flex items-center justify-center transition-transform hover:scale-110 relative -mt-5"
+        className={`h-16 w-16 rounded-full flex items-center justify-center transition-transform hover:scale-110 relative ${
+          isLandingGuest ? '' : '-mt-5'
+        }`}
         style={{
-          background: 'transparent',
+          background: 'rgba(78, 216, 124, .9)',
           border: '3px solid #73FFA2',
           boxShadow: '0 0 16px rgba(115, 255, 162, 0.8), 0 0 24px rgba(115, 255, 162, 0.6)',
         }}
@@ -150,9 +143,7 @@ export default function MobileBottomNav() {
         <span className="text-white text-7xl leading-none">+</span>
       </button>
 
-      {isLandingGuest ? (
-        iconSlotPlaceholder
-      ) : isAuthenticated ? (
+      {!isLandingGuest && (isAuthenticated ? (
         <Link
           href="/messages"
           className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-all ${
@@ -184,11 +175,9 @@ export default function MobileBottomNav() {
             style={{ width: '32px', height: '32px' }}
           />
         </div>
-      )}
+      ))}
 
-      {isLandingGuest ? (
-        iconSlotPlaceholder
-      ) : isAuthenticated ? (
+      {!isLandingGuest && (isAuthenticated ? (
         <Link
           href="/profile"
           className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-all ${
@@ -220,7 +209,7 @@ export default function MobileBottomNav() {
             style={{ width: '32px', height: '32px' }}
           />
         </div>
-      )}
+      ))}
 
       <CategoryLoginModal
         isOpen={showLoginModal}

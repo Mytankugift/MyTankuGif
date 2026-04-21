@@ -25,7 +25,9 @@ export type FeedNavScrollState = {
 export function useFeedScrollNav(
   scrollRootRef: RefObject<HTMLElement | null>,
   /** true cuando el nodo ya está montado (p. ej. ref callback) */
-  scrollRootAttached: boolean
+  scrollRootAttached: boolean,
+  /** true para leer scroll de window/documento en lugar de contenedor interno */
+  useWindowScroll = false
 ): FeedNavScrollState {
   const [state, setState] = useState<FeedNavScrollState>({
     scrollTop: 0,
@@ -40,10 +42,14 @@ export function useFeedScrollNav(
 
   const update = useCallback(() => {
     const el = scrollRootRef.current
-    if (!el || ticking.current) return
+    if (!useWindowScroll && !el) return
+    if (ticking.current) return
     ticking.current = true
     requestAnimationFrame(() => {
-      const st = Math.max(0, el.scrollTop)
+      const st = Math.max(
+        0,
+        useWindowScroll ? window.scrollY || document.documentElement.scrollTop || 0 : el?.scrollTop || 0
+      )
       const delta = st - lastY.current
       const goingDown = delta > 0
       lastY.current = st
@@ -70,19 +76,19 @@ export function useFeedScrollNav(
       })
       ticking.current = false
     })
-  }, [scrollRootRef])
+  }, [scrollRootRef, useWindowScroll])
 
   useEffect(() => {
     if (!scrollRootAttached) return
     const el = scrollRootRef.current
-    if (!el) return
+    if (!useWindowScroll && !el) return
 
-    lastY.current = el.scrollTop
+    lastY.current = useWindowScroll ? window.scrollY || document.documentElement.scrollTop || 0 : el?.scrollTop || 0
     update()
-
-    el.addEventListener('scroll', update, { passive: true })
-    return () => el.removeEventListener('scroll', update)
-  }, [scrollRootRef, scrollRootAttached, update])
+    const target: HTMLElement | Window = useWindowScroll ? window : (el as HTMLElement)
+    target.addEventListener('scroll', update, { passive: true })
+    return () => target.removeEventListener('scroll', update)
+  }, [scrollRootRef, scrollRootAttached, update, useWindowScroll])
 
   return state
 }

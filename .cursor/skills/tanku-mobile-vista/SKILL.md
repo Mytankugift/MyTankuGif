@@ -94,3 +94,18 @@ Si la página usa un **header `fixed`** propio (como el feed):
 ## 7. Z-index de modales globales
 
 Modales que deben quedar por encima del bottom nav (`z-[999999]`) deben usar **z-index ≥ 1000000** en overlay (ver `EventsModal`, menú central móvil).
+
+## 8. Variante Safari UX (scroll nativo del documento)
+
+Cuando la prioridad sea que Safari/Chrome móvil minimicen su UI al bajar (barra superior/inferior del navegador), usar esta variante en **móvil**:
+
+- En `app/(main)/layout.tsx`, para esa ruta usar:
+  - contenedor principal: `min-h-screen overflow-visible` (en móvil),
+  - `<main>`: `overflow-y-auto overscroll-y-contain pb-0 md:overflow-hidden` si en `md+` quieres mantener scroll interno.
+- En la página, evitar `max-md:overflow-y-auto` en el contenedor interno; dejar `max-md:overflow-visible` para que el scroll real ocurra en documento/window.
+- Los hooks que dependen de scroll deben soportar `window` en móvil:
+  - nav por scroll: leer `window.scrollY`,
+  - infinite scroll: `IntersectionObserver` con `root: null` (viewport) en móvil.
+- Mantener `max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]` para reservar espacio del `MobileBottomNav`.
+
+Úsala en rutas donde el gesto nativo del navegador sea requisito UX. Si la prioridad es control fino del header/overlay, mantener el patrón de scroll interno.

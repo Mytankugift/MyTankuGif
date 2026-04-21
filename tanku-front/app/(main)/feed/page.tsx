@@ -45,8 +45,13 @@ export default function FeedPage() {
   const hasInitialized = useRef(false)
   const [feedExplorarActivated, setFeedExplorarActivated] = useState(false)
   const [categoriesModalOpen, setCategoriesModalOpen] = useState(false)
+  const useWindowScroll = viewportWidth < 768
 
-  const feedNavScroll = useFeedScrollNav(feedScrollRootRef, feedScrollAttached)
+  const feedNavScroll = useFeedScrollNav(
+    feedScrollRootRef,
+    useWindowScroll ? true : feedScrollAttached,
+    useWindowScroll
+  )
 
   // Proteger ruta: redirigir no autenticados a landing
   useEffect(() => {
@@ -201,7 +206,8 @@ export default function FeedPage() {
 
   const { sentinelRef } = useInfiniteScroll({
     scrollRootRef: feedScrollRootRef,
-    scrollRootReady: feedScrollAttached,
+    scrollRootReady: useWindowScroll ? true : feedScrollAttached,
+    useWindowRoot: useWindowScroll,
     hasMore: currentHasMore && !!currentNextCursorToken,
     isLoadingMore: isLoadingMoreCombined,
     nextCursorToken: currentNextCursorToken,
@@ -216,6 +222,10 @@ export default function FeedPage() {
       setSearchInput('')
       setSearchQuery('')
       requestAnimationFrame(() => {
+        if (useWindowScroll) {
+          window.scrollTo({ top: 0, behavior: 'auto' })
+          return
+        }
         if (feedScrollRootRef.current) feedScrollRootRef.current.scrollTop = 0
       })
     }
@@ -295,7 +305,7 @@ export default function FeedPage() {
       <div
         ref={setFeedScrollRef}
         id="feed-scroll-root"
-        className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-2 pt-2 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:pt-4 md:px-4 md:py-5 md:pb-5 transition-[padding-top] duration-300 ease-out [-webkit-overflow-scrolling:touch]"
+        className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden px-2 pt-2 max-md:overflow-visible max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:pt-4 md:overflow-y-auto md:overscroll-y-contain md:px-4 md:py-5 md:pb-5 transition-[padding-top] duration-300 ease-out [-webkit-overflow-scrolling:touch]"
         style={{
           paddingTop: scrollAreaPaddingTop,
           marginRight: '0',

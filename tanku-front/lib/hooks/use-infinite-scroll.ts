@@ -7,6 +7,8 @@ interface UseInfiniteScrollOptions {
   scrollRootRef: RefObject<HTMLElement | null>
   /** true cuando el nodo ya está montado (ref callback) */
   scrollRootReady: boolean
+  /** true para usar viewport (window) como root de IntersectionObserver */
+  useWindowRoot?: boolean
   hasMore: boolean
   isLoadingMore: boolean
   nextCursorToken: string | null
@@ -23,6 +25,7 @@ interface UseInfiniteScrollOptions {
 export function useInfiniteScroll({
   scrollRootRef,
   scrollRootReady,
+  useWindowRoot = false,
   hasMore,
   isLoadingMore,
   nextCursorToken,
@@ -51,10 +54,10 @@ export function useInfiniteScroll({
   }, [onLoadMore])
 
   useLayoutEffect(() => {
-    if (!scrollRootReady) return
+    if (!useWindowRoot && !scrollRootReady) return
     const root = scrollRootRef.current
     const sentinel = sentinelRef.current
-    if (!root || !sentinel) return
+    if ((!useWindowRoot && !root) || !sentinel) return
     if (!hasMore || !nextCursorToken) return
 
     const observer = new IntersectionObserver(
@@ -84,7 +87,7 @@ export function useInfiniteScroll({
         }
       },
       {
-        root,
+        root: useWindowRoot ? null : root,
         rootMargin,
         threshold,
       }
@@ -92,7 +95,7 @@ export function useInfiniteScroll({
 
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [scrollRootRef, scrollRootReady, hasMore, nextCursorToken, rootMargin, threshold])
+  }, [scrollRootRef, scrollRootReady, useWindowRoot, hasMore, nextCursorToken, rootMargin, threshold])
 
   return { sentinelRef }
 }
