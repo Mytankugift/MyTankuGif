@@ -51,13 +51,13 @@ export default function MobileBottomNav() {
       className={`pointer-events-auto md:hidden fixed z-[999999] ${
         isLandingGuest
           ? 'bottom-[max(12px,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2'
-          : 'bottom-0 left-0 right-0 flex items-center justify-around border-t border-white/[0.08] px-2 py-1 shadow-[0_-8px_32px_rgba(0,0,0,0.35)] backdrop-blur-xl backdrop-saturate-150'
+          : 'bottom-0 left-0 right-0 flex items-center justify-around border-t border-white/[0.08] px-2 py-0.5 shadow-[0_-8px_32px_rgba(0,0,0,0.35)] backdrop-blur-xl backdrop-saturate-150'
       }`}
       style={{
         WebkitBackdropFilter: isLandingGuest ? 'none' : 'blur(20px) saturate(1.1)',
         backgroundColor: isLandingGuest ? 'transparent' : 'rgba(38, 38, 38, 0.52)',
-        minHeight: isLandingGuest ? undefined : '50px',
-        paddingBottom: isLandingGuest ? undefined : 'max(8px, env(safe-area-inset-bottom))',
+        minHeight: isLandingGuest ? undefined : '44px',
+        paddingBottom: isLandingGuest ? undefined : 'max(6px, env(safe-area-inset-bottom))',
       }}
       aria-label="Navegación principal"
     >
@@ -65,7 +65,7 @@ export default function MobileBottomNav() {
         <Link
           href="/feed"
           onClick={handleFeedLinkClick}
-          className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-all ${
+          className={`flex flex-col items-center justify-center p-1 rounded-lg transition-all ${
             isActiveRoute('/feed') ? 'opacity-100' : 'opacity-50 hover:opacity-70'
           }`}
           style={{
@@ -77,10 +77,10 @@ export default function MobileBottomNav() {
           <Image
             src="/icons_tanku/tanku_logo_menu_MyTanku_verde.svg"
             alt="My TANKU"
-            width={32}
-            height={32}
+            width={28}
+            height={28}
             className="object-contain"
-            style={{ width: '32px', height: '32px' }}
+            style={{ width: '28px', height: '28px' }}
           />
         </Link>
       )}
@@ -88,7 +88,7 @@ export default function MobileBottomNav() {
       {!isLandingGuest && (isAuthenticated ? (
         <Link
           href="/notifications"
-          className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-all ${
+          className={`flex flex-col items-center justify-center p-1 rounded-lg transition-all ${
             isActiveRoute('/notifications') ? 'opacity-100' : 'opacity-50 hover:opacity-70'
           }`}
           style={{
@@ -100,33 +100,33 @@ export default function MobileBottomNav() {
           <Image
             src="/icons_tanku/tanku_nav_notificaciones_verde.svg"
             alt="Notificaciones"
-            width={32}
-            height={32}
+            width={28}
+            height={28}
             className="object-contain"
-            style={{ width: '32px', height: '32px' }}
+            style={{ width: '28px', height: '28px' }}
           />
         </Link>
       ) : (
-        <div className="flex flex-col items-center justify-center p-1.5 rounded-lg opacity-30 cursor-not-allowed">
+        <div className="flex flex-col items-center justify-center p-1 rounded-lg opacity-30 cursor-not-allowed">
           <Image
             src="/icons_tanku/tanku_nav_notificaciones_verde.svg"
             alt="Notificaciones"
-            width={32}
-            height={32}
+            width={28}
+            height={28}
             className="object-contain"
-            style={{ width: '32px', height: '32px' }}
+            style={{ width: '28px', height: '28px' }}
           />
         </div>
       ))}
 
       <button
         type="button"
-        className={`h-16 w-16 rounded-full flex items-center justify-center transition-transform hover:scale-110 relative ${
-          isLandingGuest ? '' : '-mt-5'
+        className={`h-[52px] w-[52px] rounded-full flex items-center justify-center transition-transform hover:scale-110 relative ${
+          isLandingGuest ? '' : '-mt-4'
         }`}
         style={{
           background: 'rgba(78, 216, 124, .9)',
-          border: '3px solid #73FFA2',
+          border: '2px solid #73FFA2',
           boxShadow: '0 0 16px rgba(115, 255, 162, 0.8), 0 0 24px rgba(115, 255, 162, 0.6)',
         }}
         title={isAuthenticated ? '¿Qué quieres hacer hoy?' : 'Inicia sesión para continuar'}
@@ -140,13 +140,13 @@ export default function MobileBottomNav() {
           }
         }}
       >
-        <span className="text-white text-7xl leading-none">+</span>
+        <span className="text-white text-5xl leading-none font-light">+</span>
       </button>
 
       {!isLandingGuest && (isAuthenticated ? (
         <Link
           href="/messages"
-          className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-all ${
+          className={`flex flex-col items-center justify-center p-1 rounded-lg transition-all ${
             isActiveRoute('/messages') ? 'opacity-100' : 'opacity-50 hover:opacity-70'
           }`}
           style={{
@@ -158,21 +158,21 @@ export default function MobileBottomNav() {
           <Image
             src="/icons_tanku/tanku_nav_mensajes_verde.svg"
             alt="Mensajes"
-            width={32}
-            height={32}
+            width={28}
+            height={28}
             className="object-contain"
-            style={{ width: '32px', height: '32px' }}
+            style={{ width: '28px', height: '28px' }}
           />
         </Link>
       ) : (
-        <div className="flex flex-col items-center justify-center p-1.5 rounded-lg opacity-30 cursor-not-allowed">
+        <div className="flex flex-col items-center justify-center p-1 rounded-lg opacity-30 cursor-not-allowed">
           <Image
             src="/icons_tanku/tanku_nav_mensajes_verde.svg"
             alt="Mensajes"
-            width={32}
-            height={32}
+            width={28}
+            height={28}
             className="object-contain"
-            style={{ width: '32px', height: '32px' }}
+            style={{ width: '28px', height: '28px' }}
           />
         </div>
       ))}
@@ -180,7 +180,7 @@ export default function MobileBottomNav() {
       {!isLandingGuest && (isAuthenticated ? (
         <Link
           href="/profile"
-          className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-all ${
+          className={`flex flex-col items-center justify-center p-1 rounded-lg transition-all ${
             isActiveRoute('/profile') ? 'opacity-100' : 'opacity-50 hover:opacity-70'
           }`}
           style={{
@@ -192,21 +192,21 @@ export default function MobileBottomNav() {
           <Image
             src="/icons_tanku/tanku_logo_menu_miperfil_verde.svg"
             alt="Mi Perfil"
-            width={32}
-            height={32}
+            width={28}
+            height={28}
             className="object-contain"
-            style={{ width: '32px', height: '32px' }}
+            style={{ width: '28px', height: '28px' }}
           />
         </Link>
       ) : (
-        <div className="flex flex-col items-center justify-center p-1.5 rounded-lg opacity-30 cursor-not-allowed">
+        <div className="flex flex-col items-center justify-center p-1 rounded-lg opacity-30 cursor-not-allowed">
           <Image
             src="/icons_tanku/tanku_logo_menu_miperfil_verde.svg"
             alt="Mi Perfil"
-            width={32}
-            height={32}
+            width={28}
+            height={28}
             className="object-contain"
-            style={{ width: '32px', height: '32px' }}
+            style={{ width: '28px', height: '28px' }}
           />
         </div>
       ))}

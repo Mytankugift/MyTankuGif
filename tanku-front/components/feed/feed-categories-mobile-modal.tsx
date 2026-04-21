@@ -121,7 +121,7 @@ export function FeedCategoriesMobileModal({
     >
       <div
         className={clsx(
-          'flex h-[min(86vh,680px)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-24px)] w-full max-w-lg shrink-0 flex-col overflow-hidden rounded-[22px] bg-[#161616] shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-white/10 md:h-[min(91vh,780px)] md:max-h-[min(91vh,780px,calc(100dvh-5rem))]',
+          'flex h-[min(74vh,520px)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-36px)] w-full max-w-lg shrink-0 flex-col overflow-hidden rounded-[22px] bg-[#161616] shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-white/10 md:h-[min(91vh,780px)] md:max-h-[min(91vh,780px,calc(100dvh-5rem))]',
           isExiting ? 'animate-tanku-modal-to-top' : 'animate-tanku-modal-from-top'
         )}
         onMouseDown={(e) => e.stopPropagation()}
@@ -132,7 +132,7 @@ export function FeedCategoriesMobileModal({
           if (isExiting) finishClose()
         }}
       >
-        <header className="flex shrink-0 items-center gap-3 border-b border-white/[0.06] px-4 pb-3 pt-4">
+        <header className="flex shrink-0 items-center gap-3 border-b border-white/[0.06] px-4 pb-2.5 pt-3 md:pb-3 md:pt-4">
           <Image
             src="/icons_tanku/mobile_tanku_icono_nueva_historia.svg"
             alt=""
@@ -153,10 +153,10 @@ export function FeedCategoriesMobileModal({
           </button>
         </header>
 
-        <div className="border-b border-white/[0.06] px-4 py-3">
-          <label className="relative flex items-center rounded-full bg-[#262626] px-4 py-2.5 ring-1 ring-white/[0.06] focus-within:ring-[#73FFA2]/35">
+        <div className="border-b border-white/[0.06] px-4 py-2 md:py-3">
+          <label className="relative flex items-center rounded-full bg-[#262626] px-3 py-1.5 ring-1 ring-white/[0.06] focus-within:ring-[#73FFA2]/35 md:px-4 md:py-2.5">
             <svg
-              className="mr-2 h-5 w-5 shrink-0 text-white/45"
+              className="mr-1.5 h-4 w-4 shrink-0 text-white/45 md:mr-2 md:h-5 md:w-5"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -171,20 +171,20 @@ export function FeedCategoriesMobileModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar categoría..."
-              className="w-full bg-transparent text-sm text-white placeholder:text-white/40 outline-none"
+              className="w-full bg-transparent text-[13px] text-white placeholder:text-white/40 outline-none md:text-sm"
               autoComplete="off"
             />
           </label>
         </div>
 
-        <div className="variant-selector-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#66DEDB]/95">Destacadas</p>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="variant-selector-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 md:pb-6 md:pt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#66DEDB]/95 md:mb-3">Destacadas</p>
+          <div className="grid grid-cols-2 gap-2 md:gap-3">
             {featured.map((cat, i) => (
               <button
                 key={`feat-${cat.id}-${i}`}
                 type="button"
-                className="flex min-h-[72px] items-center justify-center rounded-2xl px-3 text-center text-sm font-semibold text-white shadow-inner ring-1 ring-white/15 transition hover:brightness-110 active:scale-[0.98]"
+                className="flex min-h-[56px] items-center justify-center rounded-2xl px-2.5 text-center text-xs font-semibold text-white shadow-inner ring-1 ring-white/15 transition hover:brightness-110 active:scale-[0.98] md:min-h-[72px] md:px-3 md:text-sm"
                 style={{ background: featuredGradient(i) }}
                 onClick={() => {
                   onPickCategory(String(cat.id))
@@ -196,15 +196,15 @@ export function FeedCategoriesMobileModal({
             ))}
           </div>
 
-          <p className="mb-3 mt-8 text-xs font-semibold uppercase tracking-wide text-[#66DEDB]/95">Todas</p>
-          <div className="grid grid-cols-2 gap-2">
+          <p className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-[#66DEDB]/95 md:mb-3 md:mt-8">Todas</p>
+          <div className="grid grid-cols-2 gap-1.5 md:gap-2">
             {filteredAll.map((cat, index) => {
               const pi = paletteIndex(cat, index)
               return (
                 <button
                   key={String(cat.id)}
                   type="button"
-                  className="flex min-h-[40px] max-w-full min-w-0 items-stretch overflow-hidden rounded-full text-left text-[11px] font-medium text-white shadow-sm transition hover:brightness-110 active:scale-[0.98]"
+                  className="flex min-h-[34px] max-w-full min-w-0 items-stretch overflow-hidden rounded-full text-left text-[10px] font-medium text-white shadow-sm transition hover:brightness-110 active:scale-[0.98] md:min-h-[40px] md:text-[11px]"
                   style={{
                     border: `1px solid ${categoryBorder(pi)}`,
                   }}
@@ -214,7 +214,7 @@ export function FeedCategoriesMobileModal({
                   }}
                 >
                   <span
-                    className="flex w-8 shrink-0 items-center justify-center overflow-hidden bg-black/30"
+                    className="flex w-7 shrink-0 items-center justify-center overflow-hidden bg-black/30 md:w-8"
                     style={{ background: categoryFillLeft(pi) }}
                   >
                     {cat.image ? (
@@ -223,17 +223,17 @@ export function FeedCategoriesMobileModal({
                         alt=""
                         width={22}
                         height={22}
-                        className="h-5 w-5 object-cover"
+                        className="h-4 w-4 object-cover md:h-5 md:w-5"
                         unoptimized={isRemoteImageSrc(cat.image)}
                       />
                     ) : (
-                      <span className="text-[9px] text-white/70" aria-hidden>
+                      <span className="text-[8px] text-white/70 md:text-[9px]" aria-hidden>
                         ◆
                       </span>
                     )}
                   </span>
                   <span
-                    className="flex min-w-0 flex-1 items-center truncate px-1.5 py-1.5"
+                    className="flex min-w-0 flex-1 items-center truncate px-1 py-1 md:px-1.5 md:py-1.5"
                     style={{ background: categoryFillRight(pi) }}
                   >
                     {cat.name}

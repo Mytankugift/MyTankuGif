@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { GiftIcon } from '@heroicons/react/24/outline'
+import { GiftIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
 const ICON_NUEVO_POST = '/icons_tanku/tanku_logo_menu_nuevo_post_verde.svg'
 const ICON_WISHLIST = '/icons_tanku/tanku_megusta_lineas_azul.svg'
@@ -16,7 +16,10 @@ const AVATAR_RANKU = '/icons_tanku/mobile_ranku_menu_personaje.svg'
 const CLIP_HEX =
   'polygon(50% 0%, 92% 20%, 92% 80%, 50% 100%, 8% 80%, 8% 20%)'
 
-/** Solo trazo (opacidad moderada); relleno #595959 aparte */
+/** Mismo fondo oscuro que `EventsModal` (Próximos eventos) */
+const HEX_INNER_FILL = '#262626'
+
+/** Solo trazo (opacidad moderada); relleno HEX_INNER_FILL aparte */
 const STROKE_GRADIENT =
   'linear-gradient(180deg, rgba(115,255,162,0.55) 0%, rgba(26,26,26,0.5) 52%, rgba(0,0,0,0.42) 100%)'
 
@@ -101,7 +104,7 @@ function HexPanelShell({
           className="relative flex h-full min-h-[340px] w-full flex-col px-8 pb-8 pt-[4.1rem] sm:px-9"
           style={{
             clipPath: CLIP_HEX,
-            backgroundColor: '#595959',
+            backgroundColor: HEX_INNER_FILL,
             transform: `scale(${INNER_SCALE})`,
             transformOrigin: 'center center',
           }}
@@ -183,7 +186,7 @@ export function MobileCenterActionMenu({
               ¿Qué quieres hacer hoy?
             </h2>
 
-            <nav className="flex w-full min-w-0 flex-col gap-0.5 px-1">
+            <nav className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-0.5 overflow-y-auto px-1 [-webkit-overflow-scrolling:touch]">
               <MenuRow
                 icon={
                   <Image
@@ -252,6 +255,17 @@ export function MobileCenterActionMenu({
                 onClick={() => setServicesSheetOpen(true)}
               />
             </nav>
+
+            <div className="mt-auto flex w-full shrink-0 justify-center pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-white/20"
+                aria-label="Cerrar menú"
+              >
+                <XMarkIcon className="h-5 w-5 text-[#66DEDB]" strokeWidth={2} />
+              </button>
+            </div>
           </HexPanelShell>
 
           <div

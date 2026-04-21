@@ -6,6 +6,11 @@ import { useNotifications } from '@/lib/hooks/use-notifications'
 import { useEffect, useRef, useState } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import {
+  formatNotificationTimeShort,
+  getNotificationTargetUserId,
+  NOTIFICATION_ROW_DIVIDER_STYLE,
+} from '@/lib/notifications-display'
 
 interface NotificationsButtonProps {
   // ✅ Props opcionales desde feedInit para evitar llamadas duplicadas
@@ -33,25 +38,6 @@ export function NotificationsButton({
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const [resolvedAvatars, setResolvedAvatars] = useState<Record<string, string>>({})
   const [resolvedUsernames, setResolvedUsernames] = useState<Record<string, string>>({})
-
-  const getNotificationTargetUserId = (n: any): string | null => {
-    const data = (n.data || {}) as Record<string, any>
-    const loweredType = (n.type || '').toLowerCase()
-    const loweredTitle = (n.title || '').toLowerCase()
-    const loweredMessage = (n.message || '').toLowerCase()
-
-    const isFriendRequest = loweredType === 'friend_request'
-    const isFriendAccepted =
-      loweredType === 'friend_accepted' ||
-      loweredType.includes('friend_accepted') ||
-      loweredType.includes('accepted') ||
-      (loweredTitle.includes('solicitud') && loweredTitle.includes('acept')) ||
-      (loweredMessage.includes('solicitud') && loweredMessage.includes('acept'))
-
-    if (isFriendRequest) return data.fromUserId || data.userId || data.actorId || data.senderId || null
-    if (isFriendAccepted) return data.friendId || data.userId || data.actorId || data.senderId || null
-    return data.userId || data.actorId || data.senderId || null
-  }
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -107,24 +93,6 @@ export function NotificationsButton({
       router.push(username ? `/profile/${username}` : '/profile')
       return
     }
-  }
-
-  const rowDividerStyle = {
-    borderImage: 'linear-gradient(90deg, #414141 0%, #73FFA2 34%, #73FFA2 70%, #414141 100%) 1',
-  } as const
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const minutes = Math.floor(diff / 60000)
-    const hours = Math.floor(diff / 3600000)
-    const days = Math.floor(diff / 86400000)
-    if (minutes < 1) return 'Ahora'
-    if (minutes < 60) return `${minutes}m`
-    if (hours < 24) return `${hours}h`
-    if (days < 7) return `${days}d`
-    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
   }
 
   const latestItems = items.slice(0, 15)
@@ -231,7 +199,7 @@ export function NotificationsButton({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="border-b p-4" style={rowDividerStyle}>
+          <div className="border-b p-4" style={NOTIFICATION_ROW_DIVIDER_STYLE}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Image
@@ -293,7 +261,7 @@ export function NotificationsButton({
                     <li
                       key={n.id}
                       className="border-b px-4 py-3 transition-colors hover:bg-white/[0.03]"
-                      style={rowDividerStyle}
+                      style={NOTIFICATION_ROW_DIVIDER_STYLE}
                       onClick={(e) => {
                         e.stopPropagation()
                         handleNotificationClick(n)
@@ -345,7 +313,7 @@ export function NotificationsButton({
                             <div className="truncate text-sm font-semibold leading-none text-white">
                               {n.title}
                             </div>
-                            <span className="ml-2 flex-shrink-0 text-sm text-gray-300">{formatTime(n.createdAt)}</span>
+                            <span className="ml-2 flex-shrink-0 text-sm text-gray-300">{formatNotificationTimeShort(n.createdAt)}</span>
                           </div>
                           <div className="truncate text-sm text-gray-400">{n.message}</div>
                         </div>
@@ -356,7 +324,7 @@ export function NotificationsButton({
               </ul>
             )}
           </div>
-          <div className="border-t p-3" style={rowDividerStyle}>
+          <div className="border-t p-3" style={NOTIFICATION_ROW_DIVIDER_STYLE}>
             <button onClick={handleVerTodas} className="block w-full text-center text-sm font-medium text-[#73FFA2] transition-opacity hover:opacity-85">
               Ver todas las notificaciones
             </button>

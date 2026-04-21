@@ -97,7 +97,7 @@ Modales que deben quedar por encima del bottom nav (`z-[999999]`) deben usar **z
 
 ## 8. Variante Safari UX (scroll nativo del documento)
 
-Cuando la prioridad sea que Safari/Chrome móvil minimicen su UI al bajar (barra superior/inferior del navegador), usar esta variante en **móvil**:
+Cuando la prioridad sea que Safari/Chrome móvil minimicen su UI al bajar (barra superior/inferior del navegador), usar esta variante en **móvil**. Está aplicada en **`/`**, **`/feed`** y **`/events`** (`layout.tsx` + página con `max-md:overflow-visible` en el contenido y scroll en `<main>`):
 
 - En `app/(main)/layout.tsx`, para esa ruta usar:
   - contenedor principal: `min-h-screen overflow-visible` (en móvil),

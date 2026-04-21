@@ -68,14 +68,22 @@ export default function MainLayout({
   const isFeedOverlayScroll = pathname === '/feed'
   /** /feed en móvil: usar scroll nativo del documento para permitir minimización de UI del navegador. */
   const isFeedNativeWindowScrollMobile = pathname === '/feed'
-  /** /events: scroll en contenedor interno (como feed), no en <main> — solo afecta layout; el nav móvil lo marca la página */
+  /** /events en móvil: igual que feed (scroll nativo + skill tanku-mobile-vista). */
+  const isEventsNativeWindowScrollMobile = pathname === '/events'
+  /** /events: scroll en contenedor interno en md+; en móvil lo lleva <main> cuando isEventsNativeWindowScrollMobile */
   const isEventsInnerScroll = pathname === '/events'
   /** /profile y /profile/[username]: scroll interno para evitar doble scroll en móvil */
   const isProfileInnerScroll = pathname === '/profile' || pathname.startsWith('/profile/')
   /** /checkout/gift-direct: scroll interno (evita doble scroll con navs fijos en móvil) */
   const isGiftDirectInnerScroll = pathname === '/checkout/gift-direct'
+  /** /notifications: scroll interno + BaseNav (misma idea que perfil/eventos) */
+  const isNotificationsInnerScroll = pathname === '/notifications'
   const mainOverlayScroll =
-    isFeedOverlayScroll || isEventsInnerScroll || isProfileInnerScroll || isGiftDirectInnerScroll
+    isFeedOverlayScroll ||
+    isEventsInnerScroll ||
+    isProfileInnerScroll ||
+    isGiftDirectInnerScroll ||
+    isNotificationsInnerScroll
 
   return (
     <MainLayoutErrorBoundary>
@@ -85,7 +93,7 @@ export default function MainLayout({
             <div
               className={clsx(
                 'flex',
-                isLandingRoute || isFeedNativeWindowScrollMobile
+                isLandingRoute || isFeedNativeWindowScrollMobile || isEventsNativeWindowScrollMobile
                   ? 'min-h-screen overflow-visible'
                   : 'h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden md:h-screen md:max-h-none'
               )}
@@ -98,7 +106,7 @@ export default function MainLayout({
                   'relative z-0 ml-0 flex min-h-0 min-w-0 flex-1 flex-col md:ml-36 lg:ml-[208px]',
                   isLandingRoute
                     ? 'overflow-visible pb-20 md:pb-0 lg:pb-0'
-                    : isFeedNativeWindowScrollMobile
+                    : isFeedNativeWindowScrollMobile || isEventsNativeWindowScrollMobile
                     ? 'overflow-y-auto overscroll-y-contain pb-0 md:overflow-hidden md:pb-0'
                     : mainOverlayScroll
                     ? 'overflow-hidden pb-0'

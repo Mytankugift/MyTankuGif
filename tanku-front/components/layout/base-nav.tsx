@@ -45,6 +45,8 @@ interface BaseNavProps {
   mobileTranslucentNav?: boolean
   /** Móvil: botón volver + título centrado blanco + solo carrito */
   mobileBackCenterTitleCartOnly?: boolean
+  /** Desktop (md+): título de página centrado en blanco (ej. `/notifications`). Requiere `pageTitle`. */
+  desktopNavTitleCentered?: boolean
 }
 
 export function BaseNav({
@@ -61,6 +63,7 @@ export function BaseNav({
   customStories,
   mobileTranslucentNav = false,
   mobileBackCenterTitleCartOnly = false,
+  desktopNavTitleCentered = false,
 }: BaseNavProps) {
   const router = useRouter()
   const { isAuthenticated, user } = useAuthStore()
@@ -261,9 +264,28 @@ export function BaseNav({
           <div
             className={`gap-2 p-2 pb-2 sm:p-3 md:p-4 md:pb-2 lg:gap-3 ${
               mobileBackCenterTitleCartOnly ? 'hidden md:flex' : 'flex'
-            } ${showPageHeading ? 'min-w-0 items-start justify-between' : 'items-center justify-end'}`}
+            } ${
+              desktopNavTitleCentered && showPageHeading && pageTitle
+                ? 'relative min-h-[52px] items-center justify-between'
+                : showPageHeading
+                  ? 'min-w-0 items-start justify-between'
+                  : 'items-center justify-end'
+            }`}
           >
-            {showPageHeading ? (
+            {showPageHeading && desktopNavTitleCentered && pageTitle ? (
+              <>
+                <div className="flex w-10 shrink-0 items-center justify-start sm:w-11">
+                  {startContent ?? <span className="inline-block w-10 sm:w-11" aria-hidden />}
+                </div>
+                <h1
+                  className="pointer-events-none absolute left-1/2 top-1/2 max-w-[min(56vw,22rem)] -translate-x-1/2 -translate-y-1/2 truncate text-center text-lg font-semibold text-white sm:text-xl md:text-2xl"
+                  style={{ fontFamily: 'Poppins, sans-serif' }}
+                >
+                  {pageTitle}
+                </h1>
+                <div className="flex shrink-0 items-center">{renderActionIcons()}</div>
+              </>
+            ) : showPageHeading ? (
               <div className="flex min-w-0 flex-1 items-start gap-2 sm:gap-3">
                 {startContent ? (
                   <div className="flex shrink-0 flex-col justify-start pt-0.5">{startContent}</div>
@@ -271,7 +293,7 @@ export function BaseNav({
                 {renderPageHeading()}
               </div>
             ) : null}
-            {renderActionIcons()}
+            {!desktopNavTitleCentered || !showPageHeading ? renderActionIcons() : null}
           </div>
         </>
       )}

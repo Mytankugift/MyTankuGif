@@ -15,16 +15,17 @@ import {
 import {
   XMarkIcon,
   ChevronDownIcon,
+  CalendarDaysIcon,
   InformationCircleIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline'
 
-/** Overlay del modal (más bajo que los portales de desplegables). */
-const EVENT_FORM_MODAL_Z = 100_000
-/** Listas desplegables por encima del modal. */
-const EVENT_FORM_DROPDOWN_Z = 500_000
+/** Overlay del modal: por encima del bottom nav y del modal «Próximos eventos» (events-modal ~1000002). */
+const EVENT_FORM_MODAL_Z = 1_005_000
+/** Listas desplegables por encima del overlay del formulario. */
+const EVENT_FORM_DROPDOWN_Z = 1_006_000
 /** Diálogo anidado (añadir preset). */
-const EVENT_FORM_NESTED_DIALOG_Z = 500_001
+const EVENT_FORM_NESTED_DIALOG_Z = 1_007_000
 
 const ALL_REMINDER_OPTIONS: { label: string; days: number }[] = [
   { label: '1 mes antes (30 días naturales)', days: 30 },
@@ -528,23 +529,31 @@ export function EventFormModal({
                 >
                   Fecha *
                 </label>
-                <input
-                  type="date"
-                  value={eventDate}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    setEventDate(v)
-                    if (event) {
-                      setReminders((prev) => sanitizeRemindersForDateYyyyMmDd(v, prev))
-                    } else {
-                      setReminders(allRemindersForDateYyyyMmDd(v))
-                    }
-                  }}
-                  min={event ? undefined : todayDateInputValue()}
-                  className={fieldClass}
-                  style={fieldShell}
-                  required
-                />
+                {/* Solo el campo: así el icono vertical queda centrado respecto al input */}
+                <div className="relative isolate">
+                  {/* Móvil: ocultamos el indicador nativo y dibujamos CalendarDaysIcon alineado; clic sigue al área derecha (~w-11). */}
+                  <input
+                    type="date"
+                    value={eventDate}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setEventDate(v)
+                      if (event) {
+                        setReminders((prev) => sanitizeRemindersForDateYyyyMmDd(v, prev))
+                      } else {
+                        setReminders(allRemindersForDateYyyyMmDd(v))
+                      }
+                    }}
+                    min={event ? undefined : todayDateInputValue()}
+                    className={`${fieldClass} relative z-[1] block w-full [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-90 max-md:min-h-[42px] max-md:py-2 max-md:pl-3 max-md:pr-[2.85rem] max-md:[&::-webkit-calendar-picker-indicator]:absolute max-md:[&::-webkit-calendar-picker-indicator]:right-0 max-md:[&::-webkit-calendar-picker-indicator]:top-0 max-md:[&::-webkit-calendar-picker-indicator]:bottom-0 max-md:[&::-webkit-calendar-picker-indicator]:m-0 max-md:[&::-webkit-calendar-picker-indicator]:w-[2.75rem] max-md:[&::-webkit-calendar-picker-indicator]:cursor-pointer max-md:[&::-webkit-calendar-picker-indicator]:appearance-none max-md:[&::-webkit-calendar-picker-indicator]:opacity-0 max-md:[&::-webkit-datetime-edit]:p-0 max-md:[&::-webkit-datetime-edit-fields-wrapper]:p-0`}
+                    style={fieldShell}
+                    required
+                  />
+                  <CalendarDaysIcon
+                    className="pointer-events-none absolute right-[0.85rem] top-1/2 z-[2] hidden h-5 w-5 shrink-0 -translate-y-1/2 text-[#E8EAED] opacity-95 max-md:block md:hidden"
+                    aria-hidden
+                  />
+                </div>
               </div>
             </div>
 
@@ -555,9 +564,9 @@ export function EventFormModal({
               >
                 Tipo
               </label>
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-row gap-1.5 sm:gap-2 min-w-0">
                 <label
-                  className={`flex items-center gap-2 cursor-pointer rounded-full border px-3 py-2 flex-1 min-h-[40px] ${
+                  className={`flex min-w-0 flex-1 items-center gap-1.5 cursor-pointer rounded-full border px-2 py-2 sm:gap-2 sm:px-3 min-h-[40px] ${
                     eventKind === 'CELEBRATION' ? 'border-[#73FFA2] bg-[#73FFA2]/10' : 'border-[#4A4A4A]'
                   }`}
                 >
@@ -566,9 +575,9 @@ export function EventFormModal({
                     name="eventKind"
                     checked={eventKind === 'CELEBRATION'}
                     onChange={() => setEventKind('CELEBRATION')}
-                    className="accent-[#73FFA2]"
+                    className="accent-[#73FFA2] shrink-0"
                   />
-                  <span className="text-white text-sm" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  <span className="min-w-0 truncate text-white text-xs leading-tight sm:text-sm" style={{ fontFamily: 'Poppins, sans-serif' }}>
                     Celebración
                   </span>
                   <KindHelp
@@ -577,7 +586,7 @@ export function EventFormModal({
                   />
                 </label>
                 <label
-                  className={`flex items-center gap-2 cursor-pointer rounded-full border px-3 py-2 flex-1 min-h-[40px] ${
+                  className={`flex min-w-0 flex-1 items-center gap-1.5 cursor-pointer rounded-full border px-2 py-2 sm:gap-2 sm:px-3 min-h-[40px] ${
                     eventKind === 'EVENT' ? 'border-[#73FFA2] bg-[#73FFA2]/10' : 'border-[#4A4A4A]'
                   }`}
                 >
@@ -589,10 +598,11 @@ export function EventFormModal({
                       setEventKind('EVENT')
                       setRepeatType('NONE')
                     }}
-                    className="accent-[#73FFA2]"
+                    className="accent-[#73FFA2] shrink-0"
                   />
-                  <span className="text-white text-sm" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                    Evento (una sola vez)
+                  <span className="min-w-0 text-white text-xs leading-tight sm:text-sm" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                    <span className="md:hidden">Evento</span>
+                    <span className="hidden md:inline">Evento (una sola vez)</span>
                   </span>
                   <KindHelp
                     title="Evento"

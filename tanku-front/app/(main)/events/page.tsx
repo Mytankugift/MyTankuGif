@@ -12,6 +12,22 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { useEventColorPresets } from '@/lib/hooks/use-event-color-presets'
 import { BaseNav } from '@/components/layout/base-nav'
 
+/** Flechas tipo slider de categorías del feed (stroke negro sobre fondo cyan). */
+function MonthChevronLeft({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+    </svg>
+  )
+}
+function MonthChevronRight({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+  )
+}
+
 export default function EventsPage() {
   const { getEventsForMonth, deleteEvent, getEventById } = useEvents()
   const { presets: savedColorPresets, loadPresets } = useEventColorPresets()
@@ -192,7 +208,7 @@ export default function EventsPage() {
     'px-4 py-2 font-semibold transition-all duration-300 rounded-full shrink-0 hover:brightness-110 active:brightness-95'
   /** Flechas móvil: tamaño fijo para que la barra de mes no se mueva al cambiar el nombre del mes */
   const monthNavArrowMobileClass =
-    'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-semibold transition-all duration-300 hover:brightness-110 active:brightness-95'
+    'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-300 hover:brightness-110 active:brightness-95'
   const navCyan = {
     backgroundColor: '#66DEDB',
     color: '#2C3137',
@@ -230,10 +246,10 @@ export default function EventsPage() {
     <button
       type="button"
       onClick={() => handleCreateEvent()}
-      className="flex h-11 w-full min-w-0 items-center justify-center gap-1 rounded-full px-2 text-sm font-semibold transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+      className="flex h-10 w-full min-w-0 items-center justify-center gap-1 rounded-full px-2 text-xs font-semibold transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
       style={navGreen}
     >
-      <span className="shrink-0 text-lg leading-none">+</span>
+      <span className="shrink-0 text-base leading-none">+</span>
       <span className="truncate">Nuevo evento</span>
     </button>
   )
@@ -258,7 +274,7 @@ export default function EventsPage() {
         style={navCyan}
         aria-label="Mes anterior"
       >
-        ←
+        <MonthChevronLeft className="h-5 w-5 text-black" />
       </button>
       {monthTitle}
       <button
@@ -268,7 +284,7 @@ export default function EventsPage() {
         style={navCyan}
         aria-label="Mes siguiente"
       >
-        →
+        <MonthChevronRight className="h-5 w-5 text-black" />
       </button>
     </div>
   )
@@ -277,7 +293,7 @@ export default function EventsPage() {
     <button
       type="button"
       onClick={goToToday}
-      className="h-11 w-full rounded-full text-sm font-semibold transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+      className="h-10 w-full rounded-full text-xs font-semibold transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
       style={navGreen}
     >
       Hoy
@@ -295,19 +311,21 @@ export default function EventsPage() {
         <button
           type="button"
           onClick={goToPreviousMonth}
-          className={`${navButtonBase} shrink-0 px-3 text-sm sm:px-4 sm:text-base`}
+          className={`${navButtonBase} shrink-0 px-3 text-sm sm:px-4 sm:text-base inline-flex items-center justify-center`}
           style={navCyan}
+          aria-label="Mes anterior"
         >
-          ←
+          <MonthChevronLeft className="h-5 w-5 text-black" />
         </button>
         {monthTitle}
         <button
           type="button"
           onClick={goToNextMonth}
-          className={`${navButtonBase} shrink-0 px-3 text-sm sm:px-4 sm:text-base`}
+          className={`${navButtonBase} shrink-0 px-3 text-sm sm:px-4 sm:text-base inline-flex items-center justify-center`}
           style={navCyan}
+          aria-label="Mes siguiente"
         >
-          →
+          <MonthChevronRight className="h-5 w-5 text-black" />
         </button>
       </div>
     </div>
@@ -385,10 +403,10 @@ export default function EventsPage() {
       {/* Shell: ocupa el alto del main; el scroll es solo aquí (móvil: como /feed, main sin scroll) */}
       <div
         id="events-scroll-root"
-        className="flex min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-hidden text-white"
+        className="flex min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-hidden text-white max-md:overflow-visible"
         style={{ fontFamily: 'Poppins, sans-serif', backgroundColor: '#262626' }}
       >
-        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] md:px-8 md:pb-6 md:pt-28 lg:px-10 lg:pb-6 lg:pt-28 xl:px-12 sm:max-md:px-4">
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden max-md:flex-none max-md:min-h-0 max-md:overflow-visible overscroll-y-contain md:min-h-0 md:flex-1 md:overflow-y-auto max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] md:px-8 md:pb-6 md:pt-28 lg:px-10 lg:pb-6 lg:pt-28 xl:px-12 sm:max-md:px-4">
           <div className="mx-auto w-full max-w-7xl">
             {/* Contenido principal: Calendario y Próximos Eventos */}
             <div className="grid grid-cols-1 gap-6 pb-2 lg:grid-cols-3 lg:grid-rows-[auto_minmax(12rem,1fr)] lg:items-start lg:gap-x-8 lg:gap-y-3 lg:pb-1">
@@ -443,11 +461,11 @@ export default function EventsPage() {
                 Próximos eventos
               </h2>
               <p className="text-[10px] text-gray-500 mb-2 flex-shrink-0">Próximo mes</p>
-              <div className="flex flex-wrap gap-1 mb-2 flex-shrink-0">
+              <div className="flex flex-wrap gap-1.5 mb-2 flex-shrink-0 md:gap-1">
                 <button
                   type="button"
                   onClick={() => setColorFilter(null)}
-                  className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                  className={`max-md:text-[11px] max-md:px-2.5 max-md:py-1 text-[10px] px-2 py-0.5 rounded-full border transition-colors md:text-[10px] ${
                     colorFilter === null ? 'border-[#73FFA2] text-[#73FFA2]' : 'border-gray-600 text-gray-400'
                   }`}
                 >
@@ -461,7 +479,7 @@ export default function EventsPage() {
                     onClick={() =>
                       setColorFilter((f) => (f === p.hex ? null : p.hex))
                     }
-                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[72px] transition-colors ${
+                    className={`inline-flex items-center gap-1 max-md:px-2 max-md:py-1 max-md:text-[11px] max-md:max-w-[min(100px,28vw)] px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[72px] transition-colors md:max-w-[72px] ${
                       colorFilter === p.hex
                         ? 'border-white text-white bg-white/10'
                         : 'border-gray-600 text-gray-400 hover:border-gray-500'
@@ -485,7 +503,7 @@ export default function EventsPage() {
                         f === normalizeEventColor(p.hex) ? null : normalizeEventColor(p.hex)
                       )
                     }
-                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[80px] transition-colors ${
+                    className={`inline-flex items-center gap-1 max-md:px-2 max-md:py-1 max-md:text-[11px] max-md:max-w-[min(104px,30vw)] px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[80px] transition-colors md:max-w-[80px] ${
                       colorFilter?.toLowerCase() ===
                       normalizeEventColor(p.hex).toLowerCase()
                         ? 'border-white text-white bg-white/10'
@@ -510,7 +528,7 @@ export default function EventsPage() {
                         f?.toLowerCase() === hex ? null : normalizeEventColor(hex)
                       )
                     }
-                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[64px] transition-colors ${
+                    className={`inline-flex items-center gap-1 max-md:px-2 max-md:py-1 max-md:text-[11px] max-md:max-w-[min(88px,24vw)] px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[64px] transition-colors md:max-w-[64px] ${
                       colorFilter?.toLowerCase() === hex
                         ? 'border-white text-white bg-white/10'
                         : 'border-gray-600 text-gray-400 hover:border-gray-500'
@@ -591,6 +609,7 @@ export default function EventsPage() {
                 ? !isBefore(startOfDay(selectedDate), startOfDay(new Date()))
                 : true
             }
+            zIndex={1_000_450}
           />
 
           {pastDateToast ? (
