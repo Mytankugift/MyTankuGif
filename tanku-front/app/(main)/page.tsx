@@ -235,7 +235,7 @@ function LandingPageContent() {
 
   return (
     <div
-      className="flex w-full max-md:min-h-0 flex-col overflow-x-hidden transition-colors duration-300 md:min-h-0 md:flex-1"
+      className="flex w-full max-md:min-h-screen flex-col overflow-x-hidden transition-colors duration-300 md:min-h-0 md:flex-1"
       style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
     >
       <LandingNav

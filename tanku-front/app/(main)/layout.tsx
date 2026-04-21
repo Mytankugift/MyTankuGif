@@ -59,8 +59,8 @@ export default function MainLayout({
     }
   }, [user, isAuthenticated, isChecking, pathname])
 
-  /** Landing sin sesión en móvil: permitir scroll del documento (sin contenedor interno) */
-  const isLandingGuest = pathname === '/' && !isAuthenticated
+  /** Landing (/): permitir scroll del documento para toolbar nativa móvil (Safari/Chrome). */
+  const isLandingRoute = pathname === '/'
 
   /**
    * Feed (/feed): el scroll vive solo en `#feed-scroll-root`; sin pb en main para que las cards lleguen detrás del menú inferior translúcido.
@@ -83,7 +83,7 @@ export default function MainLayout({
             <div
               className={clsx(
                 'flex',
-                isLandingGuest
+                isLandingRoute
                   ? 'min-h-screen overflow-visible'
                   : 'h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden md:h-screen md:max-h-none'
               )}
@@ -94,7 +94,7 @@ export default function MainLayout({
                 id="app-main"
                 className={clsx(
                   'relative z-0 ml-0 flex min-h-0 min-w-0 flex-1 flex-col md:ml-36 lg:ml-[208px]',
-                  isLandingGuest
+                  isLandingRoute
                     ? 'overflow-visible pb-20 md:pb-0 lg:pb-0'
                     : mainOverlayScroll
                     ? 'overflow-hidden pb-0'
