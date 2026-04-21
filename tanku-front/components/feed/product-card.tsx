@@ -54,6 +54,8 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
   const previousProductIdRef = useRef<string | null>(null)
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  /** Ignorar «click» tras scroll/drag para no abrir el modal en móvil */
+  const pointerDownRef = useRef<{ clientX: number; clientY: number } | null>(null)
 
   // Formatear precio
   const formatPrice = (price: number) => {
@@ -205,14 +207,34 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     }
   }
 
-  const handleCardClick = useCallback(() => {
-    // Siempre abrir modal al hacer click en la card
-    setIsModalOpen(true)
-    // Si hay un callback, llamarlo también
-    if (onOpenModal) {
-      onOpenModal(product)
-    }
-  }, [onOpenModal, product])
+  const TAP_MOVE_THRESHOLD_PX = 14
+
+  const isTouchUi = () =>
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(hover: none) and (pointer: coarse)').matches
+
+  const handleCardClick = useCallback(
+    (e: React.MouseEvent) => {
+      const down = pointerDownRef.current
+      pointerDownRef.current = null
+
+      if (down) {
+        const dx = e.clientX - down.clientX
+        const dy = e.clientY - down.clientY
+        if (dx * dx + dy * dy > TAP_MOVE_THRESHOLD_PX * TAP_MOVE_THRESHOLD_PX) return
+      } else if (isTouchUi()) {
+        // Sin pointer/touch registrado en esta card: típico del «ghost click» tras scroll o eventos raros en móvil
+        return
+      }
+
+      setIsModalOpen(true)
+      if (onOpenModal) {
+        onOpenModal(product)
+      }
+    },
+    [onOpenModal, product]
+  )
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -324,7 +346,16 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
   return (
     <div
       ref={cardRef}
-      className="bg-transparent overflow-visible cursor-pointer relative"
+      className="touch-manipulation bg-transparent overflow-visible cursor-pointer relative"
+      onPointerDown={(e) => {
+        if (e.button !== 0) return
+        pointerDownRef.current = { clientX: e.clientX, clientY: e.clientY }
+      }}
+      onTouchStart={(e) => {
+        if (e.touches.length !== 1) return
+        const t = e.touches[0]
+        pointerDownRef.current = { clientX: t.clientX, clientY: t.clientY }
+      }}
       onClick={handleCardClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -392,6 +423,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
         <div 
           className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 z-10 flex items-center justify-center gap-1 sm:gap-1.5 md:gap-2 rounded-full p-1 sm:p-1.5 md:p-2"
           style={{ backgroundColor: '#2C3137' }}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           {/* Botón de me gusta - Siempre visible */}
           <button

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useChat } from '@/lib/hooks/use-chat'
@@ -28,7 +29,10 @@ interface Friend {
   }
 }
 
+const SHARE_MODAL_Z = 1_000_010
+
 export function SharePostModal({ isOpen, postUrl, postDescription, onClose }: SharePostModalProps) {
+  const [mounted, setMounted] = useState(false)
   const [allFriends, setAllFriends] = useState<Friend[]>([]) // Todos los amigos para búsqueda
   const [friends, setFriends] = useState<Friend[]>([]) // Primeros 20 amigos para mostrar
   const [selectedFriends, setSelectedFriends] = useState<string[]>([])
@@ -37,6 +41,10 @@ export function SharePostModal({ isOpen, postUrl, postDescription, onClose }: Sh
   const [searchQuery, setSearchQuery] = useState('')
   const { createOrGetConversation, sendMessage: sendMessageChat } = useChat()
   const { sendMessage: sendSocketMessage, isConnected } = useSocket()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (isOpen) {
@@ -135,12 +143,14 @@ export function SharePostModal({ isOpen, postUrl, postDescription, onClose }: Sh
       })
     : friends
 
-  if (!isOpen) return null
+  if (!isOpen || !mounted || typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 flex items-center justify-center bg-black/80 p-4"
+      style={{ zIndex: SHARE_MODAL_Z }}
       onClick={onClose}
+      role="presentation"
     >
       <div
         className="bg-gray-900 rounded-lg w-[500px] h-[600px] overflow-hidden flex flex-col border border-gray-700 shadow-2xl"
@@ -250,7 +260,8 @@ export function SharePostModal({ isOpen, postUrl, postDescription, onClose }: Sh
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

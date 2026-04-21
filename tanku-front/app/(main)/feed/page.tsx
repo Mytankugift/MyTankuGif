@@ -45,11 +45,12 @@ export default function FeedPage() {
   const hasInitialized = useRef(false)
   const [feedExplorarActivated, setFeedExplorarActivated] = useState(false)
   const [categoriesModalOpen, setCategoriesModalOpen] = useState(false)
-  const useWindowScroll = viewportWidth < 768
+  /** Siempre scroll en `#feed-scroll-root` (también móvil): coherente con nav + sin scroll «desde» la barra fija. */
+  const useWindowScroll = false
 
   const feedNavScroll = useFeedScrollNav(
     feedScrollRootRef,
-    useWindowScroll ? true : feedScrollAttached,
+    feedScrollAttached,
     useWindowScroll
   )
 
@@ -187,8 +188,9 @@ export default function FeedPage() {
     if (activeCategoryFilter) {
       return 'max(70px, calc(env(safe-area-inset-top) + 3.25rem))'
     }
+    // Móvil: mismo orden de magnitud que tanku-mobile-vista (hueco bajo FeedNav + historias sticky)
     if (viewportWidth < 768) {
-      return 'max(70px, calc(env(safe-area-inset-top) + 3.5rem))'
+      return 'max(6.25rem, calc(env(safe-area-inset-top, 0px) + 5.25rem))'
     }
     return contentPaddingTop
   }, [activeCategoryFilter, viewportWidth, contentPaddingTop])
@@ -206,8 +208,8 @@ export default function FeedPage() {
 
   const { sentinelRef } = useInfiniteScroll({
     scrollRootRef: feedScrollRootRef,
-    scrollRootReady: useWindowScroll ? true : feedScrollAttached,
-    useWindowRoot: useWindowScroll,
+    scrollRootReady: feedScrollAttached,
+    useWindowRoot: false,
     hasMore: currentHasMore && !!currentNextCursorToken,
     isLoadingMore: isLoadingMoreCombined,
     nextCursorToken: currentNextCursorToken,
@@ -222,10 +224,6 @@ export default function FeedPage() {
       setSearchInput('')
       setSearchQuery('')
       requestAnimationFrame(() => {
-        if (useWindowScroll) {
-          window.scrollTo({ top: 0, behavior: 'auto' })
-          return
-        }
         if (feedScrollRootRef.current) feedScrollRootRef.current.scrollTop = 0
       })
     }
@@ -306,7 +304,7 @@ export default function FeedPage() {
       <div
         ref={setFeedScrollRef}
         id="feed-scroll-root"
-        className="custom-scrollbar relative z-0 min-h-0 flex-1 basis-0 overflow-x-hidden px-2 pt-2 max-md:overflow-visible max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:pt-4 md:overflow-y-auto md:overscroll-y-contain md:px-4 md:py-5 md:pb-5 transition-[padding-top] duration-300 ease-out [-webkit-overflow-scrolling:touch]"
+        className="custom-scrollbar relative z-0 min-h-0 flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain px-2 pt-2 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:pt-4 md:px-4 md:py-5 md:pb-5 transition-[padding-top] duration-300 ease-out [-webkit-overflow-scrolling:touch]"
         style={{
           paddingTop: scrollAreaPaddingTop,
           marginRight: '0',

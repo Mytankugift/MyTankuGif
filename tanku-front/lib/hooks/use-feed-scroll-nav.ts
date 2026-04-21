@@ -3,6 +3,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 
+const APP_MAIN_ID = 'app-main'
+
+function getMainScrollEl(): HTMLElement | null {
+  if (typeof document === 'undefined') return null
+  return document.getElementById(APP_MAIN_ID)
+}
+
+/** Lee el offset vertical real del scroll cuando el contenedor es `<main>` (p. ej. feed móvil), no `window`. */
+function readScrollTop(
+  useOuterScroll: boolean,
+  scrollRootEl: HTMLElement | null
+): number {
+  if (!useOuterScroll) return Math.max(0, scrollRootEl?.scrollTop ?? 0)
+  const main = getMainScrollEl()
+  if (main) return Math.max(0, main.scrollTop)
+  if (typeof window === 'undefined') return 0
+  return Math.max(
+    0,
+    window.scrollY || document.documentElement.scrollTop || 0
+  )
+}
+
 /** Historias solo con el scroll arriba del todo */
 const STORIES_TOP_EPS = 3
 /** Entrar en modo minimal (ocultar categorías) al bajar */
@@ -26,7 +48,7 @@ export function useFeedScrollNav(
   scrollRootRef: RefObject<HTMLElement | null>,
   /** true cuando el nodo ya está montado (p. ej. ref callback) */
   scrollRootAttached: boolean,
-  /** true para leer scroll de window/documento en lugar de contenedor interno */
+  /** true = scroll fuera de `#feed-scroll-root` (móvil: suele ser `#app-main`; landing: window) */
   useWindowScroll = false
 ): FeedNavScrollState {
   const [state, setState] = useState<FeedNavScrollState>({
@@ -46,10 +68,7 @@ export function useFeedScrollNav(
     if (ticking.current) return
     ticking.current = true
     requestAnimationFrame(() => {
-      const st = Math.max(
-        0,
-        useWindowScroll ? window.scrollY || document.documentElement.scrollTop || 0 : el?.scrollTop || 0
-      )
+      const st = readScrollTop(useWindowScroll, el)
       const delta = st - lastY.current
       const goingDown = delta > 0
       lastY.current = st
@@ -83,11 +102,18 @@ export function useFeedScrollNav(
     const el = scrollRootRef.current
     if (!useWindowScroll && !el) return
 
-    lastY.current = useWindowScroll ? window.scrollY || document.documentElement.scrollTop || 0 : el?.scrollTop || 0
+    lastY.current = readScrollTop(useWindowScroll, el)
     update()
-    const target: HTMLElement | Window = useWindowScroll ? window : (el as HTMLElement)
-    target.addEventListener('scroll', update, { passive: true })
-    return () => target.removeEventListener('scroll', update)
+
+    if (!useWindowScroll) {
+      el?.addEventListener('scroll', update, { passive: true })
+      return () => el?.removeEventListener('scroll', update)
+    }
+
+    const main = getMainScrollEl()
+    const outerTarget: HTMLElement | Window = main ?? window
+    outerTarget.addEventListener('scroll', update, { passive: true })
+    return () => outerTarget.removeEventListener('scroll', update)
   }, [scrollRootRef, scrollRootAttached, update, useWindowScroll])
 
   return state

@@ -8,7 +8,6 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
 import type { PosterDTO } from '@/types/api'
 import { PosterCard } from '@/components/feed/poster-card'
-import { PosterDetailModal } from '@/components/posters/poster-detail-modal'
 import Image from 'next/image'
 import { ArrowLeftIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline'
 import { UserWishlistsTab } from '@/components/profile/user-wishlists-tab'
@@ -45,8 +44,6 @@ export default function OtherUserProfilePage() {
   const [activeTab, setActiveTab] = useState<'PUBLICACIONES' | 'WISHLISTS'>('PUBLICACIONES')
   const [posters, setPosters] = useState<any[]>([])
   const [isLoadingPosters, setIsLoadingPosters] = useState(false)
-  const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
-  const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
   const [postsCount, setPostsCount] = useState(0)
   const [friendsCount, setFriendsCount] = useState(0)
   const [isSendingRequest, setIsSendingRequest] = useState(false)
@@ -301,19 +298,22 @@ export default function OtherUserProfilePage() {
   const avatarUrl = profileUser.profile?.avatar || null
 
   return (
-    <>
-      <BaseNav
-        showStories={false}
-        canHide={false}
-        isVisible={true}
-        pageTitle={profileUser.username || userName}
-        pageTitleColor="#66DEDB"
-        mobileBackCenterTitleCartOnly
-        mobileTranslucentNav
-      />
-      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" id="profile-public-scroll-root">
+    <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+      <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
+        <BaseNav
+          showStories={false}
+          canHide={false}
+          isVisible={true}
+          pageTitle={profileUser.username || userName}
+          pageTitleColor="#66DEDB"
+          mobileBackCenterTitleCartOnly
+          mobileTranslucentNav
+          className="pointer-events-auto"
+        />
+      </div>
+      <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden" id="profile-public-scroll-root">
         <div
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar max-md:px-3 max-md:pt-[max(5rem,calc(env(safe-area-inset-top,0px)+4rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20"
+          className="custom-scrollbar min-h-0 flex-1 basis-0 overflow-y-auto overflow-x-hidden overscroll-y-contain max-md:px-3 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20"
           style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
         >
       <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">
@@ -581,39 +581,8 @@ export default function OtherUserProfilePage() {
           </div>
         )}
       </div>
-
-      {/* Modal de detalle de poster */}
-      {isPosterModalOpen && selectedPosterId && (
-        <PosterDetailModal
-          posterId={selectedPosterId}
-          isOpen={isPosterModalOpen}
-          onClose={() => {
-            setIsPosterModalOpen(false)
-            setSelectedPosterId(null)
-          }}
-          onPostDeleted={() => {
-            // Recargar posters
-            const loadPosters = async () => {
-              if (!userId) return
-              setIsLoadingPosters(true)
-              try {
-                const response = await apiClient.get<PosterDTO[]>(API_ENDPOINTS.POSTERS.BY_USER(userId))
-                if (response.success && response.data) {
-                  setPosters(response.data)
-                  setPostsCount(response.data.length)
-                }
-              } catch (error) {
-                console.error('Error cargando posters:', error)
-              } finally {
-                setIsLoadingPosters(false)
-              }
-            }
-            loadPosters()
-          }}
-        />
-      )}
       </div>
       </div>
-    </>
+    </div>
   )
 }

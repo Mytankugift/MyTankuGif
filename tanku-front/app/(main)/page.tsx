@@ -146,7 +146,14 @@ function LandingPageContent() {
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const scrollTop = window.scrollY || document.documentElement.scrollTop || 0
+          const main =
+            typeof document !== 'undefined'
+              ? document.getElementById('app-main')
+              : null
+          const scrollTop = Math.max(
+            main?.scrollTop ?? 0,
+            window.scrollY || document.documentElement.scrollTop || 0
+          )
 
           if (scrollTop <= 5) {
             setIsHeaderVisible(true)
@@ -169,8 +176,12 @@ function LandingPageContent() {
 
     scrollEl = window
     scrollEl.addEventListener('scroll', handleScroll, { passive: true })
+    const main =
+      typeof document !== 'undefined' ? document.getElementById('app-main') : null
+    main?.addEventListener('scroll', handleScroll, { passive: true })
     return () => {
       scrollEl?.removeEventListener('scroll', handleScroll)
+      main?.removeEventListener('scroll', handleScroll)
     }
   }, [lastScrollY])
 
@@ -226,7 +237,7 @@ function LandingPageContent() {
         style={{
           paddingTop: isHeaderVisible
             ? `max(${headerPadding},calc(env(safe-area-inset-top,0px)+5.25rem))`
-            : '20px',
+            : 'max(1rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))',
           marginRight: '0',
           scrollBehavior: 'auto',
           overscrollBehavior: 'auto',

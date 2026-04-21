@@ -87,7 +87,11 @@ export function useInfiniteScroll({
         }
       },
       {
-        root: useWindowRoot ? null : root,
+        // En "modo viewport" el scroll suele ser realmente `#app-main` (no `window`), p. ej. feed móvil.
+        root:
+          useWindowRoot && typeof document !== 'undefined'
+            ? document.getElementById('app-main') ?? null
+            : root,
         rootMargin,
         threshold,
       }

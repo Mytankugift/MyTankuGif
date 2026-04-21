@@ -66,8 +66,7 @@ export default function MainLayout({
    * Feed (/feed): el scroll vive solo en `#feed-scroll-root`; sin pb en main para que las cards lleguen detrás del menú inferior translúcido.
    */
   const isFeedOverlayScroll = pathname === '/feed'
-  /** /feed en móvil: usar scroll nativo del documento para permitir minimización de UI del navegador. */
-  const isFeedNativeWindowScrollMobile = pathname === '/feed'
+  /** /feed: scroll siempre en `#feed-scroll-root` (también móvil); evita que el gesto parezca arrastrar desde el nav. */
   /** /events en móvil: igual que feed (scroll nativo + skill tanku-mobile-vista). */
   const isEventsNativeWindowScrollMobile = pathname === '/events'
   /** /events: scroll en contenedor interno en md+; en móvil lo lleva <main> cuando isEventsNativeWindowScrollMobile */
@@ -93,7 +92,7 @@ export default function MainLayout({
             <div
               className={clsx(
                 'flex',
-                isLandingRoute || isFeedNativeWindowScrollMobile || isEventsNativeWindowScrollMobile
+                isLandingRoute || isEventsNativeWindowScrollMobile
                   ? 'min-h-screen overflow-visible'
                   : 'h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden md:h-screen md:max-h-none'
               )}
@@ -106,7 +105,7 @@ export default function MainLayout({
                   'relative z-0 ml-0 flex min-h-0 min-w-0 flex-1 flex-col md:ml-36 lg:ml-[208px]',
                   isLandingRoute
                     ? 'overflow-visible pb-20 md:pb-0 lg:pb-0'
-                    : isFeedNativeWindowScrollMobile || isEventsNativeWindowScrollMobile
+                    : isEventsNativeWindowScrollMobile
                     ? 'overflow-y-auto overscroll-y-contain pb-0 md:overflow-hidden md:pb-0'
                     : mainOverlayScroll
                     ? 'overflow-hidden pb-0'

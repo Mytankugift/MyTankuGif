@@ -129,14 +129,17 @@ export default function NotificationsPage() {
 
   return (
     <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-      <BaseNav
-        showStories={false}
-        pageTitle="Notificaciones"
-        pageTitleColor="#FFFFFF"
-        mobileTranslucentNav
-        mobileBackCenterTitleCartOnly
-        desktopNavTitleCentered
-      />
+      <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
+        <BaseNav
+          showStories={false}
+          pageTitle="Notificaciones"
+          pageTitleColor="#FFFFFF"
+          mobileTranslucentNav
+          mobileBackCenterTitleCartOnly
+          desktopNavTitleCentered
+          className="pointer-events-auto"
+        />
+      </div>
 
       <div
         id="notifications-scroll-root"
@@ -146,7 +149,7 @@ export default function NotificationsPage() {
           backgroundColor: 'var(--color-surface-191e23-20)',
         }}
       >
-        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch] max-md:px-3 max-md:pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] max-md:pt-[max(6rem,calc(env(safe-area-inset-top,0px)+5rem))] md:px-8 md:pb-8 md:pt-28 lg:px-10 lg:pt-28">
+        <div className="custom-scrollbar min-h-0 flex-1 basis-0 overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch] max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] md:px-8 md:pb-8 md:pt-28 lg:px-10 lg:pt-28">
           {/* Barra superior: icono nav + título a la izquierda; filtros + marcar todas a la derecha — sin caja modal */}
           <div className="mb-4 flex flex-wrap items-start justify-between gap-x-3 gap-y-3 border-b border-white/[0.08] pb-4 md:mb-6 md:items-center md:pb-5">
             <div className="flex min-w-0 flex-1 items-center gap-2 md:min-w-[200px] md:gap-3">

@@ -261,19 +261,22 @@ function ProfileContent() {
   }
 
   return (
-    <>
-      <BaseNav
-        showStories={false}
-        canHide={false}
-        isVisible={true}
-        pageTitle="Mi perfil"
-        pageTitleColor="#66DEDB"
-        mobileBackCenterTitleCartOnly
-        mobileTranslucentNav
-      />
-      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" id="profile-scroll-root">
+    <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+      <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
+        <BaseNav
+          showStories={false}
+          canHide={false}
+          isVisible={true}
+          pageTitle="Mi perfil"
+          pageTitleColor="#66DEDB"
+          mobileBackCenterTitleCartOnly
+          mobileTranslucentNav
+          className="pointer-events-auto"
+        />
+      </div>
+      <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden" id="profile-scroll-root">
         <div
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar max-md:px-3 max-md:pt-[max(5rem,calc(env(safe-area-inset-top,0px)+4rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20"
+          className="custom-scrollbar min-h-0 flex-1 basis-0 overflow-y-auto overflow-x-hidden overscroll-y-contain max-md:px-3 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20"
           style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
         >
         <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">
@@ -593,7 +596,7 @@ function ProfileContent() {
         </div>
       </div>
       </div>
-    </>
+    </div>
   )
 }
 

@@ -51,6 +51,7 @@ export const PosterCard = memo(function PosterCard({
   const [isLiking, setIsLiking] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  const pointerDownRef = useRef<{ clientX: number; clientY: number } | null>(null)
   const [isVideoVisible, setIsVideoVisible] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
@@ -130,7 +131,25 @@ export const PosterCard = memo(function PosterCard({
     setIsMuted(!isMuted)
   }
 
-  const handleCardClick = () => {
+  const TAP_MOVE_THRESHOLD_PX = 14
+
+  const isTouchUi = () =>
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(hover: none) and (pointer: coarse)').matches
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    const down = pointerDownRef.current
+    pointerDownRef.current = null
+
+    if (down) {
+      const dx = e.clientX - down.clientX
+      const dy = e.clientY - down.clientY
+      if (dx * dx + dy * dy > TAP_MOVE_THRESHOLD_PX * TAP_MOVE_THRESHOLD_PX) return
+    } else if (isTouchUi()) {
+      return
+    }
+
     if (onOpenModal) {
       onOpenModal(poster)
     }
@@ -173,11 +192,20 @@ export const PosterCard = memo(function PosterCard({
   return (
     <div
       ref={cardRef}
-      className={`bg-transparent rounded-lg sm:rounded-2xl cursor-pointer ${
+      className={`touch-manipulation bg-transparent rounded-lg sm:rounded-2xl cursor-pointer ${
         isProfileVariant
           ? 'p-0 hover:opacity-95 transition-opacity duration-200'
           : 'p-2 sm:p-3 md:p-4 hover:shadow-lg transition-all duration-300 hover:scale-105'
       }`}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return
+        pointerDownRef.current = { clientX: e.clientX, clientY: e.clientY }
+      }}
+      onTouchStart={(e) => {
+        if (e.touches.length !== 1) return
+        const t = e.touches[0]
+        pointerDownRef.current = { clientX: t.clientX, clientY: t.clientY }
+      }}
       onClick={handleCardClick}
     >
       {!isProfileVariant && (
