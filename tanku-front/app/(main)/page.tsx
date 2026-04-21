@@ -136,34 +136,17 @@ function LandingPageContent() {
     })
   }, [allItems, searchQuery])
 
-  // Handle scroll para mostrar/ocultar header
-  // Mobile landing: scroll del documento; desktop: contenedor interno.
+  // Handle scroll para mostrar/ocultar header.
+  // Landing usa scroll nativo del documento en todos los breakpoints.
   useEffect(() => {
-    let scrollEl: HTMLElement | Window | null = null
-
-    const resolveScrollTarget = (): HTMLElement | Window | null => {
-      if (typeof window === 'undefined') return null
-      if (window.matchMedia('(max-width: 767px)').matches) {
-        return window
-      }
-      return document.querySelector('.custom-scrollbar') as HTMLElement | null
-    }
+    let scrollEl: Window | null = null
 
     let ticking = false
 
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const target = resolveScrollTarget()
-          if (!target) {
-            ticking = false
-            return
-          }
-
-          const scrollTop =
-            target === window
-              ? window.scrollY || document.documentElement.scrollTop || 0
-              : target.scrollTop
+          const scrollTop = window.scrollY || document.documentElement.scrollTop || 0
 
           if (scrollTop <= 5) {
             setIsHeaderVisible(true)
@@ -184,18 +167,9 @@ function LandingPageContent() {
       }
     }
 
-    const attach = () => {
-      if (scrollEl) {
-        scrollEl.removeEventListener('scroll', handleScroll)
-      }
-      scrollEl = resolveScrollTarget()
-      scrollEl?.addEventListener('scroll', handleScroll, { passive: true })
-    }
-
-    attach()
-    window.addEventListener('resize', attach)
+    scrollEl = window
+    scrollEl.addEventListener('scroll', handleScroll, { passive: true })
     return () => {
-      window.removeEventListener('resize', attach)
       scrollEl?.removeEventListener('scroll', handleScroll)
     }
   }, [lastScrollY])
@@ -248,7 +222,7 @@ function LandingPageContent() {
       />
 
       <div
-        className="custom-scrollbar px-2 py-2 transition-all duration-300 ease-in-out max-md:flex-none max-md:overflow-visible max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:py-4 md:min-h-0 md:flex-1 md:overflow-y-auto md:overflow-x-hidden md:overscroll-y-contain md:[-webkit-overflow-scrolling:touch] md:px-4 md:py-5"
+        className="px-2 py-2 transition-all duration-300 ease-in-out max-md:flex-none max-md:overflow-visible max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:py-4 md:px-4 md:py-5"
         style={{
           paddingTop: isHeaderVisible
             ? `max(${headerPadding},calc(env(safe-area-inset-top,0px)+5.25rem))`
