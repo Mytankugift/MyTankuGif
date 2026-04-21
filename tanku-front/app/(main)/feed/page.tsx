@@ -295,7 +295,7 @@ export default function FeedPage() {
       <div
         ref={setFeedScrollRef}
         id="feed-scroll-root"
-        className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-[env(safe-area-inset-bottom,0px)] pt-2 sm:px-3 sm:pt-4 md:px-4 md:py-5 md:pb-5 transition-[padding-top] duration-300 ease-out [-webkit-overflow-scrolling:touch]"
+        className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-2 pt-2 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:pt-4 md:px-4 md:py-5 md:pb-5 transition-[padding-top] duration-300 ease-out [-webkit-overflow-scrolling:touch]"
         style={{
           paddingTop: scrollAreaPaddingTop,
           marginRight: '0',
