@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { clsx } from 'clsx'
 import Image from 'next/image'
 import { useNotifications } from '@/lib/hooks/use-notifications'
 import { NotificationItem } from '@/components/notifications/notification-item'
@@ -130,12 +129,7 @@ export default function NotificationsPage() {
 
   return (
     <div
-      className={clsx(
-        /* Alineado con app/(main)/page.tsx (landing móvil): min-h llena el viewport, sin franja; flex en md+ */
-        'relative z-0 flex w-full min-w-0 flex-1 flex-col text-white',
-        'max-md:min-h-screen max-md:overflow-x-hidden max-md:overflow-visible',
-        'md:min-h-0 md:overflow-hidden',
-      )}
+      className="relative z-0 flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden text-white"
       style={{ fontFamily: 'Poppins, sans-serif', backgroundColor: 'var(--color-surface-191e23-20)' }}
     >
       <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
@@ -150,17 +144,9 @@ export default function NotificationsPage() {
         />
       </div>
 
-      {/*
-        Móvil: scroll en `#app-main` (documento), como /feed; padding inferior = hueco bajo el bottom nav.
-        md+: scroll en este nodo.
-      */}
       <div
         id="notifications-scroll-root"
-        className={clsx(
-          'custom-scrollbar relative z-0 min-h-0 w-full max-md:px-3 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:px-8 md:pb-8 md:pt-28 lg:px-10 lg:pt-28',
-          'max-md:overflow-x-hidden max-md:overflow-y-visible max-md:flex-none',
-          'md:flex-1 md:basis-0 md:touch-pan-y md:overflow-x-hidden md:overflow-y-auto md:overscroll-y-contain md:[-webkit-overflow-scrolling:touch]'
-        )}
+        className="custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] px-3 pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:px-8 md:pb-8 md:pt-28 lg:px-10 lg:pt-28"
         style={{ marginRight: 0, scrollBehavior: 'auto' }}
       >
           {/* Barra superior: icono nav + título a la izquierda; filtros + marcar todas a la derecha — sin caja modal */}

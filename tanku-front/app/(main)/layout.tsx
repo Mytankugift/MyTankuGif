@@ -59,30 +59,31 @@ export default function MainLayout({
     }
   }, [user, isAuthenticated, isChecking, pathname])
 
-  /** Landing (/): permitir scroll del documento para toolbar nativa móvil (Safari/Chrome). */
+  /** Landing (/): scroll del flujo / documento (invitado + SEO). */
   const isLandingRoute = pathname === '/'
 
-  /** /feed + /events + /friends en móvil: scroll en `<main>` como landing (Safari toolbar / gesto natural). En md+ scroll interno en la página donde aplique. */
-  const isFeedOrEventsNativeMainScrollMobile =
-    pathname === '/feed' || pathname === '/events' || pathname === '/friends'
-  /**
-   * /profile y /profile/[username]: en móvil mismo contrato documento/`<main>` que /feed (skill tanku-mobile-vista §8).
-   * En md+ el scroll interno vive en `#profile-scroll-root` o `#profile-public-scroll-root` en la página.
-   */
   const isProfileRoute = pathname === '/profile' || pathname.startsWith('/profile/')
-  /** Carrito / checkout: scroll interno en la página (mismo patrón que gift-direct; evita doble scroll en móvil) */
+
+  /** Carrito / checkout: scroll en contenedor de página. */
   const isCheckoutInnerScroll =
     pathname === '/cart' ||
     pathname === '/checkout' ||
     pathname === '/checkout/gift' ||
     pathname === '/checkout/gift-direct'
-  const mainOverlayScroll = isCheckoutInnerScroll
-  /** Móvil: scroll nativo (Safari) como landing; md+: scroll en contenedor de cada página. */
-  const isSafariDocumentMainRoute =
-    isFeedOrEventsNativeMainScrollMobile ||
-    isProfileRoute ||
+
+  /**
+   * Feed, eventos, amigos, perfil, notificaciones, mensajes: scroll en `#…-scroll-root` dentro de la página.
+   * `<main>` queda `overflow-hidden` (mismo criterio que /cart) para que Chrome Android reciba un único `overflow-y: auto` acotado.
+   */
+  const isAppMainInnerScroll =
+    pathname === '/feed' ||
+    pathname === '/events' ||
+    pathname === '/friends' ||
     pathname === '/notifications' ||
-    pathname === '/messages'
+    pathname === '/messages' ||
+    isProfileRoute
+
+  const mainLockedToPageScroll = isAppMainInnerScroll || isCheckoutInnerScroll
 
   return (
     <MainLayoutErrorBoundary>
@@ -92,13 +93,9 @@ export default function MainLayout({
             <div
               className={clsx(
                 'flex',
-                isLandingRoute ||
-                isFeedOrEventsNativeMainScrollMobile ||
-                pathname === '/notifications' ||
-                pathname === '/messages' ||
-                isProfileRoute
+                isLandingRoute
                   ? 'min-h-screen overflow-visible'
-                  : 'h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden md:h-screen md:max-h-none'
+                  : 'h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden md:h-screen md:max-h-none',
               )}
               style={{ backgroundColor: '#1E1E1E' }}
             >
@@ -109,14 +106,8 @@ export default function MainLayout({
                   'relative z-0 ml-0 flex min-h-0 min-w-0 flex-1 flex-col md:ml-36 lg:ml-[208px]',
                   isLandingRoute
                     ? 'overflow-visible pb-20 md:pb-0 lg:pb-0'
-                    : isSafariDocumentMainRoute
-                    ? clsx(
-                        'max-md:overflow-x-hidden max-md:overflow-visible overscroll-y-contain md:overflow-hidden md:pb-0',
-                        /* Móvil: mismo aire bajo el chrome que / (invitado): el scroll llega “detrás” del menú circular / barra. */
-                        pathname === '/notifications' ? 'max-md:pb-20' : 'pb-0',
-                      )
-                    : mainOverlayScroll
-                    ? 'overflow-hidden pb-0'
+                    : mainLockedToPageScroll
+                    ? 'min-h-0 overflow-hidden pb-0'
                     : 'overflow-y-auto overscroll-y-contain pb-20 md:pb-0 lg:pb-0'
                 )}
                 style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}

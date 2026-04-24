@@ -237,11 +237,10 @@ export default function FriendsPage() {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  const useWindowScroll = viewportWidth < 768
   const feedNavScroll = useFeedScrollNav(
     friendsScrollRootRef,
     friendsScrollAttached,
-    useWindowScroll
+    false
   )
 
   const contentPaddingTop = (() => {
@@ -271,11 +270,7 @@ export default function FriendsPage() {
 
   return (
     <div
-      className={clsx(
-        'relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col transition-colors duration-300',
-        'max-md:overflow-visible',
-        'md:overflow-hidden'
-      )}
+      className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden transition-colors duration-300"
       style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
     >
       <div className="pointer-events-none relative z-40 h-0 shrink-0 overflow-visible">
@@ -295,9 +290,7 @@ export default function FriendsPage() {
         ref={setFriendsScrollRef}
         id="friends-scroll-root"
         className={clsx(
-          'custom-scrollbar relative z-0 min-h-0 w-full px-2 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] pt-2 transition-[padding-top] duration-300 ease-out sm:px-3 sm:pt-4 md:px-4 md:py-5 md:pb-5',
-          'max-md:flex-none max-md:overflow-x-hidden max-md:overflow-y-visible',
-          'md:basis-0 md:flex-1 md:touch-pan-y md:overflow-x-hidden md:overflow-y-auto md:overscroll-y-contain md:[-webkit-overflow-scrolling:touch]'
+          'custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain px-2 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] pt-2 [-webkit-overflow-scrolling:touch] transition-[padding-top] duration-300 ease-out sm:px-3 sm:pt-4 md:px-4 md:py-5 md:pb-5',
         )}
         style={{
           paddingTop: scrollAreaPaddingTop,

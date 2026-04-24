@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import Image from 'next/image'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { logger } from '@/lib/utils/logger'
 
 interface VideoModalProps {
@@ -12,6 +11,22 @@ interface VideoModalProps {
 
 export function VideoModal({ isOpen, onClose, videoUrl }: VideoModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [audioActivated, setAudioActivated] = useState(false)
+
+  const tryUnmute = useCallback(() => {
+    const v = videoRef.current
+    if (!v) return
+    v.muted = false
+    setAudioActivated(true)
+    v.play().catch(() => {
+      logger.log('Reproducción con audio: interacción requerida')
+    })
+  }, [])
+
+  const onVideoVolumeChange = useCallback(() => {
+    const v = videoRef.current
+    if (v && !v.muted) setAudioActivated(true)
+  }, [])
 
   // Cargar video solo cuando el modal está abierto
   useEffect(() => {
@@ -21,6 +36,7 @@ export function VideoModal({ isOpen, onClose, videoUrl }: VideoModalProps) {
         videoRef.current.pause()
         videoRef.current.src = ''
       }
+      setAudioActivated(false)
       return
     }
 
@@ -37,8 +53,7 @@ export function VideoModal({ isOpen, onClose, videoUrl }: VideoModalProps) {
     const startVideo = () => {
       const video = videoRef.current
       if (!video) return
-      
-      video.muted = true
+      // No tocar .muted: el <video> ya inicia en silencio; forzarlo rompería "Activar audio"
       video.play().catch(() => {
         logger.log('Autoplay bloqueado, esperando interacción del usuario')
       })
@@ -79,31 +94,8 @@ export function VideoModal({ isOpen, onClose, videoUrl }: VideoModalProps) {
         className="relative max-w-4xl w-full mx-4"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Botón X para cerrar - más sutil en azul Tanku */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-black/50 hover:bg-black/70 rounded-full transition-colors opacity-80 hover:opacity-100 backdrop-blur-sm"
-          aria-label="Cerrar"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-blueTanku"
-          >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-
-        {/* Contenedor de video */}
-        <div className="w-full aspect-video bg-black overflow-hidden">
+        {/* Contenedor de video: X centrada arriba (eje horizontal) sobre el recuadro 16:9 */}
+        <div className="relative w-full aspect-video bg-black overflow-hidden">
           {videoUrl ? (
             <video
               ref={videoRef}
@@ -119,6 +111,7 @@ export function VideoModal({ isOpen, onClose, videoUrl }: VideoModalProps) {
                   logger.log('Autoplay bloqueado')
                 })
               }}
+              onVolumeChange={onVideoVolumeChange}
               className="w-full h-full object-contain"
             />
           ) : (
@@ -127,6 +120,44 @@ export function VideoModal({ isOpen, onClose, videoUrl }: VideoModalProps) {
                 <p className="text-lg mb-2">Video no disponible</p>
                 <p className="text-sm">El video se mostrará aquí cuando esté disponible</p>
               </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute left-1/2 top-3 z-20 w-10 h-10 -translate-x-1/2 flex items-center justify-center rounded-full bg-black/55 hover:bg-black/75 transition-colors opacity-90 hover:opacity-100 backdrop-blur-sm sm:top-4"
+            aria-label="Cerrar"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-blueTanku"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+
+          {videoUrl && !audioActivated && (
+            <div className="pointer-events-auto absolute left-1/2 z-20 w-[min(100%,20rem)] -translate-x-1/2 bottom-[max(0.5rem,calc(0.35rem+env(safe-area-inset-bottom,0px)))] px-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  tryUnmute()
+                }}
+                className="w-full rounded-2xl bg-greenTanku px-4 py-2.5 text-center text-sm font-semibold text-gray-900 shadow-md transition hover:brightness-95 active:scale-[0.99]"
+              >
+                Activar audio
+              </button>
             </div>
           )}
         </div>

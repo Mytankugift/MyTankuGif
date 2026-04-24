@@ -295,13 +295,7 @@ function ProfileContent() {
   }
 
   return (
-    <div
-      className={clsx(
-        'relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col',
-        'max-md:overflow-y-visible max-md:overflow-x-hidden',
-        'md:overflow-hidden',
-      )}
-    >
+    <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
       <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
         <BaseNav
           showStories={false}
@@ -315,20 +309,13 @@ function ProfileContent() {
         />
       </div>
       <div
-        className={clsx(
-          'relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col',
-          'max-md:overflow-y-visible max-md:overflow-x-hidden',
-          'md:overflow-hidden',
-        )}
+        className="relative z-0 flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
         id="profile-scroll-root"
       >
         <div
           className={clsx(
-            'custom-scrollbar min-h-0 w-full',
-            'max-md:flex-none max-md:overflow-x-hidden max-md:overflow-y-visible max-md:overscroll-y-auto',
-            'md:flex-1 md:basis-0 md:overflow-y-auto md:overflow-x-hidden md:overscroll-y-contain',
-            'md:touch-pan-y md:[-webkit-overflow-scrolling:touch]',
-            'max-md:px-3 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20',
+            'custom-scrollbar min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+            'px-3 pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20',
           )}
           style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
         >

@@ -55,14 +55,10 @@ function MessagesClientContent() {
 
   return (
     <div
-      className={clsx(
-        'relative z-0 flex w-full min-w-0 flex-1 flex-col',
-        'max-md:min-h-screen max-md:overflow-x-hidden max-md:overflow-y-visible',
-        'md:min-h-0 md:overflow-hidden'
-      )}
+      className="relative z-0 flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
       style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
     >
-      {/* Mismo patrón que /notifications (skill tanku-mobile-vista): nav fijo + scroll en documento en móvil */}
+      {/* Nav fijo + scroll en `#messages-scroll-root` (Chrome Android) */}
       <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
         <BaseNav
           showStories={false}
@@ -78,13 +74,10 @@ function MessagesClientContent() {
       <div
         id="messages-scroll-root"
         className={clsx(
-          'custom-scrollbar relative z-0 min-h-0 w-full',
-          'max-md:px-4 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]',
-          'md:px-8 md:pb-8 md:pt-28 lg:px-10 lg:pt-36',
-          'max-md:overflow-x-hidden max-md:overflow-y-visible max-md:flex-none',
-          'md:flex-1 md:basis-0 md:touch-pan-y md:overflow-x-hidden md:overflow-y-auto md:overscroll-y-contain md:[-webkit-overflow-scrolling:touch]',
+          'custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+          'px-4 pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:px-8 md:pb-8 md:pt-28 lg:px-10 lg:pt-36',
           /* Con chat abierto en móvil el overlay cubre todo; ocultamos la caja para no dejar hueco vacío */
-          showMobileChatOverlay && 'max-md:hidden'
+          showMobileChatOverlay && 'max-md:hidden',
         )}
         style={{ marginRight: 0, scrollBehavior: 'auto' }}
       >
