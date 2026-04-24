@@ -282,7 +282,7 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
                   className="h-7 w-7 object-contain"
                   unoptimized
                 />
-                <h3 className="text-base font-semibold leading-none text-white">Mensajes</h3>
+                <h3 className="text-base font-semibold leading-none text-white">Conversaciones</h3>
               </div>
               <button
                 type="button"

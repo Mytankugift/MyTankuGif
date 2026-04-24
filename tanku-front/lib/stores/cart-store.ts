@@ -229,7 +229,8 @@ export const useCartStore = create<CartState>((set, get) => ({
    * Actualizar cantidad de un item
    */
   updateItem: async (itemId: string, quantity: number, cartId?: string) => {
-    set({ isLoading: true, error: null })
+    // No activar isLoading global: evita pantalla de carga en /cart al cambiar cantidades
+    set({ error: null })
     
     try {
       // Buscar el carrito que contiene este item
@@ -321,7 +322,7 @@ export const useCartStore = create<CartState>((set, get) => ({
    * Eliminar item del carrito
    */
   removeItem: async (itemId: string, cartId?: string) => {
-    set({ isLoading: true, error: null })
+    set({ error: null })
     
     try {
       // Buscar el carrito que contiene este item

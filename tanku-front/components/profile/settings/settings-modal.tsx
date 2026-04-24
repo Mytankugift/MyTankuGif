@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ComponentType } from 'react'
+import { useState, useEffect, type ComponentType } from 'react'
 import { XMarkIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
 import { UserIcon, MapPinIcon } from '@heroicons/react/24/outline'
 import { ShieldCheckIcon } from '@heroicons/react/24/solid'
@@ -16,9 +16,12 @@ interface SettingsModalProps {
   isOpen: boolean
   onClose: () => void
   onUpdate?: () => void
+  /** Al abrir (p. ej. vuelta desde términos con ?settings=privacy) */
+  initialTab?: SettingsModalTab | null
 }
 
-type Tab = 'PERFIL' | 'PRIVACIDAD' | 'DIRECCIONES'
+export type SettingsModalTab = 'PERFIL' | 'PRIVACIDAD' | 'DIRECCIONES'
+type Tab = SettingsModalTab
 
 const tabMeta: { key: Tab; label: string; Icon: ComponentType<{ className?: string }> }[] = [
   { key: 'PERFIL', label: 'Perfil', Icon: UserIcon },
@@ -27,17 +30,24 @@ const tabMeta: { key: Tab; label: string; Icon: ComponentType<{ className?: stri
 ]
 
 /** Panel centrado. Móvil: un solo scroll (foto + completa perfil + formularios + cerrar sesión en Perfil). md+: columna fija + scroll a la derecha. */
-export function SettingsModal({ isOpen, onClose, onUpdate }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('PERFIL')
   const { setActiveTab: setProfilePageTab } = useProfileNavigation()
+
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab)
+    }
+  }, [isOpen, initialTab])
 
   if (!isOpen) return null
 
   return (
     <div
       className={clsx(
-        'pointer-events-none fixed inset-0 z-[100] flex items-center justify-center',
-        'p-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,calc(4.5rem+env(safe-area-inset-bottom,0px)))] sm:p-6',
+        'pointer-events-none fixed inset-0 z-[2000000] flex max-md:items-stretch max-md:justify-stretch max-md:pt-0 md:items-center md:justify-center',
+        'max-md:pt-[max(6.5rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[max(0.25rem,env(safe-area-inset-bottom,0px))] max-md:px-2',
+        'md:p-6',
       )}
       role="presentation"
     >
@@ -51,9 +61,10 @@ export function SettingsModal({ isOpen, onClose, onUpdate }: SettingsModalProps)
 
       <div
         className={clsx(
-          'pointer-events-auto relative z-10 flex w-full min-h-0 max-w-4xl flex-col overflow-hidden',
-          'rounded-2xl border border-[#73FFA2]/50 bg-[#121212] shadow-2xl',
-          'h-[min(40rem,90dvh)] min-h-[20rem] sm:h-[min(44rem,92dvh)]',
+          'pointer-events-auto relative z-10 flex w-full min-h-0 max-w-4xl flex-1 flex-col overflow-hidden',
+          'rounded-[25px] border border-[#73FFA2]/50 bg-[#121212] shadow-2xl',
+          'min-h-[16rem] max-md:max-h-[min(94dvh,calc(100dvh-6.5rem))]',
+          'md:h-[min(44rem,min(92dvh,90vh))] md:min-h-[20rem] md:flex-none',
         )}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -71,7 +82,7 @@ export function SettingsModal({ isOpen, onClose, onUpdate }: SettingsModalProps)
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-lg p-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white"
+            className="shrink-0 rounded-[25px] p-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white"
             aria-label="Cerrar"
           >
             <XMarkIcon className="h-5 w-5" />
@@ -80,7 +91,7 @@ export function SettingsModal({ isOpen, onClose, onUpdate }: SettingsModalProps)
 
         {/* Tabs */}
         <div className="h-11 shrink-0 px-2 pt-1.5 sm:h-12 sm:px-3 sm:pt-2">
-          <div className="flex h-9 min-h-0 max-h-9 w-full items-stretch gap-0.5 overflow-x-auto rounded-lg border border-[#73FFA2]/50 bg-[#0d0d0d] p-0.5 scrollbar-hide sm:max-h-10">
+          <div className="flex h-9 min-h-0 max-h-9 w-full items-stretch gap-0.5 overflow-x-auto rounded-[25px] border border-[#73FFA2]/50 bg-[#0d0d0d] p-0.5 scrollbar-hide sm:max-h-10">
             {tabMeta.map(({ key, label, Icon }) => {
               const isActive = activeTab === key
               return (
@@ -89,7 +100,7 @@ export function SettingsModal({ isOpen, onClose, onUpdate }: SettingsModalProps)
                   type="button"
                   onClick={() => setActiveTab(key)}
                   className={clsx(
-                    'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-medium transition sm:gap-1.5 sm:px-2 sm:text-xs',
+                    'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-[25px] px-1.5 py-1 text-[10px] font-medium transition sm:gap-1.5 sm:px-2 sm:text-xs',
                     isActive
                       ? 'bg-[#73FFA2]/15 text-[#73FFA2]'
                       : 'text-gray-400 hover:bg-white/5 hover:text-gray-200',

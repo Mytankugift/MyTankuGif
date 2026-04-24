@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCartStore } from '@/lib/stores/cart-store'
@@ -9,6 +9,8 @@ import { VariantSelector } from '@/components/products/variant-selector'
 import type { CartItem } from '@/types/api'
 import type { ProductVariantDTO } from '@/types/api'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
+import { clsx } from 'clsx'
+import { TANKU_CART_ITEM_SURFACE } from '@/lib/checkout-tanku-design'
 
 interface CartItemProps {
   item: CartItem
@@ -23,7 +25,6 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
   const [showConfirmDelete, setShowConfirmDelete] = useState(false)
   const [modalQuantity, setModalQuantity] = useState(item.quantity)
   const [selectedVariantInModal, setSelectedVariantInModal] = useState<ProductVariantDTO | null>(null)
-  const confirmDeleteRef = useRef<HTMLDivElement>(null)
 
   // Sincronizar cantidad del modal cuando cambia el item
   useEffect(() => {
@@ -191,80 +192,24 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
 
   return (
     <>
-      <div 
-        className={`bg-gray-800/50 rounded-lg p-3 transition-all relative cursor-pointer ${isSelected ? 'ring-2 ring-[#73FFA2]' : ''}`}
+      <div
+        className={clsx(
+          TANKU_CART_ITEM_SURFACE,
+          'relative cursor-pointer transition-all',
+          isSelected
+            ? '!border-2 !border-[#73FFA2] !bg-[#171B21]/55 !ring-1 !ring-inset !ring-white/[0.04] !shadow-[0_2px_20px_rgba(0,0,0,0.12)]'
+            : 'border border-white/[0.08]',
+          'max-md:!border-r-0 max-md:!ring-0',
+        )}
         onClick={handleCardClick}
       >
-        {/* Icono de basura en esquina superior derecha */}
-        <div className="absolute top-2 right-2 z-10">
-          <div className="relative" ref={confirmDeleteRef}>
-            {showConfirmDelete && (
-              <>
-                <div 
-                  className="fixed inset-0 z-10" 
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowConfirmDelete(false)
-                  }}
-                />
-                <div className="absolute bottom-full right-0 mb-2 z-30 bg-gray-900 border border-[#73FFA2]/50 rounded-lg p-3 shadow-xl whitespace-nowrap">
-                  <p className="text-xs text-white mb-2">¿Eliminar este producto del carrito?</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemoveConfirm()
-                      }}
-                      className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                    >
-                      Sí
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemoveCancel()
-                      }}
-                      className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleRemoveClick()
-              }}
-              className="text-red-400 hover:text-red-300 transition-colors p-1 rounded hover:bg-red-900/20"
-              title="Eliminar producto"
-              data-no-select
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-
         <div className="flex gap-3">
           {/* Imagen - clickeable */}
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             {productHandle ? (
-              <Link 
+              <Link
                 href={`/products/${productHandle}`}
-                className="block w-24 h-24 sm:w-28 sm:h-28 relative rounded-lg overflow-hidden bg-gray-700 cursor-pointer hover:opacity-80 transition-opacity"
+                className="relative block h-24 w-24 cursor-pointer overflow-hidden rounded-3xl bg-gray-700 transition-opacity hover:opacity-80 sm:h-28 sm:w-28"
                 data-no-select
               >
                 <Image
@@ -276,7 +221,7 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
                 />
               </Link>
             ) : (
-              <div className="w-20 h-20 sm:w-24 sm:h-24 relative rounded-lg overflow-hidden bg-gray-700">
+              <div className="relative h-20 w-20 overflow-hidden rounded-3xl bg-gray-700 sm:h-24 sm:w-24">
                 <Image
                   src={productImage}
                   alt={productTitle}
@@ -288,62 +233,86 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
             )}
           </div>
 
-          {/* Información del producto */}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-              {/* Título y variante - clickeable */}
-              <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
+            {/* Título y basura: misma fila; el título nunca empuja el icono (min-w-0 + line-clamp) */}
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
                 {productHandle ? (
-                  <Link 
-                    href={`/products/${productHandle}`}
-                    className="block cursor-pointer hover:text-[#66DEDB] transition-colors"
-                    data-no-select
-                  >
-                    <h3 className="text-white font-medium text-base mb-0.5 truncate">{productTitle}</h3>
-                  </Link>
+                  <>
+                    <h3 className="mb-0.5 line-clamp-2 break-words text-base font-medium text-white sm:line-clamp-3 md:hidden">
+                      {productTitle}
+                    </h3>
+                    <Link
+                      href={`/products/${productHandle}`}
+                      className="hidden cursor-pointer transition-colors hover:text-[#66DEDB] md:block"
+                      data-no-select
+                    >
+                      <h3 className="mb-0.5 line-clamp-2 break-words text-base font-medium text-white sm:line-clamp-3">
+                        {productTitle}
+                      </h3>
+                    </Link>
+                  </>
                 ) : (
-                  <h3 className="text-white font-medium text-base mb-0.5 truncate">{productTitle}</h3>
+                  <h3 className="mb-0.5 line-clamp-2 break-words text-base font-medium text-white sm:line-clamp-3">
+                    {productTitle}
+                  </h3>
                 )}
-                {variantTitle && (
-                  <p className="text-gray-400 text-sm mb-1">{variantTitle}</p>
-                )}
-                {stock > 0 && (
-                  <p className="text-gray-500 text-xs">Stock: {stock}</p>
-                )}
+                {variantTitle && <p className="text-sm text-gray-400">{variantTitle}</p>}
+                {stock > 0 && <p className="text-xs text-gray-500">Stock: {stock}</p>}
+                <p className="mt-1 text-xs text-zinc-500">
+                  c/u: <span className="text-zinc-300">{formatPrice(unitPrice)}</span>
+                </p>
               </div>
 
-              {/* Precio unitario */}
-              <div className="flex-shrink-0 text-right mt-7">
-                <div className="text-gray-400 text-xs mb-0.5">Precio unitario</div>
-                <div className="text-gray-300 text-sm">{formatPrice(unitPrice)}</div>
+              <div className="relative shrink-0 pt-0.5" data-no-select>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleRemoveClick()
+                  }}
+                  className="rounded-full p-1.5 text-red-400 transition-colors hover:bg-red-900/25 hover:text-red-300"
+                  title="Eliminar producto"
+                  type="button"
+                  data-no-select
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
 
-            {/* Cantidad, cambiar opción y Total - en la misma línea */}
-            <div className="flex items-center justify-between gap-4 mt-1">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5" data-no-select>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3" data-no-select>
+                <div className="flex items-center gap-1.5">
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleQuantityChangeInCard(item.quantity - 1)
                     }}
                     disabled={item.quantity <= 1}
-                    className="w-5 h-5 rounded text-[#66DEDB] hover:text-[#5accc9] hover:bg-[#66DEDB]/10 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors text-xs font-medium"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-sm font-medium text-[#66DEDB] transition-colors hover:bg-[#66DEDB]/10 disabled:cursor-not-allowed disabled:opacity-30"
                     title="Disminuir cantidad"
                   >
                     −
                   </button>
-                  <span className="text-gray-400 text-sm min-w-[4rem] text-center">
-                    Cantidad: <span className="text-white font-medium">{item.quantity}</span>
+                  <span className="min-w-[3.5rem] text-center text-sm text-gray-400">
+                    <span className="font-medium text-white">{item.quantity}</span>
                   </span>
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleQuantityChangeInCard(item.quantity + 1)
                     }}
                     disabled={item.quantity >= Math.min(stock, 10)}
-                    className="w-5 h-5 rounded text-[#66DEDB] hover:text-[#5accc9] hover:bg-[#66DEDB]/10 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors text-xs font-medium"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-sm font-medium text-[#66DEDB] transition-colors hover:bg-[#66DEDB]/10 disabled:cursor-not-allowed disabled:opacity-30"
                     title="Aumentar cantidad"
                   >
                     +
@@ -351,22 +320,64 @@ export function CartItem({ item, isSelected = false, onSelectChange }: CartItemP
                 </div>
                 {hasMultipleVariants && (
                   <button
+                    type="button"
                     onClick={handleChangeOption}
-                    className="text-[#66DEDB] hover:text-[#5accc9] text-sm font-medium transition-colors underline"
+                    className="text-sm font-medium text-[#66DEDB] underline transition-colors hover:text-[#5accc9]"
                     data-no-select
                   >
                     Cambiar opción
                   </button>
                 )}
               </div>
-              <div className="flex-shrink-0 text-right">
-                <div className="text-gray-400 text-xs mb-0.5">Total</div>
-                <div className="text-[#66DEDB] font-bold text-base">{formatPrice(total)}</div>
+              <div className="shrink-0 text-right">
+                <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Total</div>
+                <div className="text-lg font-bold text-[#66DEDB]">{formatPrice(total)}</div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {showConfirmDelete && (
+        <div
+          className="fixed inset-0 z-[2000000] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          onClick={handleRemoveCancel}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cart-item-delete-title"
+        >
+          <div
+            className="w-full max-w-sm rounded-[2.5rem] border border-white/10 bg-[#1a1d24] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="cart-item-delete-title" className="text-lg font-semibold text-white">
+              ¿Quitar del carrito?
+            </h3>
+            <p className="mt-2 text-sm text-zinc-400">
+              Se quitará de tu carrito. Puedes volver a añadirlo en cualquier momento.
+            </p>
+            <p className="mt-2 line-clamp-2 break-words text-sm font-medium text-[#66DEDB]">{productTitle}</p>
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+              <button
+                type="button"
+                onClick={handleRemoveCancel}
+                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleRemoveConfirm()
+                }}
+                className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal para cambiar opciones */}
       {showVariantModal && (

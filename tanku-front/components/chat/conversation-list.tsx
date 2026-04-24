@@ -4,38 +4,75 @@ import { useMemo } from 'react'
 import Image from 'next/image'
 import { useChat } from '@/lib/hooks/use-chat'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import type { Conversation } from '@/lib/hooks/use-chat'
 
 interface ConversationListProps {
   onSelectConversation: (conversationId: string) => void
   selectedConversationId?: string | null
+  /** Filtro por nombre de usuario, alias, etc. (misma lógica que el modal de mensajes) */
+  searchQuery?: string
 }
 
-export function ConversationList({ onSelectConversation, selectedConversationId }: ConversationListProps) {
-  const { conversations, isLoading, getOtherParticipant, unreadCount, getAllMessagesForConversation, getUnreadCountForConversation, lastReceivedMessage } = useChat()
+const rowDividerStyle = {
+  borderImage: 'linear-gradient(90deg, #414141 0%, #73FFA2 34%, #73FFA2 70%, #414141 100%) 1',
+} as const
+
+export function ConversationList({
+  onSelectConversation,
+  selectedConversationId,
+  searchQuery = '',
+}: ConversationListProps) {
+  const {
+    conversations,
+    isLoading,
+    getOtherParticipant,
+    getAllMessagesForConversation,
+    getUnreadCountForConversation,
+    lastReceivedMessage,
+  } = useChat()
   const { user } = useAuthStore()
 
-  // ✅ Filtrar solo conversaciones tipo FRIENDS (excluir STALKERGIFT)
-  // Los chats de StalkerGift deben mostrarse solo en /stalkergift, no en /messages
-  const friendsConversations = conversations.filter(c => c.type === 'FRIENDS')
-
-  // ✅ Memoizar datos de cada conversación para actualizar cuando llega mensaje nuevo
-  // lastReceivedMessage fuerza re-render cuando cambia
   const conversationsData = useMemo(() => {
-    return friendsConversations.map(conversation => {
-      const allMessages = getAllMessagesForConversation(conversation.id)
-      // ✅ Calcular correctamente, sin forzar a 0 solo por estar seleccionado
-      // El indicador debe desaparecer solo cuando realmente se marca como leído
-      const unreadCount = getUnreadCountForConversation(conversation.id, user?.id || '')
-      return {
-        conversation,
-        lastMessage: allMessages[0]?.content || 'Sin mensajes',
-        lastMessageTime: allMessages[0]?.createdAt || conversation.updatedAt,
-        unreadCount,
-      }
-    })
-  }, [friendsConversations, getAllMessagesForConversation, getUnreadCountForConversation, user?.id, lastReceivedMessage]) // ✅ lastReceivedMessage fuerza recálculo
+    const friendsConversations = conversations.filter((c) => c.type === 'FRIENDS')
+    return friendsConversations
+      .map((conversation) => {
+        const allMessages = getAllMessagesForConversation(conversation.id)
+        const unreadCount = getUnreadCountForConversation(conversation.id, user?.id || '')
+        return {
+          conversation,
+          lastMessage: allMessages[0]?.content || 'Sin mensajes',
+          lastMessageTime: allMessages[0]?.createdAt || conversation.updatedAt,
+          unreadCount,
+        }
+      })
+      .filter(({ conversation }) => {
+        const otherParticipant = getOtherParticipant(conversation, user?.id || '')
+        if (!otherParticipant) return false
+        if (!otherParticipant.user && !otherParticipant.deletedUserEmail) return false
 
+        const username = otherParticipant.user?.username?.toLowerCase() || ''
+        const firstName = otherParticipant.user?.firstName?.toLowerCase() || ''
+        const lastName = otherParticipant.user?.lastName?.toLowerCase() || ''
+        const alias = otherParticipant.alias?.toLowerCase() || ''
+        const deletedEmail = otherParticipant.deletedUserEmail?.toLowerCase() || ''
+        const q = searchQuery.trim().toLowerCase()
+        if (!q) return true
+        return (
+          username.includes(q) ||
+          firstName.includes(q) ||
+          lastName.includes(q) ||
+          alias.includes(q) ||
+          deletedEmail.includes(q)
+        )
+      })
+  }, [
+    conversations,
+    getAllMessagesForConversation,
+    getUnreadCountForConversation,
+    getOtherParticipant,
+    user?.id,
+    lastReceivedMessage,
+    searchQuery,
+  ])
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
@@ -54,97 +91,107 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#66DEDB]"></div>
+      <div className="flex h-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#66DEDB]" />
       </div>
     )
   }
 
-  if (friendsConversations.length === 0) {
+  if (!conversations.some((c) => c.type === 'FRIENDS')) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-400">
-        <p>No tienes conversaciones</p>
-        <p className="text-sm mt-2">Inicia una conversación desde tus amigos</p>
+      <div className="flex h-full flex-col items-center justify-center px-4 text-center text-gray-400">
+        <p className="text-sm">No tienes conversaciones</p>
+        <p className="mt-2 text-xs">Inicia una conversación desde tus amigos</p>
+      </div>
+    )
+  }
+
+  if (conversationsData.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center px-4 text-center text-gray-400">
+        <p className="text-sm">Ninguna conversación coincide</p>
+        <p className="mt-1 text-xs">Prueba con otro nombre o alias</p>
       </div>
     )
   }
 
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar">
+    <div className="custom-scrollbar h-full overflow-y-auto">
       {conversationsData.map(({ conversation, lastMessage, lastMessageTime, unreadCount }) => {
         const otherParticipant = getOtherParticipant(conversation, user?.id || '')
         if (!otherParticipant) return null
-        
-        // Validar: Si el usuario fue eliminado, user será null pero deletedUserEmail existirá
         if (!otherParticipant.user && !otherParticipant.deletedUserEmail) return null
 
-        // Mostrar nombre: Usar user si existe, sino usar deletedUserEmail
-        const displayName = otherParticipant.alias || 
-          (otherParticipant.user 
+        const displayName =
+          otherParticipant.user?.username ||
+          otherParticipant.alias ||
+          (otherParticipant.user
             ? `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
             : otherParticipant.deletedUserEmail || 'Usuario eliminado') ||
-          (otherParticipant.user?.email || 'Usuario desconocido')
-        
+          otherParticipant.user?.email ||
+          'Usuario desconocido'
+
         const avatar = otherParticipant.user?.profile?.avatar
         const isSelected = selectedConversationId === conversation.id
 
         return (
           <button
             key={conversation.id}
+            type="button"
             onClick={() => onSelectConversation(conversation.id)}
-            className={`w-full p-4 border-b border-gray-700 hover:bg-gray-800/50 transition-colors ${
-              isSelected ? 'bg-gray-800/70 border-l-4 border-l-[#66DEDB]' : ''
+            className={`flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-white/[0.03] ${
+              isSelected ? 'bg-white/[0.06]' : ''
             }`}
+            style={rowDividerStyle}
           >
-            <div className="flex items-center gap-3">
-              {/* Avatar con badge de no leídos */}
-              <div className="relative flex-shrink-0">
-                <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-[#66DEDB] bg-gray-700 flex items-center justify-center">
-                  {avatar ? (
-                      <Image
-                        src={avatar}
-                        alt={displayName}
-                        width={48}
-                        height={48}
-                        className="object-cover w-full h-full"
-                        referrerPolicy="no-referrer"
-                        unoptimized={avatar.startsWith('http')}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.style.display = 'none'
-                        }}
-                        onLoad={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.style.display = 'block'
-                        }}
-                      />
-                  ) : (
-                    <span className="text-lg text-gray-400 font-bold">
-                      {(otherParticipant.user?.firstName?.[0] || 
-                        otherParticipant.user?.email?.[0] || 
-                        otherParticipant.deletedUserEmail?.[0] || 
-                        'U').toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                {/* Badge azul Tanku de mensajes no leídos (sin número, solo indicador) */}
-                {unreadCount > 0 && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#66DEDB] rounded-full border-2 border-gray-900"></div>
+            <div className="relative flex-shrink-0">
+              <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700">
+                {avatar ? (
+                  <Image
+                    src={avatar}
+                    alt={displayName}
+                    width={48}
+                    height={48}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                    unoptimized={avatar.startsWith('http')}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.style.display = 'none'
+                    }}
+                    onLoad={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.style.display = 'block'
+                    }}
+                  />
+                ) : (
+                  <span className="text-sm font-semibold text-gray-400">
+                    {(
+                      otherParticipant.user?.firstName?.[0] ||
+                      otherParticipant.user?.email?.[0] ||
+                      otherParticipant.deletedUserEmail?.[0] ||
+                      'U'
+                    ).toUpperCase()}
+                  </span>
                 )}
               </div>
+              {unreadCount > 0 && (
+                <div className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-[#171B21] bg-[#66DEDB]" />
+              )}
+            </div>
 
-              {/* Contenido */}
-              <div className="flex-1 min-w-0 text-left">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-sm font-semibold text-[#73FFA2] truncate">{displayName}</h3>
-                  <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                    {formatTime(lastMessageTime)}
-                  </span>
-                </div>
-                <p className={`text-xs truncate ${unreadCount > 0 ? 'text-white font-medium' : 'text-gray-400'}`}>
-                  {lastMessage}
-                </p>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex items-center justify-between">
+                <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+                <span className="ml-2 flex-shrink-0 text-sm text-gray-300">
+                  {formatTime(lastMessageTime)}
+                </span>
               </div>
+              <p
+                className={`truncate text-xs ${unreadCount > 0 ? 'font-medium text-white' : 'text-gray-400'}`}
+              >
+                {lastMessage}
+              </p>
             </div>
           </button>
         )
@@ -152,4 +199,3 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
     </div>
   )
 }
-

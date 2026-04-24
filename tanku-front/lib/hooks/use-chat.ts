@@ -5,7 +5,6 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { chatService, type ChatMessage as ChatServiceMessage } from '@/lib/services/chat.service'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import { useFeedInitContext } from '@/lib/context/feed-init-context'
 export interface Conversation {
   id: string
   type: 'FRIENDS' | 'STALKERGIFT'
@@ -67,7 +66,6 @@ export interface Message {
 
 export function useChat() {
   const { user } = useAuthStore()
-  const { isComplete, hasData } = useFeedInitContext()
   // ✅ NUEVO: Usar ChatService en lugar de useSocket para mensajes
   const [lastReceivedMessage, setLastReceivedMessage] = useState<Message | null>(null)
   const [socketMessages, setSocketMessages] = useState<Map<string, Message[]>>(new Map())
@@ -632,152 +630,30 @@ export function useChat() {
     )
   }, [lastReceivedMessage, updateConversationLastMessage])
 
-  // ✅ Guard para evitar llamadas duplicadas
-  const hasLoadedRef = useRef<boolean>(false)
-  const lastUserIdRef = useRef<string | null>(null)
+  // ✅ Una sola carga por usuario: antes se esperaba feedInit vía sessionStorage (nunca se escribía)
+  // y un intervalo de hasta ~3s; en /messages además no monta useFeedInit, así que la lista quedaba lenta.
+  const hasLoadedConversationsRef = useRef<boolean>(false)
+  const lastConversationsUserIdRef = useRef<string | null>(null)
 
-  // Cargar conversaciones al montar (SOLO una vez, el socket es la fuente de verdad)
   useEffect(() => {
-    // ✅ Verificar autenticación antes de hacer cualquier llamada
     if (!user?.id) {
-      // Silencioso: no hacer logs innecesarios en landing
-      hasLoadedRef.current = false
-      lastUserIdRef.current = null
+      hasLoadedConversationsRef.current = false
+      lastConversationsUserIdRef.current = null
       return
     }
 
-    // ✅ Si ya se cargó para este usuario, no volver a cargar
-    if (hasLoadedRef.current && lastUserIdRef.current === user.id) {
+    if (
+      hasLoadedConversationsRef.current &&
+      lastConversationsUserIdRef.current === user.id
+    ) {
       return
     }
 
-    // ✅ Verificar si feedInit ya completó usando sessionStorage y eventos
-    const checkFeedInitComplete = () => {
-      if (typeof window !== 'undefined') {
-        return sessionStorage.getItem('feedInit_complete') === 'true'
-      }
-      return false
-    }
-    
-    // ✅ Listener para evento de feedInit completado
-    const handleFeedInitComplete = (event: CustomEvent) => {
-      // ✅ Si feedInit ya cargó y hay conversaciones, no hacer fetch
-      if (conversations.length > 0 && !hasLoadedRef.current) {
-        console.log('[useChat] feedInit completó y ya hay conversaciones, omitiendo fetch')
-        hasLoadedRef.current = true
-        lastUserIdRef.current = user.id
-        // Solo hacer fetch de unreadCount si no está disponible
-        if (unreadCount === 0) {
-          fetchUnreadCount()
-        }
-      }
-    }
-    
-    // ✅ Agregar listener para evento feedInit_complete
-    if (typeof window !== 'undefined') {
-      window.addEventListener('feedInit_complete', handleFeedInitComplete as EventListener)
-    }
-    
-    // ✅ Verificar periódicamente si feedInit ya cargó antes de hacer fetch
-    // Esto evita llamadas duplicadas cuando feedInit está cargando
-    let checkAttempts = 0
-    const maxAttempts = 40 // ✅ Máximo 40 intentos (8 segundos si feedInit tarda mucho)
-    let checkInterval: NodeJS.Timeout | null = null
-    
-    checkInterval = setInterval(() => {
-      checkAttempts++
-      
-      // ✅ Verificar si feedInit ya completó
-      if (checkFeedInitComplete()) {
-        // ✅ Si ya hay conversaciones cargadas (desde feedInit), no hacer fetch
-        if (conversations.length > 0 && !hasLoadedRef.current) {
-          console.log('[useChat] feedInit completó y ya hay conversaciones, omitiendo fetch')
-          if (checkInterval) {
-            clearInterval(checkInterval)
-          }
-          hasLoadedRef.current = true
-          lastUserIdRef.current = user.id
-          // Solo hacer fetch de unreadCount si no está disponible
-          if (unreadCount === 0) {
-            fetchUnreadCount()
-          }
-          return
-        }
-        
-        // ✅ Si feedInit completó pero no hay conversaciones después de varios intentos, hacer fetch
-        if (checkAttempts >= 15 && !hasLoadedRef.current && conversations.length === 0) {
-          if (checkInterval) {
-            clearInterval(checkInterval)
-          }
-          hasLoadedRef.current = true
-          lastUserIdRef.current = user.id
-          Promise.all([
-            fetchConversations(),
-            fetchUnreadCount()
-          ])
-          return
-        }
-      }
-      
-      // ✅ Si ya hay conversaciones cargadas (desde feedInit), no hacer fetch
-      if (conversations.length > 0 && !hasLoadedRef.current) {
-        console.log('[useChat] Ya hay conversaciones cargadas desde feedInit, omitiendo fetch')
-        if (checkInterval) {
-          clearInterval(checkInterval)
-        }
-        hasLoadedRef.current = true
-        lastUserIdRef.current = user.id
-        // Solo hacer fetch de unreadCount si no está disponible
-        if (unreadCount === 0) {
-          fetchUnreadCount()
-        }
-        return
-      }
+    hasLoadedConversationsRef.current = true
+    lastConversationsUserIdRef.current = user.id
 
-      // ✅ Si después de varios intentos todavía no hay datos, hacer fetch como fallback
-      if (checkAttempts >= maxAttempts || (!hasLoadedRef.current && conversations.length === 0 && checkAttempts >= 15)) {
-        if (checkInterval) {
-          clearInterval(checkInterval)
-        }
-        
-        // ✅ Solo hacer fetch si todavía no hay datos después de esperar
-        if (!hasLoadedRef.current && conversations.length === 0) {
-          let mounted = true
-          
-          const loadData = async () => {
-            if (mounted && user?.id && !hasLoadedRef.current) {
-              hasLoadedRef.current = true
-              lastUserIdRef.current = user.id
-              // ✅ Ejecutar en paralelo para mejor performance
-              await Promise.all([
-                fetchConversations(),
-                fetchUnreadCount()
-              ])
-            }
-          }
-          
-          loadData()
-          
-          return () => {
-            mounted = false
-          }
-        }
-      }
-    }, 200) // ✅ Verificar cada 200ms
-
-    return () => {
-      if (checkInterval) {
-        clearInterval(checkInterval)
-      }
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('feedInit_complete', handleFeedInitComplete as EventListener)
-      }
-      if (lastUserIdRef.current !== user?.id) {
-        hasLoadedRef.current = false
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, conversations.length, unreadCount]) // ✅ Agregar dependencias para detectar cuando feedInit carga
+    void Promise.all([fetchConversations(), fetchUnreadCount()])
+  }, [user?.id, fetchConversations, fetchUnreadCount])
 
   return {
     conversations,

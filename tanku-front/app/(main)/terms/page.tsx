@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 
 interface AccordionSectionProps {
   title: string
@@ -45,12 +46,17 @@ function AccordionSection({ title, children, defaultOpen = false }: AccordionSec
   )
 }
 
-export default function TermsPage() {
+function TermsPageContent() {
+  const searchParams = useSearchParams()
+  const from = searchParams.get('from')
+  const backHref = from === 'settings-privacy' ? '/profile?settings=privacy' : '/feed'
+  const backLabel = from === 'settings-privacy' ? 'Volver a privacidad' : 'Volver al feed'
+
   return (
     <div className="min-h-screen bg-[#1E1E1E] text-white py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <Link
-          href="/feed"
+          href={backHref}
           className="inline-flex items-center gap-2 text-[#73FFA2] hover:text-[#66DEDB] transition-colors mb-8"
           style={{ fontFamily: 'Poppins, sans-serif' }}
         >
@@ -67,7 +73,7 @@ export default function TermsPage() {
           >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
-          Volver al feed
+          {backLabel}
         </Link>
 
         <div className="space-y-8">
@@ -385,5 +391,19 @@ export default function TermsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function TermsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#1E1E1E] text-white py-8 px-4">
+          <div className="mx-auto max-w-4xl text-sm text-gray-400">Cargando…</div>
+        </div>
+      }
+    >
+      <TermsPageContent />
+    </Suspense>
   )
 }

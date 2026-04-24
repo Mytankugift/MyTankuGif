@@ -412,15 +412,20 @@ export function OnboardingModal({
   const isPreferencesOnly = Boolean(onlySteps?.length)
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-3 sm:p-4">
+    <div className="fixed inset-0 z-[2000005]">
+      <div className="absolute inset-0 bg-black/80" aria-hidden />
       <div
-        className="flex w-full max-h-[min(90dvh,720px)] flex-col overflow-hidden rounded-[25px] border-2 sm:min-h-0"
+        className={
+          'pointer-events-none relative z-10 flex h-full min-h-0 w-full max-md:items-stretch max-md:justify-stretch max-md:px-2 max-md:pt-[max(5.75rem,calc(env(safe-area-inset-top,0px)+4.5rem))] max-md:pb-[max(0.35rem,env(safe-area-inset-bottom,0px))] md:items-center md:justify-center md:p-3 lg:p-4'
+        }
+      >
+      <div
+        className="pointer-events-auto relative z-10 flex w-full min-h-0 max-w-[600px] flex-1 flex-col overflow-hidden rounded-[25px] border-2 sm:min-h-0 md:mx-auto md:w-[min(100%,600px)] md:max-h-[min(92dvh,800px)] md:flex-none"
         style={{
           backgroundColor: '#262626',
           borderColor: '#73FFA2',
-          maxWidth: '600px',
-          width: 'min(100%, 600px)',
-          minHeight: isPreferencesOnly ? 'min(70dvh, 560px)' : 'min(90dvh, 600px)',
+          minHeight: isPreferencesOnly ? 'min(82dvh, 700px)' : 'min(90dvh, 600px)',
+          maxHeight: isPreferencesOnly ? 'min(92dvh, 780px)' : 'min(92dvh, 720px)',
         }}
       >
         {/* Header */}
@@ -474,10 +479,10 @@ export function OnboardingModal({
 
         {/* Contenido */}
         <div
-          className="custom-scrollbar flex-1 overflow-y-auto overflow-y-visible px-3 pb-4 sm:px-4 sm:pb-6 md:overflow-y-auto"
+          className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-y-visible px-3 pb-4 sm:px-4 sm:pb-6 md:overflow-y-auto"
           style={{
-            minHeight: isPreferencesOnly ? 'min(40dvh, 360px)' : '320px',
-            maxHeight: isPreferencesOnly ? 'min(50dvh, 440px)' : '520px',
+            minHeight: isPreferencesOnly ? 'min(50dvh, 460px)' : '320px',
+            maxHeight: isPreferencesOnly ? 'min(64dvh, 560px)' : '520px',
           }}
         >
           {currentStep === 0 && (
@@ -522,7 +527,8 @@ export function OnboardingModal({
         </div>
 
         {/* Footer con botones fijos */}
-        <div className="flex items-center justify-between p-4">
+        <div className="shrink-0 border-t border-white/5 bg-[#262626] p-3 sm:p-4">
+          <div className="mx-auto flex max-w-[600px] items-center justify-between gap-2">
           {currentStep === 0 && !onlySteps?.length ? (
             <div style={{ width: '120px' }} />
           ) : (
@@ -598,11 +604,14 @@ export function OnboardingModal({
               {isLoading ? 'Guardando...' : 'Continuar'}
             </button>
           )}
+          </div>
         </div>
+      </div>
       </div>
 
       <OnboardingAdultConfirmMiniModal
         open={showAdultConfirmModal}
+        overlayZIndex={2000006}
         onConfirm={handleAdultMiniConfirm}
         onCorrectDate={handleAdultCorrectDate}
       />

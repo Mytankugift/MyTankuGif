@@ -390,21 +390,25 @@ export default function EventsPage() {
   )
 
   return (
-    <>
-      <BaseNav
-        showStories={false}
-        canHide={false}
-        isVisible={true}
-        pageTitle="Eventos"
-        pageSubtitle="Consulta el calendario, crea recordatorios y gestiona tus fechas"
-        pageTitleColor="#66DEDB"
-        mobileTranslucentNav
-      />
-      {/* Shell: ocupa el alto del main; el scroll es solo aquí (móvil: como /feed, main sin scroll) */}
+    <div
+      className="relative z-0 flex w-full min-w-0 flex-1 flex-col text-white max-md:min-h-screen max-md:overflow-x-hidden max-md:overflow-visible md:min-h-0 md:overflow-hidden"
+      style={{ fontFamily: 'Poppins, sans-serif', backgroundColor: '#262626' }}
+    >
+      <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
+        <BaseNav
+          showStories={false}
+          pageTitle="Eventos"
+          pageTitleColor="#66DEDB"
+          mobileTranslucentNav
+          mobileBackCenterTitleCartOnly
+          desktopNavTitleCentered
+          className="pointer-events-auto"
+        />
+      </div>
+      {/* Shell: scroll interno en md+; móvil como /notifications */}
       <div
         id="events-scroll-root"
         className="flex min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-hidden text-white max-md:overflow-visible"
-        style={{ fontFamily: 'Poppins, sans-serif', backgroundColor: '#262626' }}
       >
         <div className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden max-md:flex-none max-md:min-h-0 max-md:overflow-visible overscroll-y-contain md:min-h-0 md:flex-1 md:overflow-y-auto max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] md:px-8 md:pb-6 md:pt-28 lg:px-10 lg:pb-6 lg:pt-28 xl:px-12 sm:max-md:px-4">
           <div className="mx-auto w-full max-w-7xl">
@@ -639,7 +643,7 @@ export default function EventsPage() {
             />
           )}
         </div>
-    </>
+    </div>
   )
 }
 

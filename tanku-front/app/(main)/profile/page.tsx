@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useProfileNavigation, ProfileNavigationProvider, type ProfileTab } from '@/lib/context/profile-navigation-context'
 import { MisTankusTab } from '@/components/profile/mis-tankus-tab'
 import { RedTankuTab } from '@/components/profile/red-tanku-tab'
-import { SettingsModal } from '@/components/profile/settings/settings-modal'
+import { SettingsModal, type SettingsModalTab } from '@/components/profile/settings/settings-modal'
 import { SocialLinksDisplay } from '@/components/profile/social-links-display'
 import { ProfileSocialExpandPanel } from '@/components/profile/profile-social-expand-panel'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
@@ -30,8 +30,10 @@ function ProfileContent() {
   const { user, checkAuth } = useAuthStore()
   const { getOnboardingData } = useOnboarding()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { activeTab, setActiveTab } = useProfileNavigation()
-  
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsModalTab | null>(null)
+
   // No redirigir - mostrar el perfil completo aquí
   const [orderId, setOrderId] = useState<string | null>(null)
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
@@ -71,6 +73,15 @@ function ProfileContent() {
     const orderIdParam = urlParams.get('orderId')
     setOrderId(orderIdParam)
   }, [])
+
+  useEffect(() => {
+    const s = searchParams.get('settings')
+    if (s === 'privacy') {
+      setSettingsInitialTab('PRIVACIDAD')
+      setIsSettingsModalOpen(true)
+      router.replace('/profile', { scroll: false })
+    }
+  }, [searchParams, router])
 
   useEffect(() => {
     if (!user?.id) return
@@ -614,10 +625,14 @@ function ProfileContent() {
         {/* Modal de configuración */}
         <SettingsModal
           isOpen={isSettingsModalOpen}
-          onClose={() => setIsSettingsModalOpen(false)}
+          onClose={() => {
+            setIsSettingsModalOpen(false)
+            setSettingsInitialTab(null)
+          }}
           onUpdate={() => {
             checkAuth()
           }}
+          initialTab={settingsInitialTab}
         />
 
         {/* Modal de creación de post */}
@@ -661,7 +676,9 @@ function ProfileContent() {
 export default function ProfilePage() {
   return (
     <ProfileNavigationProvider>
-      <ProfileContent />
+      <Suspense fallback={null}>
+        <ProfileContent />
+      </Suspense>
     </ProfileNavigationProvider>
   )
 }

@@ -5,6 +5,10 @@
 export const CHECKOUT_TANKU_SURFACE =
   'rounded-2xl border border-white/[0.08] bg-[#171B21]/55 p-5 sm:p-6 shadow-[0_2px_20px_rgba(0,0,0,0.12)] ring-1 ring-inset ring-white/[0.04] backdrop-blur-md'
 
+/** Líneas de carrito: muy redondeado (pill suave) — selección añade solo borde, sin tinte de fondo. */
+export const TANKU_CART_ITEM_SURFACE =
+  'rounded-[2.5rem] border border-white/[0.08] bg-[#171B21]/55 p-3 sm:p-4 shadow-[0_2px_20px_rgba(0,0,0,0.12)] ring-1 ring-inset ring-white/[0.04] backdrop-blur-md'
+
 export const CHECKOUT_TANKU_INPUT =
   'tanku-input-text-ios w-full rounded-xl border border-white/[0.1] bg-black/25 px-3 py-2.5 text-zinc-100 placeholder:text-zinc-500 shadow-inner backdrop-blur-sm focus:border-[#66DEDB]/45 focus:outline-none focus:ring-1 focus:ring-[#66DEDB]/20'
 

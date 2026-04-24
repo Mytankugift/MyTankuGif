@@ -104,11 +104,11 @@ function SettingsFullActionCard({
     </>
   )
   return (
-    <div className="rounded-lg border border-[#73FFA2]/25 bg-zinc-900/40 p-3">
+    <div className="overflow-hidden rounded-[25px] border border-[#73FFA2]/25 bg-zinc-900/40 p-3">
       {href != null ? (
         <Link
           href={href}
-          className="flex w-full min-w-0 items-center gap-3 text-inherit no-underline transition hover:opacity-95"
+          className="flex w-full min-w-0 items-center gap-3 rounded-[25px] text-inherit no-underline transition hover:opacity-95"
         >
           {inner}
         </Link>
@@ -116,7 +116,7 @@ function SettingsFullActionCard({
         <button
           type="button"
           onClick={onClick}
-          className="flex w-full min-w-0 items-center gap-3 text-left transition hover:opacity-95"
+          className="flex w-full min-w-0 items-center gap-3 rounded-[25px] text-left transition hover:opacity-95"
         >
           {inner}
         </button>
@@ -246,7 +246,7 @@ export function PrivacySection({ onUpdate, design = 'default' }: PrivacySectionP
   }
 
   const shellClass = isSettings
-    ? 'space-y-3 rounded-xl border border-[#73FFA2]/40 bg-[#0a0a0a] p-3 sm:p-4'
+    ? 'space-y-3 rounded-[25px] border border-[#73FFA2]/40 bg-[#0a0a0a] p-3 sm:p-4'
     : 'space-y-4 rounded-lg border-2 border-[#73FFA2] bg-transparent p-4 transition-colors hover:border-[#66DEDB]'
   return (
     <div className={shellClass}>
@@ -279,7 +279,7 @@ export function PrivacySection({ onUpdate, design = 'default' }: PrivacySectionP
           <p className="text-gray-400">Cargando configuración...</p>
         </div>
       ) : (
-        <div className={isSettings ? 'rounded-xl bg-[#141414] p-0 sm:px-2' : 'contents'}>
+        <div className={isSettings ? 'rounded-[25px] bg-[#141414] p-0 sm:px-2' : 'contents'}>
           {/* Perfil público */}
           {isSettings ? (
             <RowWithIcon
@@ -702,7 +702,7 @@ export function PrivacySection({ onUpdate, design = 'default' }: PrivacySectionP
                 description="Gestionar lista y desbloquear cuando quieras"
                 onClick={() => setShowBlockedModal(true)}
                 trailing={
-                  <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium text-gray-200">
+                  <span className="rounded-[25px] bg-white/10 px-2.5 py-0.5 text-xs font-medium text-gray-200">
                     {blockedListLoading ? '…' : blockedUsers.length}
                   </span>
                 }
@@ -711,7 +711,7 @@ export function PrivacySection({ onUpdate, design = 'default' }: PrivacySectionP
                 icon={DocumentTextIcon}
                 title="Términos y condiciones"
                 description="Cómo usamos y protegemos tus datos en Tanku"
-                href="/terms"
+                href="/terms?from=settings-privacy"
               />
               <SettingsFullActionCard
                 icon={AdjustmentsHorizontalIcon}
@@ -824,14 +824,14 @@ export function PrivacySection({ onUpdate, design = 'default' }: PrivacySectionP
           <div
             className={
               isSettings
-                ? 'mt-1 rounded-lg border border-red-500/35 bg-red-950/30 p-3'
+                ? 'mt-1 overflow-hidden rounded-[25px] border border-red-500/35 bg-red-950/30 p-3'
                 : 'border-t border-red-500/30 pt-4'
             }
           >
             <button
               type="button"
               onClick={() => setShowDeleteAccountModal(true)}
-              className="flex w-full items-center gap-3 text-left text-red-300 transition-colors hover:text-red-200"
+              className="flex w-full items-center gap-3 rounded-[25px] text-left text-red-300 transition-colors hover:text-red-200"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500/25 text-red-400">
                 <TrashIcon className="h-4 w-4" />

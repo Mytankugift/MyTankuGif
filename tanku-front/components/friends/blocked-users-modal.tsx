@@ -38,14 +38,14 @@ export function BlockedUsersModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[2000005] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         aria-hidden
         onClick={onClose}
       />
       <div
-        className="relative flex max-h-[min(560px,85vh)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-[#414141] shadow-2xl"
+        className="relative flex max-h-[min(560px,85vh)] w-full max-w-lg flex-col overflow-hidden rounded-[25px] border border-[#414141] shadow-2xl"
         style={{ backgroundColor: '#171B21' }}
         onClick={(e) => e.stopPropagation()}
       >

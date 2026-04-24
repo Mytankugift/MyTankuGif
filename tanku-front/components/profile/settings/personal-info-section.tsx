@@ -40,8 +40,10 @@ interface PersonalInfoSectionProps {
 /** Tarjetas de campo compactas: solo el control, sin ocupar de más */
 const fieldCardSettings =
   'rounded-md border border-white/10 bg-[#121212] px-2 py-1'
+const fieldCardSettingsBulk =
+  'rounded-[25px] border border-white/10 bg-[#121212] px-3 py-2'
 const editIconBtnSettings =
-  'shrink-0 rounded border border-white/10 bg-[#1e1e1e] p-1 text-gray-400 transition hover:border-[#73FFA2]/30 hover:text-[#73FFA2]'
+  'shrink-0 rounded-[25px] border border-white/10 bg-[#1e1e1e] p-1.5 text-gray-400 transition hover:border-[#73FFA2]/30 hover:text-[#73FFA2]'
 
 export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalInfoSectionProps) {
   const isSettings = design === 'settings'
@@ -51,6 +53,8 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
   const [showAdultBirthConfirm, setShowAdultBirthConfirm] = useState(false)
   const [pendingBirthIso, setPendingBirthIso] = useState<string | null>(null)
   const [editingField, setEditingField] = useState<string | null>(null)
+  /** En modal de configuración: un solo lapiz para editar todo el bloque a la vez. */
+  const [settingsBulkEdit, setSettingsBulkEdit] = useState(false)
   const [formData, setFormData] = useState({
     username: user?.username || '',
     firstName: user?.firstName || '',
@@ -178,13 +182,102 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
         birthDate: iso,
         ...(recordAgeConsent ? { recordAgeConsent: true } : {}),
       })
+      if (isSettings && settingsBulkEdit) {
+        const me = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.ME, {
+          username: formData.username,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+        })
+        if (!me.success) {
+          setError(me.error?.message || 'Error al actualizar datos')
+          return
+        }
+        const prof = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
+          bio: formData.bio,
+        })
+        if (!prof.success) {
+          setError(prof.error?.message || 'Error al actualizar biografía')
+          return
+        }
+      }
       await checkAuth()
       setEditingField(null)
       setShowAdultBirthConfirm(false)
       setPendingBirthIso(null)
       if (onUpdate) onUpdate()
+      if (isSettings) setSettingsBulkEdit(false)
     } catch (err: any) {
       setError(err.message || 'Error al guardar la fecha de nacimiento')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleBulkCancel = () => {
+    setSettingsBulkEdit(false)
+    setEditingField(null)
+    void handleFieldCancel()
+  }
+
+  const handleBulkSave = async () => {
+    if (!isSettings) return
+    setError(null)
+    const uErr = formData.username?.trim() ? validateUsername(formData.username) : null
+    if (uErr) {
+      setError(uErr)
+      return
+    }
+    if (!formData.firstName?.trim() || !formData.lastName?.trim()) {
+      setError('Nombre y apellido son obligatorios')
+      return
+    }
+    if (!formData.email?.trim() || !formData.email.includes('@')) {
+      setError('Email no válido')
+      return
+    }
+    if (!birthDateIso?.trim()) {
+      setError('Selecciona tu fecha de nacimiento')
+      return
+    }
+    const [y, m, d] = birthDateIso.split('-').map(Number)
+    if ([y, m, d].some((n) => Number.isNaN(n))) {
+      setError('Fecha inválida')
+      return
+    }
+    if (isAdultFromBirthParts(y, m, d)) {
+      setPendingBirthIso(birthDateIso)
+      setShowAdultBirthConfirm(true)
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const me = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.ME, {
+        username: formData.username,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+      })
+      if (!me.success) {
+        setError(me.error?.message || 'Error al actualizar datos')
+        return
+      }
+      const prof = await apiClient.put<import('@/types/api-responses').UpdateResponse>(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
+        bio: formData.bio,
+      })
+      if (!prof.success) {
+        setError(prof.error?.message || 'Error al actualizar biografía')
+        return
+      }
+      await updateOnboardingData({ birthDate: birthDateIso })
+      await checkAuth()
+      setSettingsBulkEdit(false)
+      if (onUpdate) onUpdate()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al guardar')
     } finally {
       setIsLoading(false)
     }
@@ -266,7 +359,7 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
     ? 'text-base font-semibold text-[#73FFA2]'
     : 'text-lg font-semibold text-[#73FFA2] mb-4'
   const shellClass = isSettings
-    ? 'space-y-3 rounded-xl border border-[#73FFA2]/40 bg-[#0a0a0a] p-3 sm:p-4'
+    ? 'space-y-3 rounded-[25px] border border-[#73FFA2]/40 bg-[#0a0a0a] p-3 sm:p-4'
     : 'bg-transparent rounded-lg p-4 border-2 border-[#73FFA2] hover:border-[#66DEDB] transition-colors space-y-4'
   const labelClass = isSettings ? 'text-xs text-gray-500' : 'text-sm font-medium text-gray-300'
   const inpClass = isSettings
@@ -284,17 +377,67 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
     ? 'p-0.5 text-red-400/90 hover:text-red-300 disabled:opacity-50'
     : 'p-2 text-red-400 hover:text-red-300 disabled:opacity-50'
 
+  const isBulk = isSettings && settingsBulkEdit
+  const inpBulkFull =
+    'min-h-11 w-full min-w-0 rounded-[25px] border border-white/12 bg-[#1a1a1a] px-3 text-base text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/35'
+  const dateBulkClass =
+    'min-h-11 min-w-0 flex-1 rounded-[25px] border border-white/12 bg-[#1a1a1a] px-3 text-base text-white focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/35'
+  const textAreaBulk =
+    'min-h-[88px] w-full flex-1 resize-y rounded-[25px] border border-white/12 bg-[#1a1a1a] px-3 py-2 text-base leading-snug text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/35 sm:min-h-[100px]'
+
+  const fieldCardClass = isBulk ? fieldCardSettingsBulk : fieldCardSettings
   const FieldBlock = ({ children }: { children: React.ReactNode }) =>
-    isSettings ? <div className={fieldCardSettings}>{children}</div> : <div className="space-y-2">{children}</div>
+    isSettings ? <div className={fieldCardClass}>{children}</div> : <div className="space-y-2">{children}</div>
 
   return (
     <>
     <div className={shellClass}>
-      <h3 className={titleClass}>Información personal</h3>
-      {isSettings && (
-        <p className="mb-2 text-xs text-gray-500">Datos mostrados en tu perfil.</p>
+      {isSettings ? (
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-[#73FFA2]">Información personal</h3>
+            <p className="mt-0.5 text-xs text-gray-500">Datos mostrados en tu perfil.</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
+            {settingsBulkEdit ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleBulkCancel}
+                  disabled={isLoading}
+                  className="rounded-[25px] border border-white/15 bg-[#1e1e1e] px-3 py-1.5 text-xs text-gray-200 transition hover:border-white/25 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkSave}
+                  disabled={isLoading}
+                  className="rounded-[25px] border border-[#73FFA2]/50 bg-[#73FFA2]/15 px-3 py-1.5 text-xs font-medium text-[#73FFA2] transition hover:bg-[#73FFA2]/25 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Guardar
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null)
+                  setSettingsBulkEdit(true)
+                }}
+                className={penBtn}
+                title="Editar toda la información"
+                aria-label="Editar toda la información"
+              >
+                <PencilIcon className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <h3 className={titleClass}>Información personal</h3>
       )}
-      
+
       {error && (
         <div
           className={
@@ -310,8 +453,29 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
       {/* Username */}
       <FieldBlock>
         <label className={labelClass}>Username</label>
-        <div className={rowClass}>
-          {editingField === 'username' ? (
+        <div className={isBulk ? 'mt-1 flex min-h-0 flex-col gap-1' : rowClass}>
+          {isBulk ? (
+            <div className="flex-1">
+              <input
+                type="text"
+                value={formData.username}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setFormData({ ...formData, username: value })
+                  const validationError = validateUsername(value)
+                  if (validationError) {
+                    setError(validationError)
+                  } else {
+                    setError(null)
+                  }
+                }}
+                className={inpBulkFull}
+                placeholder="@username"
+                disabled={isLoading}
+              />
+              <p className="mt-0.5 text-xs text-gray-500">Solo letras, números y _ · único</p>
+            </div>
+          ) : !isSettings && editingField === 'username' ? (
             <>
               <div className="flex-1">
                 <input
@@ -356,13 +520,15 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
               <span className="flex-1 truncate text-sm font-medium text-white">
                 {formData.username ? `@${formData.username}` : 'No especificado'}
               </span>
-              <button
-                type="button"
-                onClick={() => handleFieldEdit('username')}
-                className={penBtn}
-              >
-                <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              </button>
+              {!isSettings && (
+                <button
+                  type="button"
+                  onClick={() => handleFieldEdit('username')}
+                  className={penBtn}
+                >
+                  <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                </button>
+              )}
             </>
           )}
         </div>
@@ -372,8 +538,16 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
       <div className={isSettings ? 'grid grid-cols-1 gap-1.5 sm:grid-cols-2' : 'grid grid-cols-2 gap-4'}>
         <FieldBlock>
           <label className={labelClass}>Nombre</label>
-          <div className={rowClass}>
-            {editingField === 'firstName' ? (
+          <div className={isBulk ? 'mt-1' : rowClass}>
+            {isBulk ? (
+              <input
+                type="text"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                className={inpBulkFull}
+                disabled={isLoading}
+              />
+            ) : !isSettings && editingField === 'firstName' ? (
               <>
                 <input
                   type="text"
@@ -401,30 +575,36 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
                 </button>
               </>
             ) : (
-              <>
-                <span
-                  className={
-                    isSettings ? 'flex-1 text-sm font-medium text-white' : 'flex-1 text-sm font-medium text-white'
-                  }
-                >
+              <div className="flex w-full min-w-0 items-center gap-1.5">
+                <span className="flex-1 text-sm font-medium text-white">
                   {formData.firstName || 'No especificado'}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleFieldEdit('firstName')}
-                  className={penBtn}
-                >
-                  <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                </button>
-              </>
+                {!isSettings && (
+                  <button
+                    type="button"
+                    onClick={() => handleFieldEdit('firstName')}
+                    className={penBtn}
+                  >
+                    <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </FieldBlock>
 
         <FieldBlock>
           <label className={labelClass}>Apellido</label>
-          <div className={rowClass}>
-            {editingField === 'lastName' ? (
+          <div className={isBulk ? 'mt-1' : rowClass}>
+            {isBulk ? (
+              <input
+                type="text"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                className={inpBulkFull}
+                disabled={isLoading}
+              />
+            ) : !isSettings && editingField === 'lastName' ? (
               <>
                 <input
                   type="text"
@@ -452,22 +632,20 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
                 </button>
               </>
             ) : (
-              <>
-                <span
-                  className={
-                    isSettings ? 'flex-1 text-sm font-medium text-white' : 'flex-1 text-sm font-medium text-white'
-                  }
-                >
+              <div className="flex w-full min-w-0 items-center gap-1.5">
+                <span className="flex-1 text-sm font-medium text-white">
                   {formData.lastName || 'No especificado'}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleFieldEdit('lastName')}
-                  className={penBtn}
-                >
-                  <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                </button>
-              </>
+                {!isSettings && (
+                  <button
+                    type="button"
+                    onClick={() => handleFieldEdit('lastName')}
+                    className={penBtn}
+                  >
+                    <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </FieldBlock>
@@ -477,8 +655,16 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
       <div className={isSettings ? 'grid grid-cols-1 gap-1.5 sm:grid-cols-2' : 'grid grid-cols-2 gap-4'}>
         <FieldBlock>
           <label className={labelClass}>Email</label>
-          <div className={rowClass}>
-            {editingField === 'email' ? (
+          <div className={isBulk ? 'mt-1' : rowClass}>
+            {isBulk ? (
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className={inpBulkFull}
+                disabled={isLoading}
+              />
+            ) : !isSettings && editingField === 'email' ? (
               <>
                 <input
                   type="email"
@@ -506,32 +692,43 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
                 </button>
               </>
             ) : (
-              <>
+              <div className="flex w-full min-w-0 items-center gap-1.5">
                 <span
                   className={
                     isSettings
                       ? 'flex-1 truncate text-sm font-medium text-white'
-                      : 'flex-1 text-sm font-medium text-white truncate'
+                      : 'flex-1 truncate text-sm font-medium text-white'
                   }
                 >
                   {formData.email || 'No especificado'}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleFieldEdit('email')}
-                  className={penBtn}
-                >
-                  <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                </button>
-              </>
+                {!isSettings && (
+                  <button
+                    type="button"
+                    onClick={() => handleFieldEdit('email')}
+                    className={penBtn}
+                  >
+                    <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </FieldBlock>
 
         <FieldBlock>
           <label className={labelClass}>Teléfono</label>
-          <div className={rowClass}>
-            {editingField === 'phone' ? (
+          <div className={isBulk ? 'mt-1' : rowClass}>
+            {isBulk ? (
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className={inpBulkFull}
+                placeholder="+57 300 123 4567"
+                disabled={isLoading}
+              />
+            ) : !isSettings && editingField === 'phone' ? (
               <>
                 <input
                   type="tel"
@@ -560,22 +757,20 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
                 </button>
               </>
             ) : (
-              <>
-                <span
-                  className={
-                    isSettings ? 'flex-1 text-sm font-medium text-white' : 'flex-1 text-sm font-medium text-white'
-                  }
-                >
+              <div className="flex w-full min-w-0 items-center gap-1.5">
+                <span className="flex-1 text-sm font-medium text-white">
                   {formData.phone || 'No especificado'}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleFieldEdit('phone')}
-                  className={penBtn}
-                >
-                  <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                </button>
-              </>
+                {!isSettings && (
+                  <button
+                    type="button"
+                    onClick={() => handleFieldEdit('phone')}
+                    className={penBtn}
+                  >
+                    <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </FieldBlock>
@@ -584,8 +779,21 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
       {/* Fecha de nacimiento y edad (onboarding) */}
       <FieldBlock>
         <label className={labelClass}>Fecha de nacimiento</label>
-        <div className={rowClass}>
-          {editingField === 'birthDate' ? (
+        <div className={isBulk ? 'mt-1' : rowClass}>
+          {isBulk ? (
+            <input
+              type="date"
+              value={birthDateIso}
+              max={maxBirthDateStr}
+              min="1904-01-01"
+              onChange={(e) => {
+                setBirthDateIso(e.target.value)
+                setError(null)
+              }}
+              className={dateBulkClass}
+              disabled={isLoading}
+            />
+          ) : !isSettings && editingField === 'birthDate' ? (
             <>
               <input
                 type="date"
@@ -596,11 +804,7 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
                   setBirthDateIso(e.target.value)
                   setError(null)
                 }}
-                className={
-                  isSettings
-                    ? 'h-6 min-h-6 flex-1 min-w-0 rounded border border-white/12 bg-[#1a1a1a] px-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/35'
-                    : 'flex-1 rounded border border-[#73FFA2] bg-gray-800 px-3 py-2 text-white focus:border-[#66DEDB] focus:outline-none'
-                }
+                className="flex-1 rounded border border-[#73FFA2] bg-gray-800 px-3 py-2 text-white focus:border-[#66DEDB] focus:outline-none"
                 disabled={isLoading}
               />
               <button
@@ -621,12 +825,8 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
               </button>
             </>
           ) : (
-            <>
-              <span
-                className={
-                  isSettings ? 'flex-1 text-sm font-medium text-white' : 'flex-1 text-sm font-medium text-white'
-                }
-              >
+            <div className="flex w-full min-w-0 items-center gap-1.5">
+              <span className="flex-1 text-sm font-medium text-white">
                 {birthAgeDisplay ? (
                   <>
                     <span className="text-[#66DEDB]">{birthAgeDisplay.age} años</span>
@@ -636,14 +836,16 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
                   'No especificado'
                 )}
               </span>
-              <button
-                type="button"
-                onClick={() => handleFieldEdit('birthDate')}
-                className={penBtn}
-              >
-                <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              </button>
-            </>
+              {!isSettings && (
+                <button
+                  type="button"
+                  onClick={() => handleFieldEdit('birthDate')}
+                  className={penBtn}
+                >
+                  <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                </button>
+              )}
+            </div>
           )}
         </div>
         <p
@@ -661,16 +863,21 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
       <FieldBlock>
         <label className={labelClass}>Biografía</label>
         <div className="flex items-start gap-1">
-          {editingField === 'bio' ? (
+          {isBulk ? (
+            <textarea
+              value={formData.bio}
+              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+              className={textAreaBulk}
+              placeholder="Escribe algo sobre ti..."
+              disabled={isLoading}
+              maxLength={500}
+            />
+          ) : !isSettings && editingField === 'bio' ? (
             <>
               <textarea
                 value={formData.bio}
                 onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                className={
-                  isSettings
-                    ? 'min-h-[40px] flex-1 resize-y rounded border border-white/12 bg-[#1a1a1a] px-2 py-1 text-xs leading-snug text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/35 sm:min-h-[48px]'
-                    : 'min-h-[100px] flex-1 resize-y rounded border border-[#73FFA2] bg-gray-800 px-3 py-2 text-white focus:border-[#66DEDB] focus:outline-none'
-                }
+                className="min-h-[100px] flex-1 resize-y rounded border border-[#73FFA2] bg-gray-800 px-3 py-2 text-base text-white focus:border-[#66DEDB] focus:outline-none"
                 placeholder="Escribe algo sobre ti..."
                 disabled={isLoading}
                 autoFocus
@@ -696,7 +903,7 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
               </div>
             </>
           ) : (
-            <>
+            <div className="flex w-full min-w-0 items-start gap-1">
               <span
                 className={
                   isSettings
@@ -706,17 +913,19 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
               >
                 {formData.bio || 'No especificado'}
               </span>
-              <button
-                type="button"
-                onClick={() => handleFieldEdit('bio')}
-                className={penBtn}
-              >
-                <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              </button>
-            </>
+              {!isSettings && (
+                <button
+                  type="button"
+                  onClick={() => handleFieldEdit('bio')}
+                  className={penBtn}
+                >
+                  <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                </button>
+              )}
+            </div>
           )}
         </div>
-        {editingField === 'bio' && (
+        {(isBulk || (!isSettings && editingField === 'bio')) && (
           <p className={isSettings ? 'mt-1 text-xs text-gray-500' : 'mt-1 text-xs text-gray-400'}>
             {formData.bio.length}/500
           </p>
@@ -726,7 +935,7 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
 
     <OnboardingAdultConfirmMiniModal
       open={showAdultBirthConfirm}
-      overlayZIndex={210}
+      overlayZIndex={isSettings ? 2000007 : 210}
       onConfirm={() => {
         if (pendingBirthIso) void finalizeBirthDateSave(pendingBirthIso, true)
       }}

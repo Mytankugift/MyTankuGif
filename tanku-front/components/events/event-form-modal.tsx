@@ -41,8 +41,9 @@ const fieldShell: React.CSSProperties = {
   fontFamily: 'Poppins, sans-serif',
 }
 
+/** `text-base` en móvil evita zoom automático iOS en focus; `min-w-0` evita desbordes por flex. */
 const fieldClass =
-  'w-full px-4 py-2 text-sm text-white rounded-full focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/30 min-h-[40px]'
+  'box-border w-full min-w-0 max-w-full px-3 py-2 text-base text-white rounded-full focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/30 min-h-[44px] md:min-h-[40px] md:px-4 md:text-sm touch-manipulation'
 
 function getColorTypeLabel(
   hex: string,
@@ -136,6 +137,7 @@ export function EventFormModal({
   const repeatDropdownRef = useRef<HTMLDivElement>(null)
   const remindersButtonRef = useRef<HTMLButtonElement>(null)
   const repeatButtonRef = useRef<HTMLButtonElement>(null)
+  const dateInputRef = useRef<HTMLInputElement>(null)
   const [remindersDropdownPosition, setRemindersDropdownPosition] = useState({
     bottom: 0,
     left: 0,
@@ -457,7 +459,7 @@ export function EventFormModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black/80 p-4"
+      className="fixed inset-0 flex items-center justify-center bg-black/80 p-2 sm:p-4"
       style={{
         position: 'fixed',
         top: 0,
@@ -473,16 +475,16 @@ export function EventFormModal({
       }}
     >
       <div
-        className="rounded-[25px] flex max-h-[min(85dvh,720px)] w-[90%] max-w-[600px] min-h-0 flex-col overflow-hidden border-2 md:max-h-[min(85vh,720px)]"
+        className="flex max-h-[min(92dvh,720px)] w-full min-w-0 max-w-[min(100%,600px)] flex-col overflow-hidden rounded-2xl border-2 sm:rounded-[25px] sm:max-h-[min(85dvh,720px)]"
         style={{
           backgroundColor: '#262626',
           borderColor: '#73FFA2',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between gap-2 p-3 sm:p-4">
           <h2
-            className="text-xl font-semibold"
+            className="min-w-0 text-lg font-semibold sm:text-xl"
             style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}
           >
             {event ? 'Editar Evento' : 'Nuevo Evento'}
@@ -495,18 +497,18 @@ export function EventFormModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-1 custom-scrollbar">
-          <form id="event-form" onSubmit={handleSubmit} className="space-y-4 pb-2">
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-3 pb-1 sm:px-4">
+          <form id="event-form" onSubmit={handleSubmit} className="min-w-0 space-y-4 pb-2">
             {(error || hookError) && (
               <div className="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
                 {error || hookError}
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="min-w-0">
                 <label
-                  className="block text-sm font-medium mb-1.5"
+                  className="mb-1.5 block text-sm font-medium"
                   style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}
                 >
                   Nombre del evento *
@@ -522,17 +524,16 @@ export function EventFormModal({
                 />
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label
-                  className="block text-sm font-medium mb-1.5"
+                  className="mb-1.5 block text-sm font-medium"
                   style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}
                 >
                   Fecha *
                 </label>
-                {/* Solo el campo: así el icono vertical queda centrado respecto al input */}
-                <div className="relative isolate">
-                  {/* Móvil: ocultamos el indicador nativo y dibujamos CalendarDaysIcon alineado; clic sigue al área derecha (~w-11). */}
+                <div className="flex min-w-0 items-stretch gap-2">
                   <input
+                    ref={dateInputRef}
                     type="date"
                     value={eventDate}
                     onChange={(e) => {
@@ -545,14 +546,27 @@ export function EventFormModal({
                       }
                     }}
                     min={event ? undefined : todayDateInputValue()}
-                    className={`${fieldClass} relative z-[1] block w-full [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-90 max-md:min-h-[42px] max-md:py-2 max-md:pl-3 max-md:pr-[2.85rem] max-md:[&::-webkit-calendar-picker-indicator]:absolute max-md:[&::-webkit-calendar-picker-indicator]:right-0 max-md:[&::-webkit-calendar-picker-indicator]:top-0 max-md:[&::-webkit-calendar-picker-indicator]:bottom-0 max-md:[&::-webkit-calendar-picker-indicator]:m-0 max-md:[&::-webkit-calendar-picker-indicator]:w-[2.75rem] max-md:[&::-webkit-calendar-picker-indicator]:cursor-pointer max-md:[&::-webkit-calendar-picker-indicator]:appearance-none max-md:[&::-webkit-calendar-picker-indicator]:opacity-0 max-md:[&::-webkit-datetime-edit]:p-0 max-md:[&::-webkit-datetime-edit-fields-wrapper]:p-0`}
+                    className={`${fieldClass} flex-1 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:ml-0 [&::-webkit-calendar-picker-indicator]:mr-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80 md:[&::-webkit-calendar-picker-indicator]:opacity-90`}
                     style={fieldShell}
                     required
                   />
-                  <CalendarDaysIcon
-                    className="pointer-events-none absolute right-[0.85rem] top-1/2 z-[2] hidden h-5 w-5 shrink-0 -translate-y-1/2 text-[#E8EAED] opacity-95 max-md:block md:hidden"
-                    aria-hidden
-                  />
+                  <button
+                    type="button"
+                    className="box-border flex h-[44px] w-11 shrink-0 items-center justify-center self-center rounded-full border sm:h-10 sm:w-10"
+                    style={{ ...fieldShell, minHeight: undefined }}
+                    aria-label="Abrir selector de fecha"
+                    onClick={() => {
+                      const el = dateInputRef.current
+                      if (!el) return
+                      if (typeof el.showPicker === 'function') {
+                        el.showPicker()
+                      } else {
+                        el.click()
+                      }
+                    }}
+                  >
+                    <CalendarDaysIcon className="h-5 w-5 text-[#E8EAED]" aria-hidden />
+                  </button>
                 </div>
               </div>
             </div>
@@ -630,13 +644,13 @@ export function EventFormModal({
                   }
                   setShowColorDropdown(!showColorDropdown)
                 }}
-                className={`${fieldClass} text-left flex items-center justify-between gap-2`}
+                className={`${fieldClass} flex min-w-0 items-center justify-between gap-2 text-left`}
                 style={{
                   ...fieldShell,
                   color: '#FFFFFF',
                 }}
               >
-                <span className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="flex min-w-0 flex-1 items-center gap-2">
                   <span
                     className="w-4 h-4 rounded-full shrink-0 border border-white/20"
                     style={{ backgroundColor: normalizeEventColor(eventColor) }}
@@ -674,7 +688,7 @@ export function EventFormModal({
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/30 resize-none rounded-3xl min-h-[72px]"
+                className="box-border w-full min-w-0 max-w-full resize-none rounded-3xl px-3 py-2 text-base text-white focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/30 min-h-[72px] md:px-4 md:text-sm"
                 style={fieldShell}
                 rows={3}
                 placeholder="Agrega una descripción..."
@@ -761,15 +775,14 @@ export function EventFormModal({
         </div>
 
         <div
-          className="flex-shrink-0 flex items-center justify-between gap-3 p-4 border-t"
+          className="flex flex-shrink-0 items-center justify-between gap-2 border-t p-3 sm:gap-3 sm:p-4"
           style={{ borderColor: '#4A4A4A' }}
         >
           <button
             type="button"
             onClick={onClose}
-            className="font-semibold transition-all rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-w-0 flex-1 max-w-[140px] rounded-full py-2.5 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:max-w-[120px] sm:py-0"
             style={{
-              width: '120px',
               height: '40px',
               backgroundColor: '#4A4A4A',
               color: '#B7B7B7',
@@ -784,9 +797,8 @@ export function EventFormModal({
             form="event-form"
             onClick={handleSubmit}
             disabled={isLoading || !title.trim()}
-            className="font-semibold transition-all rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-w-0 flex-1 max-w-[140px] rounded-full py-2.5 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:max-w-[120px] sm:py-0"
             style={{
-              width: '120px',
               height: '40px',
               backgroundColor: title.trim() && !isLoading ? '#73FFA2' : '#4A4A4A',
               color: title.trim() && !isLoading ? '#262626' : '#666',
@@ -1029,7 +1041,7 @@ export function EventFormModal({
       {showAddPresetModal &&
         createPortal(
           <div
-            className="fixed inset-0 flex items-center justify-center bg-black/70 p-4"
+            className="fixed inset-0 flex items-center justify-center overflow-y-auto overflow-x-hidden bg-black/70 p-2 sm:p-4"
             style={{ zIndex: EVENT_FORM_NESTED_DIALOG_Z }}
             role="dialog"
             aria-modal="true"
@@ -1042,7 +1054,7 @@ export function EventFormModal({
             }}
           >
             <div
-              className="w-full max-w-sm rounded-2xl border-2 p-4 shadow-xl"
+              className="my-auto w-full max-w-[min(100vw-1rem,20rem)] rounded-xl border-2 p-3 shadow-xl sm:max-w-sm sm:rounded-2xl sm:p-4"
               style={{
                 backgroundColor: '#262626',
                 borderColor: '#73FFA2',
@@ -1050,10 +1062,10 @@ export function EventFormModal({
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-start justify-between gap-2 mb-3">
+              <div className="mb-2 flex items-start justify-between gap-2">
                 <h3
                   id="add-preset-title"
-                  className="text-base font-semibold pr-2"
+                  className="pr-2 text-sm font-semibold sm:text-base"
                   style={{ color: '#73FFA2' }}
                 >
                   Nuevo tipo de color
@@ -1064,33 +1076,33 @@ export function EventFormModal({
                     setShowAddPresetModal(false)
                     setAddPresetError(null)
                   }}
-                  className="text-gray-400 hover:text-white p-1 rounded shrink-0"
+                  className="shrink-0 rounded p-1 text-gray-400 hover:text-white"
                   aria-label="Cerrar"
                 >
-                  <XMarkIcon className="w-5 h-5" />
+                  <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
-              <p className="text-[11px] mb-3" style={{ color: '#B7B7B7' }}>
+              <p className="mb-2 text-[11px] leading-snug" style={{ color: '#B7B7B7' }}>
                 Así podrás filtrar por este color en el calendario.
               </p>
               {addPresetError ? (
-                <div className="mb-3 p-2 rounded-lg text-sm bg-red-900/40 border border-red-700/80 text-red-200">
+                <div className="mb-2 rounded-lg border border-red-700/80 bg-red-900/40 p-2 text-sm text-red-200">
                   {addPresetError}
                 </div>
               ) : null}
-              <div className="mb-4 flex min-w-0 items-center gap-3">
+              <div className="mb-3 flex min-w-0 flex-col gap-2 sm:mb-4 sm:flex-row sm:items-center sm:gap-3">
                 <input
                   type="text"
                   value={newColorLabel}
                   onChange={(e) => setNewColorLabel(e.target.value)}
                   placeholder="Nombre (ej: Familia)"
-                  className={`${fieldClass} min-h-[40px] min-w-0 flex-1`}
+                  className={`${fieldClass} w-full min-w-0 sm:flex-1`}
                   style={fieldShell}
                   maxLength={40}
                   autoFocus
                 />
                 <div
-                  className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#4A4A4A] bg-[#1a1a1a]"
+                  className="mx-auto h-11 w-11 shrink-0 overflow-hidden rounded-full border border-[#4A4A4A] bg-[#1a1a1a] sm:mx-0 sm:h-10 sm:w-10"
                   title="Elegir color"
                 >
                   <input
@@ -1103,17 +1115,15 @@ export function EventFormModal({
                   />
                 </div>
               </div>
-              <div className="flex w-full items-center justify-between gap-3">
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddPresetModal(false)
                     setAddPresetError(null)
                   }}
-                  className="font-semibold transition-all rounded-full"
+                  className="h-11 w-full rounded-full text-sm font-semibold transition-all sm:h-10 sm:max-w-[120px] sm:min-w-0"
                   style={{
-                    width: '120px',
-                    height: '40px',
                     backgroundColor: '#4A4A4A',
                     color: '#B7B7B7',
                     fontFamily: 'Poppins, sans-serif',
@@ -1126,10 +1136,8 @@ export function EventFormModal({
                   type="button"
                   onClick={() => void handleSaveNewColorType()}
                   disabled={savingPreset}
-                  className="font-semibold transition-all rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-11 w-full rounded-full text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:max-w-[120px] sm:min-w-0"
                   style={{
-                    width: '120px',
-                    height: '40px',
                     backgroundColor: '#73FFA2',
                     color: '#262626',
                     fontFamily: 'Poppins, sans-serif',

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { clsx } from 'clsx'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useChat } from '@/lib/hooks/use-chat'
@@ -11,9 +12,18 @@ import type { Conversation } from '@/lib/hooks/use-chat'
 interface ChatWindowProps {
   conversationId: string | null
   conversation: Conversation | null
+  /** Móvil: cabecera tipo modal con «atrás» que cierra el chat en la pila de la página */
+  onMobileBack?: () => void
+  /** Móvil overlay pantalla completa: cabecera más compacta y botón atrás táctil grande */
+  mobileFullBleedChrome?: boolean
 }
 
-export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
+export function ChatWindow({
+  conversationId,
+  conversation,
+  onMobileBack,
+  mobileFullBleedChrome = false,
+}: ChatWindowProps) {
   const router = useRouter()
   const { getOtherParticipant, user } = useChat()
   const { isConnected, sendMessage, getMessages, getTypingUsers, markAsRead, loadMessages, joinConversation, lastMessage } = useChatService()
@@ -28,12 +38,20 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
   const lastFetchedConversationRef = useRef<string | null>(null)
   const scrollPositionRef = useRef<number>(0)
 
+  const rowDividerStyle = {
+    borderImage:
+      'linear-gradient(90deg, #414141 0%, #73FFA2 34%, #73FFA2 70%, #414141 100%) 1',
+  } as const
+
   const otherParticipant = conversation ? getOtherParticipant(conversation, user?.id || '') : null
-  const displayName = otherParticipant?.alias || 
-    (otherParticipant?.user 
+  const displayName =
+    otherParticipant?.user?.username ||
+    otherParticipant?.alias ||
+    (otherParticipant?.user
       ? `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
       : otherParticipant?.deletedUserEmail || 'Usuario eliminado') ||
-    (otherParticipant?.user?.email || 'Usuario')
+    otherParticipant?.user?.email ||
+    'Usuario'
 
   // ✅ NUEVO: Obtener mensajes directamente del servicio (ya están sincronizados)
   const messages = conversationId ? getMessages(conversationId) : []
@@ -116,6 +134,13 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
       }
     }
   }, [conversationId, sortedMessages.length, user?.id, markAsRead, lastMessage])
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`
+    }
+  }, [message])
 
   // Scroll al final cuando hay nuevos mensajes (solo si no está cargando más)
   useEffect(() => {
@@ -280,62 +305,147 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
 
   const otherUser = otherParticipant.user
 
+  const profileHref = otherUser.username
+    ? `/profile/${otherUser.username}`
+    : `/profile/${otherUser.id}`
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-700 bg-gray-800/50">
-        <button
-          onClick={() => router.push(otherUser.username ? `/profile/${otherUser.username}` : `/profile/${otherUser.id}`)}
-          className="flex items-center gap-3 hover:opacity-80 transition-opacity w-full"
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Móvil: mismo patrón que el dropdown de mensajes (atrás + avatar + nombre) */}
+      {onMobileBack ? (
+        <div
+          className={clsx(
+            'shrink-0 border-b md:hidden',
+            mobileFullBleedChrome ? 'px-2 py-2' : 'p-4'
+          )}
+          style={rowDividerStyle}
         >
-          <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-[#66DEDB] bg-gray-700 flex items-center justify-center">
-            {otherUser.profile?.avatar ? (
-              <Image
-                src={otherUser.profile.avatar}
-                alt={displayName}
-                width={40}
-                height={40}
-                className="object-cover w-full h-full"
-                referrerPolicy="no-referrer"
-                unoptimized={otherUser.profile.avatar.startsWith('http')}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.style.display = 'none'
-                }}
-                onLoad={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.style.display = 'block'
-                }}
-              />
-            ) : (
-              <span className="text-sm text-gray-400 font-bold">
-                {(otherUser.firstName?.[0] || 
-                  otherUser.email?.[0] || 
-                  otherParticipant?.deletedUserEmail?.[0] || 
-                  'U').toUpperCase()}
-              </span>
-            )}
+          <div className="flex min-h-[52px] min-w-0 flex-1 items-center gap-2">
+            <button
+              type="button"
+              onClick={onMobileBack}
+              className={clsx(
+                'flex shrink-0 items-center justify-center rounded-full text-[#D7D7D7] transition-colors hover:bg-white/10 hover:text-white active:bg-white/15',
+                mobileFullBleedChrome ? 'h-11 w-11' : 'h-10 w-10 p-1.5'
+              )}
+              title="Volver a conversaciones"
+              aria-label="Volver a conversaciones"
+            >
+              <svg
+                className="h-6 w-6 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(profileHref)}
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-1 text-left transition-opacity hover:opacity-85"
+            >
+              <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700">
+                {otherUser.profile?.avatar ? (
+                  <Image
+                    src={otherUser.profile.avatar}
+                    alt={displayName}
+                    width={40}
+                    height={40}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                    unoptimized={otherUser.profile.avatar.startsWith('http')}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.style.display = 'none'
+                    }}
+                    onLoad={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.style.display = 'block'
+                    }}
+                  />
+                ) : (
+                  <span className="text-xs font-semibold text-gray-400">
+                    {(
+                      otherUser.firstName?.[0] ||
+                      otherUser.email?.[0] ||
+                      otherParticipant?.deletedUserEmail?.[0] ||
+                      'U'
+                    ).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+                {typingUsers.length > 0 ? (
+                  <p className="text-xs text-gray-400">Escribiendo...</p>
+                ) : null}
+              </div>
+            </button>
           </div>
-          <div>
-            {/* En el chat: nombre arriba, username abajo */}
-            <h3 className="text-sm font-semibold text-[#73FFA2] hover:text-[#66DEDB] transition-colors">
-              {displayName}
-            </h3>
-            {otherUser.username && (
-              <p className="text-xs text-gray-400">{otherUser.username}</p>
-            )}
-            {typingUsers.length > 0 && (
-              <p className="text-xs text-gray-400">Escribiendo...</p>
-            )}
-          </div>
-        </button>
+        </div>
+      ) : null}
+
+      {/* Escritorio: cabecera alineada a la derecha */}
+      <div
+        className={`shrink-0 border-b p-4 ${onMobileBack ? 'hidden md:block' : ''}`}
+        style={rowDividerStyle}
+      >
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => router.push(profileHref)}
+            className="flex max-w-full flex-row-reverse items-center gap-3 rounded-lg py-0.5 text-right transition-opacity hover:opacity-85"
+          >
+            <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700">
+              {otherUser.profile?.avatar ? (
+                <Image
+                  src={otherUser.profile.avatar}
+                  alt={displayName}
+                  width={40}
+                  height={40}
+                  className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
+                  unoptimized={otherUser.profile.avatar.startsWith('http')}
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'none'
+                  }}
+                  onLoad={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'block'
+                  }}
+                />
+              ) : (
+                <span className="text-xs font-semibold text-gray-400">
+                  {(
+                    otherUser.firstName?.[0] ||
+                    otherUser.email?.[0] ||
+                    otherParticipant?.deletedUserEmail?.[0] ||
+                    'U'
+                  ).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1 text-right">
+              <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+              {otherUser.username &&
+                displayName.toLowerCase() !== otherUser.username.toLowerCase() && (
+                  <p className="truncate text-xs text-gray-400">@{otherUser.username}</p>
+                )}
+              {typingUsers.length > 0 && (
+                <p className="text-xs text-gray-400">Escribiendo...</p>
+              )}
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Mensajes */}
-      <div 
+      <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"
+        className="custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto p-4"
       >
         {isLoadingMore && (
           <div className="flex justify-center py-4">
@@ -356,19 +466,19 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
               className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[70%] rounded-lg p-3 ${
-                  isOwn
-                    ? 'bg-[#66DEDB] text-black'
-                    : 'bg-gray-700 text-white'
+                className={`max-w-[75%] rounded-lg px-3 py-2 ${
+                  isOwn ? 'bg-[#66DEDB] text-gray-900' : 'bg-gray-700 text-white'
                 }`}
               >
                 {!isOwn && (
-                  <p className="text-xs font-semibold mb-1 opacity-70">{senderName}</p>
+                  <p className="mb-1 text-xs font-semibold opacity-70">{senderName}</p>
                 )}
-                <p className="text-sm whitespace-pre-wrap break-words">
+                <p className="whitespace-pre-wrap break-words text-sm">
                   {renderMessageWithLinks(msg.content)}
                 </p>
-                <p className="text-xs mt-1 opacity-60">
+                <p
+                  className={`mt-1 text-xs ${isOwn ? 'text-gray-700' : 'text-gray-400'}`}
+                >
                   {new Date(msg.createdAt).toLocaleTimeString('es-ES', {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -382,34 +492,48 @@ export function ChatWindow({ conversationId, conversation }: ChatWindowProps) {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-gray-700 bg-gray-800/50">
-        <div className="flex items-center gap-2">
+      <div className="shrink-0 border-t bg-transparent p-3" style={rowDividerStyle}>
+        <div className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Escribe un mensaje..."
-            className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#66DEDB]"
+            className="max-h-[120px] flex-1 resize-none rounded-lg bg-gray-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#66DEDB]"
             rows={1}
             disabled={isSending || !isConnected}
             autoFocus
           />
           <button
+            type="button"
             onClick={handleSend}
             disabled={!message.trim() || isSending || !isConnected}
-            className="px-4 py-2 bg-[#66DEDB] text-black rounded-lg hover:bg-[#73FFA2] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-[#66DEDB] p-2 text-gray-900 transition-colors hover:bg-[#5accc9] disabled:cursor-not-allowed disabled:opacity-50"
+            title="Enviar"
           >
-            {isSending ? '...' : 'Enviar'}
+            {isSending ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-900 border-t-transparent" />
+            ) : (
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                />
+              </svg>
+            )}
           </button>
         </div>
         {!isConnected && (
-          <p className="text-xs text-yellow-400 mt-2">
-            ⚠️ Reconectando... Los mensajes se enviarán automáticamente al reconectar.
+          <p className="mt-2 px-3 text-xs text-yellow-400">
+            Reconectando... Los mensajes se enviarán automáticamente al reconectar.
           </p>
         )}
       </div>
     </div>
   )
 }
+
 

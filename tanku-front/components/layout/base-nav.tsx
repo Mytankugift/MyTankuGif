@@ -47,6 +47,8 @@ interface BaseNavProps {
   mobileBackCenterTitleCartOnly?: boolean
   /** Desktop (md+): título de página centrado en blanco (ej. `/notifications`). Requiere `pageTitle`. */
   desktopNavTitleCentered?: boolean
+  /** En &lt; md oculta título/subtítulo y deja solo iconos (ej. `/messages` con cabecera en el panel). */
+  hidePageHeadingMobile?: boolean
 }
 
 export function BaseNav({
@@ -64,6 +66,7 @@ export function BaseNav({
   mobileTranslucentNav = false,
   mobileBackCenterTitleCartOnly = false,
   desktopNavTitleCentered = false,
+  hidePageHeadingMobile = false,
 }: BaseNavProps) {
   const router = useRouter()
   const { isAuthenticated, user } = useAuthStore()
@@ -268,7 +271,7 @@ export function BaseNav({
               desktopNavTitleCentered && showPageHeading && pageTitle
                 ? 'relative min-h-[52px] items-center justify-between'
                 : showPageHeading
-                  ? 'min-w-0 items-start justify-between'
+                  ? `min-w-0 items-start justify-between${hidePageHeadingMobile ? ' max-md:justify-end' : ''}`
                   : 'items-center justify-end'
             }`}
           >
@@ -286,7 +289,9 @@ export function BaseNav({
                 <div className="flex shrink-0 items-center">{renderActionIcons()}</div>
               </>
             ) : showPageHeading ? (
-              <div className="flex min-w-0 flex-1 items-start gap-2 sm:gap-3">
+              <div
+                className={`flex min-w-0 flex-1 items-start gap-2 sm:gap-3${hidePageHeadingMobile ? ' max-md:hidden' : ''}`}
+              >
                 {startContent ? (
                   <div className="flex shrink-0 flex-col justify-start pt-0.5">{startContent}</div>
                 ) : null}
