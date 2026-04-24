@@ -1,18 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, forwardRef } from 'react'
 import Image from 'next/image'
+import { clsx } from 'clsx'
 import { getGoogleOAuthUrl } from '@/lib/auth/google-oauth'
 import { FeedCategoryBar } from '@/components/feed/feed-category-bar'
 import type { FeedNavScrollState } from '@/lib/hooks/use-feed-scroll-nav'
-
-/** Landing sin scroll-nav del feed: categorías siempre visibles, mismo UI que /feed */
-const LANDING_CATEGORY_NAV_SCROLL: FeedNavScrollState = {
-  scrollTop: 0,
-  showStoriesStrip: true,
-  compactMid: false,
-  minimalMode: false,
-}
 
 interface LandingNavProps {
   categories?: { id: string | number; name: string; image?: string | null }[]
@@ -20,17 +13,22 @@ interface LandingNavProps {
   onCategoryChange?: (categoryId: string | null) => void
   searchQuery?: string
   onSearchChange?: (query: string) => void
-  isHeaderVisible?: boolean
+  /** Mismo que /feed: compactMid + minimalMode para barra de categorías (no grid 0fr: evita el “tildado” al scroll). */
+  feedNavScroll: FeedNavScrollState
 }
 
-export function LandingNav({
-  categories = [],
-  selectedCategoryId = null,
-  onCategoryChange = () => {},
-  searchQuery = '',
-  onSearchChange = () => {},
-  isHeaderVisible = true,
-}: LandingNavProps) {
+export const LandingNav = forwardRef<HTMLDivElement, LandingNavProps>(function LandingNav(
+  {
+    categories = [],
+    selectedCategoryId = null,
+    onCategoryChange = () => {},
+    searchQuery = '',
+    onSearchChange = () => {},
+    feedNavScroll,
+  },
+  ref
+) {
+  const { compactMid } = feedNavScroll
   const [rotatingTextIndex, setRotatingTextIndex] = useState(0)
   const [textOpacity, setTextOpacity] = useState(1)
 
@@ -58,6 +56,8 @@ export function LandingNav({
 
   return (
     <div
+      ref={ref}
+      id="landing-nav-chrome"
       className="fixed inset-x-0 top-0 z-40 flex flex-col flex-shrink-0 shadow-lg max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150 md:inset-x-auto md:left-36 md:right-0 md:bg-[var(--color-surface-191e23-20)] md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none] lg:left-[208px]"
     >
       {/* Branding fijo: logo + eslogan + Únete (no se ocultan al deslizar) */}
@@ -174,15 +174,13 @@ export function LandingNav({
         </div>
       </div>
 
-      {/* Buscador + categorías: solo esta zona se oculta al deslizar hacia abajo (scroll nativo / Safari UX) */}
-      <div className="overflow-hidden">
-        <div
-          className="transition-transform duration-150 ease-in-out will-change-transform"
-          style={{
-            transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)',
-          }}
-        >
-      <div className="px-2 sm:px-3 md:px-4 mb-0.5 pt-2 sm:pt-3 md:pt-4">
+      {/* Mismo patrón que feed-nav: buscador con compactMid; categorías vía feedNavScroll (minimalMode = ocultar carril). */}
+      <div
+        className={clsx(
+          'px-2 sm:px-3 md:px-4 mb-0.5 pt-2 sm:pt-3 md:pt-4 transition-all duration-300 ease-out',
+          compactMid && 'origin-top scale-[0.96] [will-change:transform]'
+        )}
+      >
         <div className="relative w-full">
           <div className="absolute left-2.5 top-1/2 transform -translate-y-1/2 z-10">
             <svg
@@ -224,18 +222,14 @@ export function LandingNav({
         </div>
       </div>
 
-      {/* Misma barra de categorías que /feed (selector + carrusel + paleta + modal login invitados) */}
       {categories.length > 0 && (
         <FeedCategoryBar
           categories={categories}
           selectedCategoryId={selectedCategoryId}
           onCategoryChange={onCategoryChange}
-          feedNavScroll={LANDING_CATEGORY_NAV_SCROLL}
+          feedNavScroll={feedNavScroll}
         />
       )}
-        </div>
-      </div>
     </div>
   )
-}
-
+})

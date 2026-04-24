@@ -52,7 +52,7 @@ export function FeedStoriesStrip({
             <button
               type="button"
               onClick={onExplorarActivated}
-              className="relative z-10 flex h-8 shrink-0 items-center rounded-l-[70px] rounded-r-none border-0 bg-[#2f3439] pl-5 pr-10 text-xl font-medium leading-none text-[#EAEAEA] transition-[background,background-image,color] duration-200 hover:bg-[linear-gradient(90deg,#73FFA2_0%,#405E4A_100%)] hover:text-white sm:h-9 sm:pl-6 sm:pr-14 sm:text-2xl"
+              className="relative z-10 hidden h-8 shrink-0 items-center rounded-l-[70px] rounded-r-none border-0 bg-[#2f3439] pl-5 pr-10 text-xl font-medium leading-none text-[#EAEAEA] transition-[background,background-image,color] duration-200 hover:bg-[linear-gradient(90deg,#73FFA2_0%,#405E4A_100%)] hover:text-white md:flex sm:h-9 sm:pl-6 sm:pr-14 sm:text-2xl"
               style={{
                 fontFamily: 'Poppins, sans-serif',
                 fontWeight: 500,
@@ -65,7 +65,7 @@ export function FeedStoriesStrip({
               alt=""
               width={140}
               height={140}
-              className="relative z-20 -ml-10 h-[92px] w-auto max-w-none shrink-0 object-contain object-center sm:-ml-11 sm:h-[108px] md:-ml-12 md:h-[120px]"
+              className="relative z-20 ml-1 h-[88px] w-auto max-w-none shrink-0 object-contain object-center sm:h-[108px] md:-ml-12 md:h-[120px]"
               unoptimized
             />
           </div>

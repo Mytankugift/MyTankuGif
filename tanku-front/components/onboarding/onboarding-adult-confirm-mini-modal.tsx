@@ -8,18 +8,22 @@ interface OnboardingAdultConfirmMiniModalProps {
   open: boolean
   onConfirm: () => void
   onCorrectDate: () => void
+  /** Por encima del modal de ajustes u otros overlays (por defecto 60, como en onboarding) */
+  overlayZIndex?: number
 }
 
 export function OnboardingAdultConfirmMiniModal({
   open,
   onConfirm,
   onCorrectDate,
+  overlayZIndex = 60,
 }: OnboardingAdultConfirmMiniModalProps) {
   if (!open) return null
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/55 backdrop-blur-[1px]"
+      className="fixed inset-0 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[1px]"
+      style={{ zIndex: overlayZIndex }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="adult-confirm-title"

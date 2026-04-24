@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { UsersController } from './users.controller';
-import { authenticate } from '../../shared/middleware/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../../shared/middleware/auth.middleware';
 import { uploadAvatar, uploadBanner } from '../../shared/middleware/upload.middleware';
 
 const router = Router();
@@ -127,14 +127,14 @@ router.post('/by-ids', authenticate, usersController.getUsersByIds);
  * Obtener información de usuario por username considerando privacidad
  * IMPORTANTE: Esta ruta debe ir antes de /:userId para evitar conflictos
  */
-router.get('/by-username/:username', usersController.getUserByUsername);
+router.get('/by-username/:username', optionalAuthenticate, usersController.getUserByUsername);
 
 /**
  * GET /api/v1/users/:userId
  * Obtener información de usuario por ID considerando privacidad
  * IMPORTANTE: Esta ruta debe ir al final para evitar conflictos con /me
  */
-router.get('/:userId', usersController.getUserById);
+router.get('/:userId', optionalAuthenticate, usersController.getUserById);
 
 export default router;
 

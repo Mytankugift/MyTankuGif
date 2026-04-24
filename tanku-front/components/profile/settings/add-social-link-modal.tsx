@@ -1,28 +1,46 @@
 'use client'
 
 import { useState } from 'react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { LinkIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { NOTIFICATION_ROW_DIVIDER_STYLE } from '@/lib/notifications-display'
+import { TankuCustomSelect } from '@/components/ui/tanku-custom-select'
 
 type SocialLink = {
   platform: string
   url: string
 }
 
-const AVAILABLE_PLATFORMS = [
-  { id: 'facebook', name: 'Facebook', icon: 'f', color: 'bg-blue-600' },
-  { id: 'instagram', name: 'Instagram', icon: 'ig', color: 'bg-gradient-to-br from-purple-500 to-pink-500' },
-  { id: 'twitter', name: 'Twitter', icon: '🐦', color: 'bg-blue-400' },
-  { id: 'youtube', name: 'YouTube', icon: '▶', color: 'bg-red-600' },
-  { id: 'tiktok', name: 'TikTok', icon: '♪', color: 'bg-black' },
-  { id: 'linkedin', name: 'LinkedIn', icon: 'in', color: 'bg-blue-700' },
-]
+export type SocialPlatformPickOption = {
+  id: string
+  name: string
+}
 
 interface AddSocialLinkModalProps {
   isOpen: boolean
   onClose: () => void
   onAdd: (link: SocialLink) => Promise<void>
-  availablePlatforms: typeof AVAILABLE_PLATFORMS
+  availablePlatforms: SocialPlatformPickOption[]
   isLoading?: boolean
+}
+
+function userPlaceholder(platform: string): string {
+  switch (platform) {
+    case 'youtube':
+      return 'Ej. Rame-0712 o @Rame-0712'
+    case 'tiktok':
+      return 'Usuario o @usuario'
+    case 'instagram':
+      return 'Tu usuario de Instagram'
+    case 'twitter':
+    case 'x':
+      return '@usuario o usuario'
+    case 'facebook':
+      return 'Nombre de usuario o página'
+    case 'linkedin':
+      return 'slug de tu perfil (/in/…)'
+    default:
+      return 'Usuario o @'
+  }
 }
 
 export function AddSocialLinkModal({
@@ -37,26 +55,25 @@ export function AddSocialLinkModal({
 
   if (!isOpen) return null
 
-  const handleAdd = async () => {
-    if (!newLink.platform || !newLink.url) {
-      setError('Por favor completa todos los campos')
-      return
-    }
+  const platformOptions = [
+    { value: '', label: 'Selecciona una plataforma' },
+    ...availablePlatforms.map((p) => ({ value: p.id, label: p.name })),
+  ]
 
-    // Validar URL
-    try {
-      new URL(newLink.url)
-    } catch {
-      setError('Por favor ingresa una URL válida')
+  const handleAdd = async () => {
+    if (!newLink.platform || !newLink.url.trim()) {
+      setError('Selecciona plataforma e indica tu usuario o perfil')
       return
     }
 
     setError(null)
-    await onAdd({ ...newLink })
-    
-    // Limpiar formulario y cerrar
-    setNewLink({ platform: '', url: '' })
-    onClose()
+    try {
+      await onAdd({ platform: newLink.platform, url: newLink.url.trim() })
+      setNewLink({ platform: '', url: '' })
+      onClose()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar')
+    }
   }
 
   const handleClose = () => {
@@ -66,92 +83,101 @@ export function AddSocialLinkModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-gray-900 rounded-xl shadow-2xl border border-gray-700">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <h2 className="text-xl font-bold text-[#73FFA2]">Agregar Red Social</h2>
-          <button
-            onClick={handleClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-            aria-label="Cerrar"
-          >
-            <XMarkIcon className="w-5 h-5" />
-          </button>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={handleClose}
+        aria-hidden
+      />
+      <div
+        className="relative flex w-full max-w-md max-h-[min(90vh,560px)] flex-col overflow-hidden rounded-xl border border-[#414141] shadow-2xl"
+        style={{ backgroundColor: '#171B21' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="shrink-0 border-b p-4" style={NOTIFICATION_ROW_DIVIDER_STYLE}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <LinkIcon className="h-7 w-7 shrink-0 text-[#73FFA2]" aria-hidden />
+              <h2 className="truncate text-base font-semibold text-white">Agregar red social</h2>
+            </div>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+              aria-label="Cerrar"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
           {error && (
-            <div className="bg-red-900/20 border border-red-400/30 text-red-400 px-4 py-2 rounded text-sm">
+            <div className="rounded border border-red-400/30 bg-red-900/20 px-4 py-2 text-sm text-red-400">
               {error}
             </div>
           )}
 
-          <div>
-            <label className="text-sm font-medium text-gray-300 mb-2 block">Plataforma</label>
-            <select
-              value={newLink.platform}
-              onChange={(e) => {
-                setNewLink({ ...newLink, platform: e.target.value })
-                setError(null)
-              }}
-              className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB]"
-            >
-              <option value="">Selecciona una plataforma</option>
-              {availablePlatforms.map((platform) => (
-                <option key={platform.id} value={platform.id}>
-                  {platform.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <TankuCustomSelect
+            label="Plataforma"
+            labelId="platform-label"
+            placeholder="Selecciona una plataforma"
+            value={newLink.platform}
+            onChange={(v) => {
+              setNewLink({ ...newLink, platform: v })
+              setError(null)
+            }}
+            options={platformOptions}
+          />
 
           <div>
-            <label className="text-sm font-medium text-gray-300 mb-2 block">URL</label>
+            <label className="mb-2 block text-sm font-medium text-gray-300">
+              Usuario o @ de tu perfil
+            </label>
             <input
-              type="url"
+              type="text"
+              autoComplete="off"
               value={newLink.url}
               onChange={(e) => {
                 setNewLink({ ...newLink, url: e.target.value })
                 setError(null)
               }}
-              placeholder="https://..."
-              className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB]"
+              placeholder={userPlaceholder(newLink.platform)}
+              className="w-full rounded-full border border-[#414141] bg-[#0f1218] px-4 py-2.5 text-white placeholder:text-gray-500 focus:border-[#73FFA2] focus:outline-none focus:ring-2 focus:ring-[#73FFA2]/25"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !isLoading) {
-                  handleAdd()
+                  void handleAdd()
                 }
               }}
             />
+            <p className="mt-1.5 text-xs text-gray-500">
+              No hace falta pegar la URL completa; guardamos el enlace correcto automáticamente.
+            </p>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex gap-3 p-6 border-t border-gray-700">
-          <button
-            onClick={handleClose}
-            disabled={isLoading}
-            className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleAdd}
-            disabled={isLoading || !newLink.platform || !newLink.url}
-            className="flex-1 px-4 py-2 bg-[#73FFA2] hover:bg-[#66DEDB] text-gray-900 font-semibold rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Agregando...' : 'Agregar'}
-          </button>
+        <div className="shrink-0 border-t border-[#414141] p-4">
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={isLoading}
+              className="flex-1 rounded-full border border-[#414141] bg-white/[0.06] px-4 py-2.5 font-semibold text-white transition-colors hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleAdd()}
+              disabled={isLoading || !newLink.platform || !newLink.url.trim()}
+              className="flex-1 rounded-full px-4 py-2.5 font-semibold text-black shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ background: 'linear-gradient(90deg, #73FFA2 0%, #1A485C 100%)' }}
+            >
+              {isLoading ? 'Agregando...' : 'Agregar'}
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Overlay para cerrar al hacer clic fuera */}
-      <div
-        className="absolute inset-0 -z-10"
-        onClick={handleClose}
-      />
     </div>
   )
 }
-

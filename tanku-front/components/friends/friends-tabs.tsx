@@ -5,8 +5,8 @@
 'use client'
 
 interface FriendsTabsProps {
-  activeTab: 'friends' | 'requests' | 'sent' | 'suggestions' | 'blocked'
-  onTabChange: (tab: 'friends' | 'requests' | 'sent' | 'suggestions' | 'blocked') => void
+  activeTab: 'friends' | 'requests' | 'sent' | 'suggestions'
+  onTabChange: (tab: 'friends' | 'requests' | 'sent' | 'suggestions') => void
   requestsCount?: number
 }
 
@@ -21,7 +21,6 @@ export function FriendsTabs({ activeTab, onTabChange, requestsCount = 0 }: Frien
     },
     { id: 'sent' as const, label: 'Enviadas', icon: '📤' },
     { id: 'suggestions' as const, label: 'Sugerencias', icon: '✨' },
-    { id: 'blocked' as const, label: 'Bloqueados', icon: '🚫' },
   ]
 
   return (

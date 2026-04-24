@@ -4,12 +4,11 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useProfileNavigation, ProfileNavigationProvider, type ProfileTab } from '@/lib/context/profile-navigation-context'
-import { OrdersTab } from '@/components/profile/orders-tab'
+import { MisTankusTab } from '@/components/profile/mis-tankus-tab'
 import { RedTankuTab } from '@/components/profile/red-tanku-tab'
-import { StalkerGiftOrdersTab } from '@/components/profile/stalkergift-orders-tab'
-import { GiftsTab } from '@/components/profile/gifts-tab'
 import { SettingsModal } from '@/components/profile/settings/settings-modal'
 import { SocialLinksDisplay } from '@/components/profile/social-links-display'
+import { ProfileSocialExpandPanel } from '@/components/profile/profile-social-expand-panel'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
 import type { PosterDTO } from '@/types/api'
@@ -19,10 +18,16 @@ import { PosterDetailModal } from '@/components/posters/poster-detail-modal'
 import Image from 'next/image'
 import { CameraIcon, PlusIcon } from '@heroicons/react/24/outline'
 import { BaseNav } from '@/components/layout/base-nav'
+import { useOnboarding } from '@/lib/hooks/use-onboarding'
+import { getAgeInYearsFromParts } from '@/lib/utils/age-policy'
 
+function profileTabLabel(tab: ProfileTab): string {
+  return tab
+}
 
 function ProfileContent() {
   const { user, checkAuth } = useAuthStore()
+  const { getOnboardingData } = useOnboarding()
   const router = useRouter()
   const { activeTab, setActiveTab } = useProfileNavigation()
   
@@ -39,6 +44,8 @@ function ProfileContent() {
   const [createPostModalOpen, setCreatePostModalOpen] = useState(false)
   const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
+  const [socialExpandOpen, setSocialExpandOpen] = useState(false)
+  const [profileAgeYears, setProfileAgeYears] = useState<number | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
   const tabsScrollRef = useRef<HTMLDivElement>(null)
@@ -52,9 +59,7 @@ function ProfileContent() {
   const tabs: ProfileTab[] = [
     'PUBLICACIONES',
     'RED TANKU',
-    'MIS COMPRAS',
-    'STALKER GIFTS',
-    'REGALOS'
+    'MIS TANKUS',
   ]
 
   // Cargar contador de amigos
@@ -65,6 +70,23 @@ function ProfileContent() {
     const orderIdParam = urlParams.get('orderId')
     setOrderId(orderIdParam)
   }, [])
+
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    ;(async () => {
+      const data = await getOnboardingData()
+      if (cancelled || !data?.birthDate || typeof data.birthDate !== 'string') return
+      const parts = data.birthDate.split('-')
+      if (parts.length !== 3) return
+      const [y, m, d] = parts.map(Number)
+      if ([y, m, d].some((n) => Number.isNaN(n))) return
+      setProfileAgeYears(getAgeInYearsFromParts(y, m, d))
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id, getOnboardingData])
 
   useEffect(() => {
     const loadFriendsCount = async () => {
@@ -261,7 +283,7 @@ function ProfileContent() {
   }
 
   return (
-    <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+    <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col max-md:overflow-y-visible max-md:overflow-x-hidden md:overflow-hidden">
       <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
         <BaseNav
           showStories={false}
@@ -274,9 +296,9 @@ function ProfileContent() {
           className="pointer-events-auto"
         />
       </div>
-      <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden" id="profile-scroll-root">
+      <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col max-md:overflow-y-visible max-md:overflow-x-hidden md:overflow-hidden" id="profile-scroll-root">
         <div
-          className="custom-scrollbar min-h-0 flex-1 basis-0 overflow-y-auto overflow-x-hidden overscroll-y-contain max-md:px-3 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20"
+          className="custom-scrollbar min-h-0 max-md:flex-none max-md:basis-auto max-md:min-h-0 max-md:overflow-y-visible max-md:overscroll-y-auto flex-1 basis-0 overflow-x-hidden overflow-y-auto overscroll-y-contain max-md:px-3 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20"
           style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
         >
         <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">
@@ -414,6 +436,12 @@ function ProfileContent() {
               <p className="text-gray-300 text-xs sm:text-sm">
                 {user.profile?.bio || 'Miembro de la comunidad TANKU'}
               </p>
+              {profileAgeYears !== null && (
+                <p className="mt-2 text-xs font-medium text-[#66DEDB]">
+                  {profileAgeYears} años ·{' '}
+                  {profileAgeYears < 18 ? 'Menor de edad' : 'Mayor de edad'}
+                </p>
+              )}
             </div>
           </div>
 
@@ -436,20 +464,41 @@ function ProfileContent() {
               </div>
             </div>
 
-            {/* Redes sociales */}
-            {user?.profile?.socialLinks && user.profile.socialLinks.length > 0 && (
-              <div className="space-y-2 flex flex-col items-center md:items-stretch">
-                <h4 className="text-xs sm:text-sm font-medium text-gray-400 mb-2 text-center md:text-left">Redes Sociales</h4>
-                <SocialLinksDisplay socialLinks={user.profile.socialLinks} />
+            {/* Redes sociales: iconos + siempre botón + */}
+            <div className="mb-2 flex flex-col items-center space-y-2 md:items-stretch">
+              <h4 className="mb-2 text-center text-xs font-medium text-gray-400 md:text-left sm:text-sm">
+                Redes sociales
+              </h4>
+              <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
+                {user?.profile?.socialLinks && user.profile.socialLinks.length > 0 ? (
+                  <SocialLinksDisplay socialLinks={user.profile.socialLinks} />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setSocialExpandOpen(true)}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#414141] bg-[#171B21] text-[#73FFA2] transition-colors hover:bg-white/[0.06]"
+                  aria-label="Gestionar redes sociales"
+                  title="Gestionar redes sociales"
+                >
+                  <PlusIcon className="h-5 w-5" />
+                </button>
               </div>
-            )}
+            </div>
+
+            <ProfileSocialExpandPanel
+              open={socialExpandOpen}
+              onClose={() => setSocialExpandOpen(false)}
+              onUpdated={() => {
+                void checkAuth()
+              }}
+            />
           </div>
         </div>
 
         {/* Navegación de tabs */}
         <div
           ref={tabsScrollRef}
-          className="flex justify-start sm:justify-center space-x-2 sm:space-x-3 md:space-x-8 border-b border-gray-600 pb-1.5 sm:pb-2 mb-3 sm:mb-4 md:mb-6 overflow-x-auto scrollbar-hide px-1"
+          className="flex justify-center space-x-2 sm:space-x-3 md:space-x-8 border-b border-gray-600 pb-1.5 sm:pb-2 mb-3 sm:mb-4 md:mb-6 overflow-x-auto scrollbar-hide px-1"
         >
           {tabs.map((tab) => (
             <button
@@ -464,7 +513,7 @@ function ProfileContent() {
                   : 'text-[#66DEDB] hover:text-[#73FFA2]'
               }`}
             >
-              {tab}
+              {profileTabLabel(tab)}
             </button>
           ))}
         </div>
@@ -534,23 +583,12 @@ function ProfileContent() {
               </div>
             )}
             
-            {activeTab === 'MIS COMPRAS' && user?.id && (
+            {activeTab === 'MIS TANKUS' && user?.id && (
               <div className="w-full">
-                <OrdersTab userId={user.id} initialOrderId={orderId} />
+                <MisTankusTab userId={user.id} initialOrderId={orderId} />
               </div>
             )}
             
-            {activeTab === 'STALKER GIFTS' && user?.id && (
-              <div className="w-full">
-                <StalkerGiftOrdersTab userId={user.id} initialOrderId={orderId} />
-              </div>
-            )}
-            
-            {activeTab === 'REGALOS' && user?.id && (
-              <div className="w-full">
-                <GiftsTab userId={user.id} />
-              </div>
-            )}
         </>
 
         {/* Modal de configuración */}

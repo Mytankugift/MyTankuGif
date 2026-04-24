@@ -1,15 +1,18 @@
 'use client'
 
+export type StalkerGiftMainTab = 'received' | 'sent' | 'chats' | 'orders'
+
 interface StalkerGiftTabsProps {
-  activeTab: 'received' | 'sent' | 'chats'
-  onTabChange: (tab: 'received' | 'sent' | 'chats') => void
+  activeTab: StalkerGiftMainTab
+  onTabChange: (tab: StalkerGiftMainTab) => void
 }
 
 export function StalkerGiftTabs({ activeTab, onTabChange }: StalkerGiftTabsProps) {
-  const tabs = [
-    { id: 'chats' as const, label: 'Chats', icon: '💬' },
-    { id: 'received' as const, label: 'Recibidos', icon: '📥' },
-    { id: 'sent' as const, label: 'Enviados', icon: '📤' },
+  const tabs: { id: StalkerGiftMainTab; label: string; icon: string }[] = [
+    { id: 'chats', label: 'Chats', icon: '💬' },
+    { id: 'received', label: 'Recibidos', icon: '📥' },
+    { id: 'sent', label: 'Enviados', icon: '📤' },
+    { id: 'orders', label: 'Órdenes', icon: '📦' },
   ]
 
   return (

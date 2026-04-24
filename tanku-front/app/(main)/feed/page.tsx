@@ -337,7 +337,7 @@ export default function FeedPage() {
             }}
             showStoriesStrip={feedNavScroll.showStoriesStrip}
             stories={useInitData ? feedInit.stories : undefined}
-            feedExplorarActivated={feedExplorarActivated}
+            feedExplorarActivated
             onExplorarActivated={() => setFeedExplorarActivated(true)}
           />
         )}

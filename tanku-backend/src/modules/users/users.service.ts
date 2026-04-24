@@ -18,10 +18,12 @@ import {
   OnboardingDataDTO,
   UpdateOnboardingDataDTO,
   SocialLink,
+  ProfileInsightsDTO,
 } from '../../shared/dto/users.dto';
 import { UserPublicDTO } from '../../shared/dto/auth.dto';
 import type { Address, UserProfile, PersonalInformation } from '@prisma/client';
 import { S3Service } from '../../shared/services/s3.service';
+import { normalizeSocialLinksForStorage } from '../../shared/utils/social-profile-url';
 
 export interface PersonalInfoResponse {
   customer_id: string;
@@ -669,19 +671,22 @@ export class UsersService {
   /**
    * Mapper: UserProfile de Prisma a UserProfileDTO
    */
-  private mapUserProfileToDTO(profile: UserProfile): UserProfileDTO {
-    // Parsear socialLinks desde JSON si existe
-    let socialLinks: SocialLink[] | undefined = undefined;
-    if (profile.socialLinks) {
-      try {
-        const parsed = typeof profile.socialLinks === 'string' 
-          ? JSON.parse(profile.socialLinks) 
+  private parseSocialLinksFromProfile(profile: UserProfile): SocialLink[] | undefined {
+    if (!profile.socialLinks) return undefined;
+    try {
+      const parsed =
+        typeof profile.socialLinks === 'string'
+          ? JSON.parse(profile.socialLinks)
           : profile.socialLinks;
-        socialLinks = Array.isArray(parsed) ? parsed : undefined;
-      } catch (error) {
-        console.error('Error parsing socialLinks:', error);
-      }
+      return Array.isArray(parsed) ? parsed : undefined;
+    } catch (error) {
+      console.error('Error parsing socialLinks:', error);
+      return undefined;
     }
+  }
+
+  private mapUserProfileToDTO(profile: UserProfile): UserProfileDTO {
+    const socialLinks = this.parseSocialLinksFromProfile(profile);
 
     return {
       id: profile.id,
@@ -738,8 +743,8 @@ export class UsersService {
       updatePayload.useMainAddressForGifts = updateData.useMainAddressForGifts;
     }
     if (updateData.socialLinks !== undefined) {
-      updatePayload.socialLinks = updateData.socialLinks;
-      console.log('📝 [USERS] Guardando socialLinks:', JSON.stringify(updateData.socialLinks, null, 2));
+      updatePayload.socialLinks = normalizeSocialLinksForStorage(updateData.socialLinks);
+      console.log('📝 [USERS] Guardando socialLinks:', JSON.stringify(updatePayload.socialLinks, null, 2));
     }
 
     const createPayload: any = {
@@ -752,7 +757,7 @@ export class UsersService {
     };
     
     if (updateData.socialLinks !== undefined) {
-      createPayload.socialLinks = updateData.socialLinks;
+      createPayload.socialLinks = normalizeSocialLinksForStorage(updateData.socialLinks);
     }
 
     console.log('📦 [USERS] updatePayload:', JSON.stringify(updatePayload, null, 2));
@@ -1080,6 +1085,109 @@ export class UsersService {
   }
 
   /**
+   * Coincidencias para mostrar en perfil ajeno cuando aún no son amigos (categorías, actividades, amigos mutuos).
+   */
+  private async computeProfileInsights(
+    viewerUserId: string,
+    targetUserId: string,
+  ): Promise<ProfileInsightsDTO | undefined> {
+    const viewerFriendRows = await prisma.friend.findMany({
+      where: {
+        OR: [
+          { userId: viewerUserId, status: 'accepted' },
+          { friendId: viewerUserId, status: 'accepted' },
+        ],
+      },
+      select: { userId: true, friendId: true },
+    });
+    const viewerFriendIds = new Set(
+      viewerFriendRows.map((f) => (f.userId === viewerUserId ? f.friendId : f.userId)),
+    );
+
+    const targetFriendRows = await prisma.friend.findMany({
+      where: {
+        OR: [
+          { userId: targetUserId, status: 'accepted' },
+          { friendId: targetUserId, status: 'accepted' },
+        ],
+      },
+      select: { userId: true, friendId: true },
+    });
+    const targetFriendIds = new Set(
+      targetFriendRows.map((f) => (f.userId === targetUserId ? f.friendId : f.userId)),
+    );
+
+    const mutualIds = [...viewerFriendIds].filter((id) => targetFriendIds.has(id));
+
+    let mutualFriendNames: string[] | undefined = undefined;
+    if (mutualIds.length > 0) {
+      const mutualUsers = await prisma.user.findMany({
+        where: { id: { in: mutualIds.slice(0, 3) } },
+        select: { firstName: true, lastName: true },
+      });
+      mutualFriendNames = mutualUsers.map(
+        (u) => `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Usuario',
+      );
+    }
+
+    const [viewerInts, targetInts] = await Promise.all([
+      prisma.userCategoryInterest.findMany({
+        where: { userId: viewerUserId },
+        include: { category: { select: { id: true, name: true } } },
+      }),
+      prisma.userCategoryInterest.findMany({
+        where: { userId: targetUserId },
+        include: { category: { select: { id: true, name: true } } },
+      }),
+    ]);
+
+    const viewerCatIds = new Set(viewerInts.map((i) => i.categoryId));
+    const catsFromOverlap = targetInts
+      .filter((i) => viewerCatIds.has(i.category.id))
+      .map((i) => i.category.name);
+    const commonCategories = [...new Set(catsFromOverlap)].slice(0, 3);
+
+    const [viewerPi, targetPi] = await Promise.all([
+      prisma.personalInformation.findUnique({
+        where: { userId: viewerUserId },
+        select: { metadata: true },
+      }),
+      prisma.personalInformation.findUnique({
+        where: { userId: targetUserId },
+        select: { metadata: true },
+      }),
+    ]);
+
+    const va =
+      ((((viewerPi?.metadata as Record<string, unknown>)?.onboarding as Record<string, unknown> | undefined)
+        ?.activities as string[]) || []) ?? [];
+    const ta =
+      ((((targetPi?.metadata as Record<string, unknown>)?.onboarding as Record<string, unknown> | undefined)
+        ?.activities as string[]) || []) ?? [];
+
+    const commonActivities = [...new Set(va.filter((a) => ta.includes(a)))].slice(0, 3);
+
+    const mutualFriendsCount = mutualIds.length;
+
+    if (
+      mutualFriendsCount === 0 &&
+      commonCategories.length === 0 &&
+      commonActivities.length === 0
+    ) {
+      return undefined;
+    }
+
+    const out: ProfileInsightsDTO = { mutualFriendsCount };
+    if (mutualFriendsCount > 0 && mutualFriendNames && mutualFriendNames.length > 0) {
+      out.mutualFriendNames = mutualFriendNames;
+    }
+    if (commonCategories.length > 0) out.commonCategories = commonCategories;
+    if (commonActivities.length > 0) out.commonActivities = commonActivities;
+
+    return out;
+  }
+
+  /**
    * Obtener información de usuario por ID considerando privacidad
    */
   /**
@@ -1096,11 +1204,13 @@ export class UsersService {
       banner: string | null;
       bio: string | null;
       isPublic: boolean;
+      socialLinks?: SocialLink[];
     } | null;
     isOwnProfile: boolean;
     canViewProfile: boolean;
     areFriends: boolean;
     friendsCount?: number;
+    profileInsights?: ProfileInsightsDTO;
   }> {
     const user = await prisma.user.findUnique({
       where: { username },
@@ -1128,11 +1238,13 @@ export class UsersService {
       banner: string | null;
       bio: string | null;
       isPublic: boolean;
+      socialLinks?: SocialLink[];
     } | null;
     isOwnProfile: boolean;
     canViewProfile: boolean;
     areFriends: boolean;
     friendsCount?: number;
+    profileInsights?: ProfileInsightsDTO;
   }> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -1159,6 +1271,8 @@ export class UsersService {
         },
       });
 
+      const ownSocialLinks = user.profile ? this.parseSocialLinksFromProfile(user.profile) : undefined;
+
       return {
         id: user.id,
         firstName: user.firstName,
@@ -1171,6 +1285,7 @@ export class UsersService {
               banner: user.profile.banner,
               bio: user.profile.bio,
               isPublic: user.profile.isPublic ?? true,
+              ...(ownSocialLinks !== undefined ? { socialLinks: ownSocialLinks } : {}),
             } as any)
           : null,
         isOwnProfile: true,
@@ -1240,6 +1355,14 @@ export class UsersService {
     const isPublic = user.profile?.isPublic ?? true;
     const canViewProfile = isPublic || areFriends;
 
+    const friendSocialLinks =
+      user.profile && areFriends ? this.parseSocialLinksFromProfile(user.profile) : undefined;
+
+    let profileInsights: ProfileInsightsDTO | undefined = undefined;
+    if (!areFriends && user.profile) {
+      profileInsights = await this.computeProfileInsights(viewerUserId, userId);
+    }
+
     return {
       id: user.id,
       firstName: user.firstName,
@@ -1251,12 +1374,14 @@ export class UsersService {
             banner: user.profile.banner,
             bio: user.profile.bio,
             isPublic,
+            ...(friendSocialLinks !== undefined ? { socialLinks: friendSocialLinks } : {}),
           }
         : null,
       isOwnProfile: false,
       canViewProfile,
       areFriends,
       friendsCount,
+      ...(profileInsights ? { profileInsights } : {}),
     };
   }
 

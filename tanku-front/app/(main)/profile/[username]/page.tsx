@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import React, { useState, useEffect, useRef, Suspense } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
@@ -12,8 +12,25 @@ import Image from 'next/image'
 import { ArrowLeftIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline'
 import { UserWishlistsTab } from '@/components/profile/user-wishlists-tab'
 import { SocialLinksDisplay } from '@/components/profile/social-links-display'
+import { OtherProfileInsights } from '@/components/profile/other-profile-insights'
+import type { ProfileInsightsDTO } from '@/types/api'
 import { useFriends } from '@/lib/hooks/use-friends'
 import { BaseNav } from '@/components/layout/base-nav'
+
+function ProfileWishlistTabFromQuery({
+  setActiveTab,
+}: {
+  setActiveTab: React.Dispatch<React.SetStateAction<'PUBLICACIONES' | 'WISHLISTS'>>
+}) {
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    const raw = searchParams.get('tab')
+    if (raw?.toLowerCase() === 'wishlists') {
+      setActiveTab('WISHLISTS')
+    }
+  }, [searchParams, setActiveTab])
+  return null
+}
 
 type UserProfile = {
   id: string
@@ -31,6 +48,7 @@ type UserProfile = {
   canViewProfile: boolean
   areFriends: boolean
   friendsCount?: number
+  profileInsights?: ProfileInsightsDTO
 }
 
 export default function OtherUserProfilePage() {
@@ -51,7 +69,36 @@ export default function OtherUserProfilePage() {
   const [isBlocking, setIsBlocking] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
-  const { sendFriendRequest, removeFriend, blockUser, fetchSentRequests, sentRequests, fetchRequests, requests, acceptRequest, fetchFriends, friends } = useFriends()
+  const {
+    sendFriendRequest,
+    removeFriend,
+    blockUser,
+    fetchSentRequests,
+    sentRequests,
+    fetchRequests,
+    requests,
+    acceptRequest,
+    fetchFriends,
+    friends,
+    cancelSentRequest,
+  } = useFriends()
+
+  /** Evita mostrar "Enviar solicitud" / redes antes de alinear API de amistad + perfil (token + lista de amigos). */
+  const [friendshipUiReady, setFriendshipUiReady] = useState(false)
+
+  // Invitado: no hay datos de amistad que esperar
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setFriendshipUiReady(true)
+    }
+  }, [currentUser?.id])
+
+  // Al cambiar de usuario o sesión, reset hasta completar sincronización
+  useEffect(() => {
+    if (currentUser?.id) {
+      setFriendshipUiReady(false)
+    }
+  }, [currentUser?.id, username])
 
   // Cargar información del usuario por username
   useEffect(() => {
@@ -87,22 +134,50 @@ export default function OtherUserProfilePage() {
     loadUserProfile()
   }, [username, router, currentUser?.id])
 
-  // Cargar solicitudes enviadas, recibidas y amigos para verificar estado
+  // Tras tener perfil + sesión: lista de amigos/solicitudes y segundo GET de perfil (areFriends + socialLinks coherentes)
   useEffect(() => {
-    if (currentUser?.id && profileUser?.id) {
-      fetchSentRequests()
-      fetchRequests()
-      fetchFriends()
-    }
-  }, [currentUser?.id, profileUser?.id, fetchSentRequests, fetchRequests, fetchFriends])
+    if (!currentUser?.id || !profileUser?.id || !username) return
 
-  // Recargar perfil cuando cambie el estado de amistad (para sincronizar con backend)
+    let cancelled = false
+
+    const syncFriendshipAndProfile = async () => {
+      try {
+        await Promise.all([fetchFriends(), fetchSentRequests(), fetchRequests()])
+        if (cancelled) return
+        const response = await apiClient.get<UserProfile>(API_ENDPOINTS.USERS.BY_USERNAME(username))
+        if (cancelled || !response.success || !response.data) return
+        setProfileUser(response.data)
+        if (response.data.friendsCount !== undefined) {
+          setFriendsCount(response.data.friendsCount)
+        }
+      } catch (e) {
+        console.error('Error sincronizando amistad/perfil:', e)
+      } finally {
+        if (!cancelled) setFriendshipUiReady(true)
+      }
+    }
+
+    syncFriendshipAndProfile()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    currentUser?.id,
+    profileUser?.id,
+    username,
+    fetchFriends,
+    fetchSentRequests,
+    fetchRequests,
+  ])
+
+  // Si la lista local marca amistad pero el perfil venía desactualizado, alinear con el servidor
   useEffect(() => {
     const checkAndReloadProfile = async () => {
       if (!username || !currentUser?.id || !profileUser?.id) return
-      
-      const isFriendLocal = friends.some(f => f.friendId === profileUser.id || f.friend.id === profileUser.id)
-      // Si localmente son amigos pero el backend dice que no, recargar perfil
+
+      const isFriendLocal = friends.some(
+        (f) => f.friendId === profileUser.id || f.friend.id === profileUser.id
+      )
       if (isFriendLocal && !profileUser.areFriends) {
         try {
           const response = await apiClient.get<UserProfile>(API_ENDPOINTS.USERS.BY_USERNAME(username))
@@ -117,9 +192,8 @@ export default function OtherUserProfilePage() {
         }
       }
     }
-    
-    // Esperar un poco para que el backend procese la solicitud
-    const timeoutId = setTimeout(checkAndReloadProfile, 500)
+
+    const timeoutId = setTimeout(checkAndReloadProfile, 400)
     return () => clearTimeout(timeoutId)
   }, [friends, profileUser?.id, profileUser?.areFriends, username, currentUser?.id])
 
@@ -128,6 +202,7 @@ export default function OtherUserProfilePage() {
   // Verificar si hay solicitud pendiente o si son amigos
   const userId = profileUser?.id
   const hasSentRequest = sentRequests.some(req => req.friendId === userId)
+  const pendingSentRequest = sentRequests.find((req) => req.friendId === userId)
   const hasReceivedRequest = requests.some(req => req.userId === userId)
   const isFriend = friends.some(f => f.friendId === userId || f.friend.id === userId)
   
@@ -180,6 +255,26 @@ export default function OtherUserProfilePage() {
       await fetchSentRequests()
     } catch (error) {
       console.error('Error enviando solicitud:', error)
+    } finally {
+      setIsSendingRequest(false)
+    }
+  }
+
+  const handleCancelSentRequest = async () => {
+    if (!pendingSentRequest?.id || !username) return
+    setIsSendingRequest(true)
+    try {
+      await cancelSentRequest(pendingSentRequest.id)
+      await fetchSentRequests()
+      const response = await apiClient.get<UserProfile>(API_ENDPOINTS.USERS.BY_USERNAME(username))
+      if (response.success && response.data) {
+        setProfileUser(response.data)
+        if (response.data.friendsCount !== undefined) {
+          setFriendsCount(response.data.friendsCount)
+        }
+      }
+    } catch (error) {
+      console.error('Error cancelando solicitud:', error)
     } finally {
       setIsSendingRequest(false)
     }
@@ -298,7 +393,10 @@ export default function OtherUserProfilePage() {
   const avatarUrl = profileUser.profile?.avatar || null
 
   return (
-    <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+    <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col max-md:overflow-y-visible max-md:overflow-x-hidden md:overflow-hidden">
+      <Suspense fallback={null}>
+        <ProfileWishlistTabFromQuery setActiveTab={setActiveTab} />
+      </Suspense>
       <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
         <BaseNav
           showStories={false}
@@ -311,9 +409,9 @@ export default function OtherUserProfilePage() {
           className="pointer-events-auto"
         />
       </div>
-      <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden" id="profile-public-scroll-root">
+      <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col max-md:overflow-y-visible max-md:overflow-x-hidden md:overflow-hidden" id="profile-public-scroll-root">
         <div
-          className="custom-scrollbar min-h-0 flex-1 basis-0 overflow-y-auto overflow-x-hidden overscroll-y-contain max-md:px-3 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20"
+          className="custom-scrollbar min-h-0 max-md:flex-none max-md:basis-auto max-md:min-h-0 max-md:overflow-y-visible max-md:overscroll-y-auto flex-1 basis-0 overflow-x-hidden overflow-y-auto overscroll-y-contain max-md:px-3 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20"
           style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
         >
       <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">
@@ -380,7 +478,7 @@ export default function OtherUserProfilePage() {
                   </div>
                 </div>
                 
-                {currentUser?.id && userId !== currentUser.id && (
+                {currentUser?.id && userId !== currentUser.id && friendshipUiReady && (
                   <div className="flex items-center gap-2 mt-10 sm:mt-11 md:mt-14">
                     {areFriends && (
                       <Link
@@ -452,24 +550,27 @@ export default function OtherUserProfilePage() {
               </div>
             </div>
 
-            {/* Botones de acción */}
-            {currentUser?.id && userId !== currentUser.id && (
+            {/* Botones de acción — solo tras sincronizar amistad (evita flash "Agregar" si ya son amigos) */}
+            {currentUser?.id && userId !== currentUser.id && friendshipUiReady && (
               <div className="space-y-2 mb-6">
-                {!isFriend && !hasSentRequest && !hasReceivedRequest && (
+                {!areFriends && !hasSentRequest && !hasReceivedRequest && (
                   <button
+                    type="button"
                     onClick={handleSendFriendRequest}
                     disabled={isSendingRequest}
-                    className="w-full px-4 py-2 bg-[#73FFA2] hover:bg-[#66e891] text-gray-900 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex min-h-[2.75rem] w-full items-center justify-center rounded-[22px] border border-[#5bbf8a]/80 bg-[#73FFA2] px-4 py-2.5 text-sm font-semibold leading-snug text-gray-900 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-[opacity,transform] hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {isSendingRequest ? 'Enviando...' : 'Agregar amigo'}
+                    {isSendingRequest ? 'Enviando...' : 'Enviar solicitud'}
                   </button>
                 )}
-                {hasSentRequest && (
+                {!areFriends && hasSentRequest && (
                   <button
-                    disabled
-                    className="w-full px-4 py-2 bg-gray-700 text-gray-400 font-semibold rounded-lg cursor-not-allowed"
+                    type="button"
+                    onClick={handleCancelSentRequest}
+                    disabled={isSendingRequest || !pendingSentRequest}
+                    className="flex min-h-[2.75rem] w-full items-center justify-center rounded-[22px] border border-red-400/45 bg-red-500/15 px-4 py-2.5 text-sm font-semibold leading-snug text-red-200 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-colors hover:bg-red-500/25 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Solicitud enviada
+                    {isSendingRequest ? 'Cancelando...' : 'Cancelar solicitud'}
                   </button>
                 )}
                 {hasReceivedRequest && (
@@ -484,12 +585,41 @@ export default function OtherUserProfilePage() {
               </div>
             )}
 
-            {/* Redes sociales */}
-            {profileUser.profile?.socialLinks && profileUser.profile.socialLinks.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs sm:text-sm font-medium text-gray-400 mb-2">Redes Sociales</h4>
-                <SocialLinksDisplay socialLinks={profileUser.profile.socialLinks} />
-              </div>
+            {/* Redes sociales — solo si son amigos y el usuario las configuró */}
+            {friendshipUiReady &&
+              areFriends &&
+              profileUser.profile?.socialLinks &&
+              profileUser.profile.socialLinks.length > 0 && (
+                <div
+                  className="space-y-2 rounded-[15px] border border-[#73FFA2]/40 bg-[#171B21]/95 px-3 py-3 sm:px-3.5 sm:py-3.5 mb-6"
+                  style={{
+                    boxShadow: 'inset 0 1px 0 rgba(115,255,162,0.12)',
+                  }}
+                >
+                  <h4 className="text-center text-sm font-semibold text-[#73FFA2] md:text-left mb-2">
+                    Redes sociales
+                  </h4>
+                  <div className="flex justify-center md:justify-start">
+                    <SocialLinksDisplay socialLinks={profileUser.profile.socialLinks} />
+                  </div>
+                </div>
+              )}
+
+            {/* Coincidencias tipo sugerencias — visitante logueado y aún no amigos */}
+            {friendshipUiReady &&
+              !areFriends &&
+              currentUser?.id &&
+              profileUser.profileInsights &&
+              profileUser.id !== currentUser.id && (
+                <OtherProfileInsights insights={profileUser.profileInsights} />
+              )}
+
+            {currentUser?.id && userId !== currentUser.id && !friendshipUiReady && (
+              <div
+                className="mb-6 h-24 animate-pulse rounded-[15px] bg-gray-700/40"
+                aria-busy
+                aria-label="Cargando datos de contacto"
+              />
             )}
           </div>
         </div>

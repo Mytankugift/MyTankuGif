@@ -28,7 +28,7 @@ function CheckoutSuccessContent() {
 
     // Si viene solo con orderId (contra entrega), redirigir a perfil
     if (orderIdParam && !refPaycoParam) {
-      router.push(`/profile?tab=MIS_COMPRAS&orderId=${orderIdParam}`)
+      router.push(`/profile?tab=MIS_TANKUS&orderId=${orderIdParam}`)
       return
     }
 
@@ -43,7 +43,7 @@ function CheckoutSuccessContent() {
       checkOrderStatus(cartIdParam)
     } else {
       // Si no hay parámetros de Epayco, redirigir al perfil
-      router.push('/profile?tab=MIS_COMPRAS')
+      router.push('/profile?tab=MIS_TANKUS')
     }
   }, [router])
 
@@ -295,13 +295,13 @@ function CheckoutSuccessContent() {
             )}
             <div className="flex gap-4 justify-center">
               {orderId && (
-                <Link href={`/profile?tab=MIS_COMPRAS&orderId=${orderId}`}>
+                <Link href={`/profile?tab=MIS_TANKUS&orderId=${orderId}`}>
                   <Button className="bg-[#66DEDB] hover:bg-[#5accc9] text-black">
                     Ver mi pedido
                   </Button>
                 </Link>
               )}
-              <Link href="/profile?tab=MIS_COMPRAS">
+              <Link href="/profile?tab=MIS_TANKUS">
                 <Button className="bg-[#66DEDB] hover:bg-[#5accc9] text-black">
                   Ver mis pedidos
                 </Button>
@@ -347,7 +347,7 @@ function CheckoutSuccessContent() {
               </p>
             )}
             <div className="flex gap-4 justify-center">
-              <Link href="/profile?tab=MIS_COMPRAS">
+              <Link href="/profile?tab=MIS_TANKUS">
                 <Button className="bg-[#66DEDB] hover:bg-[#5accc9] text-black">
                   Ver mis pedidos
                 </Button>

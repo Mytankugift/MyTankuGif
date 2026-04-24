@@ -1,11 +1,35 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import * as React from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { useOnboarding } from '@/lib/hooks/use-onboarding'
+import { getAgeInYearsFromParts, isAdultFromBirthParts } from '@/lib/utils/age-policy'
+import { OnboardingAdultConfirmMiniModal } from '@/components/onboarding/onboarding-adult-confirm-mini-modal'
 import { CheckIcon, XMarkIcon, PencilIcon } from '@heroicons/react/24/outline'
+
+function onboardingBirthToIso(birthDate: unknown): string {
+  if (birthDate == null) return ''
+  if (typeof birthDate === 'string') {
+    const dayPart = birthDate.split('T')[0]
+    const parts = dayPart.split('-').map(Number)
+    if (parts.length >= 3) {
+      const [y, m, d] = parts
+      if (![y, m, d].some(Number.isNaN) && y >= 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      }
+    }
+  }
+  if (birthDate instanceof Date && !Number.isNaN(birthDate.getTime())) {
+    const y = birthDate.getFullYear()
+    const m = birthDate.getMonth() + 1
+    const d = birthDate.getDate()
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  }
+  return ''
+}
 
 interface PersonalInfoSectionProps {
   onUpdate?: () => void
@@ -13,6 +37,10 @@ interface PersonalInfoSectionProps {
 
 export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
   const { user, checkAuth } = useAuthStore()
+  const { getOnboardingData, updateOnboardingData } = useOnboarding()
+  const [birthDateIso, setBirthDateIso] = useState('')
+  const [showAdultBirthConfirm, setShowAdultBirthConfirm] = useState(false)
+  const [pendingBirthIso, setPendingBirthIso] = useState<string | null>(null)
   const [editingField, setEditingField] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     username: user?.username || '',
@@ -58,8 +86,38 @@ export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
     }
     loadUserData()
   }, [user])
+
+  const reloadBirthFromServer = useCallback(async () => {
+    try {
+      const data = await getOnboardingData()
+      setBirthDateIso(onboardingBirthToIso(data?.birthDate))
+    } catch {
+      setBirthDateIso('')
+    }
+  }, [getOnboardingData])
+
+  useEffect(() => {
+    if (!user?.id) return
+    reloadBirthFromServer()
+  }, [user?.id, reloadBirthFromServer])
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const maxBirthDateStr = new Date().toISOString().slice(0, 10)
+
+  const birthAgeDisplay = (() => {
+    if (!birthDateIso) return null
+    const [y, m, d] = birthDateIso.split('-').map(Number)
+    if ([y, m, d].some((n) => Number.isNaN(n))) return null
+    const age = getAgeInYearsFromParts(y, m, d)
+    const pretty = new Date(y, m - 1, d).toLocaleDateString('es', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+    return { age, pretty }
+  })()
 
   const handleFieldEdit = (field: string) => {
     setEditingField(field)
@@ -98,6 +156,29 @@ export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
         })
       }
     }
+    await reloadBirthFromServer()
+    setShowAdultBirthConfirm(false)
+    setPendingBirthIso(null)
+  }
+
+  async function finalizeBirthDateSave(iso: string, recordAgeConsent: boolean) {
+    setIsLoading(true)
+    setError(null)
+    try {
+      await updateOnboardingData({
+        birthDate: iso,
+        ...(recordAgeConsent ? { recordAgeConsent: true } : {}),
+      })
+      await checkAuth()
+      setEditingField(null)
+      setShowAdultBirthConfirm(false)
+      setPendingBirthIso(null)
+      if (onUpdate) onUpdate()
+    } catch (err: any) {
+      setError(err.message || 'Error al guardar la fecha de nacimiento')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleFieldSave = async (field: string) => {
@@ -105,6 +186,29 @@ export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
     setError(null)
 
     try {
+      if (field === 'birthDate') {
+        if (!birthDateIso?.trim()) {
+          setError('Selecciona tu fecha de nacimiento')
+          setIsLoading(false)
+          return
+        }
+        const parts = birthDateIso.split('-').map(Number)
+        if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) {
+          setError('Fecha inválida')
+          setIsLoading(false)
+          return
+        }
+        const [y, m, d] = parts
+        if (isAdultFromBirthParts(y, m, d)) {
+          setPendingBirthIso(birthDateIso)
+          setShowAdultBirthConfirm(true)
+          setIsLoading(false)
+          return
+        }
+        await finalizeBirthDateSave(birthDateIso, false)
+        return
+      }
+
       let response
       if (field === 'bio') {
         // La bio se actualiza en el perfil
@@ -150,6 +254,7 @@ export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
   }
 
   return (
+    <>
     <div className="bg-transparent rounded-lg p-4 border-2 border-[#73FFA2] hover:border-[#66DEDB] transition-colors space-y-4">
       <h3 className="text-lg font-semibold text-[#73FFA2] mb-4">Información Personal</h3>
       
@@ -396,6 +501,68 @@ export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
         </div>
       </div>
 
+      {/* Fecha de nacimiento y edad (onboarding) */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-300">Fecha de nacimiento</label>
+        <div className="flex items-center gap-2">
+          {editingField === 'birthDate' ? (
+            <>
+              <input
+                type="date"
+                value={birthDateIso}
+                max={maxBirthDateStr}
+                min="1904-01-01"
+                onChange={(e) => {
+                  setBirthDateIso(e.target.value)
+                  setError(null)
+                }}
+                className="flex-1 rounded border border-[#73FFA2] bg-gray-800 px-3 py-2 text-white focus:border-[#66DEDB] focus:outline-none"
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                onClick={() => handleFieldSave('birthDate')}
+                disabled={isLoading || !birthDateIso}
+                className="p-2 text-[#73FFA2] hover:text-[#66DEDB] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <CheckIcon className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleFieldCancel}
+                disabled={isLoading}
+                className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="flex-1 text-white">
+                {birthAgeDisplay ? (
+                  <>
+                    <span className="font-medium text-[#66DEDB]">{birthAgeDisplay.age} años</span>
+                    <span className="text-gray-400"> · {birthAgeDisplay.pretty}</span>
+                  </>
+                ) : (
+                  'No especificado'
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleFieldEdit('birthDate')}
+                className="p-2 text-gray-400 transition-colors hover:text-[#73FFA2]"
+              >
+                <PencilIcon className="h-4 w-4" />
+              </button>
+            </>
+          )}
+        </div>
+        <p className="text-xs text-gray-400">
+          Define tu edad en Tanku y las políticas de contenido según mayoría de edad.
+        </p>
+      </div>
+
       {/* Bio a lo largo */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-300">Biografía</label>
@@ -445,5 +612,18 @@ export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
         )}
       </div>
     </div>
+
+    <OnboardingAdultConfirmMiniModal
+      open={showAdultBirthConfirm}
+      overlayZIndex={210}
+      onConfirm={() => {
+        if (pendingBirthIso) void finalizeBirthDateSave(pendingBirthIso, true)
+      }}
+      onCorrectDate={() => {
+        setShowAdultBirthConfirm(false)
+        setPendingBirthIso(null)
+      }}
+    />
+    </>
   )
 }

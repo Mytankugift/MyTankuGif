@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-export type ProfileTab = 'PUBLICACIONES' | 'RED TANKU' | 'MIS COMPRAS' | 'STALKER GIFTS' | 'REGALOS'
+export type ProfileTab = 'PUBLICACIONES' | 'RED TANKU' | 'MIS TANKUS'
 
 interface ProfileNavigationContextType {
   activeTab: ProfileTab
@@ -28,9 +28,32 @@ export function ProfileNavigationProvider({ children }: ProfileNavigationProvide
     const urlParams = new URLSearchParams(window.location.search)
     const tabParam = urlParams.get('tab')
     const savedTab = localStorage.getItem('tanku_profile_tab')
+
+    // StalkerGift vive en /stalkergift (chats / recibidos / enviados)
+    if (tabParam && window.location.pathname === '/profile') {
+      const decodedTab = decodeURIComponent(tabParam).replace(/\+/g, ' ').trim()
+      const stalkerUpper = decodedTab.toUpperCase()
+      if (stalkerUpper.includes('STALKER') && stalkerUpper.includes('GIFT')) {
+        const orderId = urlParams.get('orderId')
+        const q = new URLSearchParams()
+        if (orderId) {
+          q.set('tab', 'orders')
+          q.set('orderId', orderId)
+        } else {
+          q.set('tab', 'sent')
+        }
+        router.replace(`/stalkergift?${q.toString()}`)
+        return
+      }
+    }
     
-    if (tabParam === 'MIS_COMPRAS' || savedTab === 'MIS COMPRAS') {
-      setActiveTab('MIS COMPRAS')
+    if (
+      tabParam === 'MIS_COMPRAS' ||
+      tabParam === 'MIS_TANKUS' ||
+      savedTab === 'MIS COMPRAS' ||
+      savedTab === 'MIS TANKUS'
+    ) {
+      setActiveTab('MIS TANKUS')
       localStorage.removeItem('tanku_profile_tab')
       // Limpiar query param sin recargar
       if (tabParam) {
@@ -46,9 +69,9 @@ export function ProfileNavigationProvider({ children }: ProfileNavigationProvide
         'MY_TANKU': 'RED TANKU',
         'RED_TANKU': 'RED TANKU',
         'RED TANKU': 'RED TANKU',
-        'MIS_COMPRAS': 'MIS COMPRAS',
-        'STALKER_GIFTS': 'STALKER GIFTS',
-        'REGALOS': 'REGALOS'
+        'MIS_COMPRAS': 'MIS TANKUS',
+        'MIS_TANKUS': 'MIS TANKUS',
+        'REGALOS': 'MIS TANKUS'
       }
       // Intentar mapear con el valor decodificado primero, luego con el original
       let mappedTab = tabMap[decodedTab.toUpperCase()] || tabMap[tabParam.toUpperCase()]
@@ -60,12 +83,13 @@ export function ProfileNavigationProvider({ children }: ProfileNavigationProvide
           mappedTab = 'RED TANKU'
         } else if (upperDecoded === 'PUBLICACIONES') {
           mappedTab = 'PUBLICACIONES'
-        } else if (upperDecoded.includes('MIS') && upperDecoded.includes('COMPRAS')) {
-          mappedTab = 'MIS COMPRAS'
-        } else if (upperDecoded.includes('STALKER') && upperDecoded.includes('GIFTS')) {
-          mappedTab = 'STALKER GIFTS'
+        } else if (
+          (upperDecoded.includes('MIS') && upperDecoded.includes('COMPRAS')) ||
+          (upperDecoded.includes('MIS') && upperDecoded.includes('TANKUS'))
+        ) {
+          mappedTab = 'MIS TANKUS'
         } else if (upperDecoded === 'REGALOS') {
-          mappedTab = 'REGALOS'
+          mappedTab = 'MIS TANKUS'
         }
       }
       
@@ -76,7 +100,7 @@ export function ProfileNavigationProvider({ children }: ProfileNavigationProvide
         window.history.replaceState({}, '', newUrl)
       }
     }
-  }, [])
+  }, [router])
 
   const navigateToTab = (tab: ProfileTab) => {
     setActiveTab(tab)

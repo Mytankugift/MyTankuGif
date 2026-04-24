@@ -5,7 +5,6 @@ import { XMarkIcon } from '@heroicons/react/24/outline'
 import { PersonalInfoSection } from './personal-info-section'
 import { SocialLinksSection } from './social-links-section'
 import { PrivacySection } from './privacy-section'
-import { OnboardingSection } from './onboarding-section'
 import { AddressesSection } from './addresses-section'
 
 interface SettingsModalProps {
@@ -14,7 +13,7 @@ interface SettingsModalProps {
   onUpdate?: () => void
 }
 
-type Tab = 'PERFIL' | 'PRIVACIDAD' | 'PREFERENCIAS' | 'DIRECCIONES'
+type Tab = 'PERFIL' | 'PRIVACIDAD' | 'DIRECCIONES'
 
 export function SettingsModal({ isOpen, onClose, onUpdate }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('PERFIL')
@@ -24,8 +23,7 @@ export function SettingsModal({ isOpen, onClose, onUpdate }: SettingsModalProps)
   const tabs: { key: Tab; label: string }[] = [
     { key: 'PERFIL', label: 'PERFIL' },
     { key: 'PRIVACIDAD', label: 'PRIVACIDAD' },
-    { key: 'PREFERENCIAS', label: 'PREFERENCIAS' },
-    { key: 'DIRECCIONES', label: 'MIS DIRECCIONES' }
+    { key: 'DIRECCIONES', label: 'MIS DIRECCIONES' },
   ]
 
   return (
@@ -72,10 +70,6 @@ export function SettingsModal({ isOpen, onClose, onUpdate }: SettingsModalProps)
 
           {activeTab === 'PRIVACIDAD' && (
             <PrivacySection onUpdate={onUpdate} />
-          )}
-
-          {activeTab === 'PREFERENCIAS' && (
-            <OnboardingSection onUpdate={onUpdate} />
           )}
 
           {activeTab === 'DIRECCIONES' && (

@@ -170,6 +170,12 @@ export function StalkerGiftCard({ gift, type, onUpdate }: StalkerGiftCardProps) 
 
       {/* Acciones */}
       <div className="flex flex-col gap-2">
+        {type === 'sent' && gift.estado === 'CREATED' && (
+          <p className="text-xs text-amber-200/90 rounded-md bg-amber-500/10 px-2 py-1.5 border border-amber-500/20">
+            Borrador sin pagar. Completa el pago para activar el envío y el link al destinatario.
+          </p>
+        )}
+
         {type === 'received' && gift.estado === 'WAITING_ACCEPTANCE' && (
           <>
             <Button
@@ -217,7 +223,9 @@ export function StalkerGiftCard({ gift, type, onUpdate }: StalkerGiftCardProps) 
         {/* Botón para ver orden: solo si está aceptado y tiene orden */}
         {gift.estado === 'ACCEPTED' && gift.orderId && (
           <Button
-            onClick={() => router.push(`/profile?tab=STALKER GIFTS&orderId=${gift.orderId}`)}
+            onClick={() =>
+              router.push(`/stalkergift?tab=orders&orderId=${gift.orderId}`)
+            }
             variant="secondary"
             className="w-full"
           >

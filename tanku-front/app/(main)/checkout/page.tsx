@@ -456,7 +456,7 @@ function CheckoutContent() {
           
           // Dropi exitoso - redirigir directamente a la tab de mis compras en el perfil
           setShowConfirmationModal(false)
-          router.push(`/profile?tab=MIS_COMPRAS&orderId=${order.id}`)
+          router.push(`/profile?tab=MIS_TANKUS&orderId=${order.id}`)
           
           // Limpiar selección guardada
           if (typeof window !== 'undefined') {

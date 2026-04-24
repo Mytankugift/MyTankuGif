@@ -62,22 +62,23 @@ export default function MainLayout({
   /** Landing (/): permitir scroll del documento para toolbar nativa móvil (Safari/Chrome). */
   const isLandingRoute = pathname === '/'
 
-  /** /feed + /events en móvil: scroll en `<main>` como landing (Safari toolbar / gesto natural). En md+ el feed usa scroll interno en la página. */
+  /** /feed + /events + /friends en móvil: scroll en `<main>` como landing (Safari toolbar / gesto natural). En md+ scroll interno en la página donde aplique. */
   const isFeedOrEventsNativeMainScrollMobile =
-    pathname === '/feed' || pathname === '/events'
-  /** /events: scroll en contenedor interno en md+; en móvil lo lleva `<main>` (mismo patrón que feed). */
-  const isEventsInnerScroll = pathname === '/events'
-  /** /profile y /profile/[username]: scroll interno para evitar doble scroll en móvil */
-  const isProfileInnerScroll = pathname === '/profile' || pathname.startsWith('/profile/')
+    pathname === '/feed' || pathname === '/events' || pathname === '/friends'
+  /**
+   * /profile y /profile/[username]: en móvil mismo contrato documento/`<main>` que /feed (skill tanku-mobile-vista §8).
+   * En md+ el scroll interno vive en `#profile-scroll-root` o `#profile-public-scroll-root` en la página.
+   */
+  const isProfileRoute = pathname === '/profile' || pathname.startsWith('/profile/')
   /** /checkout/gift-direct: scroll interno (evita doble scroll con navs fijos en móvil) */
   const isGiftDirectInnerScroll = pathname === '/checkout/gift-direct'
-  /** /notifications: scroll interno + BaseNav (misma idea que perfil/eventos) */
+  /** /notifications: scroll interno + BaseNav */
   const isNotificationsInnerScroll = pathname === '/notifications'
   const mainOverlayScroll =
-    isEventsInnerScroll ||
-    isProfileInnerScroll ||
-    isGiftDirectInnerScroll ||
-    isNotificationsInnerScroll
+    isGiftDirectInnerScroll || isNotificationsInnerScroll
+  /** Móvil: scroll nativo (Safari) como landing; md+: scroll en contenedor de cada página. */
+  const isSafariDocumentMainRoute =
+    isFeedOrEventsNativeMainScrollMobile || isProfileRoute
 
   return (
     <MainLayoutErrorBoundary>
@@ -100,8 +101,8 @@ export default function MainLayout({
                   'relative z-0 ml-0 flex min-h-0 min-w-0 flex-1 flex-col md:ml-36 lg:ml-[208px]',
                   isLandingRoute
                     ? 'overflow-visible pb-20 md:pb-0 lg:pb-0'
-                    : isFeedOrEventsNativeMainScrollMobile
-                    ? 'overflow-y-auto overscroll-y-contain pb-0 md:overflow-hidden md:pb-0'
+                    : isSafariDocumentMainRoute
+                    ? 'max-md:overflow-x-hidden max-md:overflow-visible overscroll-y-contain pb-0 md:overflow-hidden md:pb-0'
                     : mainOverlayScroll
                     ? 'overflow-hidden pb-0'
                     : 'overflow-y-auto overscroll-y-contain pb-20 md:pb-0 lg:pb-0'

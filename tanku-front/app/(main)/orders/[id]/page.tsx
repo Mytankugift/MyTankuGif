@@ -12,10 +12,10 @@ export default function OrderPage() {
     if (orderId) {
       // Guardar el orderId en localStorage para que el perfil lo detecte
       if (typeof window !== 'undefined') {
-        localStorage.setItem('tanku_profile_tab', 'MIS COMPRAS')
+        localStorage.setItem('tanku_profile_tab', 'MIS TANKUS')
         localStorage.setItem('tanku_view_order_id', orderId)
-        // Redirigir al perfil con la pestaña de MIS COMPRAS
-        router.replace('/profile?tab=MIS_COMPRAS&orderId=' + orderId)
+        // Redirigir al perfil con Mis TANKUS
+        router.replace('/profile?tab=MIS_TANKUS&orderId=' + orderId)
       }
     }
   }, [orderId, router])

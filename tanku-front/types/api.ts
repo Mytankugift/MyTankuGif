@@ -448,6 +448,14 @@ export interface FriendSuggestionDTO {
   commonActivities?: string[] // Actividades comunes
 }
 
+/** Perfil ajeno: coincidencias cuando aún no son amigos (backend users getUserById) */
+export interface ProfileInsightsDTO {
+  mutualFriendsCount: number
+  mutualFriendNames?: string[]
+  commonCategories?: string[]
+  commonActivities?: string[]
+}
+
 // Notifications
 export interface NotificationDTO {
   id: string

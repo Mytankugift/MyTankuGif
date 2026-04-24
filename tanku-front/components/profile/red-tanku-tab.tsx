@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import Image from 'next/image'
@@ -48,6 +48,35 @@ interface RedTankuTabProps {
   userId: string
 }
 
+/** Icono de búsqueda del feed (productos), reutilizado en filtros de amigos en red Tanku */
+function FeedProductSearchIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="32"
+      height="32"
+      viewBox="0 0 41 42"
+      fill="none"
+      className={className}
+      aria-hidden={true}
+    >
+      <path
+        d="M26.8334 8.76545L30.1099 22.6447L20.9442 31.156L8.1482 27.8382L4.84774 14.0188L14.8779 5.75197L26.8334 8.76545Z"
+        stroke="#B8C4CC"
+        strokeWidth="3"
+      />
+      <line
+        y1="-1.5"
+        x2="20.427"
+        y2="-1.5"
+        transform="matrix(0.709973 0.704229 -0.70423 0.709971 24.3841 27.5551)"
+        stroke="#B8C4CC"
+        strokeWidth="3"
+      />
+    </svg>
+  )
+}
+
 export function RedTankuTab({ userId }: RedTankuTabProps) {
   const [groups, setGroups] = useState<Group[]>([])
   const [recommendedGroups, setRecommendedGroups] = useState<RecommendedGroup[]>([])
@@ -68,6 +97,10 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
   })
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [friendsSearchQuery, setFriendsSearchQuery] = useState('')
+  const [addMembersSearchQuery, setAddMembersSearchQuery] = useState('')
+  const [groupPendingDelete, setGroupPendingDelete] = useState<Group | null>(null)
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false)
 
   // Cargar grupos y recomendaciones
   useEffect(() => {
@@ -76,17 +109,22 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
     loadFriends()
   }, [userId])
 
-  const loadGroups = async () => {
+  const loadGroups = async (options?: { quiet?: boolean }): Promise<Group[]> => {
+    const quiet = options?.quiet === true
     try {
-      setLoading(true)
+      if (!quiet) setLoading(true)
       const response = await apiClient.get<Group[]>(API_ENDPOINTS.GROUPS.LIST)
+      let next: Group[] = []
       if (response.success && response.data) {
-        setGroups(Array.isArray(response.data) ? response.data : [])
+        next = Array.isArray(response.data) ? response.data : []
+        setGroups(next)
       }
+      return next
     } catch (error) {
       console.error('Error al cargar grupos:', error)
+      return []
     } finally {
-      setLoading(false)
+      if (!quiet) setLoading(false)
     }
   }
 
@@ -117,15 +155,13 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
   }
 
   const handleCreateGroup = () => {
-    console.log('[RedTankuTab] handleCreateGroup llamado')
     setFormData({ name: '', description: '' })
     setSelectedFriends([])
+    setFriendsSearchQuery('')
     setError(null)
     setEditingGroup(null)
-    // Cargar amigos antes de abrir el modal
     loadFriends()
     setShowCreateModal(true)
-    console.log('[RedTankuTab] showCreateModal establecido a true')
   }
 
   const handleShowRecommendedGroups = () => {
@@ -161,6 +197,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
   const handleAddMembers = async (group: Group) => {
     setSelectedGroup(group)
     setSelectedFriends([])
+    setAddMembersSearchQuery('')
     setError(null)
     
     // Cargar amigos y filtrar los que ya están en el grupo
@@ -197,7 +234,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
           }
         )
         if (response.success && response.data) {
-          await loadGroups()
+          await loadGroups({ quiet: true })
           setShowEditModal(false)
           setEditingGroup(null)
         }
@@ -209,10 +246,11 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
           memberIds: selectedFriends,
         })
         if (response.success && response.data) {
-          await loadGroups()
+          await loadGroups({ quiet: true })
           setShowCreateModal(false)
           setFormData({ name: '', description: '' })
           setSelectedFriends([])
+          setFriendsSearchQuery('')
         }
       }
     } catch (err: any) {
@@ -222,17 +260,32 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
     }
   }
 
-  const handleDeleteGroup = async (groupId: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este grupo?')) return
-
+  const confirmDeleteGroup = async () => {
+    if (!groupPendingDelete) return
+    const groupId = groupPendingDelete.id
+    setIsDeletingGroup(true)
     try {
       const response = await apiClient.delete(API_ENDPOINTS.GROUPS.DELETE(groupId))
       if (response.success) {
-        await loadGroups()
+        if (selectedGroup?.id === groupId) {
+          setShowManageMembersModal(false)
+          setShowAddMembersModal(false)
+          setSelectedGroup(null)
+        }
+        if (editingGroup?.id === groupId) {
+          setShowEditModal(false)
+          setShowCreateModal(false)
+          setEditingGroup(null)
+          setFormData({ name: '', description: '' })
+        }
+        setGroupPendingDelete(null)
+        await loadGroups({ quiet: true })
       }
     } catch (error) {
       console.error('Error al eliminar grupo:', error)
       alert('Error al eliminar el grupo')
+    } finally {
+      setIsDeletingGroup(false)
     }
   }
 
@@ -241,8 +294,12 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
       const response = await apiClient.delete(
         API_ENDPOINTS.GROUPS.REMOVE_MEMBER(groupId, memberId)
       )
-      if (response.success && response.data) {
-        await loadGroups()
+      if (response.success) {
+        const nextGroups = await loadGroups({ quiet: true })
+        const fresh = nextGroups.find((g) => g.id === groupId)
+        if (fresh) {
+          setSelectedGroup(fresh)
+        }
       }
     } catch (error) {
       console.error('Error al eliminar miembro:', error)
@@ -263,10 +320,11 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
           memberId,
         })
       }
-      await loadGroups()
+      await loadGroups({ quiet: true })
       setShowAddMembersModal(false)
       setSelectedGroup(null)
       setSelectedFriends([])
+      setAddMembersSearchQuery('')
     } catch (err: any) {
       setError(err.message || 'Error al agregar miembros')
     } finally {
@@ -287,8 +345,31 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
       name: recommended.name,
       description: recommended.description,
     })
+    setFriendsSearchQuery('')
     setShowCreateModal(true)
   }
+
+  const filteredFriendsForCreate = useMemo(() => {
+    const q = friendsSearchQuery.trim().toLowerCase()
+    if (!q) return friends
+    return friends.filter((friend) => {
+      const fu = friend.friend
+      const name = `${fu.firstName || ''} ${fu.lastName || ''}`.toLowerCase()
+      const email = (fu.email || '').toLowerCase()
+      return name.includes(q) || email.includes(q)
+    })
+  }, [friends, friendsSearchQuery])
+
+  const filteredAvailableFriends = useMemo(() => {
+    const q = addMembersSearchQuery.trim().toLowerCase()
+    if (!q) return availableFriends
+    return availableFriends.filter((friend) => {
+      const fu = friend.friend
+      const name = `${fu.firstName || ''} ${fu.lastName || ''}`.toLowerCase()
+      const email = (fu.email || '').toLowerCase()
+      return name.includes(q) || email.includes(q)
+    })
+  }, [availableFriends, addMembersSearchQuery])
 
   if (loading) {
     return (
@@ -399,7 +480,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                     <PencilIcon className="w-4 h-4 text-gray-400" />
                   </button>
                   <button
-                    onClick={() => handleDeleteGroup(group.id)}
+                    onClick={() => setGroupPendingDelete(group)}
                     className="p-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
                     title="Eliminar grupo"
                   >
@@ -476,6 +557,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
             setEditingGroup(null)
             setFormData({ name: '', description: '' })
             setSelectedFriends([])
+            setFriendsSearchQuery('')
             setError(null)
           }
         }}>
@@ -491,6 +573,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                   setEditingGroup(null)
                   setFormData({ name: '', description: '' })
                   setSelectedFriends([])
+                  setFriendsSearchQuery('')
                   setError(null)
                 }}
                 className="text-gray-400 hover:text-white transition-colors"
@@ -538,14 +621,32 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                   <label className="mb-1.5 block text-xs font-medium text-gray-300 sm:text-sm">
                     Agregar Amigos (opcional)
                   </label>
+                  <div className="relative mb-2 w-full">
+                    <div className="absolute left-2.5 top-1/2 z-10 -translate-y-1/2">
+                      <FeedProductSearchIcon />
+                    </div>
+                    <input
+                      type="search"
+                      value={friendsSearchQuery}
+                      onChange={(e) => setFriendsSearchQuery(e.target.value)}
+                      placeholder="Buscar amigos…"
+                      autoComplete="off"
+                      className="tanku-pill-search-input w-full rounded-full border border-white/10 bg-[#11161d] py-2 pl-10 pr-3 text-sm text-white placeholder-gray-400 transition-all duration-200 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
+                      style={{ fontFamily: 'Poppins, sans-serif' }}
+                    />
+                  </div>
                   <div className="max-h-44 overflow-y-auto rounded-[20px] border border-white/10 bg-[#11161d] p-2.5">
                     {friends.length === 0 ? (
                       <p className="text-sm text-gray-400 text-center py-2">
                         No tienes amigos aún
                       </p>
+                    ) : filteredFriendsForCreate.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-2">
+                        No se encontraron amigos
+                      </p>
                     ) : (
                       <div className="space-y-1.5">
-                        {friends.map((friend) => (
+                        {filteredFriendsForCreate.map((friend) => (
                           <div
                             key={friend.friend.id}
                             className={`flex cursor-pointer items-center gap-2 rounded-[14px] px-2 py-1.5 transition-colors ${
@@ -621,6 +722,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
               setShowAddMembersModal(false)
               setSelectedGroup(null)
               setSelectedFriends([])
+              setAddMembersSearchQuery('')
               setError(null)
             }
           }}
@@ -635,6 +737,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                   setShowAddMembersModal(false)
                   setSelectedGroup(null)
                   setSelectedFriends([])
+                  setAddMembersSearchQuery('')
                   setError(null)
                 }}
                 className="text-gray-400 hover:text-white transition-colors"
@@ -650,14 +753,32 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
             )}
 
             <div className="space-y-4">
+              <div className="relative w-full">
+                <div className="absolute left-2.5 top-1/2 z-10 -translate-y-1/2">
+                  <FeedProductSearchIcon />
+                </div>
+                <input
+                  type="search"
+                  value={addMembersSearchQuery}
+                  onChange={(e) => setAddMembersSearchQuery(e.target.value)}
+                  placeholder="Buscar amigos…"
+                  autoComplete="off"
+                  className="tanku-pill-search-input w-full rounded-full border border-white/10 bg-[#11161d] py-2 pl-10 pr-3 text-sm text-white placeholder-gray-400 transition-all duration-200 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
+                  style={{ fontFamily: 'Poppins, sans-serif' }}
+                />
+              </div>
               <div className="max-h-60 overflow-y-auto rounded-[20px] border border-white/10 bg-[#11161d] p-2.5">
                 {availableFriends.length === 0 ? (
                   <p className="text-sm text-gray-400 text-center py-2">
                     Todos tus amigos ya están en este grupo
                   </p>
+                ) : filteredAvailableFriends.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-2">
+                    No se encontraron amigos
+                  </p>
                 ) : (
                   <div className="space-y-2">
-                    {availableFriends.map((friend) => (
+                    {filteredAvailableFriends.map((friend) => (
                       <div
                         key={friend.friend.id}
                         className={`flex cursor-pointer items-center gap-2 rounded-[14px] px-2 py-1.5 transition-colors ${
@@ -790,6 +911,65 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar eliminar red */}
+      {groupPendingDelete && (
+        <div
+          className="fixed inset-0 z-[1000001] flex items-center justify-center bg-black/70 p-3 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isDeletingGroup) {
+              setGroupPendingDelete(null)
+            }
+          }}
+        >
+          <div className={`w-full max-w-md p-4 sm:p-5 ${tankuModalSurfaceClass}`} onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-base sm:text-lg font-bold text-[#66DEDB]">Eliminar red</h3>
+              <button
+                type="button"
+                disabled={isDeletingGroup}
+                onClick={() => setGroupPendingDelete(null)}
+                className="text-gray-400 transition-colors hover:text-white disabled:opacity-50"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <p className="mb-4 text-sm text-gray-300">
+              ¿Eliminar la red{' '}
+              <span className="font-semibold text-white">&quot;{groupPendingDelete.name}&quot;</span>? Esta acción no se
+              puede deshacer.
+            </p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+              <button
+                type="button"
+                disabled={isDeletingGroup}
+                onClick={() => setGroupPendingDelete(null)}
+                className={`${modalActionButtonClass} w-full border border-white/15 bg-transparent text-gray-200 hover:bg-white/[0.06] sm:w-auto`}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingGroup}
+                onClick={confirmDeleteGroup}
+                className={`${modalActionButtonClass} w-full bg-red-600 text-white hover:bg-red-500 sm:w-auto flex items-center justify-center gap-2`}
+              >
+                {isDeletingGroup ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <TrashIcon className="h-4 w-4" />
+                    Eliminar red
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

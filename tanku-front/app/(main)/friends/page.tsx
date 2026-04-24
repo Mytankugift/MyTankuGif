@@ -5,8 +5,11 @@
 
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { clsx } from 'clsx'
 import { useFriends } from '@/lib/hooks/use-friends'
+import { useFeedInit } from '@/lib/hooks/use-feed-init'
+import { useFeedScrollNav } from '@/lib/hooks/use-feed-scroll-nav'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { FriendsTabs } from '@/components/friends/friends-tabs'
@@ -14,8 +17,8 @@ import { FriendsList } from '@/components/friends/friends-list'
 import { FriendRequestList } from '@/components/friends/friend-request-list'
 import { SentRequestsList } from '@/components/friends/sent-requests-list'
 import { FriendSuggestions } from '@/components/friends/friend-suggestions'
-import { BlockedUsersList } from '@/components/friends/blocked-users-list'
 import { FriendsNav } from '@/components/layout/friends-nav'
+import { FeedStoriesStrip } from '@/components/feed/feed-stories-strip'
 import type { FriendSuggestionDTO } from '@/types/api'
 
 interface Group {
@@ -41,17 +44,15 @@ export default function FriendsPage() {
     requests,
     sentRequests,
     suggestions,
-    blockedUsers,
     isLoading,
     error,
     fetchFriends,
     fetchRequests,
     fetchSentRequests,
     fetchSuggestions,
-    fetchBlockedUsers,
   } = useFriends()
 
-  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'sent' | 'suggestions' | 'blocked'>(
+  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'sent' | 'suggestions'>(
     'friends'
   )
 
@@ -83,7 +84,7 @@ export default function FriendsPage() {
   }, [groups])
 
   // Handler para cambiar de tab - carga datos frescos cuando el usuario hace clic
-  const handleTabChange = async (tab: 'friends' | 'requests' | 'sent' | 'suggestions' | 'blocked') => {
+  const handleTabChange = async (tab: 'friends' | 'requests' | 'sent' | 'suggestions') => {
     setActiveTab(tab)
     
     // Cargar datos específicos del tab cuando el usuario hace clic
@@ -99,9 +100,6 @@ export default function FriendsPage() {
         break
       case 'suggestions':
         await fetchSuggestions()
-        break
-      case 'blocked':
-        await fetchBlockedUsers()
         break
     }
   }
@@ -165,16 +163,6 @@ export default function FriendsPage() {
     })
   }, [suggestions, searchQuery])
 
-  const filteredBlockedMemo = useMemo(() => {
-    if (!searchQuery.trim()) return blockedUsers
-    const queryLower = searchQuery.toLowerCase()
-    return blockedUsers.filter((blockedUser) => {
-      const fullName = `${blockedUser.blockedUser.firstName || ''} ${blockedUser.blockedUser.lastName || ''}`.trim().toLowerCase()
-      const username = (blockedUser.blockedUser.username || '').toLowerCase()
-      return fullName.includes(queryLower) || username.includes(queryLower)
-    })
-  }, [blockedUsers, searchQuery])
-
   const searchTrim = searchQuery.trim()
   const useFriendServerSearch = activeTab === 'suggestions' && searchTrim.length >= 2
 
@@ -229,86 +217,167 @@ export default function FriendsPage() {
     }
   }, [searchTrim, activeTab])
 
+  const feedInit = useFeedInit()
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth : 1024
+  )
+  const [feedExplorarActivated, setFeedExplorarActivated] = useState(false)
+
+  const friendsScrollRootRef = useRef<HTMLDivElement | null>(null)
+  const [friendsScrollAttached, setFriendsScrollAttached] = useState(false)
+  const setFriendsScrollRef = useCallback((node: HTMLDivElement | null) => {
+    friendsScrollRootRef.current = node
+    setFriendsScrollAttached(!!node)
+  }, [])
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth)
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const useWindowScroll = viewportWidth < 768
+  const feedNavScroll = useFeedScrollNav(
+    friendsScrollRootRef,
+    friendsScrollAttached,
+    useWindowScroll
+  )
+
+  const contentPaddingTop = (() => {
+    const w = viewportWidth
+    const { minimalMode, compactMid } = feedNavScroll
+    const safeOnly = 'max(10px, env(safe-area-inset-top))'
+
+    if (w < 768) {
+      return safeOnly
+    }
+
+    if (minimalMode) {
+      return w < 1024 ? '132px' : '140px'
+    }
+    if (compactMid) {
+      return w < 1024 ? '212px' : '224px'
+    }
+    return w < 1024 ? '300px' : '312px'
+  })()
+
+  const scrollAreaPaddingTop = useMemo(() => {
+    if (viewportWidth < 768) {
+      return 'max(6.25rem, calc(env(safe-area-inset-top, 0px) + 5.25rem))'
+    }
+    return contentPaddingTop
+  }, [viewportWidth, contentPaddingTop])
+
   return (
-    <>
-      <FriendsNav onSearch={handleSearch} initialSearchQuery={searchQuery} />
-      <div
-        className="min-h-screen overflow-x-hidden overflow-y-auto p-4 pt-52 sm:p-6 sm:pt-56 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:p-8 md:pt-60 custom-scrollbar"
-        style={{
-          backgroundColor: '#1E1E1E',
-        }}
-      >
-        <div className="max-w-6xl mx-auto">
-        {/* Tabs */}
-        <FriendsTabs activeTab={activeTab} onTabChange={handleTabChange} requestsCount={requests.length} />
-
-        {/* Contenido según tab activo */}
-        <div className="mt-6">
-          {error && (
-            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
-          )}
-
-          {activeTab === 'friends' && (
-            <FriendsList 
-              friends={searchQuery.trim() ? filteredFriendsMemo : friends} 
-              isLoading={isLoading} 
-              onRefresh={fetchFriends}
-              groupByFriendId={groupByFriendId}
-            />
-          )}
-
-          {activeTab === 'requests' && (
-            <FriendRequestList
-              requests={requests}
-              isLoading={isLoading}
-              onAccept={async (id) => {
-                await fetchRequests()
-                await fetchFriends()
-              }}
-              onReject={async (id) => {
-                await fetchRequests()
-              }}
-            />
-          )}
-
-          {activeTab === 'sent' && (
-            <SentRequestsList
-              requests={sentRequests}
-              isLoading={isLoading}
-              onCancel={async (id) => {
-                await fetchSentRequests()
-              }}
-            />
-          )}
-
-          {activeTab === 'suggestions' && (
-            <FriendSuggestions
-              suggestions={suggestionsForTab}
-              isLoading={suggestionsTabLoading}
-              emptyMessage={suggestionsEmptyMessage}
-              onSendRequest={async (friendId) => {
-                setFriendSearchResults((prev) => (prev ? prev.filter((s) => s.userId !== friendId) : prev))
-                await fetchSuggestions()
-                await fetchSentRequests()
-              }}
-            />
-          )}
-
-          {activeTab === 'blocked' && (
-            <BlockedUsersList
-              blockedUsers={searchQuery.trim() ? filteredBlockedMemo : blockedUsers}
-              isLoading={isLoading}
-              onRefresh={async () => {
-                await fetchBlockedUsers()
-              }}
-            />
-          )}
-        </div>
+    <div
+      className={clsx(
+        'relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col transition-colors duration-300',
+        'max-md:overflow-visible',
+        'md:overflow-hidden'
+      )}
+      style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
+    >
+      <div className="pointer-events-none relative z-40 h-0 shrink-0 overflow-visible">
+        <div className="pointer-events-auto fixed inset-x-0 top-0 z-40 flex shrink-0 flex-col overflow-visible border-b border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.35)] max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150 md:inset-x-auto md:left-36 md:right-0 md:bg-[var(--color-surface-191e23-20)] md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none] lg:left-[208px]">
+          <FriendsNav
+            onSearch={handleSearch}
+            initialSearchQuery={searchQuery}
+            feedNavScroll={feedNavScroll}
+            stories={feedInit.stories}
+            feedExplorarActivated={feedExplorarActivated}
+            onFeedExplorarActivated={() => setFeedExplorarActivated(true)}
+          />
         </div>
       </div>
-    </>
+
+      <div
+        ref={setFriendsScrollRef}
+        id="friends-scroll-root"
+        className={clsx(
+          'custom-scrollbar relative z-0 min-h-0 w-full px-2 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] pt-2 transition-[padding-top] duration-300 ease-out sm:px-3 sm:pt-4 md:px-4 md:py-5 md:pb-5',
+          'max-md:flex-none max-md:overflow-x-hidden max-md:overflow-y-visible',
+          'md:basis-0 md:flex-1 md:touch-pan-y md:overflow-x-hidden md:overflow-y-auto md:overscroll-y-contain md:[-webkit-overflow-scrolling:touch]'
+        )}
+        style={{
+          paddingTop: scrollAreaPaddingTop,
+          marginRight: '0',
+          scrollBehavior: 'smooth',
+          scrollPaddingTop: 'max(env(safe-area-inset-top),12px)',
+          scrollPaddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        }}
+      >
+        <FeedStoriesStrip
+          className="sticky top-0 z-[60] -mx-2 mb-3 px-2 backdrop-blur-md md:hidden"
+          style={{
+            backgroundColor: 'rgba(25, 30, 35, 0.42)',
+            WebkitBackdropFilter: 'blur(14px)',
+          }}
+          showStoriesStrip={feedNavScroll.showStoriesStrip}
+          stories={feedInit.stories}
+          feedExplorarActivated
+          onExplorarActivated={() => setFeedExplorarActivated(true)}
+        />
+
+        <div className="mx-auto max-w-6xl px-2 pb-4 sm:px-3 md:px-4">
+          <FriendsTabs activeTab={activeTab} onTabChange={handleTabChange} requestsCount={requests.length} />
+
+          <div className="mt-6">
+            {error && (
+              <div className="mb-4 rounded-lg border border-red-500/50 bg-red-500/10 p-4">
+                <p className="text-sm text-red-400">{error}</p>
+              </div>
+            )}
+
+            {activeTab === 'friends' && (
+              <FriendsList
+                friends={searchQuery.trim() ? filteredFriendsMemo : friends}
+                isLoading={isLoading}
+                onRefresh={fetchFriends}
+                groupByFriendId={groupByFriendId}
+              />
+            )}
+
+            {activeTab === 'requests' && (
+              <FriendRequestList
+                requests={requests}
+                isLoading={isLoading}
+                onAccept={async (id) => {
+                  await fetchRequests()
+                  await fetchFriends()
+                }}
+                onReject={async (id) => {
+                  await fetchRequests()
+                }}
+              />
+            )}
+
+            {activeTab === 'sent' && (
+              <SentRequestsList
+                requests={sentRequests}
+                isLoading={isLoading}
+                onCancel={async (id) => {
+                  await fetchSentRequests()
+                }}
+              />
+            )}
+
+            {activeTab === 'suggestions' && (
+              <FriendSuggestions
+                suggestions={suggestionsForTab}
+                isLoading={suggestionsTabLoading}
+                emptyMessage={suggestionsEmptyMessage}
+                onSendRequest={async (friendId) => {
+                  setFriendSearchResults((prev) => (prev ? prev.filter((s) => s.userId !== friendId) : prev))
+                  await fetchSuggestions()
+                  await fetchSentRequests()
+                }}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 

@@ -15,12 +15,16 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { StalkerGiftDTO } from '@/types/api'
 import { GiftIcon } from '@heroicons/react/24/outline'
 import { BaseNav } from '@/components/layout/base-nav'
+import { StalkerGiftOrdersTab } from '@/components/profile/stalkergift-orders-tab'
+import type { StalkerGiftMainTab } from '@/components/stalkergift/stalkergift-tabs'
 
-type StalkerGiftTab = 'received' | 'sent' | 'chats'
+type StalkerGiftTab = StalkerGiftMainTab
 
 function StalkerGiftPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const tabQuery = searchParams.get('tab')
+  const orderIdQuery = searchParams.get('orderId')
   const { user, isAuthenticated } = useAuthStore()
   const { conversations, setActiveConversation, fetchConversations } = useChat()
   const [activeTab, setActiveTab] = useState<StalkerGiftTab>('chats')
@@ -89,6 +93,18 @@ function StalkerGiftPageContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.id])
+
+  // ?tab=received | sent | chats | orders (enlaces desde la app o redirección desde /profile)
+  useEffect(() => {
+    if (
+      tabQuery === 'received' ||
+      tabQuery === 'sent' ||
+      tabQuery === 'chats' ||
+      tabQuery === 'orders'
+    ) {
+      setActiveTab(tabQuery)
+    }
+  }, [tabQuery])
 
   // Obtener conversationId de la URL para el tab de chats
   const conversationIdParam = searchParams.get('conversation')
@@ -232,7 +248,9 @@ function StalkerGiftPageContent() {
             </div>
           )}
 
-          {isLoading ? (
+          {activeTab === 'orders' && user?.id ? (
+            <StalkerGiftOrdersTab userId={user.id} initialOrderId={orderIdQuery} />
+          ) : isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
               <p className="text-gray-400">Cargando regalos...</p>

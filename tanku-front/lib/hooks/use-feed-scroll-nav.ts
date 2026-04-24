@@ -10,19 +10,23 @@ function getMainScrollEl(): HTMLElement | null {
   return document.getElementById(APP_MAIN_ID)
 }
 
-/** Lee el offset vertical real del scroll cuando el contenedor es `<main>` (p. ej. feed móvil), no `window`. */
+/**
+ * Con scroll "externo": el máximo entre `<main id="app-main">` y el documento.
+ * En landing (y rutas con `main` en overflow visible) el desplazamiento puede ir en `window`, no en `main`.
+ */
 function readScrollTop(
   useOuterScroll: boolean,
   scrollRootEl: HTMLElement | null
 ): number {
   if (!useOuterScroll) return Math.max(0, scrollRootEl?.scrollTop ?? 0)
   const main = getMainScrollEl()
-  if (main) return Math.max(0, main.scrollTop)
-  if (typeof window === 'undefined') return 0
-  return Math.max(
+  const mainSt = main ? Math.max(0, main.scrollTop) : 0
+  if (typeof window === 'undefined') return mainSt
+  const winSt = Math.max(
     0,
     window.scrollY || document.documentElement.scrollTop || 0
   )
+  return Math.max(mainSt, winSt)
 }
 
 /** Historias solo con el scroll arriba del todo */

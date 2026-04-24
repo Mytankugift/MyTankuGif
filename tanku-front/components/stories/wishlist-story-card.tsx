@@ -128,20 +128,17 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
   const handleVerWishlist = () => {
     if (!story.wishlistId || !story.userId) return
 
-    // ✅ Si es mi propia historia, ir a mi perfil
-    // Si es de otra persona, ir al perfil de esa persona usando username
     const isOwnStory = user?.id === story.userId
-    
+
     if (isOwnStory) {
-      // Ir a mi propio perfil
-      router.push('/profile')
+      router.push('/wishlist?tab=mine')
     } else {
-      // Ir al perfil de la otra persona usando username
       const profileUrl = getProfileUrl({
         username: story.author.username,
         id: story.author.id,
       })
-      router.push(profileUrl)
+      const sep = profileUrl.includes('?') ? '&' : '?'
+      router.push(`${profileUrl}${sep}tab=wishlists`)
     }
     onClose()
   }
@@ -165,6 +162,7 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
   const variant = product?.variants?.find((v: any) => v.id === selectedVariant)
   const price = variant?.price || variant?.tankuPrice || product?.price || 0
   const productTitle = product?.title || story.title || story.description?.replace(' agregado a tu wishlist', '') || 'Producto'
+  const isOwnStory = Boolean(user?.id && story.userId && user.id === story.userId)
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-CO', {
@@ -281,7 +279,9 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
             className="w-full bg-gray-700 text-white font-semibold py-2.5 px-4 rounded-full hover:bg-gray-600 transition-all duration-300 text-sm"
             style={{ fontFamily: 'Poppins, sans-serif' }}
           >
-            Ver Wishlist de {story.author.firstName}
+            {isOwnStory
+              ? 'Ver mis Wishlists'
+              : `Ver Wishlist de ${story.author.firstName ?? 'usuario'}`}
           </button>
         </div>
       </div>

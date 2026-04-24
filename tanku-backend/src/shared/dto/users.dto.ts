@@ -96,6 +96,14 @@ export type UpdateUserProfileDTO = {
   socialLinks?: SocialLink[];
 };
 
+/** Datos tipo “sugerencias” cuando el visitante no es amigo del perfil (exploración) */
+export type ProfileInsightsDTO = {
+  mutualFriendsCount: number;
+  mutualFriendNames?: string[];
+  commonCategories?: string[];
+  commonActivities?: string[];
+};
+
 // PersonalInformation DTOs
 export type PersonalInformationDTO = {
   id: string;

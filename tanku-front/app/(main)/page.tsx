@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState, useEffect, useRef, Suspense } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { LandingNav } from '@/components/feed/landing-nav'
 import { FeedSkeleton } from '@/components/feed/feed-skeleton'
 import { useLandingFeed } from '@/lib/hooks/use-landing-feed'
+import { useFeedScrollNav } from '@/lib/hooks/use-feed-scroll-nav'
 import { useCategories } from '@/lib/hooks/use-categories'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { logger } from '@/lib/utils/logger'
@@ -29,6 +30,18 @@ const VideoModal = dynamic(
 // URL del video de bienvenida en S3
 const WELCOME_VIDEO_URL = 'https://tanku-bucket-us-east-2.s3.us-east-2.amazonaws.com/dev/videos/3e7683ee-fce6-4e2f-82b9-194db1e659d9.mp4'
 
+/**
+ * Aire bajo el nav fijo: medimos el nodo; este gap evita que la primera fila de cards “pegue” al borde inferior del nav.
+ */
+const LANDING_NAV_CONTENT_GAP_PX = 12
+
+/** Reserva mínima (antes de medir / si falla la medida). Generosa: nav + búsqueda + categorías varía por breakpoint. */
+function landingTopReserveFallbackPx(viewportW: number): number {
+  if (viewportW < 768) return 100
+  if (viewportW < 1024) return 100
+  return 100
+}
+
 function LandingPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -36,37 +49,24 @@ function LandingPageContent() {
   const hasRedirected = useRef(false)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true)
-  const [lastScrollY, setLastScrollY] = useState(0)
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
-  const [headerPadding, setHeaderPadding] = useState('220px')
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth : 1024
+  )
+  /** Mismo hook que /feed, con scroll “externo”: lee `app-main` y `window` (landing en md+ a menudo scrollea el documento). */
+  const feedScrollRootRef = useRef<HTMLDivElement | null>(null)
+  const feedNavScroll = useFeedScrollNav(feedScrollRootRef, false, true)
+  /** Altura medida del nav fijo; el contenido baja con un spacer explícito (más fiable que solo padding en flex + fixed). */
+  const [navChromeHeightPx, setNavChromeHeightPx] = useState<number | null>(null)
+  const landingNavRef = useRef<HTMLDivElement | null>(null)
 
-  // Calcular paddingTop dinámicamente según el dispositivo
   useEffect(() => {
-    const calculatePadding = () => {
-      if (typeof window === 'undefined') return
-      
-      const width = window.innerWidth
-      
-      // Móvil (< 640px)
-      if (width < 640) {
-        setHeaderPadding('230px')
-      }
-      // Tablet (640px - 1024px)
-      else if (width >= 640 && width < 1024) {
-        setHeaderPadding('170px')
-      }
-      // Desktop (>= 1024px)
-      else {
-        setHeaderPadding('180px')
-      }
-    }
-
-    calculatePadding()
-    window.addEventListener('resize', calculatePadding)
-    return () => window.removeEventListener('resize', calculatePadding)
+    const onResize = () => setViewportWidth(window.innerWidth)
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
   }, [])
-  
+
   // Usar hook cacheado para categorías
   const { categories } = useCategories()
 
@@ -120,6 +120,33 @@ function LandingPageContent() {
     categoryId: selectedCategoryId,
   })
 
+  // Nav `fixed` fuera del flujo: medimos el ref antes del paint (useLayoutEffect) y resizeamos el spacer.
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return
+    const el = landingNavRef.current ?? document.getElementById('landing-nav-chrome')
+    if (!el) return
+
+    const update = () => {
+      const h = el.getBoundingClientRect().height
+      if (h > 0) setNavChromeHeightPx(Math.round(h * 10) / 10)
+    }
+
+    update()
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(update)
+    })
+    ro.observe(el)
+    window.addEventListener('resize', update)
+    const t1 = window.setTimeout(update, 120)
+    const t2 = window.setTimeout(update, 500)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', update)
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [categories.length, isLoading, feedNavScroll.minimalMode, feedNavScroll.compactMid])
+
   // Filtrar productos localmente basado en searchQuery
   // IMPORTANTE: Este hook debe ir ANTES del return condicional
   const items = React.useMemo(() => {
@@ -135,55 +162,6 @@ function LandingPageContent() {
       return title.includes(query) || category.includes(query)
     })
   }, [allItems, searchQuery])
-
-  // Handle scroll para mostrar/ocultar header.
-  // Landing usa scroll nativo del documento en todos los breakpoints.
-  useEffect(() => {
-    let scrollEl: Window | null = null
-
-    let ticking = false
-
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const main =
-            typeof document !== 'undefined'
-              ? document.getElementById('app-main')
-              : null
-          const scrollTop = Math.max(
-            main?.scrollTop ?? 0,
-            window.scrollY || document.documentElement.scrollTop || 0
-          )
-
-          if (scrollTop <= 5) {
-            setIsHeaderVisible(true)
-            setLastScrollY(scrollTop)
-            ticking = false
-            return
-          }
-
-          if (scrollTop > lastScrollY && scrollTop > 200) {
-            setIsHeaderVisible(false)
-          } else if (scrollTop < lastScrollY) {
-            setIsHeaderVisible(true)
-          }
-
-          setLastScrollY(scrollTop)
-          ticking = false
-        })
-      }
-    }
-
-    scrollEl = window
-    scrollEl.addEventListener('scroll', handleScroll, { passive: true })
-    const main =
-      typeof document !== 'undefined' ? document.getElementById('app-main') : null
-    main?.addEventListener('scroll', handleScroll, { passive: true })
-    return () => {
-      scrollEl?.removeEventListener('scroll', handleScroll)
-      main?.removeEventListener('scroll', handleScroll)
-    }
-  }, [lastScrollY])
 
   // Mostrar modal de video automáticamente (solo una vez por sesión)
   // IMPORTANTE: Todos los hooks deben ir ANTES del return condicional
@@ -204,6 +182,12 @@ function LandingPageContent() {
   // Si está autenticado o hay token, mostrar loading mientras redirige
   // IMPORTANTE: Este return debe ir DESPUÉS de TODOS los hooks
   const tokenParam = searchParams.get('token')
+  const navGap = LANDING_NAV_CONTENT_GAP_PX
+  const landingSpacerMinPx = Math.max(
+    navChromeHeightPx != null ? navChromeHeightPx + navGap : 0,
+    landingTopReserveFallbackPx(viewportWidth) + navGap
+  )
+
   if (tokenParam || (isAuthenticated && !hasRedirected.current)) {
     return (
       <div
@@ -224,26 +208,29 @@ function LandingPageContent() {
       style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
     >
       <LandingNav
+        ref={landingNavRef}
         categories={categories}
         selectedCategoryId={selectedCategoryId}
         onCategoryChange={setSelectedCategoryId}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        isHeaderVisible={isHeaderVisible}
+        feedNavScroll={feedNavScroll}
       />
 
       <div
-        className="px-2 py-2 transition-all duration-300 ease-in-out max-md:flex-none max-md:overflow-visible max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:py-4 md:px-4 md:py-5"
+        className="px-2 pb-2 transition-all duration-300 ease-in-out max-md:flex-none max-md:overflow-visible max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:py-4 md:px-4 md:py-5"
         style={{
-          paddingTop: isHeaderVisible
-            ? `max(${headerPadding},calc(env(safe-area-inset-top,0px)+5.25rem))`
-            : /* Solo ocultan buscador+categorías; queda logo + eslogan + Únete */
-              'max(6.25rem, calc(env(safe-area-inset-top, 0px) + 5rem))',
           marginRight: '0',
           scrollBehavior: 'auto',
           overscrollBehavior: 'auto',
         }}
       >
+        {/* Spacer: el nav es position:fixed (fuera del flujo). Sin este bloque, el grid empezaría en y=0 bajo el nav. */}
+        <div
+          className="shrink-0 w-full"
+          aria-hidden
+          style={{ minHeight: landingSpacerMinPx }}
+        />
         {isLoading && items.length === 0 ? (
           <FeedSkeleton />
         ) : feedError ? (

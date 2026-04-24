@@ -40,9 +40,19 @@ interface OnboardingModalProps {
   isOpen: boolean
   onClose: () => void
   onComplete?: () => void
+  /**
+   * Índices internos del wizard (0 usuario … 4 dirección).
+   * [2, 3] = categorías + actividades (pasos 3 y 4 del onboarding de 5 pasos).
+   */
+  onlySteps?: number[]
 }
 
-export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModalProps) {
+export function OnboardingModal({
+  isOpen,
+  onClose,
+  onComplete,
+  onlySteps,
+}: OnboardingModalProps) {
   const { updateOnboardingData, getOnboardingData, isLoading } = useOnboarding()
   const { user } = useAuthStore()
   const [currentStep, setCurrentStep] = useState(0) // Empezar en 0 para username
@@ -163,15 +173,17 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
               setSelectedActivitySlugs(savedData.activities)
             }
 
-            // Determinar en qué paso debería estar el usuario
-            if (user?.username && savedData.birthDate && savedData.categoryIds && savedData.categoryIds.length > 0 && savedData.activities && savedData.activities.length > 0) {
-              setCurrentStep(4) // Dirección
-            } else if (user?.username && savedData.birthDate && savedData.categoryIds && savedData.categoryIds.length > 0) {
-              setCurrentStep(3) // Actividades
-            } else if (user?.username && savedData.birthDate) {
-              setCurrentStep(2) // Categorías
-            } else if (user?.username) {
-              setCurrentStep(1) // Cumpleaños
+            // Determinar en qué paso debería estar el usuario (flujo completo únicamente)
+            if (!onlySteps?.length) {
+              if (user?.username && savedData.birthDate && savedData.categoryIds && savedData.categoryIds.length > 0 && savedData.activities && savedData.activities.length > 0) {
+                setCurrentStep(4) // Dirección
+              } else if (user?.username && savedData.birthDate && savedData.categoryIds && savedData.categoryIds.length > 0) {
+                setCurrentStep(3) // Actividades
+              } else if (user?.username && savedData.birthDate) {
+                setCurrentStep(2) // Categorías
+              } else if (user?.username) {
+                setCurrentStep(1) // Cumpleaños
+              }
             }
           }
         } catch (error) {
@@ -180,18 +192,24 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
       }
     }
     loadSavedData()
-  }, [isOpen, categoryIdToSlugMap, getOnboardingData, user?.username])
+  }, [isOpen, categoryIdToSlugMap, getOnboardingData, user?.username, onlySteps])
 
   // Resetear estado solo cuando se abre por primera vez (no cuando ya estaba abierto)
   useEffect(() => {
     if (isOpen && !hasInitialized) {
-      setCurrentStep(0) // Empezar con username
+      if (onlySteps?.length) {
+        setCurrentStep(onlySteps[0])
+      } else {
+        setCurrentStep(0)
+      }
       setUsername(user?.username || '')
-      setYear(null)
-      setMonth(null)
-      setDay(null)
-      setSelectedCategorySlugs([])
-      setSelectedActivitySlugs([])
+      if (!onlySteps?.length) {
+        setYear(null)
+        setMonth(null)
+        setDay(null)
+        setSelectedCategorySlugs([])
+        setSelectedActivitySlugs([])
+      }
       setAddressData(null)
       setGiftPreferences(null)
       setShowAdultConfirmModal(false)
@@ -200,7 +218,7 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
       setHasInitialized(false)
       setShowAdultConfirmModal(false)
     }
-  }, [isOpen, hasInitialized, user?.username])
+  }, [isOpen, hasInitialized, user?.username, onlySteps])
 
   // Validar si se puede avanzar al siguiente paso
   const canProceed = () => {
@@ -223,6 +241,19 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
 
   // Guardar datos incrementales después de cada paso
   const handleNext = async () => {
+    if (onlySteps?.length) {
+      const idx = onlySteps.indexOf(currentStep)
+      if (idx === -1) return
+      await saveCurrentStep()
+      if (idx >= onlySteps.length - 1) {
+        onComplete?.()
+        onClose()
+        return
+      }
+      setCurrentStep(onlySteps[idx + 1])
+      return
+    }
+
     if (currentStep === 0) {
       setCurrentStep(1)
       return
@@ -285,6 +316,15 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
       handleAdultCorrectDate()
       return
     }
+    if (onlySteps?.length) {
+      const idx = onlySteps.indexOf(currentStep)
+      if (idx <= 0) {
+        onClose()
+        return
+      }
+      setCurrentStep(onlySteps[idx - 1])
+      return
+    }
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1)
     }
@@ -317,7 +357,7 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         .filter((id): id is string => id !== undefined)
 
       await updateOnboardingData({
-        birthDate: birthDateString, // Guardar como string "MM-DD"
+        ...(onlySteps?.length ? {} : { birthDate: birthDateString }),
         categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
         activities: selectedActivitySlugs,
         completedSteps,
@@ -360,7 +400,14 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
   if (!isOpen) return null
 
   const contentStep = getOnboardingContentStep(currentStep)
-  const isAddressStep = currentStep === 4
+  const isAddressStep = currentStep === 4 && !onlySteps?.length
+
+  const progressSegmentCount = onlySteps?.length ?? totalStepsDisplay
+  const progressFilledIndex = onlySteps?.length
+    ? Math.max(0, onlySteps.indexOf(currentStep))
+    : currentStep
+  const displayStepIndex = onlySteps?.length ? onlySteps.indexOf(currentStep) + 1 : currentStep + 1
+  const displayStepTotal = onlySteps?.length ?? totalStepsDisplay
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
@@ -378,13 +425,15 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         {/* Header */}
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
-            <h1 className="text-4xl font-semibold" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>Bienvenido</h1>
+            <h1 className="text-4xl font-semibold" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>
+              {onlySteps?.length ? 'Preferencias' : 'Bienvenido'}
+            </h1>
             <span className="text-sm" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>
-              Paso {currentStep + 1}/{totalStepsDisplay}
+              Paso {displayStepIndex}/{displayStepTotal}
             </span>
           </div>
-          {/* Solo permitir cerrar si el onboarding está completo */}
-          {isOnboardingComplete() ? (
+          {/* Flujo parcial (preferencias): siempre cerrar; flujo completo: solo si ya completó obligatorios */}
+          {onlySteps?.length || isOnboardingComplete() ? (
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-800 rounded"
@@ -400,12 +449,12 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         {/* Barra de progreso */}
         <div className="px-4 pb-4">
           <div className="flex gap-2">
-            {Array.from({ length: totalStepsDisplay }).map((_, index) => (
+            {Array.from({ length: progressSegmentCount }).map((_, index) => (
               <div
                 key={index}
                 className="flex-1 h-2 rounded transition-all duration-300"
                 style={{
-                  backgroundColor: index <= currentStep ? '#73FFA2' : '#66DEDB',
+                  backgroundColor: index <= progressFilledIndex ? '#73FFA2' : '#66DEDB',
                 }}
               />
             ))}
@@ -457,7 +506,7 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
 
         {/* Footer con botones fijos */}
         <div className="flex items-center justify-between p-4">
-          {currentStep === 0 ? (
+          {currentStep === 0 && !onlySteps?.length ? (
             <div style={{ width: '120px' }} />
           ) : (
             <button
@@ -476,7 +525,7 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
             </button>
           )}
 
-          {currentStep === 0 ? (
+          {currentStep === 0 && !onlySteps?.length ? (
             <button
               onClick={async () => {
                 if (username && username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)) {

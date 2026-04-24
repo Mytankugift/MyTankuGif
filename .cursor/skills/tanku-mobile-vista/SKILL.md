@@ -1,111 +1,89 @@
 ---
 name: tanku-mobile-vista
 description: >-
-  Aplica el patrón Tanku para vistas móviles (< md) con scroll en un contenedor
-  interno (no en main), nav superior translúcido opcional, reserva de espacio
-  bajo chrome fijo y coherencia con el bottom nav. Usar al crear o ajustar
-  páginas tipo /feed, /events o nuevas rutas en app/(main).
+  Patrón Tanku para móvil (< md): scroll en documento/ventana (Safari) o scroll
+  interno en md+; layout en app/(main)/layout.tsx, paddings, BaseNav, bottom
+  nav. Referencia: /, /feed, /profile. Usar al crear o ajustar rutas en
+  app/(main).
 ---
 
 # Vista móvil Tanku (scroll + nav + safe areas)
 
 ## Objetivo
 
-En **móvil** (`< md`), el scroll principal de la app **no** debe vivir en `<main id="app-main">` cuando la página necesita scroll fino, nav fijo translúcido y contenido que pasa “por detrás” del menú inferior. Eso ya está resuelto en **`/feed`** y **`/events`**: replicar el mismo contrato en nuevas páginas.
+- **&lt; md**: priorizar el **gesto de scroll del navegador** (minimizar barra de URL en Safari) y un solo eje de desplazamiento: el **documento** (o mezcla `max(#app-main, window)`), no un `<div>` con `overflow-y-auto` atrapado en `main` sin necesidad.
+- **md+**: en rutas “tipo feed / perfil”, el scroll pasa a un **contenedor interno** de la página (`#feed-scroll-root`, `#profile-scroll-root`…); en `<main>`: `md:overflow-hidden`.
 
-En **tablet/desktop** (`md+`), `<main>` puede seguir scrolleando con `pb-0` y el nav usa fondo opaco salvo que la página pida otra cosa.
+Rutas ya alineadas en **`tanku-front/app/(main)/layout.tsx`** (banderas `isSafariDocumentMainRoute`):
 
-## 1. Registrar la ruta en el layout principal
+- `/` (landing)
+- `/feed`, `/events`, `/friends`
+- `/profile`, `/profile/[username]`, … (todo lo que bajo `/profile/*`)
 
-**Archivo:** `tanku-front/app/(main)/layout.tsx`
+Otras (checkout gift-direct, notifications) siguen con **scroll solo interno** y `<main> overflow-hidden`.
 
-- Añade una bandera por ruta, junto a `isFeedOverlayScroll`:
+## 1. `layout.tsx`: clase de `<main id="app-main">`
 
-```tsx
-const isFeedOverlayScroll = pathname === '/feed'
-const isEventsInnerScroll = pathname === '/events' // ejemplo
-const mainOverlayScroll = isFeedOverlayScroll || isEventsInnerScroll || isTuRutaInnerScroll
-```
+No duplicar lógica a mano: añade la ruta a la **bandera** que corresponda.
 
-- Usa `mainOverlayScroll` en la `className` de `<main>`:
+- **Rutas `isSafariDocumentMainRoute`** (landing va aparte con `pb-20` móvil):
 
-  - **Si entra en la lista:** `overflow-hidden pb-0` (el scroll es interno a la página).
-  - **Si no:** `overflow-y-auto overscroll-y-contain pb-20 md:pb-0` (scroll global + hueco para `MobileBottomNav`).
+  `max-md:overflow-x-hidden max-md:overflow-visible overscroll-y-contain pb-0 md:overflow-hidden md:pb-0`
 
-**Importante:** cada nueva ruta “tipo feed” debe sumarse a `mainOverlayScroll` o el `main` seguirá scrolleando y habrá doble scroll o contenido mal alineado con el bottom nav.
+  En móvil **no** uses `max-md:overflow-y-auto` en `main` (el scroll pasa a documento/ventana). En **md+** el scroll vive en la página.
 
-## 2. Estructura de la página (patrón contenedor)
+- **Rutas `mainOverlayScroll`** (p. ej. gift-direct, notifications): `overflow-hidden pb-0`.
 
-**Shell exterior** (hijo directo de lo que renderiza la página):
+- **Resto** (p. ej. términos): `overflow-y-auto overscroll-y-contain pb-20 …`.
 
-- `flex min-h-0 w-full flex-1 flex-col overflow-hidden` (o equivalente) para ocupar el alto útil bajo el layout sin fugas de scroll.
-- Opcional: `id="…-scroll-root"` para documentar el nodo raíz del scroll interno.
+- Contenedor **padre** de `main` (Sidebar + `main` + `MobileBottomNav`), en esas mismas rutas: `min-h-screen overflow-visible` (móvil).
 
-**Capa que scrollea** (solo esta lleva `overflow-y-auto`):
+## 2. Página: dos patrones (móvil = documento, md+ = caja)
 
-- Clases típicas: `min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar`.
+### A) `/feed` (y similars con **un** `id` tipo `#…-scroll-root`)
 
-## 3. Padding móvil bajo chrome fijo
+- **max-md** en el nodo de contenido: `max-md:overflow-y-visible` (nunca `max-md:overflow-y-auto` como único scroller; evita rueda solo en el nav).
+- **md+**: `md:overflow-y-auto`, `md:flex-1`, `md:basis-0`, `min-h-0` en la cadena flex.
 
-Sobre la capa con `overflow-y-auto`, en **`max-md:`**:
+Referencia: `tanku-front/app/(main)/feed/page.tsx` (`#feed-scroll-root`).
 
-- **Superior:** reservar altura del **nav fijo** + safe area, por ejemplo:
+### B) `/profile` (mi perfil) y `/profile/[username]`
 
-  `max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))]`
+- **Shell** del layout de página: `max-md:overflow-y-visible max-md:overflow-x-hidden` y `md:overflow-hidden` en el **outer** y en el nodo con `id="profile-scroll-root"` o `id="profile-public-scroll-root"`.
+- **Capa con padding** (`max-md:pt-*` / `max-md:pb-[calc(5.25rem+…)]`): en **móvil** `max-md:overflow-y-visible max-md:flex-none`; en **md+** `md:overflow-y-auto` + `flex-1 basis-0` para el scroll interno.
 
-  Ajustar valores si el nav de esa página es más alto (tiras, categorías, etc.).
+Referencia: `tanku-front/app/(main)/profile/page.tsx`, `…/profile/[username]/page.tsx`.
 
-- **Inferior:** reservar el **MobileBottomNav** (~50px + safe area), por ejemplo:
+## 3. Padding bajo nav fijo y bottom bar
 
-  `max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]`
+- **Superior (móvil)**: p. ej. `max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))]` (ajustar si el header es más alto).
+- **Inferior (móvil)**: `max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]`.
+- **Horizontal**: `max-md:px-3` (o el que use la vista).
 
-- **Horizontal:** `max-md:px-3` (o `px-4` según diseño).
+## 4. `BaseNav` translúcido (móvil)
 
-En **`md+`**, volver a paddings normales (`md:pt-28`, `md:px-8`, etc.) según la página.
+**`mobileTranslucentNav`** en `components/layout/base-nav.tsx` (perfil, etc.): cristal en &lt; md, sólido en md+.
 
-**Referencias en repo:**
+## 5. Nav fijo de página (FeedNav, etc.)
 
-- Feed: `tanku-front/app/(main)/feed/page.tsx` (`#feed-scroll-root`, `scrollAreaPaddingTop`, nav fijo).
-- Eventos: `tanku-front/app/(main)/events/page.tsx` (`#events-scroll-root`, mismas ideas de `max-md:pt-*` / `max-md:pb-*`).
+Móvil: blur; md+: sólido, `md:left-36 md:right-0` si aplica al área de contenido.
 
-## 4. Nav superior translúcido solo en móvil (BaseNav)
+## 6. Checklist al tocar o crear una ruta
 
-**Archivo:** `tanku-front/components/layout/base-nav.tsx`  
-**Prop:** `mobileTranslucentNav` (opcional).
+1. [ ] Decidir: **¿Safari / documento en móvil?** → sumar a `isSafariDocumentMainRoute` o `isLandingRoute` (ver `layout.tsx`), **no** dejar `main` con `overflow-y-auto` solo en móvil para esas rutas.
+2. [ ] En la página, **&lt; md** el bloque bajo el nav: `overflow-y-visible` (o equivalente) para no atrapar el scroll.
+3. [ ] Paddings `max-md:pt` / `max-md:pb` + safe areas; hueco reservado bottom nav.
+4. [ ] Hooks de scroll: `use-feed-scroll-nav` con lectura `max(#app-main, window)` en “outer scroll” (ver hook).
+5. [ ] Probar ancho &lt; 768: una sola “correa” de scroll, nada crítico tapado por el bottom nav.
 
-- En la página, pasa `mobileTranslucentNav` en `<BaseNav />` cuando quieras el mismo cristal que en feed en **&lt; md** (`rgba` + `backdrop-blur`), y fondo opaco desde **`md`**.
-- No hace falta en páginas que ya usan otro nav (ej. `FeedNav` solo en `/feed`).
+## 7. Z-index de modales
 
-## 5. Nav fijo propio de la página (no BaseNav)
+Overlays encima del bottom nav: `z-index ≥ 1000000` si el nav usa 999999.
 
-Si la página usa un **header `fixed`** propio (como el feed):
+## 8. Resumen: variante “Safari” (móvil)
 
-- En **móvil:** `max-md:` blur + fondo translúcido.
-- En **tablet/desktop:** `md:` fondo sólido (`var(--color-surface-191e23-20)` o similar), sin blur; extender `md:right-0` si debe pegar al borde derecho del área de contenido.
+- **`layout.tsx`**: en rutas de la bandera, `<main>` con **`max-md:overflow-visible`** (y `md:overflow-hidden` para ceder el scroll a la página en escritorio).
+- **Páginas**: en **&lt; md** no crees un contenedor con **solo** `overflow-y-auto` que sea el scroller mientras el usuario espera el gesto de documento. Coherente con **`/feed`**, **landing** y **perfil** actuales.
+- **Infinite / intersection**: con scroll en documento, `root: null` (viewport) en móvil si aplica.
 
-## 6. Checklist rápido al añadir una ruta nueva
-
-1. [ ] ¿El scroll debe ser solo interno? → Añadir ruta a `mainOverlayScroll` en `layout.tsx`.
-2. [ ] Shell `overflow-hidden` + hijo `min-h-0 flex-1 overflow-y-auto`.
-3. [ ] `max-md:pt-*` y `max-md:pb-*` con safe areas.
-4. [ ] ¿Usa `BaseNav`? → Valorar `mobileTranslucentNav`.
-5. [ ] Probar en viewport &lt; 768px: no doble scroll, nada crítico tapado por nav inferior o superior.
-
-## 7. Z-index de modales globales
-
-Modales que deben quedar por encima del bottom nav (`z-[999999]`) deben usar **z-index ≥ 1000000** en overlay (ver `EventsModal`, menú central móvil).
-
-## 8. Variante Safari UX (scroll nativo del documento)
-
-Cuando la prioridad sea que Safari/Chrome móvil minimicen su UI al bajar (barra superior/inferior del navegador), usar esta variante en **móvil**. Está aplicada en **`/`**, **`/feed`** y **`/events`** (`layout.tsx` + página con `max-md:overflow-visible` en el contenido y scroll en `<main>`):
-
-- En `app/(main)/layout.tsx`, para esa ruta usar:
-  - contenedor principal: `min-h-screen overflow-visible` (en móvil),
-  - `<main>`: `overflow-y-auto overscroll-y-contain pb-0 md:overflow-hidden` si en `md+` quieres mantener scroll interno.
-- En la página, evitar `max-md:overflow-y-auto` en el contenedor interno; dejar `max-md:overflow-visible` para que el scroll real ocurra en documento/window.
-- Los hooks que dependen de scroll deben soportar `window` en móvil:
-  - nav por scroll: leer `window.scrollY`,
-  - infinite scroll: `IntersectionObserver` con `root: null` (viewport) en móvil.
-- Mantener `max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]` para reservar espacio del `MobileBottomNav`.
-
-Úsala en rutas donde el gesto nativo del navegador sea requisito UX. Si la prioridad es control fino del header/overlay, mantener el patrón de scroll interno.
+Si una vista necesita **obligatoriedad** de scroll anclado a un contenedor (p. ej. modales, drag), documentar la excepción y valorar añadirla a `mainOverlayScroll` en el layout.

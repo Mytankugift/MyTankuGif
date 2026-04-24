@@ -53,7 +53,8 @@ export const updateAddressSchema = z.object({
 
 const socialLinkSchema = z.object({
   platform: z.string().min(1, 'La plataforma es requerida'),
-  url: z.string().url('La URL debe ser válida'),
+  /** Usuario, @handle o URL completa; el backend normaliza a URL absoluta */
+  url: z.string().min(1, 'El usuario o URL es requerido'),
 });
 
 export const updateUserProfileSchema = z.object({
