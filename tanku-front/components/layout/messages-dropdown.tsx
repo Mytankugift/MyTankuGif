@@ -214,11 +214,11 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey) return
+    if (e.nativeEvent.isComposing) return
+    e.preventDefault()
+    handleSend()
   }
 
   if (!isOpen) return null
@@ -352,9 +352,9 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
                 ref={textareaRef}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 placeholder="Escribe un mensaje..."
-                className="flex-1 resize-none bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#66DEDB] max-h-[120px]"
+                className="flex-1 resize-none bg-gray-700 text-white rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#66DEDB] max-h-[120px]"
                 rows={1}
               />
               <button

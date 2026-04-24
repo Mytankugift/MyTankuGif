@@ -294,7 +294,7 @@ export function AddressFormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4">
       <div
-        className="flex w-full max-w-[600px] flex-col overflow-hidden rounded-[25px] border border-white/[0.1] shadow-[0_8px_40px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/[0.06] [width:90%] [max-height:min(720px,90dvh)] [min-height:min(600px,85dvh)]"
+        className="flex w-full max-w-[520px] flex-col overflow-hidden rounded-[25px] border border-white/[0.1] shadow-[0_8px_40px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/[0.06] [width:88%] [max-height:min(640px,85dvh)] [min-height:min(520px,78dvh)]"
         style={CHECKOUT_TANKU_PAGE_BG}
       >
         {/* Header */}
@@ -311,7 +311,7 @@ export function AddressFormModal({
         </div>
 
         {/* Form */}
-        <div className="flex-1 overflow-y-auto px-4 pb-6 custom-scrollbar" style={{ minHeight: '450px', maxHeight: '520px' }}>
+        <div className="flex-1 overflow-y-auto px-4 pb-5 custom-scrollbar" style={{ minHeight: '400px', maxHeight: '460px' }}>
         <form id="address-form" onSubmit={handleSubmit} className="space-y-3">
           {error && (
             <div className="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">

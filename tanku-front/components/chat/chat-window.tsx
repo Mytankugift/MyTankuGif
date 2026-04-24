@@ -217,11 +217,11 @@ export function ChatWindow({
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey) return
+    if (e.nativeEvent.isComposing) return
+    e.preventDefault()
+    handleSend()
   }
   
   const typingUsers = conversationId ? getTypingUsers(conversationId) : []
@@ -498,9 +498,9 @@ export function ChatWindow({
             ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="Escribe un mensaje..."
-            className="max-h-[120px] flex-1 resize-none rounded-lg bg-gray-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#66DEDB]"
+            className="max-h-[120px] flex-1 resize-none rounded-lg bg-gray-700 px-3 py-2 text-base text-white focus:outline-none focus:ring-2 focus:ring-[#66DEDB]"
             rows={1}
             disabled={isSending || !isConnected}
             autoFocus

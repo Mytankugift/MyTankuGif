@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, type ComponentType } from 'react'
-import { XMarkIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
+import { createPortal } from 'react-dom'
+import { XMarkIcon, Cog6ToothIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { UserIcon, MapPinIcon } from '@heroicons/react/24/outline'
 import { ShieldCheckIcon } from '@heroicons/react/24/solid'
 import { PersonalInfoSection } from './personal-info-section'
@@ -33,6 +34,11 @@ const tabMeta: { key: Tab; label: string; Icon: ComponentType<{ className?: stri
 export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('PERFIL')
   const { setActiveTab: setProfilePageTab } = useProfileNavigation()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (isOpen && initialTab) {
@@ -40,21 +46,26 @@ export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: Setting
     }
   }, [isOpen, initialTab])
 
-  if (!isOpen) return null
+  if (!isOpen || !mounted) return null
 
-  return (
+  return createPortal(
     <div
       className={clsx(
-        'pointer-events-none fixed inset-0 z-[2000000] flex max-md:items-stretch max-md:justify-stretch max-md:pt-0 md:items-center md:justify-center',
-        'max-md:pt-[max(6.5rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[max(0.25rem,env(safe-area-inset-bottom,0px))] max-md:px-2',
-        'md:p-6',
+        'pointer-events-none flex',
+        /* Móvil: como chat en /messages — encima del BaseNav, sin tapar el bottom nav */
+        'max-md:fixed max-md:left-0 max-md:right-0 max-md:top-0 max-md:z-[60]',
+        'max-md:bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))]',
+        'max-md:flex-col max-md:items-stretch max-md:justify-stretch max-md:p-0',
+        'max-md:pt-[env(safe-area-inset-top,0px)]',
+        /* Escritorio: overlay modal centrado */
+        'md:fixed md:inset-0 md:z-[2000000] md:items-center md:justify-center md:p-6',
       )}
       role="presentation"
     >
-      {/* Clic en el aire: cerrar; solo el panel recibe clics */}
+      {/* Clic en el aire: cerrar; solo el panel recibe clics (en móvil a pantalla completa casi no hay «aire») */}
       <button
         type="button"
-        className="pointer-events-auto absolute inset-0 z-0 cursor-default"
+        className="pointer-events-auto absolute inset-0 z-0 cursor-default md:bg-black/60"
         onClick={onClose}
         aria-label="Cerrar configuración"
       />
@@ -62,27 +73,38 @@ export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: Setting
       <div
         className={clsx(
           'pointer-events-auto relative z-10 flex w-full min-h-0 max-w-4xl flex-1 flex-col overflow-hidden',
-          'rounded-[25px] border border-[#73FFA2]/50 bg-[#121212] shadow-2xl',
-          'min-h-[16rem] max-md:max-h-[min(94dvh,calc(100dvh-6.5rem))]',
-          'md:h-[min(44rem,min(92dvh,90vh))] md:min-h-[20rem] md:flex-none',
+          'border border-[#73FFA2]/50 bg-[#121212]',
+          'min-h-[16rem]',
+          /* Móvil: ocupa todo el hueco bajo safe areas y sobre el nav inferior */
+          'max-md:max-h-none max-md:min-h-0 max-md:flex-1 max-md:rounded-none max-md:border-x-0 max-md:border-t-0 max-md:shadow-none',
+          /* Escritorio: tarjeta modal */
+          'md:rounded-[25px] md:shadow-2xl md:h-[min(44rem,min(92dvh,90vh))] md:min-h-[20rem] md:flex-none',
         )}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-modal-title"
       >
-        {/* Header */}
-        <div className="flex h-11 shrink-0 items-center justify-between border-b border-white/10 px-3 sm:h-12 sm:px-4">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <Cog6ToothIcon className="h-5 w-5 shrink-0 text-[#73FFA2]" aria-hidden />
-            <h2 id="settings-modal-title" className="truncate text-sm font-bold text-[#73FFA2] sm:text-base">
+        {/* Header: móvil = volver (cierra modal, vuelve al perfil); escritorio = X */}
+        <div className="flex h-11 shrink-0 items-center justify-between border-b border-white/10 px-2 sm:h-12 sm:px-4">
+          <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#D7D7D7] transition-colors hover:bg-white/10 hover:text-white md:hidden"
+              aria-label="Volver al perfil"
+            >
+              <ChevronLeftIcon className="h-6 w-6 shrink-0" />
+            </button>
+            <Cog6ToothIcon className="hidden h-5 w-5 shrink-0 text-[#73FFA2] md:block" aria-hidden />
+            <h2 id="settings-modal-title" className="truncate text-sm font-bold text-[#73FFA2] md:text-base">
               Configuración
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-[25px] p-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white"
+            className="hidden shrink-0 rounded-[25px] p-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white md:inline-flex"
             aria-label="Cerrar"
           >
             <XMarkIcon className="h-5 w-5" />
@@ -154,6 +176,7 @@ export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: Setting
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

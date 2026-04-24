@@ -55,15 +55,13 @@ export function AddressesSection({ onUpdate, design = 'default' }: AddressesSect
   }
 
   const handleDeleteAddress = async (addressId: string) => {
-    if (confirm('¿Estás seguro de eliminar esta dirección?')) {
-      try {
-        await deleteAddress(addressId)
-        if (onUpdate) {
-          onUpdate()
-        }
-      } catch (error) {
-        console.error('Error al eliminar dirección:', error)
+    try {
+      await deleteAddress(addressId)
+      if (onUpdate) {
+        onUpdate()
       }
+    } catch (error) {
+      console.error('Error al eliminar dirección:', error)
     }
   }
 
