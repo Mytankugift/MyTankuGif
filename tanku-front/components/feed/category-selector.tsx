@@ -195,7 +195,7 @@ export function CategorySelector({
               placeholder="Filtrar…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="tanku-pill-search-input min-h-0 min-w-0 flex-1 rounded-full border border-white/10 py-1.5 pl-2 pr-2 text-[11px] text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-[#66DEDB]/40 sm:text-xs"
+              className="tanku-pill-search-input min-h-0 min-w-0 flex-1 rounded-full border border-white/10 py-1.5 pl-2 pr-2 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-[#66DEDB]/40 md:text-[11px]"
               style={{ fontFamily: 'Poppins, sans-serif' }}
             />
             {searchQuery ? (

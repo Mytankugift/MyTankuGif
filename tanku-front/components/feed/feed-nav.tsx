@@ -397,7 +397,7 @@ export function FeedNav({
                 }
               }}
               disabled={!isAuthenticated}
-              className="tanku-pill-search-input w-full rounded-full border border-white/10 py-2 pl-10 pr-3 text-sm transition-all duration-200 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="tanku-pill-search-input w-full rounded-full border border-white/10 py-2 pl-10 pr-3 transition-all duration-200 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20 disabled:cursor-not-allowed disabled:opacity-50"
               style={{ fontFamily: 'Poppins, sans-serif' }}
             />
           </div>

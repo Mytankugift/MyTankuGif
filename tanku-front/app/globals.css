@@ -3,12 +3,29 @@
 @tailwind utilities;
 
 @layer components {
+  /* iOS Safari: menos de 16px al enfocar provoca zoom; 1rem en móvil, 0.875rem desde md */
   .tanku-pill-search-input {
     background-color: var(--tanku-search-bar-fill);
     color: #fff;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  @media (min-width: 768px) {
+    .tanku-pill-search-input {
+      font-size: 0.875rem; /* 14px */
+      line-height: 1.25rem;
+    }
   }
   .tanku-pill-search-input::placeholder {
     color: rgba(255, 255, 255, 0.45);
+    font-size: inherit;
+  }
+}
+
+@layer utilities {
+  /** Buscadores y campos de texto: ≥16px en móvil para evitar zoom en iOS Safari */
+  .tanku-input-text-ios {
+    @apply text-base md:text-sm;
   }
 }
 

@@ -90,7 +90,7 @@ export function BlockedUsersList({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar por nombre, @usuario o correo…"
-            className="tanku-pill-search-input w-full rounded-full border border-white/10 py-2 pl-10 pr-3 text-sm text-white placeholder:text-white/35 transition-all duration-200 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
+            className="tanku-pill-search-input w-full rounded-full border border-white/10 py-2 pl-10 pr-3 text-white placeholder:text-white/35 transition-all duration-200 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
             style={{ fontFamily: 'Poppins, sans-serif' }}
           />
         </div>

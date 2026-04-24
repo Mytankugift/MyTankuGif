@@ -548,7 +548,7 @@ export function UserMentionAutocomplete({
         }}
         placeholder={placeholder}
         disabled={disabled}
-        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#73FFA2] focus:border-transparent"
+        className="tanku-input-text-ios w-full rounded-2xl border border-gray-700 bg-gray-800 px-4 py-2 text-white placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#73FFA2]"
       />
 
       {/* Sugerencias - Portal para evitar restricciones del modal (arriba del input) */}

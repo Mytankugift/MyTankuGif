@@ -189,7 +189,7 @@ export function ShareProductModal({ isOpen, productUrl, productTitle, onClose }:
               placeholder="Buscar Amigos..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 focus:outline-none placeholder:text-[#2C3137]"
+              className="tanku-input-text-ios w-full px-4 py-2 focus:outline-none placeholder:text-[#2C3137]"
               style={{
                 backgroundColor: '#66DEDB',
                 borderRadius: '25px',

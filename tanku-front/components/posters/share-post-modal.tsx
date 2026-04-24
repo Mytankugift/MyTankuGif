@@ -185,7 +185,7 @@ export function SharePostModal({ isOpen, postUrl, postDescription, onClose }: Sh
             placeholder="Buscar amigos..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#73FFA2]"
+            className="tanku-input-text-ios w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#73FFA2]"
           />
         </div>
 

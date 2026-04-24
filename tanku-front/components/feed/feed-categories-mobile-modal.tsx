@@ -171,7 +171,7 @@ export function FeedCategoriesMobileModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar categoría..."
-              className="w-full bg-transparent text-[13px] text-white placeholder:text-white/40 outline-none md:text-sm"
+              className="tanku-input-text-ios w-full bg-transparent text-white placeholder:text-white/40 outline-none"
               autoComplete="off"
             />
           </label>

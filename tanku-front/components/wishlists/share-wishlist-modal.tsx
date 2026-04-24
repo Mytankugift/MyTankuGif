@@ -213,7 +213,7 @@ export function ShareWishlistModal({ wishlist, isOpen, onClose }: ShareWishlistM
               placeholder="Buscar amigos..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#73FFA2]"
+              className="tanku-input-text-ios w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#73FFA2]"
             />
           </div>
 

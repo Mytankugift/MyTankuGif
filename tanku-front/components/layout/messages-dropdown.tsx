@@ -299,7 +299,7 @@ export function MessagesDropdown({ isOpen, onClose, onOpenChat }: MessagesDropdo
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar conversación..."
-                className="tanku-pill-search-input h-8 w-full rounded-full border border-white/10 bg-transparent pl-9 pr-3 text-sm text-white placeholder:text-[#A7A7A7] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
+                className="tanku-pill-search-input h-8 w-full rounded-full border border-white/10 bg-transparent pl-9 pr-3 text-white placeholder:text-[#A7A7A7] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
               />
               <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#73FFA2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

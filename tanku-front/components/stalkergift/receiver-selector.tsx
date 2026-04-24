@@ -137,7 +137,7 @@ export function ReceiverSelector({ receiver, onSelect }: ReceiverSelectorProps) 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar usuario..."
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+              className="tanku-input-text-ios w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
             />
           </div>
 
@@ -268,7 +268,7 @@ export function ReceiverSelector({ receiver, onSelect }: ReceiverSelectorProps) 
                 value={externalData.instagram}
                 onChange={(e) => handleExternalDataChange('instagram', e.target.value)}
                 placeholder="@usuario"
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                className="tanku-input-text-ios w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
               />
             </div>
 
@@ -281,7 +281,7 @@ export function ReceiverSelector({ receiver, onSelect }: ReceiverSelectorProps) 
                 value={externalData.email}
                 onChange={(e) => handleExternalDataChange('email', e.target.value)}
                 placeholder="usuario@email.com"
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                className="tanku-input-text-ios w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
               />
             </div>
 
@@ -294,7 +294,7 @@ export function ReceiverSelector({ receiver, onSelect }: ReceiverSelectorProps) 
                 value={externalData.phone}
                 onChange={(e) => handleExternalDataChange('phone', e.target.value)}
                 placeholder="3001234567"
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                className="tanku-input-text-ios w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
               />
             </div>
 
@@ -307,7 +307,7 @@ export function ReceiverSelector({ receiver, onSelect }: ReceiverSelectorProps) 
                 value={externalData.name}
                 onChange={(e) => handleExternalDataChange('name', e.target.value)}
                 placeholder="Nombre del receptor"
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+                className="tanku-input-text-ios w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
               />
             </div>
           </div>

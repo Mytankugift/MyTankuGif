@@ -631,7 +631,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                       onChange={(e) => setFriendsSearchQuery(e.target.value)}
                       placeholder="Buscar amigos…"
                       autoComplete="off"
-                      className="tanku-pill-search-input w-full rounded-full border border-white/10 bg-[#11161d] py-2 pl-10 pr-3 text-sm text-white placeholder-gray-400 transition-all duration-200 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
+                      className="tanku-pill-search-input w-full rounded-full border border-white/10 bg-[#11161d] py-2 pl-10 pr-3 text-white placeholder-gray-400 transition-all duration-200 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
                       style={{ fontFamily: 'Poppins, sans-serif' }}
                     />
                   </div>
@@ -763,7 +763,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
                   onChange={(e) => setAddMembersSearchQuery(e.target.value)}
                   placeholder="Buscar amigos…"
                   autoComplete="off"
-                  className="tanku-pill-search-input w-full rounded-full border border-white/10 bg-[#11161d] py-2 pl-10 pr-3 text-sm text-white placeholder-gray-400 transition-all duration-200 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
+                  className="tanku-pill-search-input w-full rounded-full border border-white/10 bg-[#11161d] py-2 pl-10 pr-3 text-white placeholder-gray-400 transition-all duration-200 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20"
                   style={{ fontFamily: 'Poppins, sans-serif' }}
                 />
               </div>

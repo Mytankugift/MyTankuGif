@@ -18,7 +18,7 @@ import { BaseNav } from '@/components/layout/base-nav'
 const surface =
   'rounded-2xl bg-[#222222] p-5 sm:p-6 ring-1 ring-white/[0.06]'
 const inputClass =
-  'w-full rounded-xl border border-white/[0.08] bg-[#1a1a1a] px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-[#66DEDB]/45 focus:outline-none focus:ring-1 focus:ring-[#66DEDB]/20'
+  'tanku-input-text-ios w-full rounded-xl border border-white/[0.08] bg-[#1a1a1a] px-3 py-2.5 text-zinc-100 placeholder:text-zinc-500 focus:border-[#66DEDB]/45 focus:outline-none focus:ring-1 focus:ring-[#66DEDB]/20'
 const sectionLabel =
   'mb-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#66DEDB]'
 

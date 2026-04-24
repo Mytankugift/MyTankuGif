@@ -270,7 +270,7 @@ export function MyWishlists() {
                           setIsPublic(false)
                         }
                       }}
-                      className="px-2 py-1 bg-transparent border-b border-[#73FFA2] text-white focus:outline-none focus:border-[#66DEDB] min-w-0"
+                      className="tanku-input-text-ios min-w-0 border-b border-[#73FFA2] bg-transparent px-2 py-1 text-white focus:outline-none focus:border-[#66DEDB]"
                       style={{ maxWidth: '300px' }}
                       autoFocus
                     />
@@ -530,7 +530,7 @@ export function MyWishlists() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="Mi wishlist"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#73FFA2]"
+                  className="tanku-input-text-ios w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white placeholder-gray-500 focus:border-[#73FFA2] focus:outline-none"
                 />
               </div>
               <label className="flex items-center gap-2 cursor-pointer">

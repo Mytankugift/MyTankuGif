@@ -258,7 +258,7 @@ export function WishlistSelectorModal({
                   value={newWishlistName}
                   onChange={(e) => setNewWishlistName(e.target.value)}
                   placeholder="Mi wishlist"
-                  className="w-full px-3 py-2 text-white placeholder-gray-500 focus:outline-none"
+                  className="tanku-input-text-ios w-full px-3 py-2 text-white placeholder-gray-500 focus:outline-none"
                   style={{
                     backgroundColor: 'transparent',
                     border: '2px solid #73FFA2',
