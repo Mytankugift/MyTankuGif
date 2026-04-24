@@ -5,7 +5,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import clsx from 'clsx'
 import { motion } from 'framer-motion'
 
 interface HoneycombItem {
@@ -23,6 +23,8 @@ interface HoneycombGridProps {
   allowMultiple?: boolean
   showEmoji?: boolean
   pattern?: '4-3' | '4-5' // Patrón: 4-3-4-3 o 4-5-4-5
+  /** Hexágonos algo más pequeños en móvil (p. ej. modal Preferencias) */
+  compact?: boolean
 }
 
 /**
@@ -34,25 +36,25 @@ function HoneycombHexagon({
   onClick,
   disabled,
   showEmoji = true,
+  compact = false,
 }: {
   item: HoneycombItem
   isSelected: boolean
   onClick: () => void
   disabled: boolean
   showEmoji?: boolean
+  compact?: boolean
 }) {
   return (
     <motion.button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`
-        relative
-        w-[72px] h-[88px] sm:w-[88px] sm:h-[104px]
-        flex items-center justify-center
-        transition-colors duration-300
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-      `}
+      className={clsx(
+        'relative flex items-center justify-center transition-colors duration-300',
+        compact ? 'h-[78px] w-[64px] sm:h-[104px] sm:w-[88px]' : 'h-[88px] w-[72px] sm:h-[104px] sm:w-[88px]',
+        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+      )}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
@@ -163,6 +165,7 @@ export function HoneycombGrid({
   allowMultiple = true,
   showEmoji = true,
   pattern = '4-3', // Por defecto 4-3-4-3
+  compact = false,
 }: HoneycombGridProps) {
   const canSelectMore = maxSelection ? selectedSlugs.length < maxSelection : true
   const canDeselect = minSelection ? selectedSlugs.length > minSelection : true
@@ -171,7 +174,9 @@ export function HoneycombGrid({
   const [firstRowCount, secondRowCount] = pattern === '4-3' ? [4, 3] : [4, 5]
   
   // Calcular el ancho de cada columna (hexágono ocupa 2 columnas)
-  const hexWidth = 72 // w-[72px] en mobile
+  const hexWidth = compact ? 64 : 72
+  const hexHeightMobile = compact ? 78 : 88
+  const rowOverlapPx = compact ? -21 : -24
   const columnWidth = hexWidth / 2 // 36px por columna
   
   // Calcular cuántas columnas necesitamos (máximo entre primera y segunda fila)
@@ -192,7 +197,7 @@ export function HoneycombGrid({
 
   return (
     <div 
-      className="w-full max-w-4xl mx-auto p-2 sm:p-4"
+      className={clsx('mx-auto w-full max-w-4xl p-2 sm:p-4', compact && 'max-md:p-1')}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -217,7 +222,7 @@ export function HoneycombGrid({
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              marginTop: rowIndex > 0 ? '-24px' : '0',
+              marginTop: rowIndex > 0 ? `${rowOverlapPx}px` : '0',
               gap: '0',
               width: '100%',
               transform: shouldOffset ? `translateX(${0}px)` : 'none',
@@ -230,8 +235,8 @@ export function HoneycombGrid({
                   <div
                     key={`empty-${rowIndex}-${index}`}
                     style={{
-                      width: '72px',
-                      height: '88px',
+                      width: `${hexWidth}px`,
+                      height: `${hexHeightMobile}px`,
                       visibility: 'hidden',
                       margin: '0 8.5px',
                     }}
@@ -265,6 +270,7 @@ export function HoneycombGrid({
                     }}
                     disabled={disabled}
                     showEmoji={showEmoji}
+                    compact={compact}
                   />
                 </div>
               )

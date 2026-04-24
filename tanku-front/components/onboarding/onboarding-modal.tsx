@@ -6,6 +6,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import clsx from 'clsx'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { OnboardingStepUsername } from './onboarding-step-username'
 import { OnboardingStepBirthday } from './onboarding-step-birthday'
@@ -411,25 +412,45 @@ export function OnboardingModal({
 
   const isPreferencesOnly = Boolean(onlySteps?.length)
 
+  const footerBtnClass =
+    'font-semibold transition-all rounded-full max-md:h-9 max-md:w-[104px] max-md:text-xs md:h-10 md:w-[120px] md:text-sm disabled:opacity-50 disabled:cursor-not-allowed'
+
   return (
     <div className="fixed inset-0 z-[2000005]">
       <div className="absolute inset-0 bg-black/80" aria-hidden />
       <div
-        className={
-          'pointer-events-none relative z-10 flex h-full min-h-0 w-full max-md:items-stretch max-md:justify-stretch max-md:px-2 max-md:pt-[max(5.75rem,calc(env(safe-area-inset-top,0px)+4.5rem))] max-md:pb-[max(0.35rem,env(safe-area-inset-bottom,0px))] md:items-center md:justify-center md:p-3 lg:p-4'
-        }
+        className={clsx(
+          'pointer-events-none relative z-10 flex h-full min-h-0 w-full max-md:px-2 max-md:pb-[max(0.35rem,env(safe-area-inset-bottom,0px))] md:items-center md:justify-center md:p-3 lg:p-4',
+          isPreferencesOnly
+            ? 'max-md:items-start max-md:justify-center max-md:pt-[max(0.35rem,env(safe-area-inset-top,0px)+2.25rem)]'
+            : 'max-md:items-stretch max-md:justify-stretch max-md:pt-[max(5.75rem,calc(env(safe-area-inset-top,0px)+4.5rem))]'
+        )}
       >
       <div
-        className="pointer-events-auto relative z-10 flex w-full min-h-0 max-w-[600px] flex-1 flex-col overflow-hidden rounded-[25px] border-2 sm:min-h-0 md:mx-auto md:w-[min(100%,600px)] md:max-h-[min(92dvh,800px)] md:flex-none"
+        className={clsx(
+          'pointer-events-auto relative z-10 flex w-full min-h-0 max-w-[600px] flex-col overflow-hidden rounded-[25px] border-2 sm:min-h-0 md:mx-auto md:w-[min(100%,600px)] md:max-h-[min(92dvh,800px)] md:flex-none',
+          isPreferencesOnly
+            ? 'max-md:flex-none max-md:max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2.75rem))] md:min-h-[min(82dvh,700px)] md:max-h-[min(92dvh,780px)]'
+            : 'max-md:flex-1'
+        )}
         style={{
           backgroundColor: '#262626',
           borderColor: '#73FFA2',
-          minHeight: isPreferencesOnly ? 'min(82dvh, 700px)' : 'min(90dvh, 600px)',
-          maxHeight: isPreferencesOnly ? 'min(92dvh, 780px)' : 'min(92dvh, 720px)',
+          ...(!isPreferencesOnly
+            ? {
+                minHeight: 'min(90dvh, 600px)',
+                maxHeight: 'min(92dvh, 720px)',
+              }
+            : {}),
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-2 p-3 sm:p-4">
+        <div
+          className={clsx(
+            'flex items-center justify-between gap-2 p-3 sm:p-4',
+            isPreferencesOnly && 'max-md:p-2.5 max-md:pt-2'
+          )}
+        >
           <div className="min-w-0 flex flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
             <h1
               className={
@@ -463,7 +484,12 @@ export function OnboardingModal({
         </div>
 
         {/* Barra de progreso */}
-        <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+        <div
+          className={clsx(
+            'px-3 pb-3 sm:px-4 sm:pb-4',
+            isPreferencesOnly && 'max-md:px-2.5 max-md:pb-2'
+          )}
+        >
           <div className="flex gap-2">
             {Array.from({ length: progressSegmentCount }).map((_, index) => (
               <div
@@ -479,11 +505,19 @@ export function OnboardingModal({
 
         {/* Contenido */}
         <div
-          className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-y-visible px-3 pb-4 sm:px-4 sm:pb-6 md:overflow-y-auto"
-          style={{
-            minHeight: isPreferencesOnly ? 'min(50dvh, 460px)' : '320px',
-            maxHeight: isPreferencesOnly ? 'min(64dvh, 560px)' : '520px',
-          }}
+          className={clsx(
+            'custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-y-visible px-3 pb-4 sm:px-4 sm:pb-6 md:overflow-y-auto',
+            isPreferencesOnly &&
+              'max-md:px-2.5 max-md:pb-3 max-md:min-h-[min(42dvh,360px)] max-md:max-h-[min(56dvh,520px)] md:min-h-[min(50dvh,460px)] md:max-h-[min(64dvh,560px)]'
+          )}
+          style={
+            isPreferencesOnly
+              ? undefined
+              : {
+                  minHeight: '320px',
+                  maxHeight: '520px',
+                }
+          }
         >
           {currentStep === 0 && (
             <OnboardingStepUsername
@@ -508,6 +542,7 @@ export function OnboardingModal({
             <OnboardingStepCategories
               selectedCategorySlugs={selectedCategorySlugs}
               onToggleCategory={toggleCategory}
+              compact={isPreferencesOnly}
             />
           )}
 
@@ -515,6 +550,7 @@ export function OnboardingModal({
             <OnboardingStepActivities
               selectedActivitySlugs={selectedActivitySlugs}
               onToggleActivity={toggleActivity}
+              compact={isPreferencesOnly}
             />
           )}
 
@@ -527,18 +563,21 @@ export function OnboardingModal({
         </div>
 
         {/* Footer con botones fijos */}
-        <div className="shrink-0 border-t border-white/5 bg-[#262626] p-3 sm:p-4">
-          <div className="mx-auto flex max-w-[600px] items-center justify-between gap-2">
+        <div
+          className={clsx(
+            'shrink-0 border-t border-white/5 bg-[#262626] p-3 sm:p-4',
+            isPreferencesOnly && 'max-md:p-2.5'
+          )}
+        >
+          <div className="mx-auto flex max-w-[600px] items-center justify-between gap-2 max-md:gap-1.5">
           {currentStep === 0 && !onlySteps?.length ? (
-            <div style={{ width: '120px' }} />
+            <div className="max-md:w-[104px] md:w-[120px]" />
           ) : (
             <button
               onClick={handleBack}
               disabled={isLoading}
-              className="font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-full"
+              className={footerBtnClass}
               style={{
-                width: '120px',
-                height: '40px',
                 backgroundColor: !isLoading ? '#73FFA2' : '#4A4A4A',
                 color: !isLoading ? '#262626' : '#666',
                 fontFamily: 'Poppins, sans-serif',
@@ -563,10 +602,8 @@ export function OnboardingModal({
                 }
               }}
               disabled={!username || username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username)}
-              className="font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-full"
+              className={footerBtnClass}
               style={{
-                width: '120px',
-                height: '40px',
                 backgroundColor: (username && username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)) ? '#73FFA2' : '#4A4A4A',
                 color: (username && username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)) ? '#262626' : '#666',
                 fontFamily: 'Poppins, sans-serif',
@@ -577,10 +614,8 @@ export function OnboardingModal({
           ) : isAddressStep ? (
             <button
               onClick={handleAddressSkip}
-              className="font-semibold transition-all rounded-full"
+              className={clsx(footerBtnClass, 'disabled:opacity-50')}
               style={{
-                width: '120px',
-                height: '40px',
                 backgroundColor: '#73FFA2',
                 color: '#262626',
                 fontFamily: 'Poppins, sans-serif',
@@ -592,10 +627,8 @@ export function OnboardingModal({
             <button
               onClick={handleNext}
               disabled={!canProceed() || isLoading}
-              className="font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-full"
+              className={footerBtnClass}
               style={{
-                width: '120px',
-                height: '40px',
                 backgroundColor: canProceed() && !isLoading ? '#73FFA2' : '#4A4A4A',
                 color: canProceed() && !isLoading ? '#262626' : '#666',
                 fontFamily: 'Poppins, sans-serif',
