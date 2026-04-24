@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { clsx } from 'clsx'
 import Image from 'next/image'
 import { useNotifications } from '@/lib/hooks/use-notifications'
 import { NotificationItem } from '@/components/notifications/notification-item'
@@ -128,7 +129,15 @@ export default function NotificationsPage() {
     'rounded-full border border-[#414141] bg-transparent px-3 py-1.5 text-[11px] font-semibold text-gray-400 transition-colors hover:border-[#73FFA2]/50 md:px-4 md:py-2 md:text-sm'
 
   return (
-    <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+    <div
+      className={clsx(
+        /* Alineado con app/(main)/page.tsx (landing móvil): min-h llena el viewport, sin franja; flex en md+ */
+        'relative z-0 flex w-full min-w-0 flex-1 flex-col text-white',
+        'max-md:min-h-screen max-md:overflow-x-hidden max-md:overflow-visible',
+        'md:min-h-0 md:overflow-hidden',
+      )}
+      style={{ fontFamily: 'Poppins, sans-serif', backgroundColor: 'var(--color-surface-191e23-20)' }}
+    >
       <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
         <BaseNav
           showStories={false}
@@ -141,15 +150,19 @@ export default function NotificationsPage() {
         />
       </div>
 
+      {/*
+        Móvil: scroll en `#app-main` (documento), como /feed; padding inferior = hueco bajo el bottom nav.
+        md+: scroll en este nodo.
+      */}
       <div
         id="notifications-scroll-root"
-        className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden text-white"
-        style={{
-          fontFamily: 'Poppins, sans-serif',
-          backgroundColor: 'var(--color-surface-191e23-20)',
-        }}
+        className={clsx(
+          'custom-scrollbar relative z-0 min-h-0 w-full max-md:px-3 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:px-8 md:pb-8 md:pt-28 lg:px-10 lg:pt-28',
+          'max-md:overflow-x-hidden max-md:overflow-y-visible max-md:flex-none',
+          'md:flex-1 md:basis-0 md:touch-pan-y md:overflow-x-hidden md:overflow-y-auto md:overscroll-y-contain md:[-webkit-overflow-scrolling:touch]'
+        )}
+        style={{ marginRight: 0, scrollBehavior: 'auto' }}
       >
-        <div className="custom-scrollbar min-h-0 flex-1 basis-0 overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch] max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] md:px-8 md:pb-8 md:pt-28 lg:px-10 lg:pt-28">
           {/* Barra superior: icono nav + título a la izquierda; filtros + marcar todas a la derecha — sin caja modal */}
           <div className="mb-4 flex flex-wrap items-start justify-between gap-x-3 gap-y-3 border-b border-white/[0.08] pb-4 md:mb-6 md:items-center md:pb-5">
             <div className="flex min-w-0 flex-1 items-center gap-2 md:min-w-[200px] md:gap-3">
@@ -267,7 +280,6 @@ export default function NotificationsPage() {
               )}
             </div>
           ) : null}
-        </div>
       </div>
     </div>
   )

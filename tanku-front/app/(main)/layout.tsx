@@ -72,13 +72,12 @@ export default function MainLayout({
   const isProfileRoute = pathname === '/profile' || pathname.startsWith('/profile/')
   /** /checkout/gift-direct: scroll interno (evita doble scroll con navs fijos en móvil) */
   const isGiftDirectInnerScroll = pathname === '/checkout/gift-direct'
-  /** /notifications: scroll interno + BaseNav */
-  const isNotificationsInnerScroll = pathname === '/notifications'
-  const mainOverlayScroll =
-    isGiftDirectInnerScroll || isNotificationsInnerScroll
+  const mainOverlayScroll = isGiftDirectInnerScroll
   /** Móvil: scroll nativo (Safari) como landing; md+: scroll en contenedor de cada página. */
   const isSafariDocumentMainRoute =
-    isFeedOrEventsNativeMainScrollMobile || isProfileRoute
+    isFeedOrEventsNativeMainScrollMobile ||
+    isProfileRoute ||
+    pathname === '/notifications'
 
   return (
     <MainLayoutErrorBoundary>
@@ -88,7 +87,9 @@ export default function MainLayout({
             <div
               className={clsx(
                 'flex',
-                isLandingRoute || isFeedOrEventsNativeMainScrollMobile
+                isLandingRoute ||
+                isFeedOrEventsNativeMainScrollMobile ||
+                pathname === '/notifications'
                   ? 'min-h-screen overflow-visible'
                   : 'h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden md:h-screen md:max-h-none'
               )}
@@ -102,7 +103,11 @@ export default function MainLayout({
                   isLandingRoute
                     ? 'overflow-visible pb-20 md:pb-0 lg:pb-0'
                     : isSafariDocumentMainRoute
-                    ? 'max-md:overflow-x-hidden max-md:overflow-visible overscroll-y-contain pb-0 md:overflow-hidden md:pb-0'
+                    ? clsx(
+                        'max-md:overflow-x-hidden max-md:overflow-visible overscroll-y-contain md:overflow-hidden md:pb-0',
+                        /* Móvil: mismo aire bajo el chrome que / (invitado): el scroll llega “detrás” del menú circular / barra. */
+                        pathname === '/notifications' ? 'max-md:pb-20' : 'pb-0',
+                      )
                     : mainOverlayScroll
                     ? 'overflow-hidden pb-0'
                     : 'overflow-y-auto overscroll-y-contain pb-20 md:pb-0 lg:pb-0'

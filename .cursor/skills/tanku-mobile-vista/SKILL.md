@@ -19,8 +19,9 @@ Rutas ya alineadas en **`tanku-front/app/(main)/layout.tsx`** (banderas `isSafar
 - `/` (landing)
 - `/feed`, `/events`, `/friends`
 - `/profile`, `/profile/[username]`, … (todo lo que bajo `/profile/*`)
+- `/notifications` (mismo contrato: documento/`<main>` en &lt; md, scroll en `#notifications-scroll-root` en md+)
 
-Otras (checkout gift-direct, notifications) siguen con **scroll solo interno** y `<main> overflow-hidden`.
+Otras: **checkout/gift-direct** sigue con **scroll solo interno** y `<main> overflow-hidden`.
 
 ## 1. `layout.tsx`: clase de `<main id="app-main">`
 
@@ -32,7 +33,7 @@ No duplicar lógica a mano: añade la ruta a la **bandera** que corresponda.
 
   En móvil **no** uses `max-md:overflow-y-auto` en `main` (el scroll pasa a documento/ventana). En **md+** el scroll vive en la página.
 
-- **Rutas `mainOverlayScroll`** (p. ej. gift-direct, notifications): `overflow-hidden pb-0`.
+- **Rutas `mainOverlayScroll`** (p. ej. gift-direct): `overflow-hidden pb-0`.
 
 - **Resto** (p. ej. términos): `overflow-y-auto overscroll-y-contain pb-20 …`.
 
