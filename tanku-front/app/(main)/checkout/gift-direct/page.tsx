@@ -13,14 +13,13 @@ import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { UserAvatar } from '@/components/shared/user-avatar'
 import { BaseNav } from '@/components/layout/base-nav'
-
-/** Superficies discretas: verde + aqua solo en acentos, no bordes pesados */
-const surface =
-  'rounded-2xl bg-[#222222] p-5 sm:p-6 ring-1 ring-white/[0.06]'
-const inputClass =
-  'tanku-input-text-ios w-full rounded-xl border border-white/[0.08] bg-[#1a1a1a] px-3 py-2.5 text-zinc-100 placeholder:text-zinc-500 focus:border-[#66DEDB]/45 focus:outline-none focus:ring-1 focus:ring-[#66DEDB]/20'
-const sectionLabel =
-  'mb-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#66DEDB]'
+import {
+  CHECKOUT_TANKU_INPUT as inputClass,
+  CHECKOUT_TANKU_PAGE_BG,
+  CHECKOUT_TANKU_SCROLL_INNER,
+  CHECKOUT_TANKU_SECTION_LABEL as sectionLabel,
+  CHECKOUT_TANKU_SURFACE as surface,
+} from '@/lib/checkout-tanku-design'
 
 // Declaración para TypeScript para el objeto ePayco en window
 declare global {
@@ -449,7 +448,7 @@ function GiftDirectCheckoutContent() {
         />
         <div
           className="min-h-screen overflow-x-hidden overflow-y-auto px-4 pb-8 pt-24 sm:px-6 sm:pt-28 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:px-8 md:pt-32"
-          style={{ backgroundColor: '#1a1a1a' }}
+          style={CHECKOUT_TANKU_PAGE_BG}
         >
           <div className="mx-auto max-w-4xl text-center text-zinc-500">
             <div className={`${surface} mx-auto max-w-md px-8 py-14`}>
@@ -475,7 +474,7 @@ function GiftDirectCheckoutContent() {
         />
         <div
           className="min-h-screen overflow-x-hidden overflow-y-auto px-4 pb-8 pt-24 sm:px-6 sm:pt-28 md:px-8 md:pt-32"
-          style={{ backgroundColor: '#1a1a1a' }}
+          style={CHECKOUT_TANKU_PAGE_BG}
         >
           <div className="mx-auto max-w-4xl text-center">
             <div className={`${surface} mx-auto max-w-md`}>
@@ -506,8 +505,8 @@ function GiftDirectCheckoutContent() {
       />
       <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" id="gift-direct-scroll-root">
         <div
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar max-md:px-4 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:px-8 md:pb-16 md:pt-32"
-          style={{ backgroundColor: '#1a1a1a' }}
+          className={CHECKOUT_TANKU_SCROLL_INNER}
+          style={CHECKOUT_TANKU_PAGE_BG}
         >
         <div className="mx-auto max-w-4xl">
       <form onSubmit={handleSubmit}>
@@ -575,7 +574,7 @@ function GiftDirectCheckoutContent() {
                             key={friend.id}
                             type="button"
                             onClick={() => handleRecipientSelect(friend)}
-                            className="flex items-center gap-2.5 rounded-xl bg-[#20252B] px-2.5 py-2 ring-1 ring-white/[0.08] transition-all hover:ring-[#66DEDB]/35"
+                            className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.04] px-2.5 py-2 ring-1 ring-inset ring-white/[0.03] backdrop-blur-sm transition-all hover:border-[#66DEDB]/25 hover:ring-[#66DEDB]/20"
                           >
                             <UserAvatar
                               user={{
@@ -616,7 +615,7 @@ function GiftDirectCheckoutContent() {
                             key={result.id}
                             type="button"
                             onClick={() => handleRecipientSelect(result)}
-                            className="flex items-center gap-2.5 rounded-xl bg-[#20252B] px-2.5 py-2 ring-1 ring-white/[0.08] transition-all hover:ring-[#66DEDB]/35"
+                            className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.04] px-2.5 py-2 ring-1 ring-inset ring-white/[0.03] backdrop-blur-sm transition-all hover:border-[#66DEDB]/25 hover:ring-[#66DEDB]/20"
                           >
                             <UserAvatar
                               user={{
@@ -702,7 +701,7 @@ function GiftDirectCheckoutContent() {
                 
                 {/* Estado de elegibilidad */}
                 {isCheckingEligibility ? (
-                  <div className="mt-5 rounded-xl bg-[#1a1a1a] px-3 py-2.5 ring-1 ring-white/[0.06]">
+                  <div className="mt-5 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5 ring-1 ring-inset ring-white/[0.04] backdrop-blur-sm">
                     <p className="text-sm text-zinc-500">Validando elegibilidad…</p>
                   </div>
                 ) : eligibility ? (
@@ -753,7 +752,7 @@ function GiftDirectCheckoutContent() {
                 <p className={sectionLabel}>Producto</p>
                 <div className="flex gap-5">
                   {productInfo.product?.thumbnail && (
-                    <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-[#1a1a1a] ring-1 ring-white/[0.06]">
+                    <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl border border-white/[0.08] bg-black/25 ring-1 ring-inset ring-white/[0.04] backdrop-blur-sm">
                       <Image
                         src={productInfo.product.thumbnail}
                         alt={productInfo.product.title}
@@ -846,7 +845,7 @@ function GiftDirectCheckoutContent() {
                 <p className="text-sm text-zinc-500">
                   Pasarela segura con Epayco.
                 </p>
-                <div className="mt-4 rounded-xl bg-[#1a1a1a] px-3 py-2.5 ring-1 ring-white/[0.06]">
+                <div className="mt-4 rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5 ring-1 ring-inset ring-white/[0.04] backdrop-blur-sm">
                   <p className="text-sm font-medium text-[#66DEDB]">Epayco</p>
                 </div>
               </div>

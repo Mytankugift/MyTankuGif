@@ -33,9 +33,18 @@ function onboardingBirthToIso(birthDate: unknown): string {
 
 interface PersonalInfoSectionProps {
   onUpdate?: () => void
+  /** Tarjetas oscuras y tipografía alineada al modal de configuración */
+  design?: 'default' | 'settings'
 }
 
-export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
+/** Tarjetas de campo compactas: solo el control, sin ocupar de más */
+const fieldCardSettings =
+  'rounded-md border border-white/10 bg-[#121212] px-2 py-1'
+const editIconBtnSettings =
+  'shrink-0 rounded border border-white/10 bg-[#1e1e1e] p-1 text-gray-400 transition hover:border-[#73FFA2]/30 hover:text-[#73FFA2]'
+
+export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalInfoSectionProps) {
+  const isSettings = design === 'settings'
   const { user, checkAuth } = useAuthStore()
   const { getOnboardingData, updateOnboardingData } = useOnboarding()
   const [birthDateIso, setBirthDateIso] = useState('')
@@ -253,21 +262,55 @@ export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
     return null
   }
 
+  const titleClass = isSettings
+    ? 'text-base font-semibold text-[#73FFA2]'
+    : 'text-lg font-semibold text-[#73FFA2] mb-4'
+  const shellClass = isSettings
+    ? 'space-y-3 rounded-xl border border-[#73FFA2]/40 bg-[#0a0a0a] p-3 sm:p-4'
+    : 'bg-transparent rounded-lg p-4 border-2 border-[#73FFA2] hover:border-[#66DEDB] transition-colors space-y-4'
+  const labelClass = isSettings ? 'text-xs text-gray-500' : 'text-sm font-medium text-gray-300'
+  const inpClass = isSettings
+    ? 'h-6 min-w-0 flex-1 rounded border border-white/12 bg-[#1a1a1a] px-2 text-xs text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/35'
+    : 'flex-1 bg-gray-800 text-white px-3 py-2 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB]'
+  const inpFullClass = isSettings
+    ? 'h-6 w-full min-w-0 rounded border border-white/12 bg-[#1a1a1a] px-2 text-xs text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/35'
+    : 'w-full bg-gray-800 text-white px-3 py-2 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB]'
+  const rowClass = isSettings ? 'mt-1 flex min-h-0 items-center gap-1.5' : 'flex items-center gap-2'
+  const penBtn = isSettings ? editIconBtnSettings : 'p-2 text-gray-400 hover:text-[#73FFA2] transition-colors'
+  const actionBtn = isSettings
+    ? 'p-0.5 text-[#73FFA2] hover:text-[#66DEDB] disabled:cursor-not-allowed disabled:opacity-50'
+    : 'p-2 text-[#73FFA2] hover:text-[#66DEDB] disabled:opacity-50 disabled:cursor-not-allowed'
+  const actionBtnDanger = isSettings
+    ? 'p-0.5 text-red-400/90 hover:text-red-300 disabled:opacity-50'
+    : 'p-2 text-red-400 hover:text-red-300 disabled:opacity-50'
+
+  const FieldBlock = ({ children }: { children: React.ReactNode }) =>
+    isSettings ? <div className={fieldCardSettings}>{children}</div> : <div className="space-y-2">{children}</div>
+
   return (
     <>
-    <div className="bg-transparent rounded-lg p-4 border-2 border-[#73FFA2] hover:border-[#66DEDB] transition-colors space-y-4">
-      <h3 className="text-lg font-semibold text-[#73FFA2] mb-4">Información Personal</h3>
+    <div className={shellClass}>
+      <h3 className={titleClass}>Información personal</h3>
+      {isSettings && (
+        <p className="mb-2 text-xs text-gray-500">Datos mostrados en tu perfil.</p>
+      )}
       
       {error && (
-        <div className="bg-red-900/20 border border-red-400/30 text-red-400 px-4 py-2 rounded text-sm">
+        <div
+          className={
+            isSettings
+              ? 'rounded border border-red-500/20 bg-red-900/10 px-2 py-1.5 text-xs text-red-400'
+              : 'bg-red-900/20 border border-red-400/30 text-red-400 px-4 py-2 rounded text-sm'
+          }
+        >
           {error}
         </div>
       )}
 
       {/* Username */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-300">Username</label>
-        <div className="flex items-center gap-2">
+      <FieldBlock>
+        <label className={labelClass}>Username</label>
+        <div className={rowClass}>
           {editingField === 'username' ? (
             <>
               <div className="flex-1">
@@ -284,227 +327,264 @@ export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
                       setError(null)
                     }
                   }}
-                  className="w-full bg-gray-800 text-white px-3 py-2 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB]"
+                  className={inpFullClass}
                   placeholder="@username"
                   disabled={isLoading}
                   autoFocus
                 />
-                <p className="text-xs text-gray-400 mt-1">Usado para menciones (@username). Debe ser único.</p>
+                <p className="mt-0.5 text-xs text-gray-500">Solo letras, números y _ · único</p>
               </div>
               <button
+                type="button"
                 onClick={() => handleFieldSave('username')}
                 disabled={isLoading || (formData.username.trim() !== '' && validateUsername(formData.username) !== null)}
-                className="p-2 text-[#73FFA2] hover:text-[#66DEDB] disabled:opacity-50 disabled:cursor-not-allowed"
+                className={actionBtn}
               >
-                <CheckIcon className="w-5 h-5" />
+                <CheckIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
               <button
+                type="button"
                 onClick={handleFieldCancel}
                 disabled={isLoading}
-                className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50"
+                className={actionBtnDanger}
               >
-                <XMarkIcon className="w-5 h-5" />
+                <XMarkIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             </>
           ) : (
             <>
-              <span className="flex-1 text-white">
+              <span className="flex-1 truncate text-sm font-medium text-white">
                 {formData.username ? `@${formData.username}` : 'No especificado'}
               </span>
               <button
+                type="button"
                 onClick={() => handleFieldEdit('username')}
-                className="p-2 text-gray-400 hover:text-[#73FFA2] transition-colors"
+                className={penBtn}
               >
-                <PencilIcon className="w-4 h-4" />
+                <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             </>
           )}
         </div>
-      </div>
+      </FieldBlock>
 
       {/* Nombre y Apellido en un renglón */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Nombre */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300">Nombre</label>
-          <div className="flex items-center gap-2">
+      <div className={isSettings ? 'grid grid-cols-1 gap-1.5 sm:grid-cols-2' : 'grid grid-cols-2 gap-4'}>
+        <FieldBlock>
+          <label className={labelClass}>Nombre</label>
+          <div className={rowClass}>
             {editingField === 'firstName' ? (
               <>
                 <input
                   type="text"
                   value={formData.firstName}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  className="flex-1 bg-gray-800 text-white px-3 py-2 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB]"
+                  className={inpClass}
                   disabled={isLoading}
                   autoFocus
                 />
                 <button
+                  type="button"
                   onClick={() => handleFieldSave('firstName')}
                   disabled={isLoading || !formData.firstName.trim()}
-                  className="p-2 text-[#73FFA2] hover:text-[#66DEDB] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={actionBtn}
                 >
-                  <CheckIcon className="w-5 h-5" />
+                  <CheckIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
                 <button
+                  type="button"
                   onClick={handleFieldCancel}
                   disabled={isLoading}
-                  className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50"
+                  className={actionBtnDanger}
                 >
-                  <XMarkIcon className="w-5 h-5" />
+                  <XMarkIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </>
             ) : (
               <>
-                <span className="flex-1 text-white">{formData.firstName || 'No especificado'}</span>
-                <button
-                  onClick={() => handleFieldEdit('firstName')}
-                  className="p-2 text-gray-400 hover:text-[#73FFA2] transition-colors"
+                <span
+                  className={
+                    isSettings ? 'flex-1 text-sm font-medium text-white' : 'flex-1 text-sm font-medium text-white'
+                  }
                 >
-                  <PencilIcon className="w-4 h-4" />
+                  {formData.firstName || 'No especificado'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleFieldEdit('firstName')}
+                  className={penBtn}
+                >
+                  <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </>
             )}
           </div>
-        </div>
+        </FieldBlock>
 
-        {/* Apellido */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300">Apellido</label>
-          <div className="flex items-center gap-2">
+        <FieldBlock>
+          <label className={labelClass}>Apellido</label>
+          <div className={rowClass}>
             {editingField === 'lastName' ? (
               <>
                 <input
                   type="text"
                   value={formData.lastName}
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className="flex-1 bg-gray-800 text-white px-3 py-2 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB]"
+                  className={inpClass}
                   disabled={isLoading}
                   autoFocus
                 />
                 <button
+                  type="button"
                   onClick={() => handleFieldSave('lastName')}
                   disabled={isLoading || !formData.lastName.trim()}
-                  className="p-2 text-[#73FFA2] hover:text-[#66DEDB] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={actionBtn}
                 >
-                  <CheckIcon className="w-5 h-5" />
+                  <CheckIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
                 <button
+                  type="button"
                   onClick={handleFieldCancel}
                   disabled={isLoading}
-                  className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50"
+                  className={actionBtnDanger}
                 >
-                  <XMarkIcon className="w-5 h-5" />
+                  <XMarkIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </>
             ) : (
               <>
-                <span className="flex-1 text-white">{formData.lastName || 'No especificado'}</span>
-                <button
-                  onClick={() => handleFieldEdit('lastName')}
-                  className="p-2 text-gray-400 hover:text-[#73FFA2] transition-colors"
+                <span
+                  className={
+                    isSettings ? 'flex-1 text-sm font-medium text-white' : 'flex-1 text-sm font-medium text-white'
+                  }
                 >
-                  <PencilIcon className="w-4 h-4" />
+                  {formData.lastName || 'No especificado'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleFieldEdit('lastName')}
+                  className={penBtn}
+                >
+                  <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </>
             )}
           </div>
-        </div>
+        </FieldBlock>
       </div>
 
       {/* Email y Teléfono en un renglón */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Email */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300">Email</label>
-          <div className="flex items-center gap-2">
+      <div className={isSettings ? 'grid grid-cols-1 gap-1.5 sm:grid-cols-2' : 'grid grid-cols-2 gap-4'}>
+        <FieldBlock>
+          <label className={labelClass}>Email</label>
+          <div className={rowClass}>
             {editingField === 'email' ? (
               <>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="flex-1 bg-gray-800 text-white px-3 py-2 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB]"
+                  className={inpClass}
                   disabled={isLoading}
                   autoFocus
                 />
                 <button
+                  type="button"
                   onClick={() => handleFieldSave('email')}
                   disabled={isLoading || !formData.email.trim() || !formData.email.includes('@')}
-                  className="p-2 text-[#73FFA2] hover:text-[#66DEDB] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={actionBtn}
                 >
-                  <CheckIcon className="w-5 h-5" />
+                  <CheckIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
                 <button
+                  type="button"
                   onClick={handleFieldCancel}
                   disabled={isLoading}
-                  className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50"
+                  className={actionBtnDanger}
                 >
-                  <XMarkIcon className="w-5 h-5" />
+                  <XMarkIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </>
             ) : (
               <>
-                <span className="flex-1 text-white truncate">{formData.email || 'No especificado'}</span>
-                <button
-                  onClick={() => handleFieldEdit('email')}
-                  className="p-2 text-gray-400 hover:text-[#73FFA2] transition-colors"
+                <span
+                  className={
+                    isSettings
+                      ? 'flex-1 truncate text-sm font-medium text-white'
+                      : 'flex-1 text-sm font-medium text-white truncate'
+                  }
                 >
-                  <PencilIcon className="w-4 h-4" />
+                  {formData.email || 'No especificado'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleFieldEdit('email')}
+                  className={penBtn}
+                >
+                  <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </>
             )}
           </div>
-        </div>
+        </FieldBlock>
 
-        {/* Teléfono */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300">Teléfono</label>
-          <div className="flex items-center gap-2">
+        <FieldBlock>
+          <label className={labelClass}>Teléfono</label>
+          <div className={rowClass}>
             {editingField === 'phone' ? (
               <>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="flex-1 bg-gray-800 text-white px-3 py-2 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB]"
+                  className={inpClass}
                   placeholder="+57 300 123 4567"
                   disabled={isLoading}
                   autoFocus
                 />
                 <button
+                  type="button"
                   onClick={() => handleFieldSave('phone')}
                   disabled={isLoading}
-                  className="p-2 text-[#73FFA2] hover:text-[#66DEDB] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={actionBtn}
                 >
-                  <CheckIcon className="w-5 h-5" />
+                  <CheckIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
                 <button
+                  type="button"
                   onClick={handleFieldCancel}
                   disabled={isLoading}
-                  className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50"
+                  className={actionBtnDanger}
                 >
-                  <XMarkIcon className="w-5 h-5" />
+                  <XMarkIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </>
             ) : (
               <>
-                <span className="flex-1 text-white">{formData.phone || 'No especificado'}</span>
-                <button
-                  onClick={() => handleFieldEdit('phone')}
-                  className="p-2 text-gray-400 hover:text-[#73FFA2] transition-colors"
+                <span
+                  className={
+                    isSettings ? 'flex-1 text-sm font-medium text-white' : 'flex-1 text-sm font-medium text-white'
+                  }
                 >
-                  <PencilIcon className="w-4 h-4" />
+                  {formData.phone || 'No especificado'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleFieldEdit('phone')}
+                  className={penBtn}
+                >
+                  <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </>
             )}
           </div>
-        </div>
+        </FieldBlock>
       </div>
 
       {/* Fecha de nacimiento y edad (onboarding) */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-300">Fecha de nacimiento</label>
-        <div className="flex items-center gap-2">
+      <FieldBlock>
+        <label className={labelClass}>Fecha de nacimiento</label>
+        <div className={rowClass}>
           {editingField === 'birthDate' ? (
             <>
               <input
@@ -516,32 +596,40 @@ export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
                   setBirthDateIso(e.target.value)
                   setError(null)
                 }}
-                className="flex-1 rounded border border-[#73FFA2] bg-gray-800 px-3 py-2 text-white focus:border-[#66DEDB] focus:outline-none"
+                className={
+                  isSettings
+                    ? 'h-6 min-h-6 flex-1 min-w-0 rounded border border-white/12 bg-[#1a1a1a] px-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/35'
+                    : 'flex-1 rounded border border-[#73FFA2] bg-gray-800 px-3 py-2 text-white focus:border-[#66DEDB] focus:outline-none'
+                }
                 disabled={isLoading}
               />
               <button
                 type="button"
                 onClick={() => handleFieldSave('birthDate')}
                 disabled={isLoading || !birthDateIso}
-                className="p-2 text-[#73FFA2] hover:text-[#66DEDB] disabled:cursor-not-allowed disabled:opacity-50"
+                className={actionBtn}
               >
-                <CheckIcon className="h-5 w-5" />
+                <CheckIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
               <button
                 type="button"
                 onClick={handleFieldCancel}
                 disabled={isLoading}
-                className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50"
+                className={actionBtnDanger}
               >
-                <XMarkIcon className="h-5 w-5" />
+                <XMarkIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             </>
           ) : (
             <>
-              <span className="flex-1 text-white">
+              <span
+                className={
+                  isSettings ? 'flex-1 text-sm font-medium text-white' : 'flex-1 text-sm font-medium text-white'
+                }
+              >
                 {birthAgeDisplay ? (
                   <>
-                    <span className="font-medium text-[#66DEDB]">{birthAgeDisplay.age} años</span>
+                    <span className="text-[#66DEDB]">{birthAgeDisplay.age} años</span>
                     <span className="text-gray-400"> · {birthAgeDisplay.pretty}</span>
                   </>
                 ) : (
@@ -551,66 +639,89 @@ export function PersonalInfoSection({ onUpdate }: PersonalInfoSectionProps) {
               <button
                 type="button"
                 onClick={() => handleFieldEdit('birthDate')}
-                className="p-2 text-gray-400 transition-colors hover:text-[#73FFA2]"
+                className={penBtn}
               >
-                <PencilIcon className="h-4 w-4" />
+                <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             </>
           )}
         </div>
-        <p className="text-xs text-gray-400">
-          Define tu edad en Tanku y las políticas de contenido según mayoría de edad.
+        <p
+          className={
+            isSettings ? 'mt-1 text-xs text-gray-500' : 'mt-2 text-xs text-gray-400'
+          }
+        >
+          {isSettings
+            ? 'Se usa para edad y políticas de contenido.'
+            : 'Define tu edad en Tanku y las políticas de contenido según mayoría de edad.'}
         </p>
-      </div>
+      </FieldBlock>
 
       {/* Bio a lo largo */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-300">Biografía</label>
-        <div className="flex items-start gap-2">
+      <FieldBlock>
+        <label className={labelClass}>Biografía</label>
+        <div className="flex items-start gap-1">
           {editingField === 'bio' ? (
             <>
               <textarea
                 value={formData.bio}
                 onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                className="flex-1 bg-gray-800 text-white px-3 py-2 rounded border border-[#73FFA2] focus:outline-none focus:border-[#66DEDB] min-h-[100px] resize-y"
+                className={
+                  isSettings
+                    ? 'min-h-[40px] flex-1 resize-y rounded border border-white/12 bg-[#1a1a1a] px-2 py-1 text-xs leading-snug text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/35 sm:min-h-[48px]'
+                    : 'min-h-[100px] flex-1 resize-y rounded border border-[#73FFA2] bg-gray-800 px-3 py-2 text-white focus:border-[#66DEDB] focus:outline-none'
+                }
                 placeholder="Escribe algo sobre ti..."
                 disabled={isLoading}
                 autoFocus
                 maxLength={500}
               />
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1">
                 <button
+                  type="button"
                   onClick={() => handleFieldSave('bio')}
                   disabled={isLoading}
-                  className="p-2 text-[#73FFA2] hover:text-[#66DEDB] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={actionBtn}
                 >
-                  <CheckIcon className="w-5 h-5" />
+                  <CheckIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
                 <button
+                  type="button"
                   onClick={handleFieldCancel}
                   disabled={isLoading}
-                  className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50"
+                  className={actionBtnDanger}
                 >
-                  <XMarkIcon className="w-5 h-5" />
+                  <XMarkIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </div>
             </>
           ) : (
             <>
-              <span className="flex-1 text-white whitespace-pre-wrap">{formData.bio || 'No especificado'}</span>
-              <button
-                onClick={() => handleFieldEdit('bio')}
-                className="p-2 text-gray-400 hover:text-[#73FFA2] transition-colors"
+              <span
+                className={
+                  isSettings
+                    ? 'max-h-20 flex-1 overflow-y-auto whitespace-pre-wrap text-sm text-white'
+                    : 'flex-1 whitespace-pre-wrap text-sm text-white'
+                }
               >
-                <PencilIcon className="w-4 h-4" />
+                {formData.bio || 'No especificado'}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleFieldEdit('bio')}
+                className={penBtn}
+              >
+                <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             </>
           )}
         </div>
         {editingField === 'bio' && (
-          <p className="text-xs text-gray-400">{formData.bio.length}/500 caracteres</p>
+          <p className={isSettings ? 'mt-1 text-xs text-gray-500' : 'mt-1 text-xs text-gray-400'}>
+            {formData.bio.length}/500
+          </p>
         )}
-      </div>
+      </FieldBlock>
     </div>
 
     <OnboardingAdultConfirmMiniModal

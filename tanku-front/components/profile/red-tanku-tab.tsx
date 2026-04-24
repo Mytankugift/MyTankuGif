@@ -182,7 +182,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
     'rounded-[25px] px-3 py-2 text-[11px] sm:px-4 sm:py-2.5 sm:text-xs font-semibold transition-colors shadow-[inset_0_4px_4px_rgba(0,0,0,0.25)]'
   const tankuModalSurfaceClass = 'rounded-[24px] border border-[#414141] bg-[#171B21]'
   const tankuModalInputClass =
-    'w-full rounded-[20px] border border-[#66DEDB]/55 bg-[#11161d] px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-[#73FFA2]'
+    'tanku-input-text-ios w-full rounded-[20px] border border-[#66DEDB]/55 bg-[#11161d] px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-[#73FFA2]'
 
   const handleEditGroup = (group: Group) => {
     setEditingGroup(group)

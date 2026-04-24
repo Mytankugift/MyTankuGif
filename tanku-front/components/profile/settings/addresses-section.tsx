@@ -12,9 +12,11 @@ import { apiClient } from '@/lib/api/client'
 
 interface AddressesSectionProps {
   onUpdate?: () => void
+  design?: 'default' | 'settings'
 }
 
-export function AddressesSection({ onUpdate }: AddressesSectionProps) {
+export function AddressesSection({ onUpdate, design = 'default' }: AddressesSectionProps) {
+  const isSettings = design === 'settings'
   const { addresses, isLoading, fetchAddresses, createAddress, updateAddress, deleteAddress } = useAddresses()
   const { user } = useAuthStore()
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
@@ -83,13 +85,25 @@ export function AddressesSection({ onUpdate }: AddressesSectionProps) {
     }
   }
 
+  const shellClass = isSettings
+    ? 'space-y-3 rounded-xl border border-[#73FFA2]/40 bg-[#0a0a0a] p-3 sm:p-4'
+    : 'space-y-4 rounded-lg border-2 border-[#73FFA2] bg-transparent p-4 transition-colors hover:border-[#66DEDB]'
+
   return (
-    <div className="bg-transparent rounded-lg p-4 border-2 border-[#73FFA2] hover:border-[#66DEDB] transition-colors space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-[#73FFA2]">Direcciones</h3>
+    <div className={shellClass}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className={isSettings ? 'text-base font-semibold text-[#73FFA2]' : 'text-lg font-semibold text-[#73FFA2]'}>
+            Mis direcciones
+          </h3>
+          {isSettings && (
+            <p className="text-xs text-gray-500">Gestiona envíos y regalos</p>
+          )}
+        </div>
         <button
+          type="button"
           onClick={handleCreateAddress}
-          className="flex items-center gap-2 bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] text-gray-900 px-4 py-2 rounded-lg font-medium text-sm hover:from-[#73FFA2] hover:to-[#66DEDB] transition-all"
+          className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] px-3 py-2 text-sm font-medium text-gray-900 transition-all hover:from-[#73FFA2] hover:to-[#66DEDB] sm:px-4"
         >
           <PlusIcon className="w-5 h-5" />
           Agregar Dirección
@@ -105,6 +119,17 @@ export function AddressesSection({ onUpdate }: AddressesSectionProps) {
         <div className="text-center py-8 text-gray-400">
           <p>No tienes direcciones guardadas</p>
           <p className="text-sm mt-2">Haz clic en "Agregar Dirección" para agregar una nueva</p>
+        </div>
+      ) : isSettings ? (
+        <div className="rounded-xl bg-[#141414] p-2 sm:p-3">
+          <AddressSelector
+            addresses={addresses}
+            selectedAddressId={selectedAddressId}
+            onSelectAddress={(address) => setSelectedAddressId(address?.id || null)}
+            onEdit={handleEditAddress}
+            onDelete={handleDeleteAddress}
+            useMainAddressForGifts={useMainAddressForGifts}
+          />
         </div>
       ) : (
         <AddressSelector
@@ -125,6 +150,7 @@ export function AddressesSection({ onUpdate }: AddressesSectionProps) {
         }}
         address={editingAddress}
         onSubmit={handleFormSubmit}
+        useMainAddressForGiftsFromProfile={useMainAddressForGifts}
       />
     </div>
   )

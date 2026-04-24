@@ -461,15 +461,15 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
 
       {showGiftDetails && selectedGift && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[1000020] flex bg-black/55 backdrop-blur-[2px] max-md:flex-col max-md:pt-[max(3.25rem,calc(env(safe-area-inset-top,0px)+2.5rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:items-center md:justify-center md:p-4"
           onClick={closeGiftDetails}
         >
           <div
-            className={`flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden ${GIFT_SURFACE_CLASS} ${getGiftAccentRing(selectedGift.direction)}`}
+            className={`flex max-md:h-full max-md:min-h-0 w-full max-w-2xl flex-col overflow-hidden md:max-h-[90vh] md:rounded-xl ${GIFT_SURFACE_CLASS} ${getGiftAccentRing(selectedGift.direction)}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div
-              className="flex shrink-0 items-center justify-between border-b px-4 py-3"
+              className="flex shrink-0 items-center justify-between border-b bg-[#171B21] px-4 py-3"
               style={NOTIFICATION_ROW_DIVIDER_STYLE}
             >
               <div>

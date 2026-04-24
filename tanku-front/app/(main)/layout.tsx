@@ -70,9 +70,10 @@ export default function MainLayout({
    * En md+ el scroll interno vive en `#profile-scroll-root` o `#profile-public-scroll-root` en la página.
    */
   const isProfileRoute = pathname === '/profile' || pathname.startsWith('/profile/')
-  /** /checkout/gift-direct: scroll interno (evita doble scroll con navs fijos en móvil) */
-  const isGiftDirectInnerScroll = pathname === '/checkout/gift-direct'
-  const mainOverlayScroll = isGiftDirectInnerScroll
+  /** Carrito / checkout: scroll interno en la página (mismo patrón que gift-direct; evita doble scroll en móvil) */
+  const isCheckoutInnerScroll =
+    pathname === '/checkout' || pathname === '/checkout/gift' || pathname === '/checkout/gift-direct'
+  const mainOverlayScroll = isCheckoutInnerScroll
   /** Móvil: scroll nativo (Safari) como landing; md+: scroll en contenedor de cada página. */
   const isSafariDocumentMainRoute =
     isFeedOrEventsNativeMainScrollMobile ||
@@ -89,7 +90,8 @@ export default function MainLayout({
                 'flex',
                 isLandingRoute ||
                 isFeedOrEventsNativeMainScrollMobile ||
-                pathname === '/notifications'
+                pathname === '/notifications' ||
+                isProfileRoute
                   ? 'min-h-screen overflow-visible'
                   : 'h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden md:h-screen md:max-h-none'
               )}

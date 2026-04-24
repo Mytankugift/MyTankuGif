@@ -20,6 +20,7 @@ import { CameraIcon, PlusIcon } from '@heroicons/react/24/outline'
 import { BaseNav } from '@/components/layout/base-nav'
 import { useOnboarding } from '@/lib/hooks/use-onboarding'
 import { getAgeInYearsFromParts } from '@/lib/utils/age-policy'
+import { clsx } from 'clsx'
 
 function profileTabLabel(tab: ProfileTab): string {
   return tab
@@ -283,7 +284,13 @@ function ProfileContent() {
   }
 
   return (
-    <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col max-md:overflow-y-visible max-md:overflow-x-hidden md:overflow-hidden">
+    <div
+      className={clsx(
+        'relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col',
+        'max-md:overflow-y-visible max-md:overflow-x-hidden',
+        'md:overflow-hidden',
+      )}
+    >
       <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
         <BaseNav
           showStories={false}
@@ -296,9 +303,22 @@ function ProfileContent() {
           className="pointer-events-auto"
         />
       </div>
-      <div className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col max-md:overflow-y-visible max-md:overflow-x-hidden md:overflow-hidden" id="profile-scroll-root">
+      <div
+        className={clsx(
+          'relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col',
+          'max-md:overflow-y-visible max-md:overflow-x-hidden',
+          'md:overflow-hidden',
+        )}
+        id="profile-scroll-root"
+      >
         <div
-          className="custom-scrollbar min-h-0 max-md:flex-none max-md:basis-auto max-md:min-h-0 max-md:overflow-y-visible max-md:overscroll-y-auto flex-1 basis-0 overflow-x-hidden overflow-y-auto overscroll-y-contain max-md:px-3 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20"
+          className={clsx(
+            'custom-scrollbar min-h-0 w-full',
+            'max-md:flex-none max-md:overflow-x-hidden max-md:overflow-y-visible max-md:overscroll-y-auto',
+            'md:flex-1 md:basis-0 md:overflow-y-auto md:overflow-x-hidden md:overscroll-y-contain',
+            'md:touch-pan-y md:[-webkit-overflow-scrolling:touch]',
+            'max-md:px-3 max-md:pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20',
+          )}
           style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
         >
         <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">

@@ -11,11 +11,21 @@ import type { CheckoutOrderRequest, CheckoutDataCart, OrderDTO, AddressDTO, Crea
 import { AddressSelector } from '@/components/addresses/address-selector'
 import { AddressFormModal } from '@/components/addresses/address-form-modal'
 import { CheckoutPaymentMethod } from '@/components/checkout/checkout-payment-method'
+import { CheckoutProductList } from '@/components/checkout/checkout-product-list'
 import { CheckoutSummary } from '@/components/checkout/checkout-summary'
 import { CheckoutConfirmationModal } from '@/components/checkout/checkout-confirmation-modal'
 import Script from 'next/script'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import { BaseNav } from '@/components/layout/base-nav'
+import {
+  CHECKOUT_TANKU_INPUT,
+  CHECKOUT_TANKU_PAGE_BG,
+  CHECKOUT_TANKU_SCROLL_INNER,
+  CHECKOUT_TANKU_SECTION_LABEL,
+  CHECKOUT_TANKU_SURFACE,
+} from '@/lib/checkout-tanku-design'
 import { isEpaycoSmartMode, getEpaycoScriptUrlForMode } from '@/lib/epayco/config'
 import { openEpaycoSmartCheckout } from '@/lib/epayco/open-smart-checkout'
 
@@ -511,11 +521,47 @@ function CheckoutContent() {
     }
   }
 
+  const navBack = (
+    <Link
+      href="/cart"
+      aria-label="Volver al carrito"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/[0.06]"
+    >
+      <Image
+        src="/icons_tanku/mobile_tanku_menu_ir_atras_Universal.svg"
+        alt=""
+        width={24}
+        height={24}
+        className="h-6 w-6 object-contain"
+        unoptimized
+      />
+    </Link>
+  )
+
   if (cartLoading) {
     return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="text-center text-gray-400">Cargando...</div>
-      </div>
+      <>
+        <BaseNav
+          showStories={false}
+          canHide={false}
+          isVisible={true}
+          pageTitle="Checkout"
+          pageTitleColor="#FFFFFF"
+          startContent={navBack}
+          mobileBackCenterTitleCartOnly
+          mobileTranslucentNav
+        />
+        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" id="checkout-scroll-root">
+          <div className={CHECKOUT_TANKU_SCROLL_INNER} style={CHECKOUT_TANKU_PAGE_BG}>
+            <div className="mx-auto max-w-4xl text-center text-zinc-500">
+              <div className={`${CHECKOUT_TANKU_SURFACE} mx-auto max-w-md px-8 py-14`}>
+                <div className="mx-auto mb-3 h-7 w-7 animate-spin rounded-full border-2 border-[#73FFA2] border-t-transparent" />
+                <span className="text-sm">Cargando…</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
     )
   }
 
@@ -524,139 +570,170 @@ function CheckoutContent() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="flex items-center gap-4 mb-8">
-        <Link href="/cart">
-          <Button type="button" variant="secondary" size="sm">
-            ← Volver al carrito
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold text-[#66DEDB]">Checkout</h1>
+    <>
+      <BaseNav
+        showStories={false}
+        canHide={false}
+        isVisible={true}
+        pageTitle="Checkout"
+        pageTitleColor="#FFFFFF"
+        startContent={navBack}
+        mobileBackCenterTitleCartOnly
+        mobileTranslucentNav
+      />
+      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" id="checkout-scroll-root">
+        <div className={CHECKOUT_TANKU_SCROLL_INNER} style={CHECKOUT_TANKU_PAGE_BG}>
+          <div className="mx-auto max-w-4xl">
+            <form onSubmit={handleSubmit}>
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10 lg:items-start">
+                <div className="space-y-8 lg:col-span-7">
+                  {isGiftCart && (
+                    <div className="rounded-2xl border border-[#66DEDB]/25 bg-[#66DEDB]/[0.08] p-4 backdrop-blur-md ring-1 ring-inset ring-[#66DEDB]/15">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">🎁</span>
+                        <div>
+                          <p className="font-semibold text-[#66DEDB]">Enviando regalo</p>
+                          <p className="mt-1 text-sm text-zinc-400">
+                            La dirección de envío se obtendrá automáticamente del destinatario.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!isGiftCart && (
+                    <div className={CHECKOUT_TANKU_SURFACE}>
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <p className={`${CHECKOUT_TANKU_SECTION_LABEL} !mb-0`}>Dirección de envío</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingAddress(null)
+                            setIsAddressModalOpen(true)
+                          }}
+                          className="shrink-0 text-xs font-medium text-[#66DEDB] transition-opacity hover:opacity-80"
+                        >
+                          + Agregar
+                        </button>
+                      </div>
+                      <AddressSelector
+                        addresses={addresses}
+                        isLoading={false}
+                        selectedAddressId={selectedAddress?.id || null}
+                        onSelectAddress={(address) => setSelectedAddress(address)}
+                        onEdit={(address) => {
+                          setEditingAddress(address)
+                          setIsAddressModalOpen(true)
+                        }}
+                        onDelete={async (addressId) => {
+                          try {
+                            await deleteAddress(addressId)
+                            if (selectedAddress?.id === addressId) {
+                              const remainingAddresses = addresses.filter((addr) => addr.id !== addressId)
+                              setSelectedAddress(
+                                remainingAddresses.length > 0
+                                  ? remainingAddresses.find((addr) => addr.isDefaultShipping) || remainingAddresses[0]
+                                  : null,
+                              )
+                            }
+                          } catch (err) {
+                            console.error('Error eliminando dirección:', err)
+                          }
+                        }}
+                        variant="tanku"
+                      />
+                    </div>
+                  )}
+
+                  <CheckoutProductList items={selectedItems} />
+
+                  <div className={CHECKOUT_TANKU_SURFACE}>
+                    <p className={CHECKOUT_TANKU_SECTION_LABEL}>Contacto</p>
+                    <div>
+                      <label className="mb-2 block text-xs font-medium text-zinc-500">Correo (facturación) *</label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className={CHECKOUT_TANKU_INPUT}
+                        placeholder="tu@email.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-5">
+                  <div className="space-y-6 lg:sticky lg:top-28">
+                    <CheckoutSummary
+                      cart={{ ...cart, items: selectedItems }}
+                      isGiftCart={isGiftCart}
+                      showLineItems={false}
+                    />
+
+                    <div className={CHECKOUT_TANKU_SURFACE}>
+                      <p className={CHECKOUT_TANKU_SECTION_LABEL}>Pago</p>
+                      <p className="mb-4 text-sm text-zinc-500">
+                        {isGiftCart
+                          ? 'Pasarela segura con Epayco.'
+                          : 'Pasarela segura con Epayco, o pago contra entrega al recibir.'}
+                      </p>
+                      <CheckoutPaymentMethod
+                        value={paymentMethod}
+                        onChange={setPaymentMethod}
+                        isGiftCart={isGiftCart}
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <Button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full py-2.5 font-semibold text-sm hover:!bg-[#5ac8c4] disabled:cursor-not-allowed disabled:opacity-50 sm:py-3 sm:text-base"
+                        style={{
+                          backgroundColor: '#66DEDB',
+                          color: '#2C3137',
+                          borderRadius: '25px',
+                          boxShadow: '0px 4px 4px 0px #00000040 inset',
+                        }}
+                      >
+                        {isSubmitting ? 'Procesando...' : 'Completar pedido'}
+                      </Button>
+                      {buttonTooltip && (
+                        <div className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 whitespace-nowrap rounded-lg bg-red-600 px-4 py-2 text-sm text-white shadow-xl animate-fade-in">
+                          {buttonTooltip}
+                          <div className="absolute top-full right-4 h-0 w-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-red-600" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            <Script
+              id="epayco-script"
+              src={getEpaycoScriptUrlForMode()}
+              strategy="afterInteractive"
+              onLoad={() => {
+                console.log('[EPAYCO] Script cargado exitosamente')
+                setEpaycoReady(true)
+              }}
+              onError={(e) => {
+                console.error('[EPAYCO] Error cargando script:', e)
+                setEpaycoReady(false)
+              }}
+              onReady={() => {
+                console.log('[EPAYCO] Script listo')
+                if (typeof window.ePayco !== 'undefined') {
+                  setEpaycoReady(true)
+                }
+              }}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Mensaje si es carrito de regalos */}
-      {isGiftCart && (
-        <div className="mb-6 bg-[#66DEDB]/10 border border-[#66DEDB]/30 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🎁</span>
-            <div>
-              <p className="text-[#66DEDB] font-semibold">Enviando regalo</p>
-              <p className="text-sm text-gray-400">
-                Este pedido será enviado como regalo. La dirección de envío se obtendrá automáticamente del destinatario.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Columna izquierda: Formularios */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Información de contacto */}
-            <div className="bg-gray-800/50 rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Información de contacto</h2>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
-                  placeholder="tu@email.com"
-                />
-              </div>
-            </div>
-
-            {/* Dirección de envío - Ocultar si es carrito de regalos */}
-            {!isGiftCart && (
-              <div className="bg-gray-800/50 rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-[#66DEDB]">Dirección de envío</h2>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingAddress(null)
-                      setIsAddressModalOpen(true)
-                    }}
-                    className="text-sm text-[#66DEDB] hover:text-[#5accc9] transition-colors font-medium"
-                  >
-                    + Agregar dirección
-                  </button>
-                </div>
-                <AddressSelector
-                  addresses={addresses}
-                  isLoading={false}
-                  selectedAddressId={selectedAddress?.id || null}
-                  onSelectAddress={(address) => setSelectedAddress(address)}
-                  onEdit={(address) => {
-                    setEditingAddress(address)
-                    setIsAddressModalOpen(true)
-                  }}
-                  onDelete={async (addressId) => {
-                    try {
-                      await deleteAddress(addressId)
-                      // Actualizar selectedAddress después de eliminar
-                      if (selectedAddress?.id === addressId) {
-                        // Si era la dirección seleccionada, seleccionar la primera disponible o null
-                        const remainingAddresses = addresses.filter(addr => addr.id !== addressId)
-                        setSelectedAddress(
-                          remainingAddresses.length > 0 
-                            ? (remainingAddresses.find(addr => addr.isDefaultShipping) || remainingAddresses[0])
-                            : null
-                        )
-                      }
-                    } catch (err) {
-                      console.error('Error eliminando dirección:', err)
-                    }
-                  }}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Columna derecha: Resumen y Método de pago */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8 space-y-6">
-              <CheckoutSummary cart={{ ...cart, items: selectedItems }} isGiftCart={isGiftCart} />
-              
-              {/* Método de pago */}
-              <div className="bg-gray-800/50 rounded-lg p-6">
-                <h2 className="text-xl font-semibold mb-4 text-[#66DEDB]">Método de pago</h2>
-                <CheckoutPaymentMethod
-                  value={paymentMethod}
-                  onChange={setPaymentMethod}
-                  isGiftCart={isGiftCart}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Botones de acción */}
-        <div className="mt-8 flex justify-end">
-          <div className="relative">
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="bg-[#66DEDB] hover:bg-[#5accc9] text-black font-semibold px-8 py-3"
-            >
-              {isSubmitting ? 'Procesando...' : 'Completar pedido'}
-            </Button>
-            {buttonTooltip && (
-              <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-red-600 text-white text-sm rounded-lg shadow-xl whitespace-nowrap z-50 animate-fade-in pointer-events-none">
-                {buttonTooltip}
-                <div className="absolute top-full right-4 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-red-600"></div>
-              </div>
-            )}
-          </div>
-        </div>
-      </form>
-
-      {/* Modal de dirección */}
       <AddressFormModal
         isOpen={isAddressModalOpen}
         onClose={() => {
@@ -672,8 +749,6 @@ function CheckoutContent() {
                 setSelectedAddress(updated)
               }
             } else {
-              // Cuando es creación, todos los campos requeridos están presentes
-              // El formulario valida que firstName, lastName, address1, city, state, postalCode existan
               const createData: CreateAddressDTO = {
                 firstName: data.firstName!,
                 lastName: data.lastName!,
@@ -690,11 +765,10 @@ function CheckoutContent() {
               const newAddress = await createAddress(createData)
               setSelectedAddress(newAddress)
             }
-            // Refrescar lista de direcciones después de crear/actualizar
             await fetchAddresses()
           } catch (err) {
             console.error('Error guardando dirección:', err)
-            throw err // Re-lanzar para que el modal maneje el error
+            throw err
           } finally {
             setIsAddressModalOpen(false)
             setEditingAddress(null)
@@ -702,7 +776,6 @@ function CheckoutContent() {
         }}
       />
 
-      {/* Modal de confirmación */}
       {cart && (
         <CheckoutConfirmationModal
           isOpen={showConfirmationModal}
@@ -718,28 +791,7 @@ function CheckoutContent() {
           selectedItems={selectedItems}
         />
       )}
-
-      {/* Script de Epayco */}
-      <Script
-        id="epayco-script"
-        src={getEpaycoScriptUrlForMode()}
-        strategy="afterInteractive"
-        onLoad={() => {
-          console.log('[EPAYCO] Script cargado exitosamente')
-          setEpaycoReady(true)
-        }}
-        onError={(e) => {
-          console.error('[EPAYCO] Error cargando script:', e)
-          setEpaycoReady(false)
-        }}
-        onReady={() => {
-          console.log('[EPAYCO] Script listo')
-          if (typeof window.ePayco !== 'undefined') {
-            setEpaycoReady(true)
-          }
-        }}
-      />
-    </div>
+    </>
   )
 }
 

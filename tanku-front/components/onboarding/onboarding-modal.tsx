@@ -409,26 +409,37 @@ export function OnboardingModal({
   const displayStepIndex = onlySteps?.length ? onlySteps.indexOf(currentStep) + 1 : currentStep + 1
   const displayStepTotal = onlySteps?.length ?? totalStepsDisplay
 
+  const isPreferencesOnly = Boolean(onlySteps?.length)
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-      <div 
-        className="rounded-[25px] w-full overflow-hidden flex flex-col border-2"
-        style={{ 
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-3 sm:p-4">
+      <div
+        className="flex w-full max-h-[min(90dvh,720px)] flex-col overflow-hidden rounded-[25px] border-2 sm:min-h-0"
+        style={{
           backgroundColor: '#262626',
           borderColor: '#73FFA2',
           maxWidth: '600px',
-          maxHeight: '720px',
-          minHeight: '600px',
-          width: '90%'
+          width: 'min(100%, 600px)',
+          minHeight: isPreferencesOnly ? 'min(70dvh, 560px)' : 'min(90dvh, 600px)',
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-4xl font-semibold" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>
-              {onlySteps?.length ? 'Preferencias' : 'Bienvenido'}
+        <div className="flex items-center justify-between gap-2 p-3 sm:p-4">
+          <div className="min-w-0 flex flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+            <h1
+              className={
+                isPreferencesOnly
+                  ? 'text-lg font-semibold leading-tight sm:text-xl md:text-2xl'
+                  : 'text-2xl font-semibold sm:text-3xl md:text-4xl'
+              }
+              style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}
+            >
+              {isPreferencesOnly ? 'Preferencias' : 'Bienvenido'}
             </h1>
-            <span className="text-sm" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>
+            <span
+              className="shrink-0 text-xs text-[#B7B7B7] sm:text-sm"
+              style={{ fontFamily: 'Poppins, sans-serif' }}
+            >
               Paso {displayStepIndex}/{displayStepTotal}
             </span>
           </div>
@@ -447,7 +458,7 @@ export function OnboardingModal({
         </div>
 
         {/* Barra de progreso */}
-        <div className="px-4 pb-4">
+        <div className="px-3 pb-3 sm:px-4 sm:pb-4">
           <div className="flex gap-2">
             {Array.from({ length: progressSegmentCount }).map((_, index) => (
               <div
@@ -462,7 +473,13 @@ export function OnboardingModal({
         </div>
 
         {/* Contenido */}
-        <div className="flex-1 overflow-y-auto px-4 pb-6 custom-scrollbar md:overflow-y-auto overflow-y-visible" style={{ minHeight: '520px', maxHeight: '520px' }}>
+        <div
+          className="custom-scrollbar flex-1 overflow-y-auto overflow-y-visible px-3 pb-4 sm:px-4 sm:pb-6 md:overflow-y-auto"
+          style={{
+            minHeight: isPreferencesOnly ? 'min(40dvh, 360px)' : '320px',
+            maxHeight: isPreferencesOnly ? 'min(50dvh, 440px)' : '520px',
+          }}
+        >
           {currentStep === 0 && (
             <OnboardingStepUsername
               onNext={handleUsernameNext}

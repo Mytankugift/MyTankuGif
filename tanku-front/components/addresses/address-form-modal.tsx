@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { AddressDTO, CreateAddressDTO, UpdateAddressDTO } from '@/types/api'
 import { Button } from '@/components/ui/button'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { CHECKOUT_TANKU_PAGE_BG } from '@/lib/checkout-tanku-design'
 
 interface Department {
   id: number
@@ -30,6 +31,21 @@ interface AddressFormModalProps {
   address?: AddressDTO | null // Si se proporciona, es edición
   onSubmit: (data: CreateAddressDTO | UpdateAddressDTO) => Promise<void>
   defaultGiftAddress?: boolean // Para pre-marcar el checkbox en onboarding
+  /**
+   * Si en perfil está activo “usar dirección principal para regalos”, la tarjeta muestra
+   * regalos aunque `isGiftAddress` venga en false: al abrir edición, el switch debe reflejar eso.
+   */
+  useMainAddressForGiftsFromProfile?: boolean
+}
+
+function resolveIsGiftForForm(
+  addr: AddressDTO,
+  useMainForGifts?: boolean
+): boolean {
+  const snake = (addr as { is_gift_address?: boolean }).is_gift_address
+  if (addr.isGiftAddress === true || snake === true) return true
+  if (useMainForGifts && addr.isDefaultShipping) return true
+  return false
 }
 
 export function AddressFormModal({
@@ -38,7 +54,10 @@ export function AddressFormModal({
   address,
   onSubmit,
   defaultGiftAddress = false,
+  useMainAddressForGiftsFromProfile = false,
 }: AddressFormModalProps) {
+  const addressRef = useRef(address)
+  addressRef.current = address
   const [formData, setFormData] = useState({
     alias: '',
     firstName: '',
@@ -91,25 +110,27 @@ export function AddressFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDepartmentId]) // loadCities se define después, no incluirlo en deps
 
-  // Cargar datos si es edición
+  // Sincronizar formulario al abrir o al cambiar de dirección. No depender de la referencia de
+  // `address` (cambia en cada render del padre) o el switch de regalos se resetea al tocar.
   useEffect(() => {
-    if (address) {
+    if (!isOpen) return
+    const a = addressRef.current
+    if (a) {
       setFormData({
-        alias: address.metadata?.alias || '',
-        firstName: address.firstName,
-        lastName: address.lastName,
-        phone: address.phone || '',
-        address1: address.address1,
-        address2: address.address2 || '',
-        city: address.city,
-        state: address.state,
-        postalCode: address.postalCode,
-        country: address.country,
-        isDefaultShipping: address.isDefaultShipping,
-        isGiftAddress: address.isGiftAddress || false,
+        alias: a.metadata?.alias || '',
+        firstName: a.firstName,
+        lastName: a.lastName,
+        phone: a.phone || '',
+        address1: a.address1,
+        address2: a.address2 || '',
+        city: a.city,
+        state: a.state,
+        postalCode: a.postalCode,
+        country: a.country,
+        isDefaultShipping: a.isDefaultShipping,
+        isGiftAddress: resolveIsGiftForForm(a, useMainAddressForGiftsFromProfile),
       })
     } else {
-      // Resetear formulario para nueva dirección
       setFormData({
         alias: '',
         firstName: '',
@@ -122,12 +143,12 @@ export function AddressFormModal({
         postalCode: '',
         country: 'CO',
         isDefaultShipping: false,
-        isGiftAddress: defaultGiftAddress, // Usar el valor por defecto si se proporciona
+        isGiftAddress: defaultGiftAddress,
       })
       setSelectedDepartmentId(null)
     }
     setError(null)
-  }, [address, isOpen])
+  }, [isOpen, address?.id, defaultGiftAddress, useMainAddressForGiftsFromProfile])
 
   // Cargar departamentos
   const loadDepartments = async () => {
@@ -255,7 +276,7 @@ export function AddressFormModal({
         postalCode: formData.postalCode,
         country: formData.country,
         isDefaultShipping: formData.isDefaultShipping,
-        isGiftAddress: formData.isGiftAddress,
+        isGiftAddress: Boolean(formData.isGiftAddress),
         metadata: formData.alias ? { alias: formData.alias } : undefined,
       }
 
@@ -271,17 +292,10 @@ export function AddressFormModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-      <div 
-        className="rounded-[25px] w-full overflow-hidden flex flex-col border-2"
-        style={{ 
-          backgroundColor: '#262626',
-          borderColor: '#73FFA2',
-          maxWidth: '600px',
-          maxHeight: '720px',
-          minHeight: '600px',
-          width: '90%'
-        }}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4">
+      <div
+        className="flex w-full max-w-[600px] flex-col overflow-hidden rounded-[25px] border border-white/[0.1] shadow-[0_8px_40px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/[0.06] [width:90%] [max-height:min(720px,90dvh)] [min-height:min(600px,85dvh)]"
+        style={CHECKOUT_TANKU_PAGE_BG}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4">
@@ -298,7 +312,7 @@ export function AddressFormModal({
 
         {/* Form */}
         <div className="flex-1 overflow-y-auto px-4 pb-6 custom-scrollbar" style={{ minHeight: '450px', maxHeight: '520px' }}>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="address-form" onSubmit={handleSubmit} className="space-y-3">
           {error && (
             <div className="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
               {error}
@@ -314,10 +328,10 @@ export function AddressFormModal({
               type="text"
               value={formData.alias}
               onChange={(e) => setFormData({ ...formData, alias: e.target.value })}
-              className="w-full px-4 py-3 text-white focus:outline-none"
+              className="w-full px-3 py-2 text-sm text-white focus:outline-none"
               style={{
                 backgroundColor: 'rgba(217, 217, 217, 0.2)',
-                borderRadius: '25px',
+                borderRadius: '18px',
                 border: '1px solid #4A4A4A',
                 fontFamily: 'Poppins, sans-serif',
               }}
@@ -339,10 +353,10 @@ export function AddressFormModal({
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 required
-                className="w-full px-4 py-3 text-white focus:outline-none"
+                className="w-full px-3 py-2 text-sm text-white focus:outline-none"
                 style={{
                   backgroundColor: 'rgba(217, 217, 217, 0.2)',
-                  borderRadius: '25px',
+                  borderRadius: '18px',
                   border: '1px solid #4A4A4A',
                   fontFamily: 'Poppins, sans-serif',
                 }}
@@ -358,10 +372,10 @@ export function AddressFormModal({
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 required
-                className="w-full px-4 py-3 text-white focus:outline-none"
+                className="w-full px-3 py-2 text-sm text-white focus:outline-none"
                 style={{
                   backgroundColor: 'rgba(217, 217, 217, 0.2)',
-                  borderRadius: '25px',
+                  borderRadius: '18px',
                   border: '1px solid #4A4A4A',
                   fontFamily: 'Poppins, sans-serif',
                 }}
@@ -380,10 +394,10 @@ export function AddressFormModal({
               value={formData.address1}
               onChange={(e) => setFormData({ ...formData, address1: e.target.value })}
               required
-              className="w-full px-4 py-3 text-white focus:outline-none"
+              className="w-full px-3 py-2 text-sm text-white focus:outline-none"
               style={{
                 backgroundColor: 'rgba(217, 217, 217, 0.2)',
-                borderRadius: '25px',
+                borderRadius: '18px',
                 border: '1px solid #4A4A4A',
                 fontFamily: 'Poppins, sans-serif',
               }}
@@ -400,10 +414,10 @@ export function AddressFormModal({
               type="text"
               value={formData.address2}
               onChange={(e) => setFormData({ ...formData, address2: e.target.value })}
-              className="w-full px-4 py-3 text-white focus:outline-none"
+              className="w-full px-3 py-2 text-sm text-white focus:outline-none"
               style={{
                 backgroundColor: 'rgba(217, 217, 217, 0.2)',
-                borderRadius: '25px',
+                borderRadius: '18px',
                 border: '1px solid #4A4A4A',
                 fontFamily: 'Poppins, sans-serif',
               }}
@@ -422,10 +436,10 @@ export function AddressFormModal({
                 onChange={handleDepartmentChange}
                 required
                 disabled={loadingDepartments}
-                className="w-full px-4 py-3 text-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 text-sm text-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   backgroundColor: 'rgba(217, 217, 217, 0.2)',
-                  borderRadius: '25px',
+                  borderRadius: '18px',
                   border: '1px solid #4A4A4A',
                   fontFamily: 'Poppins, sans-serif',
                   appearance: 'none',
@@ -453,10 +467,10 @@ export function AddressFormModal({
                 onChange={handleCityChange}
                 required
                 disabled={loadingCities || !selectedDepartmentId}
-                className="w-full px-4 py-3 text-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 text-sm text-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   backgroundColor: 'rgba(217, 217, 217, 0.2)',
-                  borderRadius: '25px',
+                  borderRadius: '18px',
                   border: '1px solid #4A4A4A',
                   fontFamily: 'Poppins, sans-serif',
                   appearance: 'none',
@@ -491,10 +505,10 @@ export function AddressFormModal({
                 value={formData.postalCode}
                 onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
                 required
-                className="w-full px-4 py-3 text-white focus:outline-none"
+                className="w-full px-3 py-2 text-sm text-white focus:outline-none"
                 style={{
                   backgroundColor: 'rgba(217, 217, 217, 0.2)',
-                  borderRadius: '25px',
+                  borderRadius: '18px',
                   border: '1px solid #4A4A4A',
                   fontFamily: 'Poppins, sans-serif',
                 }}
@@ -509,10 +523,10 @@ export function AddressFormModal({
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-4 py-3 text-white focus:outline-none"
+                className="w-full px-3 py-2 text-sm text-white focus:outline-none"
                 style={{
                   backgroundColor: 'rgba(217, 217, 217, 0.2)',
-                  borderRadius: '25px',
+                  borderRadius: '18px',
                   border: '1px solid #4A4A4A',
                   fontFamily: 'Poppins, sans-serif',
                 }}
@@ -521,37 +535,50 @@ export function AddressFormModal({
             </div>
           </div>
 
-          {/* Por defecto */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isDefaultShipping"
-              checked={formData.isDefaultShipping}
-              onChange={(e) => setFormData({ ...formData, isDefaultShipping: e.target.checked })}
-              className="w-4 h-4 text-[#66DEDB] focus:ring-[#66DEDB] focus:ring-2 rounded"
-            />
-            <label htmlFor="isDefaultShipping" className="text-sm" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>
-              Usar como dirección de envío por defecto
-            </label>
+          {/* Por defecto — mismo patrón que privacidad (perfil público / privado) */}
+          <div className="flex items-center justify-between gap-3 py-2">
+            <div className="min-w-0">
+              <label className="text-sm font-medium text-white">Dirección de envío por defecto</label>
+              <p className="text-xs text-gray-400">Usar esta dirección al comprar si no eliges otra</p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setFormData((prev) => ({ ...prev, isDefaultShipping: !prev.isDefaultShipping }))
+              }
+              className={`relative h-6 w-12 shrink-0 rounded-full transition-colors ${
+                formData.isDefaultShipping ? 'bg-[#73FFA2]' : 'bg-gray-600'
+              }`}
+            >
+              <div
+                className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform ${
+                  formData.isDefaultShipping ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
 
           {/* Dirección de regalos */}
-          <div className="space-y-1">
-            <div className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                id="isGiftAddress"
-                checked={formData.isGiftAddress || false}
-                onChange={(e) => setFormData({ ...formData, isGiftAddress: e.target.checked })}
-                className="mt-1 w-4 h-4 text-[#73FFA2] focus:ring-[#73FFA2] focus:ring-2 rounded"
-              />
-              <label htmlFor="isGiftAddress" className="text-sm cursor-pointer flex-1" style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}>
-                Usar esta dirección para recibir regalos
-                <span className="block text-xs mt-0.5" style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}>
-                  Nadie más tendrá acceso a estos datos
-                </span>
-              </label>
+          <div className="flex items-center justify-between gap-3 py-2">
+            <div className="min-w-0">
+              <label className="text-sm font-medium text-white">Usar para recibir regalos</label>
+              <p className="text-xs text-gray-400">Nadie más tendrá acceso a estos datos</p>
             </div>
+            <button
+              type="button"
+              onClick={() =>
+                setFormData((prev) => ({ ...prev, isGiftAddress: !prev.isGiftAddress }))
+              }
+              className={`relative h-6 w-12 shrink-0 rounded-full transition-colors ${
+                formData.isGiftAddress ? 'bg-[#73FFA2]' : 'bg-gray-600'
+              }`}
+            >
+              <div
+                className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform ${
+                  formData.isGiftAddress ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
         </form>
         </div>
@@ -568,6 +595,7 @@ export function AddressFormModal({
               backgroundColor: '#4A4A4A',
               color: '#B7B7B7',
               fontFamily: 'Poppins, sans-serif',
+              boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25) inset',
             }}
           >
             Cancelar
@@ -584,6 +612,7 @@ export function AddressFormModal({
               backgroundColor: isSubmitting ? '#4A4A4A' : '#73FFA2',
               color: isSubmitting ? '#666' : '#262626',
               fontFamily: 'Poppins, sans-serif',
+              boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25) inset',
             }}
           >
             {isSubmitting ? 'Guardando...' : address ? 'Actualizar' : 'Crear'}

@@ -29,9 +29,15 @@ interface SocialLinksSectionProps {
   onUpdate?: () => void
   /** Sin tarjeta de ajustes; para panel flotante tipo notificaciones en el perfil */
   embedded?: boolean
+  /** Alineado al modal de configuración (tarjetas oscuras) */
+  design?: 'default' | 'settings'
 }
 
-export function SocialLinksSection({ onUpdate, embedded = false }: SocialLinksSectionProps) {
+const socialRowSettings =
+  'flex items-center justify-between gap-2 rounded border border-white/[0.06] bg-[#1a1a1a] px-2 py-1.5'
+
+export function SocialLinksSection({ onUpdate, embedded = false, design = 'default' }: SocialLinksSectionProps) {
+  const isSettings = design === 'settings'
   const { user, checkAuth } = useAuthStore()
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -145,61 +151,123 @@ export function SocialLinksSection({ onUpdate, embedded = false }: SocialLinksSe
       className={
         embedded
           ? 'space-y-4'
-          : 'space-y-4 rounded-lg border-2 border-[#73FFA2] bg-transparent p-4 transition-colors hover:border-[#66DEDB]'
+          : isSettings
+            ? 'space-y-3 rounded-xl border border-[#73FFA2]/40 bg-[#0a0a0a] p-3 sm:p-4'
+            : 'space-y-4 rounded-lg border-2 border-[#73FFA2] bg-transparent p-4 transition-colors hover:border-[#66DEDB]'
       }
     >
       {!embedded && (
-        <h3 className="mb-4 text-lg font-semibold text-[#73FFA2]">Redes Sociales</h3>
+        isSettings ? (
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold text-[#73FFA2]">Redes sociales</h3>
+              <p className="mb-2 mt-0.5 text-xs text-gray-500">Enlaces a tus perfiles.</p>
+            </div>
+            {availablePlatforms.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                disabled={isLoading}
+                className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center self-start rounded border border-[#73FFA2]/40 bg-[#73FFA2]/10 text-[#73FFA2] transition hover:bg-[#73FFA2]/20 disabled:opacity-50"
+                title="Agregar red"
+                aria-label="Agregar red social"
+              >
+                <PlusIcon className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <h3 className="mb-4 text-lg font-semibold text-[#73FFA2]">Redes Sociales</h3>
+        )
       )}
       
       {error && (
-        <div className="rounded border border-red-400/30 bg-red-900/20 px-4 py-2 text-sm text-red-400">
+        <div
+          className={
+            isSettings
+              ? 'rounded border border-red-500/20 bg-red-900/10 px-2 py-1.5 text-xs text-red-400'
+              : 'rounded border border-red-400/30 bg-red-900/20 px-4 py-2 text-sm text-red-400'
+          }
+        >
           {error}
         </div>
       )}
 
       {/* Lista de redes sociales */}
-      <div className="space-y-2">
+      <div className={isSettings ? 'space-y-1' : 'space-y-2'}>
         {socialLinks.length === 0 ? (
-          <p className="text-gray-400 text-sm">No has agregado ninguna red social</p>
+          <p
+            className={
+              isSettings
+                ? 'rounded border border-white/[0.06] bg-[#1a1a1a] px-2 py-1.5 text-[11px] text-gray-500'
+                : 'text-sm text-gray-400'
+            }
+          >
+            {isSettings ? 'Ninguna red' : 'No has agregado ninguna red social'}
+          </p>
         ) : (
           socialLinks.map((link) => {
             const platformInfo = getPlatformInfo(link.platform)
             return (
               <div
                 key={link.platform}
-                className={`flex items-center justify-between rounded-lg p-2 ${
-                  embedded ? 'bg-white/[0.04]' : 'bg-gray-800/50'
-                }`}
+                className={
+                  isSettings
+                    ? socialRowSettings
+                    : `flex items-center justify-between rounded-lg p-2 ${embedded ? 'bg-white/[0.04]' : 'bg-gray-800/50'}`
+                }
               >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
                   {platformInfo && (
-                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center overflow-visible">
+                    <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center overflow-visible sm:h-5 sm:w-5">
                       <Image
                         src={platformInfo.iconPath}
                         alt={platformInfo.name}
-                        width={platformInfo.width ?? 24}
-                        height={platformInfo.height ?? 24}
+                        width={platformInfo.width ?? 20}
+                        height={platformInfo.height ?? 20}
                         className={
                           platformInfo.width
-                            ? 'h-6 w-auto max-w-[34px] object-contain'
-                            : 'h-6 w-6 object-contain'
+                            ? isSettings
+                              ? 'h-4 w-auto max-w-[28px] object-contain sm:h-5 sm:max-w-[32px]'
+                              : 'h-6 w-auto max-w-[34px] object-contain'
+                            : isSettings
+                              ? 'h-4 w-4 object-contain sm:h-5 sm:w-5'
+                              : 'h-6 w-6 object-contain'
                         }
                         unoptimized
                       />
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{platformInfo?.name || link.platform}</p>
-                    <p className="text-gray-400 text-xs truncate">{link.url}</p>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={
+                        isSettings
+                          ? 'truncate text-[11px] font-medium text-white sm:text-xs'
+                          : 'truncate text-sm font-medium text-white'
+                      }
+                    >
+                      {platformInfo?.name || link.platform}
+                    </p>
+                    <p
+                      className={
+                        isSettings ? 'truncate text-[9px] text-gray-500 sm:text-[10px]' : 'truncate text-xs text-gray-400'
+                      }
+                    >
+                      {link.url}
+                    </p>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => handleRemoveLink(link.platform)}
-                  className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded transition-colors"
+                  className={
+                    isSettings
+                      ? 'shrink-0 rounded p-0.5 text-red-400/90 transition hover:bg-red-500/10'
+                      : 'rounded p-1.5 text-red-400 transition-colors hover:bg-red-900/20 hover:text-red-300'
+                  }
                   title="Eliminar"
                 >
-                  <TrashIcon className="w-4 h-4" />
+                  <TrashIcon className={isSettings ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
                 </button>
               </div>
             )
@@ -207,8 +275,7 @@ export function SocialLinksSection({ onUpdate, embedded = false }: SocialLinksSe
         )}
       </div>
 
-      {/* Botón discreto para agregar red social */}
-      {availablePlatforms.length > 0 && (
+      {!isSettings && availablePlatforms.length > 0 && (
         <button
           type="button"
           onClick={() => setShowAddModal(true)}

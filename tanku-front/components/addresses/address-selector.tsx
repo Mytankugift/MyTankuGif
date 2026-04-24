@@ -12,6 +12,8 @@ interface AddressSelectorProps {
   onEdit: (address: AddressDTO) => void
   onDelete: (addressId: string) => void
   useMainAddressForGifts?: boolean // Si el usuario usa su dirección principal para regalos
+  /** Superficies translúcidas alineadas con checkout Tanku (gift-direct / carrito) */
+  variant?: 'default' | 'tanku'
 }
 
 export function AddressSelector({
@@ -22,7 +24,9 @@ export function AddressSelector({
   onEdit,
   onDelete,
   useMainAddressForGifts = false,
+  variant = 'default',
 }: AddressSelectorProps) {
+  const isTanku = variant === 'tanku'
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
   const confirmRef = useRef<HTMLDivElement>(null)
 
@@ -71,11 +75,15 @@ export function AddressSelector({
         <div
           key={address.id}
           className={`
-            flex items-start gap-2 p-3 rounded border cursor-pointer transition-colors
+            flex cursor-pointer items-start gap-2 rounded-xl border p-3 transition-colors
             ${
-              selectedAddressId === address.id
-                ? 'border-[#66DEDB] bg-[#66DEDB]/5'
-                : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
+              isTanku
+                ? selectedAddressId === address.id
+                  ? 'border-[#66DEDB] bg-[#66DEDB]/10 ring-1 ring-inset ring-[#66DEDB]/15 backdrop-blur-sm'
+                  : 'border-white/[0.08] bg-white/[0.04] ring-1 ring-inset ring-white/[0.04] backdrop-blur-sm hover:border-[#66DEDB]/30'
+                : selectedAddressId === address.id
+                  ? 'border-[#66DEDB] bg-[#66DEDB]/5'
+                  : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
             }
           `}
           onClick={() => onSelectAddress(address)}
