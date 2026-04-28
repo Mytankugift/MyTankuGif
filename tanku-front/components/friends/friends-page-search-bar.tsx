@@ -19,7 +19,14 @@ export function FriendsPageSearchBar({
   onSearchBlur?: () => void
 }) {
   const blurDeferRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => blurDeferRef.current && clearTimeout(blurDeferRef.current), [])
+  useEffect(() => {
+    return () => {
+      if (blurDeferRef.current != null) {
+        clearTimeout(blurDeferRef.current)
+        blurDeferRef.current = null
+      }
+    }
+  }, [])
   return (
     <div className="relative w-full min-w-0 pt-1">
       <div className="absolute left-2.5 top-1/2 z-10 -translate-y-1/2 transform">

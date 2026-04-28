@@ -9,6 +9,7 @@ import { useChatService } from '@/lib/hooks/use-chat-service'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import type { Conversation } from '@/lib/hooks/use-chat'
 import { EmojiPickerButton } from '@/components/posters/emoji-picker-button'
+import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
 
 interface ChatWindowProps {
   conversationId: string | null
@@ -311,7 +312,7 @@ export function ChatWindow({
     : `/profile/${otherUser.id}`
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Móvil: mismo patrón que el dropdown de mensajes (atrás + avatar + nombre) */}
       {onMobileBack ? (
         <div
@@ -321,7 +322,7 @@ export function ChatWindow({
           )}
           style={rowDividerStyle}
         >
-          <div className="flex min-h-[52px] min-w-0 flex-1 items-center gap-2">
+          <div className="flex min-h-[52px] w-full min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={onMobileBack}
@@ -341,16 +342,32 @@ export function ChatWindow({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <button
-              type="button"
-              onClick={() => router.push(profileHref)}
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-1 text-left transition-opacity hover:opacity-85"
-            >
-              <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700">
+            <div className="min-w-0 flex-1 px-1 text-center">
+              <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+              {typingUsers.length > 0 ? (
+                <p className="truncate text-xs text-gray-400">Escribiendo...</p>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-1 border-l border-white/10 pl-2">
+              <button
+                type="button"
+                onClick={() => router.push(profileHref)}
+                title="Ir al perfil"
+                aria-label={`Abrir perfil de ${displayName}`}
+                className="rounded-lg p-2 text-[#66DEDB] transition-colors hover:bg-white/10"
+              >
+                <ArrowTopRightOnSquareIcon className="h-5 w-5" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(profileHref)}
+                aria-label={`Perfil · ${displayName}`}
+                className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700 transition-opacity hover:opacity-90"
+              >
                 {otherUser.profile?.avatar ? (
                   <Image
                     src={otherUser.profile.avatar}
-                    alt={displayName}
+                    alt=""
                     width={40}
                     height={40}
                     className="h-full w-full object-cover"
@@ -360,13 +377,9 @@ export function ChatWindow({
                       const target = e.target as HTMLImageElement
                       target.style.display = 'none'
                     }}
-                    onLoad={(e) => {
-                      const target = e.target as HTMLImageElement
-                      target.style.display = 'block'
-                    }}
                   />
                 ) : (
-                  <span className="text-xs font-semibold text-gray-400">
+                  <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-gray-400">
                     {(
                       otherUser.firstName?.[0] ||
                       otherUser.email?.[0] ||
@@ -375,34 +388,48 @@ export function ChatWindow({
                     ).toUpperCase()}
                   </span>
                 )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-white">{displayName}</p>
-                {typingUsers.length > 0 ? (
-                  <p className="text-xs text-gray-400">Escribiendo...</p>
-                ) : null}
-              </div>
-            </button>
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
 
-      {/* Escritorio: cabecera alineada a la derecha */}
+      {/* Tablet + escritorio (lg): nombre · icono ir al perfil · avatar (derecha) */}
       <div
         className={`shrink-0 border-b p-4 ${onMobileBack ? 'hidden lg:block' : ''}`}
         style={rowDividerStyle}
       >
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => router.push(profileHref)}
-            className="flex max-w-full flex-row-reverse items-center gap-3 rounded-lg py-0.5 text-right transition-opacity hover:opacity-85"
-          >
-            <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700">
+        <div className="flex min-h-[48px] w-full min-w-0 items-center justify-end gap-3">
+          <div className="min-w-0 flex-1 text-right md:pr-1">
+            <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+            {otherUser.username &&
+              displayName.toLowerCase() !== otherUser.username.toLowerCase() && (
+                <p className="truncate text-xs text-gray-400">@{otherUser.username}</p>
+              )}
+            {typingUsers.length > 0 && (
+              <p className="text-xs text-gray-400">Escribiendo...</p>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5 border-l border-white/10 pl-2 md:border-0 md:pl-0">
+            <button
+              type="button"
+              onClick={() => router.push(profileHref)}
+              title="Ir al perfil"
+              aria-label={`Abrir perfil de ${displayName}`}
+              className="rounded-lg p-2 text-[#66DEDB] transition-colors hover:bg-white/10"
+            >
+              <ArrowTopRightOnSquareIcon className="h-5 w-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(profileHref)}
+              aria-label={`Perfil · ${displayName}`}
+              className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700 transition-opacity hover:opacity-90"
+            >
               {otherUser.profile?.avatar ? (
                 <Image
                   src={otherUser.profile.avatar}
-                  alt={displayName}
+                  alt=""
                   width={40}
                   height={40}
                   className="h-full w-full object-cover"
@@ -412,13 +439,9 @@ export function ChatWindow({
                     const target = e.target as HTMLImageElement
                     target.style.display = 'none'
                   }}
-                  onLoad={(e) => {
-                    const target = e.target as HTMLImageElement
-                    target.style.display = 'block'
-                  }}
                 />
               ) : (
-                <span className="text-xs font-semibold text-gray-400">
+                <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-gray-400">
                   {(
                     otherUser.firstName?.[0] ||
                     otherUser.email?.[0] ||
@@ -427,18 +450,8 @@ export function ChatWindow({
                   ).toUpperCase()}
                 </span>
               )}
-            </div>
-            <div className="min-w-0 flex-1 text-right">
-              <p className="truncate text-sm font-semibold text-white">{displayName}</p>
-              {otherUser.username &&
-                displayName.toLowerCase() !== otherUser.username.toLowerCase() && (
-                  <p className="truncate text-xs text-gray-400">@{otherUser.username}</p>
-                )}
-              {typingUsers.length > 0 && (
-                <p className="text-xs text-gray-400">Escribiendo...</p>
-              )}
-            </div>
-          </button>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -493,7 +506,10 @@ export function ChatWindow({
       </div>
 
       {/* Input */}
-      <div className="shrink-0 border-t bg-transparent p-3" style={rowDividerStyle}>
+      <div
+        className="shrink-0 border-t bg-[#171B21] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
+        style={rowDividerStyle}
+      >
         <div className="flex min-w-0 items-end gap-1.5 sm:gap-2">
           <textarea
             ref={textareaRef}

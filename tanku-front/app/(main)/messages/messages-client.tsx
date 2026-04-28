@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { clsx } from 'clsx'
 import { useChat } from '@/lib/hooks/use-chat'
@@ -48,6 +49,12 @@ function MessagesClientContent() {
 
   const selectedConversation = conversations.find((c) => c.id === activeConversation) || null
   const showMobileChatOverlay = Boolean(activeConversation && selectedConversation)
+
+  /** Portal al body: dentro de `<main>` (z-0) el sidebar hermano (z-50) tapaba el overlay fixed en tablet. */
+  const [chatPortalMounted, setChatPortalMounted] = useState(false)
+  useEffect(() => {
+    setChatPortalMounted(true)
+  }, [])
 
   const rowDividerStyle = {
     borderImage:
@@ -168,25 +175,37 @@ function MessagesClientContent() {
         </div>
       </div>
 
-      {/* Móvil: pantalla completa salvo franja del bottom nav (z por debajo de 999999 del nav) */}
-      {showMobileChatOverlay && selectedConversation && activeConversation ? (
-        <div
-          className="fixed left-0 right-0 top-0 z-[60] flex flex-col bg-[#171B21] bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:hidden"
-          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Conversación"
-        >
-          <div className="flex min-h-0 flex-1 flex-col">
-            <ChatWindow
-              conversationId={activeConversation}
-              conversation={selectedConversation}
-              onMobileBack={() => setActiveConversation(null)}
-              mobileFullBleedChrome
-            />
-          </div>
-        </div>
-      ) : null}
+      {/* Móvil + tablet (<lg): mismo ancho visual que `<main>` (offset sidebar); portal evita stacking bajo Sidebar z-50 */}
+      {chatPortalMounted &&
+        showMobileChatOverlay &&
+        selectedConversation &&
+        activeConversation &&
+        typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className={clsx(
+                /* Debajo del BaseNav (~3.75rem) + safe-area: alto real para flex/h-full y barra inferior visible */
+                'fixed right-0 z-[140] flex min-h-0 flex-col overflow-hidden bg-[#171B21] lg:hidden',
+                'left-0 md:left-36 lg:left-[208px]',
+                'top-[calc(max(env(safe-area-inset-top,0px),12px)+3.75rem)]',
+                'max-md:bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:bottom-0 md:pb-[env(safe-area-inset-bottom,0px)]',
+              )}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Conversación"
+            >
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <ChatWindow
+                  conversationId={activeConversation}
+                  conversation={selectedConversation}
+                  onMobileBack={() => setActiveConversation(null)}
+                  mobileFullBleedChrome
+                />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }
