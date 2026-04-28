@@ -5,6 +5,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { clsx } from 'clsx'
+import { useIsMaxWidth, useIsMinWidth } from '@/lib/hooks/use-is-max-width'
 import { useChat } from '@/lib/hooks/use-chat'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { ConversationList } from '@/components/chat/conversation-list'
@@ -49,8 +50,10 @@ function MessagesClientContent() {
 
   const selectedConversation = conversations.find((c) => c.id === activeConversation) || null
   const showMobileChatOverlay = Boolean(activeConversation && selectedConversation)
+  /** Solo móvil (max-md): chat a pantalla completa con portal y sin BaseNav; tablet tiene chat dentro de la tarjeta bordeada. */
+  const isMobileViewport = useIsMaxWidth(767)
+  const isLgUp = useIsMinWidth(1024)
 
-  /** Portal al body: dentro de `<main>` (z-0) el sidebar hermano (z-50) tapaba el overlay fixed en tablet. */
   const [chatPortalMounted, setChatPortalMounted] = useState(false)
   useEffect(() => {
     setChatPortalMounted(true)
@@ -66,8 +69,13 @@ function MessagesClientContent() {
       className="relative z-0 flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
       style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
     >
-      {/* Nav fijo + scroll en `#messages-scroll-root` (Chrome Android) */}
-      <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
+      {/* Nav fijo — se oculta en móvil al abrir el chat para que éste cubra toda la pantalla */}
+      <div
+        className={clsx(
+          'pointer-events-none relative z-40 shrink-0 h-0 overflow-visible',
+          showMobileChatOverlay && isMobileViewport && 'hidden',
+        )}
+      >
         <BaseNav
           showStories={false}
           pageTitle="Mensajes"
@@ -85,15 +93,17 @@ function MessagesClientContent() {
         className={clsx(
           'custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
           'px-4 pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:px-8 lg:pb-8 lg:pt-28 xl:px-10 xl:pt-36',
-          /* Móvil + tablet: overlay de chat; lg+ : vista de dos columnas. Ocultar scroll sin conversación al abrir chat */
-          showMobileChatOverlay && 'max-lg:hidden',
+          /* Solo móvil: portal a pantalla completa; tablet mantiene scroll y chat dentro del card con borde */
+          showMobileChatOverlay && isMobileViewport && 'max-md:hidden',
         )}
         style={{ marginRight: 0, scrollBehavior: 'auto' }}
       >
         <div
           className={clsx(
             'flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#414141] shadow-xl',
-            'lg:h-[calc(100vh-13rem)] lg:flex-row xl:h-[calc(100vh-14rem)]'
+            /* Tablet (md–lg): misma tarjeta con borde; lg+ dos columnas con alturas del layout escritorio */
+            'md:h-[calc(100dvh-11rem)]',
+            'lg:h-[calc(100vh-13rem)] lg:flex-row xl:h-[calc(100vh-14rem)]',
           )}
           style={{ backgroundColor: '#171B21' }}
         >
@@ -150,12 +160,20 @@ function MessagesClientContent() {
             </div>
           </div>
 
-          {/* Chat: solo desde lg; móvil/tablet usan el overlay fijo de abajo */}
-          <div className="hidden min-h-0 flex-1 flex-col lg:flex">
+          {/* Chat: desde md dentro del card bordeado; móvil &lt;md usa portal a pantalla completa */}
+          <div
+            className={clsx(
+              'min-h-0 flex-1 flex-col overflow-hidden',
+              activeConversation && selectedConversation ? 'hidden md:flex' : 'hidden lg:flex',
+            )}
+          >
             {activeConversation && selectedConversation ? (
               <ChatWindow
                 conversationId={activeConversation}
                 conversation={selectedConversation}
+                onMobileBack={
+                  isLgUp ? undefined : () => setActiveConversation(null)
+                }
               />
             ) : (
               <div className="flex h-full flex-col items-center justify-center px-4 text-center text-gray-400">
@@ -175,26 +193,24 @@ function MessagesClientContent() {
         </div>
       </div>
 
-      {/* Móvil + tablet (<lg): mismo ancho visual que `<main>` (offset sidebar); portal evita stacking bajo Sidebar z-50 */}
+      {/* Solo móvil (<md): pantalla completa sin BaseNav */}
       {chatPortalMounted &&
         showMobileChatOverlay &&
         selectedConversation &&
         activeConversation &&
+        isMobileViewport &&
         typeof document !== 'undefined'
         ? createPortal(
             <div
               className={clsx(
-                /* Debajo del BaseNav (~3.75rem) + safe-area: alto real para flex/h-full y barra inferior visible */
-                'fixed right-0 z-[140] flex min-h-0 flex-col overflow-hidden bg-[#171B21] lg:hidden',
-                'left-0 md:left-36 lg:left-[208px]',
-                'top-[calc(max(env(safe-area-inset-top,0px),12px)+3.75rem)]',
-                'max-md:bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:bottom-0 md:pb-[env(safe-area-inset-bottom,0px)]',
+                'fixed inset-x-0 bottom-0 top-0 z-[160] flex min-h-0 flex-col overflow-hidden bg-[#171B21]',
+                'pt-[env(safe-area-inset-top,0px)] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]',
               )}
               role="dialog"
               aria-modal="true"
               aria-label="Conversación"
             >
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                 <ChatWindow
                   conversationId={activeConversation}
                   conversation={selectedConversation}

@@ -12,7 +12,7 @@
  * Componentes pendientes de migración:
  * - components/products/share-product-modal.tsx
  * - components/wishlists/share-wishlist-modal.tsx
- * - components/stalkergift/stalkergift-chat-window.tsx
+ * - Chat StalkerGift: `components/chat/chat-window.tsx` (anonymousMode) + realtime vía chat service
  * - components/posters/share-post-modal.tsx
  */
 

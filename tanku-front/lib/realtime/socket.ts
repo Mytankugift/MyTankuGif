@@ -11,7 +11,7 @@
  * Componentes pendientes de migración:
  * - components/products/share-product-modal.tsx
  * - components/wishlists/share-wishlist-modal.tsx
- * - components/stalkergift/stalkergift-chat-window.tsx
+ * - `/stalkergift`: `components/chat/chat-window.tsx`
  * - components/posters/share-post-modal.tsx
  */
 

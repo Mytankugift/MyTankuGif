@@ -9,7 +9,7 @@ import { useChatService } from '@/lib/hooks/use-chat-service'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import type { Conversation } from '@/lib/hooks/use-chat'
 import { EmojiPickerButton } from '@/components/posters/emoji-picker-button'
-import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
+import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
 
 interface ChatWindowProps {
   conversationId: string | null
@@ -18,6 +18,8 @@ interface ChatWindowProps {
   onMobileBack?: () => void
   /** Móvil overlay pantalla completa: cabecera más compacta y botón atrás táctil grande */
   mobileFullBleedChrome?: boolean
+  /** StalkerGift: alias, sin enlace a perfil ni avatar real */
+  anonymousMode?: boolean
 }
 
 export function ChatWindow({
@@ -25,6 +27,7 @@ export function ChatWindow({
   conversation,
   onMobileBack,
   mobileFullBleedChrome = false,
+  anonymousMode = false,
 }: ChatWindowProps) {
   const router = useRouter()
   const { getOtherParticipant, user } = useChat()
@@ -46,14 +49,15 @@ export function ChatWindow({
   } as const
 
   const otherParticipant = conversation ? getOtherParticipant(conversation, user?.id || '') : null
-  const displayName =
-    otherParticipant?.user?.username ||
-    otherParticipant?.alias ||
-    (otherParticipant?.user
-      ? `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
-      : otherParticipant?.deletedUserEmail || 'Usuario eliminado') ||
-    otherParticipant?.user?.email ||
-    'Usuario'
+  const displayName = anonymousMode
+    ? otherParticipant?.alias || 'Anónimo'
+    : otherParticipant?.user?.username ||
+      otherParticipant?.alias ||
+      (otherParticipant?.user
+        ? `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
+        : otherParticipant?.deletedUserEmail || 'Usuario eliminado') ||
+      otherParticipant?.user?.email ||
+      'Usuario'
 
   // ✅ NUEVO: Obtener mensajes directamente del servicio (ya están sincronizados)
   const messages = conversationId ? getMessages(conversationId) : []
@@ -263,18 +267,23 @@ export function ChatWindow({
         if (mentionPart.startsWith('@') && mentionPart.includes('|')) {
           const match = mentionPart.match(/^@(.+?)\|([a-zA-Z0-9_-]{20,})$/)
           if (match) {
-            const [, displayName, userId] = match
+            const [, mentionDisplay, mentionUserId] = match
+            const label = `@${mentionDisplay.trim()}`
+            if (anonymousMode) {
+              return (
+                <span key={`mention-${urlIndex}-${mentionIndex}`} className="font-semibold text-[#73FFA2]">
+                  {label}
+                </span>
+              )
+            }
             return (
               <button
                 key={`mention-${urlIndex}-${mentionIndex}`}
-                onClick={() => {
-                  // Intentar obtener username del usuario mencionado
-                  // Por ahora usamos userId como fallback
-                  router.push(`/profile/${userId}`)
-                }}
-                className="text-[#73FFA2] font-semibold hover:text-[#66DEDB] hover:underline transition-colors"
+                type="button"
+                onClick={() => router.push(`/profile/${mentionUserId}`)}
+                className="font-semibold text-[#73FFA2] hover:text-[#66DEDB] hover:underline transition-colors"
               >
-                @{displayName.trim()}
+                {label}
               </button>
             )
           }
@@ -282,13 +291,22 @@ export function ChatWindow({
         // Formato legacy: @userId
         if (mentionPart.startsWith('@') && mentionPart.length > 20) {
           const userId = mentionPart.substring(1).trim()
+          const labelShort = `@${userId.substring(0, 8)}...`
+          if (anonymousMode) {
+            return (
+              <span key={`mention-${urlIndex}-${mentionIndex}`} className="font-semibold text-[#73FFA2]">
+                {labelShort}
+              </span>
+            )
+          }
           return (
             <button
               key={`mention-${urlIndex}-${mentionIndex}`}
+              type="button"
               onClick={() => router.push(`/profile/${userId}`)}
-              className="text-[#73FFA2] font-semibold hover:text-[#66DEDB] hover:underline transition-colors"
+              className="font-semibold text-[#73FFA2] hover:text-[#66DEDB] hover:underline transition-colors"
             >
-              @{userId.substring(0, 8)}...
+              {labelShort}
             </button>
           )
         }
@@ -297,7 +315,15 @@ export function ChatWindow({
     })
   }
 
-  if (!conversation || !otherParticipant || !otherParticipant.user) {
+  if (!conversation || !otherParticipant) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-400">
+        <p>Selecciona una conversación para comenzar</p>
+      </div>
+    )
+  }
+
+  if (!anonymousMode && !otherParticipant.user) {
     return (
       <div className="flex items-center justify-center h-full text-gray-400">
         <p>Selecciona una conversación para comenzar</p>
@@ -306,151 +332,181 @@ export function ChatWindow({
   }
 
   const otherUser = otherParticipant.user
-
-  const profileHref = otherUser.username
-    ? `/profile/${otherUser.username}`
-    : `/profile/${otherUser.id}`
+  const profileHref =
+    otherUser?.username
+      ? `/profile/${otherUser.username}`
+      : otherUser?.id
+        ? `/profile/${otherUser.id}`
+        : ''
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      {/* Móvil: mismo patrón que el dropdown de mensajes (atrás + avatar + nombre) */}
-      {onMobileBack ? (
-        <div
-          className={clsx(
-            'shrink-0 border-b lg:hidden',
-            mobileFullBleedChrome ? 'px-2 py-2' : 'p-4'
-          )}
-          style={rowDividerStyle}
-        >
-          <div className="flex min-h-[52px] w-full min-w-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={onMobileBack}
-              className={clsx(
-                'flex shrink-0 items-center justify-center rounded-full text-[#D7D7D7] transition-colors hover:bg-white/10 hover:text-white active:bg-white/15',
-                mobileFullBleedChrome ? 'h-11 w-11' : 'h-10 w-10 p-1.5'
-              )}
-              title="Volver a conversaciones"
-              aria-label="Volver a conversaciones"
-            >
-              <svg
-                className="h-6 w-6 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <div className="min-w-0 flex-1 px-1 text-center">
-              <p className="truncate text-sm font-semibold text-white">{displayName}</p>
-              {typingUsers.length > 0 ? (
-                <p className="truncate text-xs text-gray-400">Escribiendo...</p>
-              ) : null}
-            </div>
-            <div className="flex shrink-0 items-center gap-1 border-l border-white/10 pl-2">
+    <div className="grid h-full min-h-0 w-full max-w-full overflow-hidden [grid-template-rows:auto_minmax(0,1fr)_auto]">
+      {/* Una sola celda grid: cabecera móvil + cabecera tablet/desktop (<lg muestra primera; lg+ segunda) */}
+      <div className="min-h-0 shrink-0">
+        {/* Móvil / tablet overlay: atrás + nombre + avatar */}
+        {onMobileBack ? (
+          <div
+            className={clsx(
+              'border-b lg:hidden',
+              mobileFullBleedChrome ? 'px-2 py-2' : 'p-4'
+            )}
+            style={rowDividerStyle}
+          >
+            <div className="flex min-h-[52px] w-full min-w-0 items-center gap-2">
               <button
                 type="button"
-                onClick={() => router.push(profileHref)}
-                title="Ir al perfil"
-                aria-label={`Abrir perfil de ${displayName}`}
-                className="rounded-lg p-2 text-[#66DEDB] transition-colors hover:bg-white/10"
+                onClick={onMobileBack}
+                className={clsx(
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#D7D7D7] transition-colors hover:bg-white/[0.06] hover:text-white active:bg-white/[0.1]',
+                  mobileFullBleedChrome && 'h-11 w-11',
+                )}
+                title="Volver a conversaciones"
+                aria-label="Volver a conversaciones"
               >
-                <ArrowTopRightOnSquareIcon className="h-5 w-5" aria-hidden />
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push(profileHref)}
-                aria-label={`Perfil · ${displayName}`}
-                className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700 transition-opacity hover:opacity-90"
-              >
-                {otherUser.profile?.avatar ? (
+                {mobileFullBleedChrome ? (
                   <Image
-                    src={otherUser.profile.avatar}
+                    src="/icons_tanku/mobile_tanku_menu_ir_atras_Universal.svg"
                     alt=""
-                    width={40}
-                    height={40}
-                    className="h-full w-full object-cover"
-                    referrerPolicy="no-referrer"
-                    unoptimized={otherUser.profile.avatar.startsWith('http')}
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement
-                      target.style.display = 'none'
-                    }}
+                    width={24}
+                    height={24}
+                    className="h-6 w-6 shrink-0 object-contain"
+                    unoptimized
                   />
                 ) : (
-                  <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-gray-400">
-                    {(
-                      otherUser.firstName?.[0] ||
-                      otherUser.email?.[0] ||
-                      otherParticipant?.deletedUserEmail?.[0] ||
-                      'U'
-                    ).toUpperCase()}
-                  </span>
+                  <svg
+                    className="h-6 w-6 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
                 )}
               </button>
+              <div className="min-w-0 flex-1 px-1 text-center">
+                <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+                {typingUsers.length > 0 ? (
+                  <p className="truncate text-xs text-gray-400">Escribiendo...</p>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 items-center">
+                {anonymousMode ? (
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#66DEDB] bg-[#66DEDB]/15"
+                    aria-hidden
+                  >
+                    <ChatBubbleLeftRightIcon className="h-5 w-5 text-[#66DEDB]" />
+                  </div>
+                ) : (
+                  otherUser && (
+                    <button
+                      type="button"
+                      onClick={() => router.push(profileHref)}
+                      aria-label={`Ver perfil de ${displayName}`}
+                      className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700 transition-opacity hover:opacity-90"
+                    >
+                      {otherUser.profile?.avatar ? (
+                        <Image
+                          src={otherUser.profile.avatar}
+                          alt=""
+                          width={40}
+                          height={40}
+                          className="h-full w-full object-cover"
+                          referrerPolicy="no-referrer"
+                          unoptimized={otherUser.profile.avatar.startsWith('http')}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                          }}
+                        />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-gray-400">
+                          {(
+                            otherUser.firstName?.[0] ||
+                            otherUser.email?.[0] ||
+                            otherParticipant?.deletedUserEmail?.[0] ||
+                            'U'
+                          ).toUpperCase()}
+                        </span>
+                      )}
+                    </button>
+                  )
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {/* Tablet + escritorio (lg): nombre · icono ir al perfil · avatar (derecha) */}
-      <div
-        className={`shrink-0 border-b p-4 ${onMobileBack ? 'hidden lg:block' : ''}`}
-        style={rowDividerStyle}
-      >
-        <div className="flex min-h-[48px] w-full min-w-0 items-center justify-end gap-3">
-          <div className="min-w-0 flex-1 text-right md:pr-1">
-            <p className="truncate text-sm font-semibold text-white">{displayName}</p>
-            {otherUser.username &&
-              displayName.toLowerCase() !== otherUser.username.toLowerCase() && (
-                <p className="truncate text-xs text-gray-400">@{otherUser.username}</p>
-              )}
-            {typingUsers.length > 0 && (
-              <p className="text-xs text-gray-400">Escribiendo...</p>
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5 border-l border-white/10 pl-2 md:border-0 md:pl-0">
-            <button
-              type="button"
-              onClick={() => router.push(profileHref)}
-              title="Ir al perfil"
-              aria-label={`Abrir perfil de ${displayName}`}
-              className="rounded-lg p-2 text-[#66DEDB] transition-colors hover:bg-white/10"
-            >
-              <ArrowTopRightOnSquareIcon className="h-5 w-5" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push(profileHref)}
-              aria-label={`Perfil · ${displayName}`}
-              className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700 transition-opacity hover:opacity-90"
-            >
-              {otherUser.profile?.avatar ? (
-                <Image
-                  src={otherUser.profile.avatar}
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="h-full w-full object-cover"
-                  referrerPolicy="no-referrer"
-                  unoptimized={otherUser.profile.avatar.startsWith('http')}
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement
-                    target.style.display = 'none'
-                  }}
-                />
+        {/* Escritorio split (lg+): nombre + avatar; sin overlay móvil */}
+        <div
+          className={`border-b p-4 ${onMobileBack ? 'hidden lg:block' : ''}`}
+          style={rowDividerStyle}
+        >
+          <div className="flex min-h-[48px] w-full min-w-0 items-center justify-end gap-3">
+            <div className="min-w-0 flex-1 text-right md:pr-1">
+              <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+              {anonymousMode ? (
+                <p className="truncate text-xs text-[#73FFA2]/90">Chat anónimo</p>
               ) : (
-                <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-gray-400">
-                  {(
-                    otherUser.firstName?.[0] ||
-                    otherUser.email?.[0] ||
-                    otherParticipant?.deletedUserEmail?.[0] ||
-                    'U'
-                  ).toUpperCase()}
-                </span>
+                otherUser?.username &&
+                displayName.toLowerCase() !== otherUser.username.toLowerCase() && (
+                  <p className="truncate text-xs text-gray-400">@{otherUser.username}</p>
+                )
               )}
-            </button>
+              {typingUsers.length > 0 && (
+                <p className="text-xs text-gray-400">Escribiendo...</p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center">
+              {anonymousMode ? (
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#66DEDB] bg-[#66DEDB]/15"
+                  aria-hidden
+                >
+                  <ChatBubbleLeftRightIcon className="h-5 w-5 text-[#66DEDB]" />
+                </div>
+              ) : (
+                otherUser && (
+                  <button
+                    type="button"
+                    onClick={() => router.push(profileHref)}
+                    aria-label={`Ver perfil de ${displayName}`}
+                    className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700 transition-opacity hover:opacity-90"
+                  >
+                    {otherUser.profile?.avatar ? (
+                      <Image
+                        src={otherUser.profile.avatar}
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                        unoptimized={otherUser.profile.avatar.startsWith('http')}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                        }}
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-gray-400">
+                        {(
+                          otherUser.firstName?.[0] ||
+                          otherUser.email?.[0] ||
+                          otherParticipant?.deletedUserEmail?.[0] ||
+                          'U'
+                        ).toUpperCase()}
+                      </span>
+                    )}
+                  </button>
+                )
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -459,7 +515,7 @@ export function ChatWindow({
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
-        className="custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto p-4"
+        className="custom-scrollbar min-h-0 overflow-y-auto space-y-3 p-4"
       >
         {isLoadingMore && (
           <div className="flex justify-center py-4">
@@ -468,11 +524,13 @@ export function ChatWindow({
         )}
         {sortedMessages.map((msg) => {
           const isOwn = msg.senderId === user?.id
-          const senderName = msg.senderAlias || 
-            (msg.sender 
-              ? `${msg.sender.firstName || ''} ${msg.sender.lastName || ''}`.trim()
-              : msg.deletedSenderEmail || 'Usuario eliminado') ||
-            (msg.sender?.email || 'Usuario desconocido')
+          const senderName = anonymousMode
+            ? msg.senderAlias || 'Anónimo'
+            : msg.senderAlias ||
+              (msg.sender
+                ? `${msg.sender.firstName || ''} ${msg.sender.lastName || ''}`.trim()
+                : msg.deletedSenderEmail || 'Usuario eliminado') ||
+              (msg.sender?.email || 'Usuario desconocido')
 
           return (
             <div
@@ -516,7 +574,7 @@ export function ChatWindow({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Escribe un mensaje..."
+            placeholder={anonymousMode ? 'Escribe un mensaje anónimo…' : 'Escribe un mensaje...'}
             className="min-w-0 max-h-[120px] flex-1 resize-none rounded-lg bg-gray-700 px-3 py-2 text-base text-white focus:outline-none focus:ring-2 focus:ring-[#66DEDB]"
             rows={1}
             disabled={isSending || !isConnected}
