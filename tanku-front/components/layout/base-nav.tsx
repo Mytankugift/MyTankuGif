@@ -9,6 +9,7 @@ import React, { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { clsx } from 'clsx'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { CartButton } from '@/components/layout/cart-button'
 import { NotificationsButton } from '@/components/layout/notifications-button'
@@ -33,6 +34,8 @@ interface BaseNavProps {
   pageTitle?: string
   /** Subtítulo bajo el título (opcional) */
   pageSubtitle?: string
+  /** Si es true, el subtítulo solo se muestra en móvil (&lt; md), no en escritorio */
+  pageSubtitleMobileOnly?: boolean
   /** Color del título (por defecto el verde Tanku de eventos) */
   pageTitleColor?: string
   /** Contenido a la izquierda del título (ej. botón volver) */
@@ -59,6 +62,7 @@ export function BaseNav({
   additionalContent,
   pageTitle,
   pageSubtitle,
+  pageSubtitleMobileOnly = false,
   pageTitleColor = '#73FFA2',
   startContent,
   className = '',
@@ -99,7 +103,12 @@ export function BaseNav({
           </h1>
         ) : null}
         {pageSubtitle ? (
-          <p className="line-clamp-2 max-w-xl text-[10px] leading-snug text-gray-400 sm:text-xs md:text-sm">
+          <p
+            className={clsx(
+              'line-clamp-2 max-w-xl text-[10px] leading-snug text-gray-400 sm:text-xs md:text-sm',
+              pageSubtitleMobileOnly && 'md:hidden',
+            )}
+          >
             {pageSubtitle}
           </p>
         ) : null}

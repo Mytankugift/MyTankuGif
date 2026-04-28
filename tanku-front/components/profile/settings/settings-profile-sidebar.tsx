@@ -7,17 +7,18 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { getProfileCompletionPercent, getProfileMissingItems } from './profile-completion'
+import { clsx } from 'clsx'
 
 interface SettingsProfileSidebarProps {
   onViewMisTankus: () => void
 }
 
-/** Cierre de sesión al final del flujo "Perfil" (scroll compartido en móvil). */
-export function SettingsModalLogoutButton() {
+/** Cierre de sesión: móvil al final del formulario; escritorio al pie de la columna izquierda, tras “Completa tu perfil”. */
+export function SettingsModalLogoutButton({ className }: { className?: string }) {
   const { logout } = useAuthStore()
   const router = useRouter()
   return (
-    <div className="w-full shrink-0 border-t border-white/10 pt-2">
+    <div className={clsx('w-full shrink-0 border-t border-white/10 pt-2', className)}>
       <button
         type="button"
         onClick={() => {
@@ -120,7 +121,7 @@ export function SettingsProfileSidebar({ onViewMisTankus }: SettingsProfileSideb
         Ver mis TANKUS
       </button>
 
-      <div className="mt-2 border-t border-white/10 pt-2 md:flex md:min-h-0 md:flex-1 md:flex-col">
+      <div className="mt-2 min-h-0 border-t border-white/10 pt-2 md:flex md:min-h-0 md:flex-1 md:flex-col">
         <p className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-gray-500">
           Completa tu perfil
         </p>
@@ -134,7 +135,7 @@ export function SettingsProfileSidebar({ onViewMisTankus }: SettingsProfileSideb
           <span className="text-[10px] font-semibold tabular-nums text-[#73FFA2]">{pct}%</span>
         </div>
         {missing.length > 0 && (
-          <div className="mt-1.5 min-h-0 pr-0.5 text-[9px] leading-snug text-gray-400 max-md:max-h-none sm:text-[10px] md:max-h-40 md:flex-1 md:overflow-y-auto md:custom-scrollbar">
+          <div className="mt-1.5 min-h-0 pr-0.5 text-[9px] leading-snug text-gray-400 max-md:max-h-none sm:text-[10px] md:max-h-40 md:flex-1 md:overflow-y-auto md:variant-selector-scrollbar">
             <p className="shrink-0 font-medium text-gray-500">Falta completar:</p>
             <ul className="mt-0.5 list-inside list-disc space-y-0.5 marker:text-[#73FFA2]/50">
               {missing.map((m) => (
@@ -147,6 +148,9 @@ export function SettingsProfileSidebar({ onViewMisTankus }: SettingsProfileSideb
         )}
       </div>
 
+      <div className="mt-2 hidden w-full shrink-0 md:block">
+        <SettingsModalLogoutButton />
+      </div>
     </aside>
   )
 }

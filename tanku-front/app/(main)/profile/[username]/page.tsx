@@ -16,6 +16,7 @@ import { OtherProfileInsights } from '@/components/profile/other-profile-insight
 import type { ProfileInsightsDTO } from '@/types/api'
 import { useFriends } from '@/lib/hooks/use-friends'
 import { BaseNav } from '@/components/layout/base-nav'
+import { NavBackToFeedLink } from '@/components/layout/nav-back-to-feed'
 import { clsx } from 'clsx'
 
 function ProfileWishlistTabFromQuery({
@@ -404,9 +405,11 @@ export default function OtherUserProfilePage() {
           canHide={false}
           isVisible={true}
           pageTitle={profileUser.username || userName}
-          pageTitleColor="#66DEDB"
+          pageTitleColor="#FFFFFF"
           mobileBackCenterTitleCartOnly
           mobileTranslucentNav
+          desktopNavTitleCentered
+          startContent={<NavBackToFeedLink />}
           className="pointer-events-auto"
         />
       </div>

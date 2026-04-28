@@ -26,6 +26,8 @@ export type FriendDTO = {
   friend: FriendUserDTO;
   createdAt: string;
   updatedAt: string;
+  /** Amigos que compartís (excl. el vínculo directo) — ordenar por relevancia en UI */
+  mutualFriendsCount?: number;
 };
 
 export type FriendRequestDTO = {

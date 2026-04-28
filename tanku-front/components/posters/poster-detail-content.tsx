@@ -828,11 +828,13 @@ export function PosterDetailContent({
                       placeholder="Escribe un comentario..."
                       disabled={isCommenting}
                     />
-                    <EmojiPickerButton
-                      onEmojiSelect={(emoji) => {
-                        setCommentText(prev => prev + emoji)
-                      }}
-                    />
+                    <div className="absolute inset-y-0 right-0 z-[1] hidden w-0 items-center justify-end lg:flex lg:w-9">
+                      <EmojiPickerButton
+                        onEmojiSelect={(emoji) => {
+                          setCommentText((prev) => prev + emoji)
+                        }}
+                      />
+                    </div>
                   </div>
                   <button
                     type="submit"
@@ -961,17 +963,12 @@ export function PosterDetailContent({
                         />
                       )}
                       <div className="flex-1 flex gap-2">
-                        <div className="flex-1 relative">
+                        <div className="relative min-w-0 flex-1">
                           <UserMentionAutocomplete
                             value={commentText}
                             onChange={setCommentText}
                             placeholder="Escribe un comentario..."
                             disabled={isCommenting}
-                          />
-                          <EmojiPickerButton
-                            onEmojiSelect={(emoji) => {
-                              setCommentText(prev => prev + emoji)
-                            }}
                           />
                         </div>
                         <button

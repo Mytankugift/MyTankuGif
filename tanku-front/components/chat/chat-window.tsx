@@ -8,6 +8,7 @@ import { useChat } from '@/lib/hooks/use-chat'
 import { useChatService } from '@/lib/hooks/use-chat-service'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import type { Conversation } from '@/lib/hooks/use-chat'
+import { EmojiPickerButton } from '@/components/posters/emoji-picker-button'
 
 interface ChatWindowProps {
   conversationId: string | null
@@ -315,7 +316,7 @@ export function ChatWindow({
       {onMobileBack ? (
         <div
           className={clsx(
-            'shrink-0 border-b md:hidden',
+            'shrink-0 border-b lg:hidden',
             mobileFullBleedChrome ? 'px-2 py-2' : 'p-4'
           )}
           style={rowDividerStyle}
@@ -388,7 +389,7 @@ export function ChatWindow({
 
       {/* Escritorio: cabecera alineada a la derecha */}
       <div
-        className={`shrink-0 border-b p-4 ${onMobileBack ? 'hidden md:block' : ''}`}
+        className={`shrink-0 border-b p-4 ${onMobileBack ? 'hidden lg:block' : ''}`}
         style={rowDividerStyle}
       >
         <div className="flex justify-end">
@@ -493,18 +494,24 @@ export function ChatWindow({
 
       {/* Input */}
       <div className="shrink-0 border-t bg-transparent p-3" style={rowDividerStyle}>
-        <div className="flex items-end gap-2">
+        <div className="flex min-w-0 items-end gap-1.5 sm:gap-2">
           <textarea
             ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Escribe un mensaje..."
-            className="max-h-[120px] flex-1 resize-none rounded-lg bg-gray-700 px-3 py-2 text-base text-white focus:outline-none focus:ring-2 focus:ring-[#66DEDB]"
+            className="min-w-0 max-h-[120px] flex-1 resize-none rounded-lg bg-gray-700 px-3 py-2 text-base text-white focus:outline-none focus:ring-2 focus:ring-[#66DEDB]"
             rows={1}
             disabled={isSending || !isConnected}
             autoFocus
           />
+          <div className="hidden shrink-0 self-end pb-0.5 lg:block">
+            <EmojiPickerButton
+              inline
+              onEmojiSelect={(emoji) => setMessage((prev) => prev + emoji)}
+            />
+          </div>
           <button
             type="button"
             onClick={handleSend}

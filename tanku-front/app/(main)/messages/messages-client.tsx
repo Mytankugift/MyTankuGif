@@ -9,6 +9,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { ConversationList } from '@/components/chat/conversation-list'
 import { ChatWindow } from '@/components/chat/chat-window'
 import { BaseNav } from '@/components/layout/base-nav'
+import { NavBackToFeedLink } from '@/components/layout/nav-back-to-feed'
 
 // Componente interno que usa useSearchParams
 function MessagesClientContent() {
@@ -63,10 +64,11 @@ function MessagesClientContent() {
         <BaseNav
           showStories={false}
           pageTitle="Mensajes"
-          pageTitleColor="#66DEDB"
+          pageTitleColor="#FFFFFF"
           mobileBackCenterTitleCartOnly
           mobileTranslucentNav
           desktopNavTitleCentered
+          startContent={<NavBackToFeedLink />}
           className="pointer-events-auto"
         />
       </div>
@@ -75,16 +77,16 @@ function MessagesClientContent() {
         id="messages-scroll-root"
         className={clsx(
           'custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
-          'px-4 pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:px-8 md:pb-8 md:pt-28 lg:px-10 lg:pt-36',
-          /* Con chat abierto en móvil el overlay cubre todo; ocultamos la caja para no dejar hueco vacío */
-          showMobileChatOverlay && 'max-md:hidden',
+          'px-4 pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:px-8 lg:pb-8 lg:pt-28 xl:px-10 xl:pt-36',
+          /* Móvil + tablet: overlay de chat; lg+ : vista de dos columnas. Ocultar scroll sin conversación al abrir chat */
+          showMobileChatOverlay && 'max-lg:hidden',
         )}
         style={{ marginRight: 0, scrollBehavior: 'auto' }}
       >
         <div
           className={clsx(
             'flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#414141] shadow-xl',
-            'md:h-[calc(100vh-13rem)] md:flex-row lg:h-[calc(100vh-14rem)]'
+            'lg:h-[calc(100vh-13rem)] lg:flex-row xl:h-[calc(100vh-14rem)]'
           )}
           style={{ backgroundColor: '#171B21' }}
         >
@@ -92,8 +94,8 @@ function MessagesClientContent() {
           <div
             className={clsx(
               'flex min-h-0 flex-col border-b border-[#414141]',
-              'md:h-auto md:min-h-0 md:w-80 md:flex-shrink-0 md:border-b-0 md:border-r md:border-[#414141]',
-              activeConversation ? 'hidden md:flex' : 'flex flex-1'
+              'lg:h-auto lg:min-h-0 lg:w-80 lg:flex-shrink-0 lg:border-b-0 lg:border-r lg:border-[#414141]',
+              activeConversation ? 'hidden lg:flex' : 'flex flex-1'
             )}
           >
             <div className="shrink-0 border-b p-4" style={rowDividerStyle}>
@@ -141,8 +143,8 @@ function MessagesClientContent() {
             </div>
           </div>
 
-          {/* Chat escritorio + vacío */}
-          <div className="hidden min-h-0 flex-1 flex-col md:flex">
+          {/* Chat: solo desde lg; móvil/tablet usan el overlay fijo de abajo */}
+          <div className="hidden min-h-0 flex-1 flex-col lg:flex">
             {activeConversation && selectedConversation ? (
               <ChatWindow
                 conversationId={activeConversation}
@@ -169,7 +171,7 @@ function MessagesClientContent() {
       {/* Móvil: pantalla completa salvo franja del bottom nav (z por debajo de 999999 del nav) */}
       {showMobileChatOverlay && selectedConversation && activeConversation ? (
         <div
-          className="fixed left-0 right-0 top-0 z-[60] flex flex-col bg-[#171B21] md:hidden bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))]"
+          className="fixed left-0 right-0 top-0 z-[60] flex flex-col bg-[#171B21] bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:hidden"
           style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
           role="dialog"
           aria-modal="true"

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
+import { clsx } from 'clsx'
 
 // Importar dinámicamente para evitar problemas de SSR
 const EmojiPicker = dynamic(
@@ -15,9 +16,11 @@ const EMOJI_PICKER_Z = 100_600
 
 interface EmojiPickerButtonProps {
   onEmojiSelect: (emoji: string) => void
+  /** Al lado del campo en un flex (p. ej. chat); si no, overlay dentro del input */
+  inline?: boolean
 }
 
-export function EmojiPickerButton({ onEmojiSelect }: EmojiPickerButtonProps) {
+export function EmojiPickerButton({ onEmojiSelect, inline = false }: EmojiPickerButtonProps) {
   const [showPicker, setShowPicker] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -98,7 +101,12 @@ export function EmojiPickerButton({ onEmojiSelect }: EmojiPickerButtonProps) {
         ref={buttonRef}
         type="button"
         onClick={() => setShowPicker(!showPicker)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#73FFA2] transition-colors p-1"
+        className={clsx(
+          'text-gray-400 transition-colors hover:text-[#73FFA2]',
+          inline
+            ? 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg p-1'
+            : 'absolute right-2 top-1/2 -translate-y-1/2 p-1',
+        )}
         title="Agregar emoji"
       >
         <svg

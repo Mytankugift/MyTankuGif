@@ -10,29 +10,13 @@ import { CartSummary, buildCartCheckoutHref } from '@/components/cart/cart-summa
 import { Button } from '@/components/ui/button'
 import type { Cart } from '@/types/api'
 import { BaseNav } from '@/components/layout/base-nav'
+import { NavBackToFeedLink } from '@/components/layout/nav-back-to-feed'
 import {
   CHECKOUT_TANKU_PAGE_BG,
   CHECKOUT_TANKU_SCROLL_INNER,
   CHECKOUT_TANKU_SECTION_LABEL,
   CHECKOUT_TANKU_SURFACE,
 } from '@/lib/checkout-tanku-design'
-
-const navBack = (
-  <Link
-    href="/feed"
-    aria-label="Volver al feed"
-    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/[0.06]"
-  >
-    <Image
-      src="/icons_tanku/mobile_tanku_menu_ir_atras_Universal.svg"
-      alt=""
-      width={24}
-      height={24}
-      className="h-6 w-6 object-contain"
-      unoptimized
-    />
-  </Link>
-)
 
 const cartBaseNav = (
   <BaseNav
@@ -41,8 +25,9 @@ const cartBaseNav = (
     isVisible={true}
     pageTitle="Carrito"
     pageSubtitle="Revisa tus productos, ajusta cantidades y continúa al checkout"
+    pageSubtitleMobileOnly
     pageTitleColor="#FFFFFF"
-    startContent={navBack}
+    startContent={<NavBackToFeedLink />}
     mobileBackCenterTitleCartOnly
     mobileTranslucentNav
   />

@@ -418,6 +418,8 @@ export interface FriendDTO {
   friend: FriendUserDTO
   createdAt: string
   updatedAt: string
+  /** Amigos que compartís — priorizar en orden de lista */
+  mutualFriendsCount?: number
 }
 
 export interface FriendRequestDTO {

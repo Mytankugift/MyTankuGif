@@ -45,6 +45,14 @@ export type FeedNavScrollState = {
   minimalMode: boolean
 }
 
+/** Nav fijo: sin colapsar historias ni compactar buscador al hacer scroll (p. ej. /friends) */
+export const FEED_NAV_SCROLL_NO_HIDE: FeedNavScrollState = {
+  scrollTop: 0,
+  showStoriesStrip: true,
+  compactMid: false,
+  minimalMode: false,
+}
+
 /**
  * Estado de scroll del feed para el navbar: dirección, histéresis y flags de UI.
  */

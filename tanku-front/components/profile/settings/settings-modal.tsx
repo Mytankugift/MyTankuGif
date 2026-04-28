@@ -141,7 +141,7 @@ export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: Setting
             className={clsx(
               'flex min-h-0 flex-1 flex-col gap-2',
               // Móvil: scroll a nivel de esta caja (foto, completa perfil, formularios y cerrar sesión van en la misma correa)
-              'max-md:overflow-y-auto max-md:overflow-x-hidden max-md:pr-0.5 max-md:custom-scrollbar',
+              'max-md:overflow-y-auto max-md:overflow-x-hidden max-md:pr-0.5 max-md:variant-selector-scrollbar',
               'md:flex-row md:items-stretch md:gap-3 md:overflow-hidden',
             )}
           >
@@ -158,14 +158,16 @@ export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: Setting
               className={clsx(
                 'flex min-w-0 flex-1 flex-col',
                 'max-md:flex-none',
-                'md:min-h-0 md:overflow-y-auto md:overflow-x-hidden md:pr-0.5 md:custom-scrollbar',
+                'md:min-h-0 md:overflow-y-auto md:overflow-x-hidden md:pr-0.5 md:variant-selector-scrollbar',
               )}
             >
               {activeTab === 'PERFIL' && (
                 <div className="space-y-3 sm:space-y-4">
                   <PersonalInfoSection onUpdate={onUpdate} design="settings" />
                   <SocialLinksSection onUpdate={onUpdate} design="settings" />
-                  <SettingsModalLogoutButton />
+                  <div className="md:hidden">
+                    <SettingsModalLogoutButton />
+                  </div>
                 </div>
               )}
 

@@ -12,6 +12,8 @@ interface FriendRequestListProps {
   isLoading: boolean
   onAccept: (id: string) => Promise<void>
   onReject: (id: string) => Promise<void>
+  /** Tarjetas estrechas (columna lateral) */
+  compact?: boolean
 }
 
 export function FriendRequestList({
@@ -19,6 +21,7 @@ export function FriendRequestList({
   isLoading,
   onAccept,
   onReject,
+  compact = false,
 }: FriendRequestListProps) {
   if (isLoading) {
     return (
@@ -30,20 +33,27 @@ export function FriendRequestList({
 
   if (requests.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-400">No tienes solicitudes pendientes</p>
+      <div className={compact ? 'rounded-lg border border-dashed border-white/10 py-6 text-center' : 'py-12 text-center'}>
+        <p className="text-xs text-zinc-500 sm:text-sm">No hay solicitudes pendientes</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div
+      className={
+        compact
+          ? 'flex flex-col gap-2 pt-0.5'
+          : 'space-y-3 sm:space-y-4'
+      }
+    >
       {requests.map((request) => (
         <FriendRequestCard
           key={request.id}
           request={request}
           onAccept={onAccept}
           onReject={onReject}
+          compact={compact}
         />
       ))}
     </div>

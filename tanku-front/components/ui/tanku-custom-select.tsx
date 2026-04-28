@@ -1,6 +1,7 @@
 'use client'
 
 import { createPortal } from 'react-dom'
+import type { ReactNode } from 'react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ChevronDownIcon } from '@heroicons/react/24/outline'
 
@@ -22,6 +23,12 @@ export interface TankuCustomSelectProps {
   menuZIndex?: number
   /** Trigger más bajo y texto pequeño (barras fila única). */
   compact?: boolean
+  /** Icono a la izquierda del texto (p. ej. ordenar). */
+  leadingIcon?: ReactNode
+  /** Clases extra para el botón trigger (p. ej. responsive). */
+  triggerClassName?: string
+  /** Ocultar el texto mostrado (valor/placeholder) bajo lg; usar con aria-label en el disparador accesible. */
+  suppressSelectedVisualBelowLg?: boolean
 }
 
 /**
@@ -38,6 +45,9 @@ export function TankuCustomSelect({
   disabled = false,
   menuZIndex = 260,
   compact = false,
+  leadingIcon,
+  triggerClassName = '',
+  suppressSelectedVisualBelowLg = false,
 }: TankuCustomSelectProps) {
   const [open, setOpen] = useState(false)
   const [menuRect, setMenuRect] = useState<{ top: number; left: number; width: number } | null>(null)
@@ -93,17 +103,23 @@ export function TankuCustomSelect({
   }, [open])
 
   const triggerId = id ?? 'tanku-custom-select-trigger'
-  const ariaLabelledBy = labelId ? `${labelId} ${triggerId}` : triggerId
+  /** Con texto oculto bajo lg usar aria-label (nombre del valor seleccionado o placeholder). */
+  const suppressedA11yText = suppressSelectedVisualBelowLg
+    ? `${(selectedLabel ?? placeholder ?? '').trim() || placeholder || 'Seleccionar'}`
+    : ''
+  const ariaLabelling = suppressSelectedVisualBelowLg
+    ? { 'aria-label': suppressedA11yText }
+    : { 'aria-labelledby': labelId ? `${labelId} ${triggerId}` : triggerId }
 
   const triggerBtnClass = compact
-    ? 'min-h-[26px] py-0.5 pl-2 pr-7 text-[11px] leading-tight'
+    ? `min-h-[26px] py-0.5 ${leadingIcon ? 'pl-1.5' : 'pl-2'} pr-7 text-[11px] leading-tight`
     : 'min-h-[42px] py-2.5 pl-4 pr-11 text-sm'
   const chevronWrapClass = compact ? 'w-7' : 'w-11'
   const chevronIconClass = compact ? 'h-3.5 w-3.5' : 'h-5 w-5'
 
   return (
     <div className="relative">
-      {label ? (
+      {label && label.trim() !== '' ? (
         <label
           id={labelId}
           htmlFor={triggerId}
@@ -119,12 +135,26 @@ export function TankuCustomSelect({
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-labelledby={ariaLabelledBy}
+        {...ariaLabelling}
+        title={
+          suppressSelectedVisualBelowLg
+            ? suppressedA11yText
+            : (selectedLabel ?? placeholder ?? undefined)
+        }
         onClick={() => !disabled && setOpen((o) => !o)}
-        className={`relative flex w-full items-center rounded-full border border-[#414141] bg-[#0f1218] text-left text-white outline-none transition-colors hover:border-[#73FFA2]/50 focus-visible:border-[#73FFA2] focus-visible:ring-2 focus-visible:ring-[#73FFA2]/25 disabled:cursor-not-allowed disabled:opacity-50 ${triggerBtnClass}`}
+        className={`relative flex w-full items-center gap-1 rounded-full border border-[#414141] bg-[#0f1218] text-left text-white outline-none transition-colors hover:border-[#73FFA2]/50 focus-visible:border-[#73FFA2] focus-visible:ring-2 focus-visible:ring-[#73FFA2]/25 disabled:cursor-not-allowed disabled:opacity-50 ${triggerBtnClass} ${triggerClassName}`}
       >
+        {leadingIcon ? (
+          <span className="pointer-events-none flex shrink-0 items-center justify-center text-gray-400">
+            {leadingIcon}
+          </span>
+        ) : null}
         <span
-          className={`min-w-0 flex-1 truncate ${selectedLabel ? 'text-white' : 'text-gray-500'}`}
+          className={`min-w-0 truncate ${
+            suppressSelectedVisualBelowLg
+              ? 'hidden lg:flex lg:min-h-0 lg:min-w-0 lg:flex-1 lg:items-center lg:w-auto'
+              : 'flex-1'
+          } ${selectedLabel ? 'text-white' : 'text-gray-500'}`}
         >
           {selectedLabel ?? placeholder}
         </span>

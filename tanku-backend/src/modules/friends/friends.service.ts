@@ -25,6 +25,62 @@ export class FriendsService {
   }
 
   /**
+   * Añade `mutualFriendsCount` entre el viewer y cada amigo (intersección de listas de aceptados).
+   */
+  private async enrichFriendsWithMutualCounts(
+    viewerId: string,
+    friendsList: FriendDTO[],
+  ): Promise<FriendDTO[]> {
+    if (friendsList.length === 0) return friendsList;
+
+    const candidateIds = friendsList.map((d) => d.friendId);
+
+    const myAccepted = await prisma.friend.findMany({
+      where: {
+        status: 'accepted',
+        OR: [{ userId: viewerId }, { friendId: viewerId }],
+      },
+      select: { userId: true, friendId: true },
+    });
+    const myFriendSet = new Set(
+      myAccepted
+        .map((r) => (r.userId === viewerId ? r.friendId : r.userId))
+        .filter((id) => id !== viewerId),
+    );
+
+    const edgeRows = await prisma.friend.findMany({
+      where: {
+        status: 'accepted',
+        OR: [{ userId: { in: candidateIds } }, { friendId: { in: candidateIds } }],
+      },
+      select: { userId: true, friendId: true },
+    });
+
+    const neighborMap = new Map<string, Set<string>>();
+    for (const id of candidateIds) {
+      neighborMap.set(id, new Set<string>());
+    }
+    const addNeighbors = (endpoint: string, other: string) => {
+      if (neighborMap.has(endpoint) && other !== endpoint) neighborMap.get(endpoint)!.add(other);
+    };
+    for (const row of edgeRows) {
+      addNeighbors(row.userId, row.friendId);
+      addNeighbors(row.friendId, row.userId);
+    }
+
+    return friendsList.map((d) => {
+      let mutual = 0;
+      const neigh = neighborMap.get(d.friendId);
+      if (neigh?.size && myFriendSet.size) {
+        for (const u of myFriendSet) {
+          if (u !== d.friendId && neigh.has(u)) mutual++;
+        }
+      }
+      return { ...d, mutualFriendsCount: mutual };
+    });
+  }
+
+  /**
    * Mapear usuario a FriendUserDTO
    */
   private mapUserToFriendUserDTO(user: any): FriendUserDTO {
@@ -342,21 +398,21 @@ export class FriendsService {
       },
     });
 
-    // Mapear para que siempre retorne el amigo (no el usuario actual)
-    return friends.map((f) => {
+    const base = friends.map((f) => {
       const friendUser = f.userId === userId ? f.friend : f.user;
-      // ✅ Asegurar que friendId sea siempre el ID del usuario amigo, no el de la relación
       const correctFriendId = f.userId === userId ? f.friendId : f.userId;
       return {
         id: f.id,
         userId: f.userId,
-        friendId: correctFriendId, // ✅ Siempre el ID del usuario amigo
+        friendId: correctFriendId,
         status: f.status as 'pending' | 'accepted' | 'blocked',
         friend: this.mapUserToFriendUserDTO(friendUser),
         createdAt: f.createdAt.toISOString(),
         updatedAt: f.updatedAt.toISOString(),
       };
     });
+
+    return this.enrichFriendsWithMutualCounts(userId, base);
   }
 
   /**
@@ -758,10 +814,36 @@ export class FriendsService {
       }
     }
 
-    // Combinar y ordenar sugerencias
-    const allSuggestions = [...suggestionsByMutualFriends, ...suggestionsByInterests, ...suggestionsByActivities].slice(0, limit);
+    const combined: FriendSuggestionDTO[] = [
+      ...suggestionsByMutualFriends,
+      ...suggestionsByInterests,
+      ...suggestionsByActivities,
+    ];
 
-    return allSuggestions;
+    const mutualScore = (s: FriendSuggestionDTO) =>
+      typeof s.mutualFriendsCount === 'number' && s.mutualFriendsCount >= 0
+        ? s.mutualFriendsCount
+        : 0;
+
+    const byUserId = new Map<string, FriendSuggestionDTO>();
+    for (const s of combined) {
+      const prev = byUserId.get(s.userId);
+      if (!prev || mutualScore(s) > mutualScore(prev)) {
+        byUserId.set(s.userId, s);
+      }
+    }
+
+    const ranked = [...byUserId.values()].sort((a, b) => {
+      const d = mutualScore(b) - mutualScore(a);
+      if (d !== 0) return d;
+      if (a.reason === 'mutual_friends' && b.reason !== 'mutual_friends') return -1;
+      if (b.reason === 'mutual_friends' && a.reason !== 'mutual_friends') return 1;
+      const ua = `${a.user.username ?? ''} ${a.user.firstName ?? ''}`;
+      const ub = `${b.user.username ?? ''} ${b.user.firstName ?? ''}`;
+      return ua.localeCompare(ub, undefined, { sensitivity: 'base' });
+    });
+
+    return ranked.slice(0, limit);
   }
 
   /**

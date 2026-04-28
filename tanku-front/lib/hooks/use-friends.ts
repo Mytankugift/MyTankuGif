@@ -172,7 +172,7 @@ export function useFriends(): UseFriendsResult {
 
     try {
       const response = await apiClient.get<FriendSuggestionDTO[]>(
-        API_ENDPOINTS.FRIENDS.SUGGESTIONS
+        `${API_ENDPOINTS.FRIENDS.SUGGESTIONS}?limit=48`,
       )
       if (response.success && response.data) {
         setSuggestions(response.data)

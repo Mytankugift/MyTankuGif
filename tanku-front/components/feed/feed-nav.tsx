@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, type ReactNode } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -50,6 +50,12 @@ interface FeedNavProps {
   /** Con categoría activa se ocultan historias y se muestra la pastilla de filtro */
   activeCategoryFilter?: FeedCategoryActivePillCategory | null
   onClearCategoryFilter?: () => void
+  /** Texto del input (p. ej. personas en /friends) */
+  searchPlaceholder?: string
+  /** Contenido bajo el input (p. ej. autocompletado en /friends); el contenedor tiene `position: relative`. */
+  searchDropdownSlot?: ReactNode
+  onSearchFocus?: () => void
+  onSearchBlur?: () => void
 }
 
 export function FeedNav({
@@ -68,7 +74,19 @@ export function FeedNav({
   showStoriesStripInFixedNav = true,
   activeCategoryFilter = null,
   onClearCategoryFilter,
+  searchPlaceholder = 'Buscar productos…',
+  searchDropdownSlot,
+  onSearchFocus,
+  onSearchBlur,
 }: FeedNavProps) {
+  const searchBlurDeferRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (searchBlurDeferRef.current) clearTimeout(searchBlurDeferRef.current)
+    }
+  }, [])
+
   const pathname = usePathname()
   const { user, isAuthenticated } = useAuthStore()
   const [isMessagesDropdownOpen, setIsMessagesDropdownOpen] = useState(false)
@@ -387,9 +405,22 @@ export function FeedNav({
             </div>
             <input
               type="text"
-              placeholder="Buscar productos…"
+              placeholder={searchPlaceholder}
               value={searchInput}
               onChange={(e) => onSearchInputChange(e.target.value)}
+              onFocus={() => {
+                if (searchBlurDeferRef.current) {
+                  clearTimeout(searchBlurDeferRef.current)
+                  searchBlurDeferRef.current = null
+                }
+                onSearchFocus?.()
+              }}
+              onBlur={() => {
+                searchBlurDeferRef.current = setTimeout(() => {
+                  searchBlurDeferRef.current = null
+                  onSearchBlur?.()
+                }, 220)
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
@@ -400,24 +431,27 @@ export function FeedNav({
               className="tanku-pill-search-input w-full rounded-full border border-white/10 py-2 pl-10 pr-3 transition-all duration-200 focus:border-[#66DEDB] focus:outline-none focus:ring-2 focus:ring-[#66DEDB]/20 disabled:cursor-not-allowed disabled:opacity-50"
               style={{ fontFamily: 'Poppins, sans-serif' }}
             />
+            {searchDropdownSlot}
           </div>
           {isAuthenticated && (
             <>
-              <button
-                type="button"
-                className="shrink-0 rounded-lg p-1 transition-colors hover:bg-white/10 md:hidden"
-                aria-label="Categorías"
-                onClick={() => onOpenCategoriesModal?.()}
-              >
-                <Image
-                  src="/icons_tanku/mobile_tanku_icono_nueva_historia.svg"
-                  alt=""
-                  width={22}
-                  height={22}
-                  className="h-[22px] w-[22px] object-contain"
-                  unoptimized
-                />
-              </button>
+              {onOpenCategoriesModal ? (
+                <button
+                  type="button"
+                  className="shrink-0 rounded-lg p-1 transition-colors hover:bg-white/10 md:hidden"
+                  aria-label="Categorías"
+                  onClick={() => onOpenCategoriesModal()}
+                >
+                  <Image
+                    src="/icons_tanku/mobile_tanku_icono_nueva_historia.svg"
+                    alt=""
+                    width={22}
+                    height={22}
+                    className="h-[22px] w-[22px] object-contain"
+                    unoptimized
+                  />
+                </button>
+              ) : null}
               <Link href="/cart" className="flex shrink-0 items-center justify-center md:hidden" aria-label="Ir al carrito">
                 <Image
                   src="/icons_tanku/tanku_nav_carrito_verde.svg"

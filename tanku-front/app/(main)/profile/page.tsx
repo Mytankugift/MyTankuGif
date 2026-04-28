@@ -18,8 +18,7 @@ import { PosterDetailModal } from '@/components/posters/poster-detail-modal'
 import Image from 'next/image'
 import { CameraIcon, PlusIcon } from '@heroicons/react/24/outline'
 import { BaseNav } from '@/components/layout/base-nav'
-import { useOnboarding } from '@/lib/hooks/use-onboarding'
-import { getAgeInYearsFromParts } from '@/lib/utils/age-policy'
+import { NavBackToFeedLink } from '@/components/layout/nav-back-to-feed'
 import { clsx } from 'clsx'
 
 function profileTabLabel(tab: ProfileTab): string {
@@ -28,7 +27,6 @@ function profileTabLabel(tab: ProfileTab): string {
 
 function ProfileContent() {
   const { user, checkAuth } = useAuthStore()
-  const { getOnboardingData } = useOnboarding()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { activeTab, setActiveTab } = useProfileNavigation()
@@ -48,7 +46,6 @@ function ProfileContent() {
   const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
   const [socialExpandOpen, setSocialExpandOpen] = useState(false)
-  const [profileAgeYears, setProfileAgeYears] = useState<number | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
   const tabsScrollRef = useRef<HTMLDivElement>(null)
@@ -82,23 +79,6 @@ function ProfileContent() {
       router.replace('/profile', { scroll: false })
     }
   }, [searchParams, router])
-
-  useEffect(() => {
-    if (!user?.id) return
-    let cancelled = false
-    ;(async () => {
-      const data = await getOnboardingData()
-      if (cancelled || !data?.birthDate || typeof data.birthDate !== 'string') return
-      const parts = data.birthDate.split('-')
-      if (parts.length !== 3) return
-      const [y, m, d] = parts.map(Number)
-      if ([y, m, d].some((n) => Number.isNaN(n))) return
-      setProfileAgeYears(getAgeInYearsFromParts(y, m, d))
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [user?.id, getOnboardingData])
 
   useEffect(() => {
     const loadFriendsCount = async () => {
@@ -302,9 +282,11 @@ function ProfileContent() {
           canHide={false}
           isVisible={true}
           pageTitle="Mi perfil"
-          pageTitleColor="#66DEDB"
+          pageTitleColor="#FFFFFF"
           mobileBackCenterTitleCartOnly
           mobileTranslucentNav
+          desktopNavTitleCentered
+          startContent={<NavBackToFeedLink />}
           className="pointer-events-auto"
         />
       </div>
@@ -454,12 +436,6 @@ function ProfileContent() {
               <p className="text-gray-300 text-xs sm:text-sm">
                 {user.profile?.bio || 'Miembro de la comunidad TANKU'}
               </p>
-              {profileAgeYears !== null && (
-                <p className="mt-2 text-xs font-medium text-[#66DEDB]">
-                  {profileAgeYears} años ·{' '}
-                  {profileAgeYears < 18 ? 'Menor de edad' : 'Mayor de edad'}
-                </p>
-              )}
             </div>
           </div>
 
