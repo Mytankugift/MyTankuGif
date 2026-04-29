@@ -858,8 +858,35 @@ export class FriendsService {
   }
 
   /**
-   * Buscar usuarios por nombre de usuario o nombre (no limitado a intereses/actividades en común).
-   * Excluye: tú mismo, amigos, solicitudes pendientes, relaciones bloqueadas.
+   * Texto de búsqueda /friends: username; nombre o apellido parcial; con 2+ palabras también
+   * `firstName` contiene la 1ª palabra y `lastName` contiene el resto (ej. "Ana María García").
+   */
+  private buildFriendsSearchTextMatch(q: string): Prisma.UserWhereInput {
+    const or: Prisma.UserWhereInput[] = [
+      { username: { contains: q, mode: Prisma.QueryMode.insensitive } },
+      { firstName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+      { lastName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+    ];
+    const tokens = q.split(/\s+/).filter((t) => t.length > 0);
+    if (tokens.length >= 2) {
+      const firstTok = tokens[0];
+      const lastRest = tokens.slice(1).join(' ');
+      if (firstTok.length >= 1 && lastRest.length >= 1) {
+        or.push({
+          AND: [
+            { firstName: { contains: firstTok, mode: Prisma.QueryMode.insensitive } },
+            { lastName: { contains: lastRest, mode: Prisma.QueryMode.insensitive } },
+          ],
+        });
+      }
+    }
+    return { OR: or };
+  }
+
+  /**
+   * Buscar usuarios por @username, nombre/apellido o nombre + apellido (varias palabras).
+   * Incluye cualquier edad con fecha en perfil (alineado con sugerencias; no filtrar menores aquí).
+   * Excluye solo: tú mismo y relaciones **bloqueadas**.
    */
   async searchUsersForFriends(
     userId: string,
@@ -873,13 +900,12 @@ export class FriendsService {
 
     const cappedLimit = Math.min(Math.max(limit, 1), 50);
 
-    /** Nacidos en o antes de esta fecha → 18+ cumplidos (no mostrar menores confirmados en StalkerGift/buscar). */
-    const adultBirthDateUpperBound = new Date();
-    adultBirthDateUpperBound.setFullYear(adultBirthDateUpperBound.getFullYear() - 18);
-
-    const existingRelations = await prisma.friend.findMany({
+    const blockedRelations = await prisma.friend.findMany({
       where: {
-        OR: [{ userId }, { friendId: userId }],
+        AND: [
+          { OR: [{ userId }, { friendId: userId }] },
+          { status: 'blocked' },
+        ],
       },
       select: {
         userId: true,
@@ -888,29 +914,14 @@ export class FriendsService {
     });
 
     const excludedUserIds = new Set<string>([userId]);
-    for (const r of existingRelations) {
+    for (const r of blockedRelations) {
       excludedUserIds.add(r.userId === userId ? r.friendId : r.userId);
     }
 
     const users = await prisma.user.findMany({
       where: {
         id: { notIn: Array.from(excludedUserIds) },
-        AND: [
-          {
-            OR: [
-              { username: { contains: q, mode: Prisma.QueryMode.insensitive } },
-              { firstName: { contains: q, mode: Prisma.QueryMode.insensitive } },
-              { lastName: { contains: q, mode: Prisma.QueryMode.insensitive } },
-            ],
-          },
-          {
-            OR: [
-              { personalInfo: { is: null } },
-              { personalInfo: { birthDate: null } },
-              { personalInfo: { birthDate: { lte: adultBirthDateUpperBound } } },
-            ],
-          },
-        ],
+        ...this.buildFriendsSearchTextMatch(q),
       },
       include: {
         profile: true,

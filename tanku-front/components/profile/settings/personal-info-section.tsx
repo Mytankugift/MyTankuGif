@@ -37,6 +37,20 @@ interface PersonalInfoSectionProps {
   design?: 'default' | 'settings'
 }
 
+/** Fuera del cuerpo de PersonalInfoSection: si se define dentro, cada render crea un tipo nuevo de componente y React remonta el árbol (inputs pierden foco al teclear). */
+function PersonalInfoFieldBlock({
+  isSettings,
+  cardClassName,
+  children,
+}: {
+  isSettings: boolean
+  cardClassName: string
+  children: React.ReactNode
+}) {
+  if (isSettings) return <div className={cardClassName}>{children}</div>
+  return <div className="space-y-2">{children}</div>
+}
+
 /** Tarjetas de campo compactas: solo el control, sin ocupar de más */
 const fieldCardSettings =
   'rounded-md border border-white/10 bg-[#121212] px-2 py-1'
@@ -386,8 +400,6 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
     'min-h-[88px] w-full flex-1 resize-y rounded-[25px] border border-white/12 bg-[#1a1a1a] px-3 py-2 text-base leading-snug text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-[#73FFA2]/35 sm:min-h-[100px]'
 
   const fieldCardClass = isBulk ? fieldCardSettingsBulk : fieldCardSettings
-  const FieldBlock = ({ children }: { children: React.ReactNode }) =>
-    isSettings ? <div className={fieldCardClass}>{children}</div> : <div className="space-y-2">{children}</div>
 
   return (
     <>
@@ -451,7 +463,7 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
       )}
 
       {/* Username */}
-      <FieldBlock>
+      <PersonalInfoFieldBlock isSettings={isSettings} cardClassName={fieldCardClass}>
         <label className={labelClass}>Username</label>
         <div className={isBulk ? 'mt-1 flex min-h-0 flex-col gap-1' : rowClass}>
           {isBulk ? (
@@ -532,11 +544,11 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
             </>
           )}
         </div>
-      </FieldBlock>
+      </PersonalInfoFieldBlock>
 
       {/* Nombre y Apellido en un renglón */}
       <div className={isSettings ? 'grid grid-cols-1 gap-1.5 sm:grid-cols-2' : 'grid grid-cols-2 gap-4'}>
-        <FieldBlock>
+        <PersonalInfoFieldBlock isSettings={isSettings} cardClassName={fieldCardClass}>
           <label className={labelClass}>Nombre</label>
           <div className={isBulk ? 'mt-1' : rowClass}>
             {isBulk ? (
@@ -591,9 +603,9 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
               </div>
             )}
           </div>
-        </FieldBlock>
+        </PersonalInfoFieldBlock>
 
-        <FieldBlock>
+        <PersonalInfoFieldBlock isSettings={isSettings} cardClassName={fieldCardClass}>
           <label className={labelClass}>Apellido</label>
           <div className={isBulk ? 'mt-1' : rowClass}>
             {isBulk ? (
@@ -648,12 +660,12 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
               </div>
             )}
           </div>
-        </FieldBlock>
+        </PersonalInfoFieldBlock>
       </div>
 
       {/* Email y Teléfono en un renglón */}
       <div className={isSettings ? 'grid grid-cols-1 gap-1.5 sm:grid-cols-2' : 'grid grid-cols-2 gap-4'}>
-        <FieldBlock>
+        <PersonalInfoFieldBlock isSettings={isSettings} cardClassName={fieldCardClass}>
           <label className={labelClass}>Email</label>
           <div className={isBulk ? 'mt-1' : rowClass}>
             {isBulk ? (
@@ -714,9 +726,9 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
               </div>
             )}
           </div>
-        </FieldBlock>
+        </PersonalInfoFieldBlock>
 
-        <FieldBlock>
+        <PersonalInfoFieldBlock isSettings={isSettings} cardClassName={fieldCardClass}>
           <label className={labelClass}>Teléfono</label>
           <div className={isBulk ? 'mt-1' : rowClass}>
             {isBulk ? (
@@ -773,11 +785,11 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
               </div>
             )}
           </div>
-        </FieldBlock>
+        </PersonalInfoFieldBlock>
       </div>
 
       {/* Fecha de nacimiento y edad (onboarding) */}
-      <FieldBlock>
+      <PersonalInfoFieldBlock isSettings={isSettings} cardClassName={fieldCardClass}>
         <label className={labelClass}>Fecha de nacimiento</label>
         <div className={isBulk ? 'mt-1' : rowClass}>
           {isBulk ? (
@@ -857,10 +869,10 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
             ? 'Se usa para edad y políticas de contenido.'
             : 'Define tu edad en Tanku y las políticas de contenido según mayoría de edad.'}
         </p>
-      </FieldBlock>
+      </PersonalInfoFieldBlock>
 
       {/* Bio a lo largo */}
-      <FieldBlock>
+      <PersonalInfoFieldBlock isSettings={isSettings} cardClassName={fieldCardClass}>
         <label className={labelClass}>Biografía</label>
         <div className="flex items-start gap-1">
           {isBulk ? (
@@ -930,7 +942,7 @@ export function PersonalInfoSection({ onUpdate, design = 'default' }: PersonalIn
             {formData.bio.length}/500
           </p>
         )}
-      </FieldBlock>
+      </PersonalInfoFieldBlock>
     </div>
 
     <OnboardingAdultConfirmMiniModal
