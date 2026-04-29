@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
 import { useToast } from '@/lib/contexts/toast-context'
 import { ShareWishlistModal } from '@/components/wishlists/share-wishlist-modal'
+import { WishlistAccessConfirmModal } from '@/components/wishlists/wishlist-access-request-modal'
 import { BookmarkIcon } from '@heroicons/react/24/outline'
 import { useWishlistExpandList } from '@/lib/hooks/use-wishlist-expand-list'
 import {
@@ -25,7 +26,7 @@ const actionPillCls =
 
 export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabProps) {
   const { user: currentUser } = useAuthStore()
-  const { error: showError } = useToast()
+  const { error: showError, success: showSuccess } = useToast()
   const [wishlists, setWishlists] = useState<WishListDTO[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [shareWishlist, setShareWishlist] = useState<WishListDTO | null>(null)
@@ -33,6 +34,12 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
   const [pendingRequestIds, setPendingRequestIds] = useState<Set<string>>(new Set())
   const [backendCanViewPrivate, setBackendCanViewPrivate] = useState(false)
   const [mobileActionsWishlistId, setMobileActionsWishlistId] = useState<string | null>(null)
+  const [accessModal, setAccessModal] = useState<{
+    mode: 'request' | 'cancel'
+    wishlistId: string
+    wishlistName: string
+  } | null>(null)
+  const [accessModalLoading, setAccessModalLoading] = useState(false)
   const loadingRef = useRef(false)
   const isOwnWishlistViewer = currentUser?.id === userId
 
@@ -201,8 +208,8 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
     }
   }
 
-  const handleRequestAccess = async (wishlistId: string) => {
-    if (!currentUser?.id) return
+  const handleRequestAccess = async (wishlistId: string): Promise<boolean> => {
+    if (!currentUser?.id) return false
     try {
       const response = await apiClient.post(API_ENDPOINTS.WISHLISTS.REQUEST_ACCESS(wishlistId))
       if (response.success) {
@@ -211,35 +218,58 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
           console.log('🔍 [REQUEST ACCESS] Estado actualizado localmente, pendingRequestIds:', Array.from(newSet))
           return newSet
         })
-        alert('Solicitud de acceso enviada')
+        showSuccess('Solicitud de acceso enviada')
         await loadWishlists()
+        return true
       }
+      return false
     } catch (error: any) {
       console.error('Error solicitando acceso:', error)
-      const errorMessage = error.response?.data?.error?.message || 'Error al solicitar acceso'
-      alert(errorMessage)
+      const errorMessage =
+        error.response?.data?.error?.message || 'Error al solicitar acceso'
+      showError(errorMessage)
+      return false
     }
   }
 
-  const handleCancelAccessRequest = async (wishlistId: string) => {
-    if (!currentUser?.id) return
+  const handleCancelAccessRequest = async (wishlistId: string): Promise<boolean> => {
+    if (!currentUser?.id) return false
     try {
-      const response = await apiClient.delete(API_ENDPOINTS.WISHLISTS.CANCEL_ACCESS_REQUEST(wishlistId))
+      const response = await apiClient.delete(
+        API_ENDPOINTS.WISHLISTS.CANCEL_ACCESS_REQUEST(wishlistId),
+      )
       if (response.success) {
-        // Actualizar estado local inmediatamente (on-demand)
         setPendingRequestIds((prev) => {
           const newSet = new Set(prev)
           newSet.delete(wishlistId)
           console.log('🔍 [CANCEL REQUEST] Estado actualizado localmente, pendingRequestIds:', Array.from(newSet))
           return newSet
         })
-        alert('Solicitud cancelada')
+        showSuccess('Solicitud cancelada')
         await loadWishlists()
+        return true
       }
+      return false
     } catch (error: any) {
       console.error('Error cancelando solicitud:', error)
-      const errorMessage = error.response?.data?.error?.message || 'Error al cancelar la solicitud'
-      alert(errorMessage)
+      const errorMessage =
+        error.response?.data?.error?.message || 'Error al cancelar la solicitud'
+      showError(errorMessage)
+      return false
+    }
+  }
+
+  const confirmAccessModalAction = async () => {
+    if (!accessModal) return
+    setAccessModalLoading(true)
+    try {
+      const ok =
+        accessModal.mode === 'request'
+          ? await handleRequestAccess(accessModal.wishlistId)
+          : await handleCancelAccessRequest(accessModal.wishlistId)
+      if (ok) setAccessModal(null)
+    } finally {
+      setAccessModalLoading(false)
     }
   }
 
@@ -343,7 +373,11 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
                 className={actionPillCls}
                 onClick={(e) => {
                   e.stopPropagation()
-                  void handleCancelAccessRequest(wishlist.id)
+                  setAccessModal({
+                    mode: 'cancel',
+                    wishlistId: wishlist.id,
+                    wishlistName: wishlist.name || 'Wishlist',
+                  })
                 }}
               >
                 Cancelar solicitud
@@ -354,7 +388,11 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
                 className="rounded-xl border border-[#73FFA2]/45 bg-black/35 px-3 py-2 text-[11px] font-semibold text-[#73FFA2] shadow-[inset_0_2px_6px_rgba(0,0,0,0.25)] transition-colors hover:border-[#73FFA2]/65 hover:bg-[#73FFA2]/10 sm:text-xs"
                 onClick={(e) => {
                   e.stopPropagation()
-                  void handleRequestAccess(wishlist.id)
+                  setAccessModal({
+                    mode: 'request',
+                    wishlistId: wishlist.id,
+                    wishlistName: wishlist.name || 'Wishlist',
+                  })
                 }}
               >
                 Solicitar acceso
@@ -476,7 +514,11 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
                         className="rounded-xl px-4 py-3 text-left text-sm font-semibold text-[#66DEDB] transition-colors hover:bg-white/10"
                         onClick={() => {
                           setMobileActionsWishlistId(null)
-                          void handleCancelAccessRequest(w.id)
+                          setAccessModal({
+                            mode: 'cancel',
+                            wishlistId: w.id,
+                            wishlistName: w.name || 'Wishlist',
+                          })
                         }}
                       >
                         Cancelar solicitud
@@ -487,7 +529,11 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
                         className="rounded-xl px-4 py-3 text-left text-sm font-semibold text-[#66DEDB] transition-colors hover:bg-white/10"
                         onClick={() => {
                           setMobileActionsWishlistId(null)
-                          void handleRequestAccess(w.id)
+                          setAccessModal({
+                            mode: 'request',
+                            wishlistId: w.id,
+                            wishlistName: w.name || 'Wishlist',
+                          })
                         }}
                       >
                         Solicitar acceso
@@ -536,6 +582,14 @@ export function UserWishlistsTab({ userId, canViewPrivate }: UserWishlistsTabPro
         />
       )}
 
+      <WishlistAccessConfirmModal
+        open={accessModal !== null}
+        mode={accessModal?.mode ?? 'request'}
+        wishlistName={accessModal?.wishlistName ?? ''}
+        onCancel={() => !accessModalLoading && setAccessModal(null)}
+        onConfirm={confirmAccessModalAction}
+        isLoading={accessModalLoading}
+      />
     </div>
   )
 }
