@@ -4,9 +4,14 @@ import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { XMarkIcon, TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import {
+  XMarkIcon,
+  TrashIcon,
+  ExclamationTriangleIcon,
+  GlobeAltIcon,
+} from '@heroicons/react/24/outline'
 import type { CalendarEvent } from '@/lib/hooks/use-events'
-import { normalizeEventColor } from '@/lib/event-colors'
+import { EventCalendarRow } from '@/components/events/event-calendar-row'
 
 export interface EventDayModalProps {
   isOpen: boolean
@@ -19,6 +24,10 @@ export interface EventDayModalProps {
   /** Si es false, no se ofrece crear evento (día ya pasado en calendario local). */
   allowCreateEvent?: boolean
   zIndex?: number
+  /** Filtro por color activo en /events al abrir este modal (solo informativo en cabecera). */
+  categoryFilterBadge?: { hex: string; label: string } | null
+  /** Tipos de color guardados (etiquetas tipo “test”, etc.) para la fila del evento */
+  savedColorLabels?: readonly { hex: string; label: string }[]
 }
 
 export function EventDayModal({
@@ -31,6 +40,8 @@ export function EventDayModal({
   onCreateEvent,
   allowCreateEvent = true,
   zIndex = 50,
+  categoryFilterBadge = null,
+  savedColorLabels,
 }: EventDayModalProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<{
     id: string
@@ -165,94 +176,88 @@ export function EventDayModal({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between p-4 border-b border-[#4A4A4A]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#4A4A4A] p-4">
             <h3
-              className="text-xl font-semibold"
+              className="min-w-0 flex-1 text-lg font-semibold leading-snug sm:text-xl"
               style={{ color: '#73FFA2', fontFamily: 'Poppins, sans-serif' }}
             >
               {format(selectedDate, 'EEEE, d MMMM yyyy', { locale: es })}
             </h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-800 rounded"
+              className="shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
               style={{ color: '#73FFA2' }}
             >
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="p-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+          {categoryFilterBadge ? (
+            <div className="border-b border-[#4A4A4A]/80 px-4 py-3">
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                Filtrar por categoría
+              </p>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/25 px-3 py-1.5">
+                <GlobeAltIcon className="h-4 w-4 shrink-0 text-[#66DEDB]/90" aria-hidden />
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full ring-1 ring-white/25"
+                  style={{ backgroundColor: categoryFilterBadge.hex }}
+                />
+                <span className="text-sm font-medium text-zinc-200">
+                  {categoryFilterBadge.label}
+                </span>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="custom-scrollbar max-h-[60vh] overflow-y-auto p-4">
             {events.length === 0 ? (
-              <p className="text-gray-400 mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                No hay eventos para este día
+              <p
+                className="mb-4 text-sm text-gray-400"
+                style={{ fontFamily: 'Poppins, sans-serif' }}
+              >
+                {categoryFilterBadge
+                  ? 'Ningún evento de esta categoría para este día.'
+                  : 'No hay eventos para este día'}
               </p>
             ) : (
-              <div className="space-y-3 mb-4">
+              <div className="space-y-3 pb-2">
                 {events.map((event) => (
-                  <div
+                  <EventCalendarRow
                     key={`${event.id}_${event.date}`}
-                    className="p-3 rounded-lg border border-l-4 pl-3"
-                    style={{
-                      backgroundColor: 'rgba(217, 217, 217, 0.1)',
-                      borderColor: '#4A4A4A',
-                      borderLeftColor: normalizeEventColor(event.color),
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h4
-                          className="font-semibold mb-1"
-                          style={{ color: '#FFFFFF', fontFamily: 'Poppins, sans-serif' }}
-                        >
-                          {event.title}
-                        </h4>
-                        {event.description && (
-                          <p
-                            className="text-sm mb-2"
-                            style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}
-                          >
-                            {event.description}
-                          </p>
-                        )}
-                        <div
-                          className="flex gap-2 text-xs"
-                          style={{ color: '#B7B7B7', fontFamily: 'Poppins, sans-serif' }}
-                        >
-                          {event.repeatType !== 'NONE' && (
-                            <span>Repite: {event.repeatType}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                    event={event}
+                    savedColorLabels={savedColorLabels}
+                    actions={
+                      <>
                         <button
-                          onClick={() => {
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
                             onClose()
                             onEditEvent(event.id)
                           }}
-                          className="text-sm font-semibold transition-all duration-300 hover:opacity-80"
-                          style={{
-                            color: '#73FFA2',
-                            fontFamily: 'Poppins, sans-serif',
-                          }}
+                          className="text-[11px] font-semibold text-[#73FFA2] hover:underline sm:text-xs"
                         >
                           Editar
                         </button>
                         <button
-                          onClick={() =>
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
                             setDeleteConfirm({
                               id: event.id,
                               recurring: event.repeatType !== 'NONE',
                               title: event.title,
                             })
-                          }
-                          className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"
+                          }}
+                          className="p-1 text-gray-400 transition-colors hover:text-red-400"
                           title="Eliminar"
                         >
-                          <TrashIcon className="w-5 h-5" />
+                          <TrashIcon className="h-5 w-5" />
                         </button>
-                      </div>
-                    </div>
-                  </div>
+                      </>
+                    }
+                  />
                 ))}
               </div>
             )}

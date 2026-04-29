@@ -7,11 +7,14 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  FunnelIcon,
 } from '@heroicons/react/24/outline'
 import { useEvents, type CalendarEvent, type Event } from '@/lib/hooks/use-events'
 import { EventFormModal } from '@/components/events/event-form-modal'
 import { EventDayModal } from '@/components/events/event-day-modal'
-import { format, isSameDay, isSameMonth, addMonths, subMonths, addDays, startOfDay, isBefore, isAfter } from 'date-fns'
+import { EventFilterModal } from '@/components/events/event-filter-modal'
+import { EventCalendarRow } from '@/components/events/event-calendar-row'
+import { format, isSameDay, isSameMonth, addMonths, subMonths, startOfDay, isBefore, isAfter } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { getCalendarGridDays } from '@/lib/events/calendar-grid'
 import { EVENT_COLOR_PRESETS, normalizeEventColor } from '@/lib/event-colors'
@@ -26,6 +29,10 @@ const GLASS_PANEL =
 /** Botón cuadrado del toolbar del calendario (flechas y acciones auxiliares) */
 const CAL_TOOL_BTN =
   'inline-flex shrink-0 items-center justify-center rounded-xl border border-white/[0.1] bg-white/[0.05] text-zinc-100 transition-colors hover:bg-white/[0.09] active:bg-white/[0.06]'
+
+/** Botones «Hoy» / «Nuevo evento»: relleno azul Tanku + sombra interna */
+const CAL_ACTION_TANKU_FILL =
+  'rounded-xl border border-[#66DEDB] bg-[#66DEDB] text-[#0d1619] transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-2px_5px_rgba(0,0,0,0.22)] hover:bg-[#8df5f1] active:bg-[#5bd8d4] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.45),inset_0_-2px_5px_rgba(0,0,0,0.2)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.25)]'
 
 export default function EventsPage() {
   const { getEventsForMonth, deleteEvent, getEventById } = useEvents()
@@ -42,6 +49,7 @@ export default function EventsPage() {
   const [formDefaultDate, setFormDefaultDate] = useState<string | null>(null)
   const [pastDateToast, setPastDateToast] = useState<string | null>(null)
   const pastDateToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [showFilterModal, setShowFilterModal] = useState(false)
 
   const loadEvents = useCallback(async () => {
     if (!isAuthenticated) {
@@ -151,8 +159,27 @@ export default function EventsPage() {
     setCurrentDate(addMonths(currentDate, 1))
   }
 
+  const categoryFilterBadge = useMemo(() => {
+    if (!colorFilter) return null
+    const hex = normalizeEventColor(colorFilter)
+    const h = hex.toLowerCase()
+    const preset = EVENT_COLOR_PRESETS.find(
+      (p) => normalizeEventColor(p.hex).toLowerCase() === h,
+    )
+    if (preset) return { hex, label: preset.label }
+    const saved = savedColorPresets.find(
+      (p) => normalizeEventColor(p.hex).toLowerCase() === h,
+    )
+    if (saved) return { hex, label: saved.label }
+    return { hex, label: hex.length > 10 ? `${hex.slice(0, 9)}…` : hex }
+  }, [colorFilter, savedColorPresets])
+
+  /** Una vez por render: “hoy” local para el destacado del calendario */
+  const todayAnchor = startOfDay(new Date())
+
   const goToToday = () => {
     setCurrentDate(new Date())
+    setSelectedDate(null)
   }
 
   const calendarDays = getCalendarGridDays(currentDate)
@@ -199,23 +226,28 @@ export default function EventsPage() {
     return Array.from(s).sort()
   }, [baseUpcomingEvents, knownPresetHexes])
 
+  const savedColorLabelsForRows = useMemo(
+    () => savedColorPresets.map((p) => ({ hex: p.hex, label: p.label })),
+    [savedColorPresets],
+  )
+
   /** Ancho del calendario en lg+: alinea cabecera y rejilla. */
   const calendarWidthLg =
     'lg:max-w-[min(100%,max(15rem,calc((100dvh-16rem)*7/6)))]'
 
-  /** Cabecera de mes + acciones (mismo aspecto que el mock / contenedor amigos) */
+  /** Cabecera de mes + acciones (en lg+ el selector de mes usa todo el hueco entre flechas) */
   const calendarToolbar = (
-    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+    <div className="mb-4 flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+      <div className="flex min-h-[2.5rem] min-w-0 flex-1 items-center gap-2 sm:gap-3">
         <button
           type="button"
           onClick={goToPreviousMonth}
-          className={clsx(CAL_TOOL_BTN, 'h-10 w-10')}
+          className={clsx(CAL_TOOL_BTN, 'h-10 w-10 shrink-0')}
           aria-label="Mes anterior"
         >
           <ChevronLeftIcon className="h-5 w-5 text-zinc-200" aria-hidden />
         </button>
-        <div className="flex min-w-0 flex-1 flex-nowrap items-center justify-center gap-2 sm:justify-center lg:flex-initial lg:justify-start">
+        <div className="flex min-w-0 flex-1 flex-nowrap items-center justify-center gap-2 sm:gap-2.5 lg:min-w-0 lg:flex-1 lg:justify-center">
           <CalendarDaysIcon
             className="hidden h-[1.125rem] w-[1.125rem] shrink-0 text-[#66DEDB]/90 sm:inline"
             aria-hidden
@@ -223,27 +255,23 @@ export default function EventsPage() {
           <h2 className="min-w-0 truncate text-center text-[15px] font-semibold capitalize tabular-nums text-zinc-100 sm:text-base">
             {format(currentDate, 'MMMM yyyy', { locale: es })}
           </h2>
-          <ChevronDownIcon
-            className="hidden h-4 w-4 shrink-0 text-zinc-500 sm:inline"
-            aria-hidden
-          />
         </div>
         <button
           type="button"
           onClick={goToNextMonth}
-          className={clsx(CAL_TOOL_BTN, 'h-10 w-10')}
+          className={clsx(CAL_TOOL_BTN, 'h-10 w-10 shrink-0')}
           aria-label="Mes siguiente"
         >
           <ChevronRightIcon className="h-5 w-5 text-zinc-200" aria-hidden />
         </button>
       </div>
-      <div className="flex w-full shrink-0 flex-row flex-wrap justify-stretch gap-2 sm:w-auto sm:justify-end">
+      <div className="flex w-full shrink-0 flex-row flex-wrap justify-stretch gap-2 lg:w-auto lg:justify-end">
         <button
           type="button"
           onClick={goToToday}
           className={clsx(
-            CAL_TOOL_BTN,
-            'h-10 flex-1 min-w-[6rem] px-4 text-sm font-semibold sm:flex-initial',
+            CAL_ACTION_TANKU_FILL,
+            'inline-flex h-10 min-w-[6rem] flex-1 items-center justify-center px-4 text-sm font-semibold lg:flex-initial',
           )}
         >
           Hoy
@@ -252,9 +280,8 @@ export default function EventsPage() {
           type="button"
           onClick={() => handleCreateEvent()}
           className={clsx(
-            CAL_TOOL_BTN,
-            'h-10 flex-1 min-w-[8rem] gap-2 px-4 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(0,0,0,0.35)] sm:flex-initial',
-            'border-[#73FFA2]/35 bg-[#73FFA2]/85 text-[#1f262c] hover:bg-[#73FFA2]',
+            CAL_ACTION_TANKU_FILL,
+            'inline-flex h-10 min-w-[8rem] flex-1 items-center justify-center gap-2 px-4 text-sm font-semibold lg:flex-initial',
           )}
         >
           <span className="text-base leading-none">+</span>
@@ -298,10 +325,11 @@ export default function EventsPage() {
     <div className="grid w-full grid-cols-7 gap-2 sm:gap-1.5">
       {calendarDays.map((day) => {
         const dayEvents = getEventsForDay(day)
-        const isToday = isSameDay(day, new Date())
+        const isToday = isSameDay(day, todayAnchor)
         const isCurrentMonth = isSameMonth(day, currentDate)
-        const isSelectedDay =
-          selectedDate !== null && isSameDay(day, selectedDate)
+        const showGradientCell =
+          (selectedDate !== null && isSameDay(day, selectedDate)) ||
+          (selectedDate === null && isToday && isCurrentMonth)
 
         return (
           <button
@@ -311,26 +339,26 @@ export default function EventsPage() {
             className={clsx(
               'relative flex aspect-square min-h-0 flex-col rounded-xl border p-1 transition-[box-shadow,border-color,background-color]',
               !isCurrentMonth && 'opacity-45',
-              !isSelectedDay &&
+              !showGradientCell &&
                 isToday &&
                 isCurrentMonth &&
-                'border-[#2bb391]/40 ring-1 ring-[#3dd4b0]/35',
-              !isSelectedDay &&
+                'border-[#4d6f68]/35 ring-1 ring-[#5f8078]/28',
+              !showGradientCell &&
                 !isToday &&
                 'border-white/[0.08] bg-[#121a23]/95 hover:bg-white/[0.05]',
-              isSelectedDay &&
-                'scale-[1.01] border-[#3dd4b0] shadow-[0_0_14px_rgba(45,200,165,0.35)] ring-2 ring-[#3dd4b0]/70',
+              showGradientCell &&
+                'scale-[1.01] border-[#5c857a]/50 shadow-[0_0_14px_rgba(55,95,85,0.22)] ring-2 ring-[#608a80]/42',
               !isCurrentMonth && 'border-white/[0.04] bg-black/25 hover:bg-black/35',
-              !isSelectedDay &&
+              !showGradientCell &&
                 dayEvents.length > 0 &&
                 isCurrentMonth &&
                 'bg-[#0f181f]/98',
             )}
             style={
-              isSelectedDay
+              showGradientCell && isCurrentMonth
                 ? {
                     backgroundImage:
-                      'linear-gradient(180deg, #2bb391 0%, #151d26 92%)',
+                      'linear-gradient(180deg,rgb(73, 160, 135) 0%, #273430 50%, #151d26 100%)',
                   }
                 : undefined
             }
@@ -438,88 +466,27 @@ export default function EventsPage() {
                   Próximos eventos
                 </h2>
               </div>
-              <p className="mb-2 flex-shrink-0 text-[10px] text-zinc-500">Próximo mes</p>
-              <div className="flex flex-wrap gap-1.5 mb-2 flex-shrink-0 md:gap-1">
+              <p className="mb-2 flex-shrink-0 text-[10px] text-zinc-500">
+                Próximo mes
+              </p>
+              <div className="mb-2 flex flex-shrink-0 items-center justify-between gap-2">
+                <p className="text-[10px] text-zinc-500">Filtrar por categoría</p>
                 <button
                   type="button"
-                  onClick={() => setColorFilter(null)}
-                  className={`max-md:text-[11px] max-md:px-2.5 max-md:py-1 text-[10px] px-2 py-0.5 rounded-full border transition-colors md:text-[10px] ${
-                    colorFilter === null ? 'border-[#73FFA2] text-[#73FFA2]' : 'border-gray-600 text-gray-400'
-                  }`}
+                  onClick={() => setShowFilterModal(true)}
+                  className="inline-flex max-w-[min(100%,14rem)] shrink-0 items-center gap-1.5 rounded-lg border border-white/[0.12] bg-white/[0.05] px-2.5 py-1.5 text-[11px] font-medium text-zinc-100 transition-colors hover:bg-white/[0.09]"
                 >
-                  Todos
+                  <FunnelIcon
+                    className="h-3.5 w-3.5 shrink-0 text-[#66DEDB]"
+                    aria-hidden
+                  />
+                  <span className="truncate">Filtros</span>
+                  {categoryFilterBadge ? (
+                    <span className="truncate text-[#66DEDB]" title={categoryFilterBadge.label}>
+                      · {categoryFilterBadge.label}
+                    </span>
+                  ) : null}
                 </button>
-                {EVENT_COLOR_PRESETS.map((p) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    title={p.label}
-                    onClick={() =>
-                      setColorFilter((f) => (f === p.hex ? null : p.hex))
-                    }
-                    className={`inline-flex items-center gap-1 max-md:px-2 max-md:py-1 max-md:text-[11px] max-md:max-w-[min(100px,28vw)] px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[72px] transition-colors md:max-w-[72px] ${
-                      colorFilter === p.hex
-                        ? 'border-white text-white bg-white/10'
-                        : 'border-gray-600 text-gray-400 hover:border-gray-500'
-                    }`}
-                    aria-label={p.label}
-                  >
-                    <span
-                      className="w-3 h-3 rounded-full shrink-0 border border-white/20"
-                      style={{ backgroundColor: p.hex }}
-                    />
-                    <span className="truncate">{p.label}</span>
-                  </button>
-                ))}
-                {savedColorPresets.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    title={p.label}
-                    onClick={() =>
-                      setColorFilter((f) =>
-                        f === normalizeEventColor(p.hex) ? null : normalizeEventColor(p.hex)
-                      )
-                    }
-                    className={`inline-flex items-center gap-1 max-md:px-2 max-md:py-1 max-md:text-[11px] max-md:max-w-[min(104px,30vw)] px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[80px] transition-colors md:max-w-[80px] ${
-                      colorFilter?.toLowerCase() ===
-                      normalizeEventColor(p.hex).toLowerCase()
-                        ? 'border-white text-white bg-white/10'
-                        : 'border-gray-600 text-gray-400 hover:border-gray-500'
-                    }`}
-                    aria-label={p.label}
-                  >
-                    <span
-                      className="w-3 h-3 rounded-full shrink-0 border border-white/20"
-                      style={{ backgroundColor: p.hex }}
-                    />
-                    <span className="truncate">{p.label}</span>
-                  </button>
-                ))}
-                {orphanColorsForFilter.map((hex) => (
-                  <button
-                    key={hex}
-                    type="button"
-                    title={hex}
-                    onClick={() =>
-                      setColorFilter((f) =>
-                        f?.toLowerCase() === hex ? null : normalizeEventColor(hex)
-                      )
-                    }
-                    className={`inline-flex items-center gap-1 max-md:px-2 max-md:py-1 max-md:text-[11px] max-md:max-w-[min(88px,24vw)] px-1.5 py-0.5 rounded-full border text-[9px] leading-tight max-w-[64px] transition-colors md:max-w-[64px] ${
-                      colorFilter?.toLowerCase() === hex
-                        ? 'border-white text-white bg-white/10'
-                        : 'border-gray-600 text-gray-400 hover:border-gray-500'
-                    }`}
-                    aria-label={`Color ${hex}`}
-                  >
-                    <span
-                      className="w-3 h-3 rounded-full shrink-0 border border-white/20"
-                      style={{ backgroundColor: hex }}
-                    />
-                    <span className="truncate">{hex.slice(1, 5)}…</span>
-                  </button>
-                ))}
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-1 -mr-1">
                 {upcomingEvents.length === 0 ? (
@@ -529,39 +496,21 @@ export default function EventsPage() {
                       : 'No hay eventos en el próximo mes'}
                   </p>
                 ) : (
-                  <div className="space-y-1.5 pb-1">
+                  <div className="space-y-2 pb-1">
                     {upcomingEvents.map((event) => {
                       const eventDate = new Date(event.date)
-                      const isToday = isSameDay(eventDate, new Date())
-                      const isTomorrow = isSameDay(eventDate, addDays(new Date(), 1))
-
                       return (
-                        <div
+                        <EventCalendarRow
                           key={`${event.id}_${event.date}`}
-                          className="p-2 bg-gray-700/90 rounded-lg border border-gray-600 hover:border-[#66DEDB]/50 transition-colors cursor-pointer border-l-4"
-                          style={{ borderLeftColor: normalizeEventColor(event.color) }}
+                          event={event}
+                          savedColorLabels={savedColorLabelsForRows}
+                          className="!p-2 sm:!p-2.5"
                           onClick={() => {
                             setSelectedDate(eventDate)
                             setSelectedEvents([event])
                             setShowDayModal(true)
                           }}
-                        >
-                          <div className="flex items-start min-w-0 pl-0.5">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-white text-xs leading-tight truncate">
-                                {event.title}
-                              </h4>
-                              <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">
-                                {isToday ? 'Hoy' : isTomorrow ? 'Mañana' : format(eventDate, 'EEE d MMM', { locale: es })}
-                              </p>
-                              {event.description ? (
-                                <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1 leading-tight">
-                                  {event.description}
-                                </p>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
+                        />
                       )
                     })}
                   </div>
@@ -572,6 +521,15 @@ export default function EventsPage() {
         </div>
       </div>
 
+          <EventFilterModal
+            open={showFilterModal}
+            onClose={() => setShowFilterModal(false)}
+            colorFilter={colorFilter}
+            onColorFilterChange={setColorFilter}
+            savedColorPresets={savedColorPresets}
+            orphanColorsForFilter={orphanColorsForFilter}
+          />
+
           {/* Modal de eventos del día */}
           <EventDayModal
             isOpen={showDayModal}
@@ -581,9 +539,11 @@ export default function EventsPage() {
             onEditEvent={handleEditEvent}
             onDeleteEvent={handleDeleteEvent}
             onCreateEvent={(d) => handleCreateEvent(d)}
+            categoryFilterBadge={categoryFilterBadge}
+            savedColorLabels={savedColorLabelsForRows}
             allowCreateEvent={
               selectedDate
-                ? !isBefore(startOfDay(selectedDate), startOfDay(new Date()))
+                ? !isBefore(startOfDay(selectedDate), todayAnchor)
                 : true
             }
             zIndex={1_000_450}

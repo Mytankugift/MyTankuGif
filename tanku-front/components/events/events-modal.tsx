@@ -20,6 +20,8 @@ import { es } from 'date-fns/locale'
 import { XMarkIcon, CalendarDaysIcon } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { normalizeEventColor } from '@/lib/event-colors'
+import { useEventColorPresets } from '@/lib/hooks/use-event-color-presets'
+import { EventCalendarRow } from '@/components/events/event-calendar-row'
 
 interface EventsModalProps {
   isOpen: boolean
@@ -39,6 +41,7 @@ function dedupeEvents(events: CalendarEvent[]): CalendarEvent[] {
 export function EventsModal({ isOpen, onClose }: EventsModalProps) {
   const { getEventsForMonth, deleteEvent, getEventById } = useEvents()
   const { isAuthenticated } = useAuthStore()
+  const { presets: savedColorPresets, loadPresets } = useEventColorPresets()
   // Portal SSR: mismo orden de hooks en todos los renders (mounted primero)
   const [mounted, setMounted] = useState(false)
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -93,6 +96,16 @@ export function EventsModal({ isOpen, onClose }: EventsModalProps) {
 
     load()
   }, [isOpen, isAuthenticated, getEventsForMonth])
+
+  useEffect(() => {
+    if (!isOpen || !isAuthenticated) return
+    void loadPresets()
+  }, [isOpen, isAuthenticated, loadPresets])
+
+  const savedColorLabelsForRows = useMemo(
+    () => savedColorPresets.map((p) => ({ hex: p.hex, label: p.label })),
+    [savedColorPresets],
+  )
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>()
@@ -292,37 +305,16 @@ export function EventsModal({ isOpen, onClose }: EventsModalProps) {
                         <ul className="space-y-2">
                           {dayEvents.map((event) => (
                             <li key={`${event.id}_${event.date}`}>
-                              <button
-                                type="button"
+                              <EventCalendarRow
+                                event={event}
+                                savedColorLabels={savedColorLabelsForRows}
+                                className="!border-[#3d3d3d] bg-[#1f1f1f]/95"
                                 onClick={() => {
                                   setSelectedDate(startOfDay(new Date(event.date)))
                                   setSelectedEvents([event])
                                   setShowDayModal(true)
                                 }}
-                                className="w-full text-left p-3 rounded-lg border border-l-4 transition-colors hover:border-[#73FFA2]/50"
-                                style={{
-                                  backgroundColor: 'rgba(217, 217, 217, 0.1)',
-                                  borderColor: '#4A4A4A',
-                                  borderLeftColor: normalizeEventColor(event.color),
-                                }}
-                              >
-                                <div className="min-w-0">
-                                    <p
-                                      className="font-semibold text-sm truncate"
-                                      style={{ color: '#FFFFFF' }}
-                                    >
-                                      {event.title}
-                                    </p>
-                                    {event.description ? (
-                                      <p
-                                        className="text-sm mt-1 line-clamp-2 leading-snug"
-                                        style={{ color: '#B7B7B7' }}
-                                      >
-                                        {event.description}
-                                      </p>
-                                    ) : null}
-                                </div>
-                              </button>
+                              />
                             </li>
                           ))}
                         </ul>
@@ -340,6 +332,8 @@ export function EventsModal({ isOpen, onClose }: EventsModalProps) {
         isOpen={showDayModal}
         selectedDate={selectedDate}
         events={selectedEvents}
+        categoryFilterBadge={null}
+        savedColorLabels={savedColorLabelsForRows}
         onClose={() => setShowDayModal(false)}
         onEditEvent={handleEditEvent}
         onDeleteEvent={handleDeleteEvent}

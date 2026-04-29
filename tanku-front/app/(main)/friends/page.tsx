@@ -32,6 +32,7 @@ import {
   type FriendsNavSearchHit,
 } from '@/components/friends/friends-nav-search-dropdown'
 import { FriendsPageSearchBar } from '@/components/friends/friends-page-search-bar'
+import { FriendsPublicProfileUrlCard } from '@/components/friends/friends-public-profile-url-card'
 import { BaseNav } from '@/components/layout/base-nav'
 import { NavBackToFeedLink } from '@/components/layout/nav-back-to-feed'
 import type { FriendDTO, FriendSuggestionDTO } from '@/types/api'
@@ -665,6 +666,8 @@ export default function FriendsPage() {
           </div>
         </div>
       </div>
+
+      <FriendsPublicProfileUrlCard />
     </div>
   )
 }
