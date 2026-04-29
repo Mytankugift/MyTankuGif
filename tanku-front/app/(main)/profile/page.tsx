@@ -297,11 +297,11 @@ function ProfileContent() {
         <div
           className={clsx(
             'custom-scrollbar min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
-            'px-3 pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pt-20',
+            'px-4 pt-[max(5rem,calc(env(safe-area-inset-top,0px)+4rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:px-8 lg:pb-8 lg:pt-20 xl:px-10 xl:pt-24',
           )}
           style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
         >
-        <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">
+        <div className="w-full space-y-4 sm:space-y-5 md:space-y-6">
         {/* Sección principal - Dos columnas */}
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           {/* Columna principal - 75% */}

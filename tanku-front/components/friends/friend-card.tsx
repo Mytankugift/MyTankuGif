@@ -192,16 +192,27 @@ export function FriendCard({ friend, onRefresh, groups, layout = 'grid' }: Frien
       </button>
     )
 
-    const nameBlock = (
+    const nameTextsList = (
+      <>
+        <p className="truncate text-sm font-semibold text-zinc-50">{primaryLabel}</p>
+        {secondaryLine && (
+          <p className="truncate text-xs text-zinc-500">{secondaryLine}</p>
+        )}
+      </>
+    )
+
+    /** Móvil (max-md): solo el avatar abre el perfil; el nombre es texto sin navegación. */
+    const nameBlockMobile = (
+      <div className="w-full text-left">{nameTextsList}</div>
+    )
+
+    const nameBlockDesktop = (
       <button
         type="button"
         onClick={() => router.push(profilePath)}
         className="w-full text-left"
       >
-        <p className="truncate text-sm font-semibold text-zinc-50">{primaryLabel}</p>
-        {secondaryLine && (
-          <p className="truncate text-xs text-zinc-500">{secondaryLine}</p>
-        )}
+        {nameTextsList}
       </button>
     )
 
@@ -221,7 +232,7 @@ export function FriendCard({ friend, onRefresh, groups, layout = 'grid' }: Frien
             <div className="flex min-w-0 flex-row gap-3">
               {profileAvatarBtn}
               <div className="flex min-h-[4.25rem] min-w-0 flex-1 flex-col justify-center py-0.5">
-                {nameBlock}
+                {nameBlockMobile}
               </div>
             </div>
             {redTankuLine}
@@ -231,7 +242,8 @@ export function FriendCard({ friend, onRefresh, groups, layout = 'grid' }: Frien
           <div className="hidden w-full flex-1 flex-row items-center gap-4 sm:flex sm:min-w-0">
             {profileAvatarBtn}
             <div className="min-w-0 flex-1 pr-10 sm:pr-12">
-              {nameBlock}
+              <div className="md:hidden">{nameBlockMobile}</div>
+              <div className="hidden md:block">{nameBlockDesktop}</div>
               {redTankuLine}
             </div>
             <div className="flex w-full min-w-0 sm:max-w-[min(100%,20rem)] sm:shrink-0 sm:pr-10 md:pr-12 lg:pr-14">
@@ -308,10 +320,16 @@ export function FriendCard({ friend, onRefresh, groups, layout = 'grid' }: Frien
         <div className="pointer-events-none absolute inset-0 rounded-b-2xl bg-[radial-gradient(120%_80%_at_50%_-20%,rgba(102,222,219,0.12),transparent_58%)]" aria-hidden />
 
         <div className="relative z-[1]">
+          <div className="w-full text-left md:hidden">
+            <p className="line-clamp-1 text-sm font-semibold text-zinc-50">{primaryLabel}</p>
+            {secondaryLine && (
+              <p className="line-clamp-1 text-xs text-zinc-400">{secondaryLine}</p>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => router.push(profilePath)}
-            className="w-full text-left"
+            className="hidden w-full text-left md:block"
           >
             <p className="line-clamp-1 text-sm font-semibold text-zinc-50">{primaryLabel}</p>
             {secondaryLine && (

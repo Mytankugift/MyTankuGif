@@ -35,25 +35,25 @@
 
 @media (min-width: 768px) and (max-width: 1023px) {
   .masonry-grid_column > div > div {
-    max-width: 300px !important;
+    max-width: 276px !important;
   }
 }
 
 @media (min-width: 1024px) and (max-width: 1199px) {
   .masonry-grid_column > div > div {
-    max-width: 300px !important;
+    max-width: 276px !important;
   }
 }
 
 @media (min-width: 1200px) and (max-width: 1399px) {
   .masonry-grid_column > div > div {
-    max-width: 300px !important;
+    max-width: 276px !important;
   }
 }
 
 @media (min-width: 1400px) {
   .masonry-grid_column > div > div {
-    max-width: 300px !important;
+    max-width: 276px !important;
   }
 }
 

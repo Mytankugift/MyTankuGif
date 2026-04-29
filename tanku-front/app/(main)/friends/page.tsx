@@ -362,19 +362,24 @@ export default function FriendsPage() {
         />
       </div>
 
+      {/*
+        Más `pt` que /wishlist o /profile: el BaseNav incluye `FriendsPageSearchBar` (fila extra debajo del título).
+      */}
       <div
         id="friends-scroll-root"
         className={clsx(
-          'custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain px-2 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] pt-[max(8.5rem,calc(env(safe-area-inset-top,0px)+7.25rem))] [-webkit-overflow-scrolling:touch] sm:px-3 md:px-4 md:pb-5 md:pt-[10rem] lg:pt-[10.5rem]',
+          'custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+          'px-4 pt-[max(8rem,calc(env(safe-area-inset-top,0px)+7rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]',
+          'lg:px-8 lg:pb-8 lg:pt-28 xl:px-10 xl:pt-32',
         )}
         style={{
           marginRight: '0',
-          scrollBehavior: 'smooth',
+          scrollBehavior: 'auto',
           scrollPaddingTop: 'max(env(safe-area-inset-top),12px)',
           scrollPaddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
-        <div className="mx-auto w-full max-w-7xl pb-4 sm:px-0">
+        <div className="w-full pb-4">
           {error && (
             <div className="mb-4 rounded-lg border border-red-500/50 bg-red-500/10 p-4">
               <p className="text-sm text-red-400">{error}</p>

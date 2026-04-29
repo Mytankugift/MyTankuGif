@@ -13,6 +13,10 @@ import { ChatWindow } from '@/components/chat/chat-window'
 import { BaseNav } from '@/components/layout/base-nav'
 import { NavBackToFeedLink } from '@/components/layout/nav-back-to-feed'
 
+/** Igual que StalkerGift `(shell)`: aire bajo BaseNav sin buscador en el nav externo (`stalkergift/(shell)/layout.tsx` → SG_TOP_PT). */
+const MESSAGES_NAV_TOP_PT =
+  'max-md:pt-[max(4.625rem,calc(env(safe-area-inset-top,0px)+4.125rem))] md:pt-[6.625rem] lg:pt-[4.75rem] xl:pt-[6.5rem]'
+
 // Componente interno que usa useSearchParams
 function MessagesClientContent() {
   const searchParams = useSearchParams()
@@ -92,7 +96,8 @@ function MessagesClientContent() {
         id="messages-scroll-root"
         className={clsx(
           'custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
-          'px-4 pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:px-8 lg:pb-8 lg:pt-28 xl:px-10 xl:pt-36',
+          'px-4 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:px-8 lg:pb-8 xl:px-10',
+          MESSAGES_NAV_TOP_PT,
           /* Solo móvil: portal a pantalla completa; tablet mantiene scroll y chat dentro del card con borde */
           showMobileChatOverlay && isMobileViewport && 'max-md:hidden',
         )}
@@ -101,9 +106,9 @@ function MessagesClientContent() {
         <div
           className={clsx(
             'flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#414141] shadow-xl',
-            /* Tablet (md–lg): misma tarjeta con borde; lg+ dos columnas con alturas del layout escritorio */
-            'md:h-[calc(100dvh-11rem)]',
-            'lg:h-[calc(100vh-13rem)] lg:flex-row xl:h-[calc(100vh-14rem)]',
+            /* Alturas tras el mismo margen superior que StalkerGift (shell); menos reserva que antes al subir el bloque */
+            'md:h-[calc(100dvh-10rem)]',
+            'lg:h-[calc(100vh-11rem)] lg:flex-row xl:h-[calc(100vh-12rem)]',
           )}
           style={{ backgroundColor: '#171B21' }}
         >

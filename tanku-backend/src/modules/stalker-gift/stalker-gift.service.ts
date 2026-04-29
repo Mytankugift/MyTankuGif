@@ -7,7 +7,11 @@
 
 import { prisma } from '../../config/database';
 import { NotFoundError, BadRequestError, ForbiddenError, AgeRestrictedError } from '../../shared/errors/AppError';
-import { assertProductViewableForUser, isProductBlockedForMinor } from '../../shared/catalog/catalog-age-policy';
+import {
+  assertProductViewableForUser,
+  getAgeInYears,
+  isProductBlockedForMinor,
+} from '../../shared/catalog/catalog-age-policy';
 import { assertGiftProductAllowedForRecipient, getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
 import crypto from 'crypto';
 import { env } from '../../config/env';
@@ -151,6 +155,13 @@ export class StalkerGiftService {
     // Validar que no sea para el mismo usuario
     if (data.receiverId && data.senderId === data.receiverId) {
       throw new BadRequestError('No puedes enviarte un regalo a ti mismo');
+    }
+
+    if (data.receiverId) {
+      const receiverBirth = await getBirthDateForUserId(data.receiverId);
+      if (receiverBirth != null && getAgeInYears(receiverBirth) < 18) {
+        throw new BadRequestError('No puedes enviar StalkerGifts a menores de edad.');
+      }
     }
 
     // Validar alias

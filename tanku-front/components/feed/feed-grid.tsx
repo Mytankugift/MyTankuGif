@@ -71,7 +71,7 @@ export function FeedGrid({ items, onPosterClick, isAuthenticated = true }: FeedG
     // Renderizar secciones con banners
     let globalItemIndex = 0
     return (
-      <div className="w-full" ref={containerRef} style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      <div className="w-full" ref={containerRef} style={{ maxWidth: '1280px', margin: '0 auto' }}>
         {sections.map((section, sectionIndex) => {
           if (section.showBanner && section.bannerVariant) {
             // Renderizar banner
@@ -170,7 +170,7 @@ export function FeedGrid({ items, onPosterClick, isAuthenticated = true }: FeedG
 
   // Si está autenticado, renderizar normalmente sin banners
   return (
-    <div className="w-full" ref={containerRef} style={{ maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="w-full" ref={containerRef} style={{ maxWidth: '1280px', margin: '0 auto' }}>
       <Masonry
         breakpointCols={breakpointColumnsObj}
         className="masonry-grid"

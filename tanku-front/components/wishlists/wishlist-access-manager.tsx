@@ -1,10 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { clsx } from 'clsx'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import Image from 'next/image'
-import { UserGroupIcon, XMarkIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { UserGroupIcon, XMarkIcon, TrashIcon, CheckIcon } from '@heroicons/react/24/outline'
+import { useToast } from '@/lib/contexts/toast-context'
 
 interface AccessGrant {
   userId: string
@@ -15,57 +17,109 @@ interface AccessGrant {
   grantedAt: Date
 }
 
-interface WishlistAccessManagerProps {
+interface AccessRequestRow {
+  id: string
   wishlistId: string
-  isPrivate: boolean
+  wishlistName: string
+  requester: {
+    id: string
+    username: string | null
+    firstName: string | null
+    lastName: string | null
+    avatar: string | null
+  }
+  createdAt: string
 }
 
-export function WishlistAccessManager({ wishlistId, isPrivate }: WishlistAccessManagerProps) {
-  const [grants, setGrants] = useState<AccessGrant[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
-  const [revokingId, setRevokingId] = useState<string | null>(null)
+const pillBtn =
+  'inline-flex shrink-0 items-center justify-center rounded-xl border border-[#66DEDB]/40 bg-black/35 px-3 py-2 text-[11px] font-medium text-[#66DEDB] transition-colors hover:border-[#73FFA2]/55 hover:bg-[#66DEDB]/10 sm:text-xs'
 
-  const loadGrants = async () => {
+interface WishlistAccessManagerProps {
+  wishlistId: string
+  wishlistName?: string | null
+  isPrivate: boolean
+  triggerClassName?: string
+  /**
+   * `pill`: botón «Acceso» + modal propio (escritorio / por defecto).
+   * `modalOnly`: solo el modal controlado desde fuera (`open`, `onModalClose`; p. ej. menú ⋯ en móvil).
+   */
+  variant?: 'pill' | 'modalOnly'
+  open?: boolean
+  onModalClose?: () => void
+}
+
+export function WishlistAccessManager({
+  wishlistId,
+  wishlistName,
+  isPrivate,
+  triggerClassName,
+  variant = 'pill',
+  open: controlledOpen,
+  onModalClose,
+}: WishlistAccessManagerProps) {
+  const variantIsModalOnly = variant === 'modalOnly'
+  const { success: toastSuccess, error: toastError } = useToast()
+  const [grants, setGrants] = useState<AccessGrant[]>([])
+  const [incomingRequests, setIncomingRequests] = useState<AccessRequestRow[]>([])
+  const [loadingGrants, setLoadingGrants] = useState(false)
+  const [loadingRequests, setLoadingRequests] = useState(false)
+  const [pillOpen, setPillOpen] = useState(false)
+  const modalOpen = variantIsModalOnly ? !!controlledOpen : pillOpen
+  const [revokingId, setRevokingId] = useState<string | null>(null)
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null)
+
+  const filteredPendingRequests = incomingRequests.filter((r) => r.wishlistId === wishlistId)
+
+  const loadGrants = useCallback(async () => {
     if (!isPrivate) return
-    setIsLoading(true)
+    setLoadingGrants(true)
     try {
-      const response = await apiClient.get<AccessGrant[]>(
-        API_ENDPOINTS.WISHLISTS.ACCESS_GRANTS(wishlistId)
-      )
+      const response = await apiClient.get<AccessGrant[]>(API_ENDPOINTS.WISHLISTS.ACCESS_GRANTS(wishlistId))
       if (response.success && response.data) {
         setGrants(response.data)
       }
     } catch (error) {
       console.error('Error cargando accesos:', error)
     } finally {
-      setIsLoading(false)
+      setLoadingGrants(false)
     }
-  }
+  }, [isPrivate, wishlistId])
+
+  const loadIncomingRequests = useCallback(async () => {
+    if (!isPrivate) return
+    setLoadingRequests(true)
+    try {
+      const response = await apiClient.get<AccessRequestRow[]>(API_ENDPOINTS.WISHLISTS.ACCESS_REQUESTS)
+      if (response.success && response.data) {
+        setIncomingRequests(Array.isArray(response.data) ? response.data : [])
+      }
+    } catch (error) {
+      console.error('Error cargando solicitudes:', error)
+    } finally {
+      setLoadingRequests(false)
+    }
+  }, [isPrivate])
 
   useEffect(() => {
-    if (isOpen && isPrivate) {
-      loadGrants()
+    if (modalOpen && isPrivate) {
+      void loadGrants()
+      void loadIncomingRequests()
     }
-  }, [isOpen, isPrivate, wishlistId])
+  }, [modalOpen, isPrivate, wishlistId, loadGrants, loadIncomingRequests])
 
-  // Escuchar evento cuando se aprueba acceso desde otro lugar
   useEffect(() => {
     if (!isPrivate) return
 
     const handleAccessApproved = () => {
-      if (isOpen) {
-        // Refrescar si el panel está abierto
-        loadGrants()
+      if (modalOpen) {
+        void loadGrants()
+        void loadIncomingRequests()
       }
     }
 
     window.addEventListener('wishlist-access-approved', handleAccessApproved)
-
-    return () => {
-      window.removeEventListener('wishlist-access-approved', handleAccessApproved)
-    }
-  }, [isOpen, isPrivate])
+    return () => window.removeEventListener('wishlist-access-approved', handleAccessApproved)
+  }, [modalOpen, isPrivate, loadGrants, loadIncomingRequests])
 
   const handleRevokeAccess = async (userId: string) => {
     if (!confirm('¿Estás seguro de que deseas revocar el acceso a este usuario?')) {
@@ -74,15 +128,14 @@ export function WishlistAccessManager({ wishlistId, isPrivate }: WishlistAccessM
 
     setRevokingId(userId)
     try {
-      const response = await apiClient.delete(
-        API_ENDPOINTS.WISHLISTS.REVOKE_ACCESS(wishlistId, userId)
-      )
+      const response = await apiClient.delete(API_ENDPOINTS.WISHLISTS.REVOKE_ACCESS(wishlistId, userId))
       if (response.success) {
         setGrants((prev) => prev.filter((g) => g.userId !== userId))
+        toastSuccess('Acceso revocado')
       }
     } catch (error) {
       console.error('Error revocando acceso:', error)
-      alert('Error al revocar el acceso')
+      toastError('Error al revocar el acceso')
     } finally {
       setRevokingId(null)
     }
@@ -95,134 +148,284 @@ export function WishlistAccessManager({ wishlistId, isPrivate }: WishlistAccessM
 
     setRevokingId('all')
     try {
-      const response = await apiClient.delete(
-        API_ENDPOINTS.WISHLISTS.REVOKE_ALL_ACCESS(wishlistId)
-      )
+      const response = await apiClient.delete(API_ENDPOINTS.WISHLISTS.REVOKE_ALL_ACCESS(wishlistId))
       if (response.success) {
         setGrants([])
+        toastSuccess('Se revocaron todos los accesos')
       }
     } catch (error) {
       console.error('Error revocando todos los accesos:', error)
-      alert('Error al revocar los accesos')
+      toastError('Error al revocar los accesos')
     } finally {
       setRevokingId(null)
     }
   }
 
-  if (!isPrivate) {
+  const handleApprove = async (requestId: string) => {
+    setProcessingRequestId(requestId)
+    try {
+      const response = await apiClient.put(API_ENDPOINTS.WISHLISTS.APPROVE_ACCESS_REQUEST(requestId))
+      if (response.success) {
+        setIncomingRequests((prev) => prev.filter((r) => r.id !== requestId))
+        toastSuccess('Solicitud aprobada')
+        void loadGrants()
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('wishlist-access-approved', {
+              detail: { requestId },
+            }),
+          )
+        }
+      }
+    } catch (error) {
+      console.error('Error aprobando solicitud:', error)
+      toastError('Error al aprobar la solicitud')
+    } finally {
+      setProcessingRequestId(null)
+    }
+  }
+
+  const handleReject = async (requestId: string) => {
+    setProcessingRequestId(requestId)
+    try {
+      const response = await apiClient.put(API_ENDPOINTS.WISHLISTS.REJECT_ACCESS_REQUEST(requestId))
+      if (response.success) {
+        setIncomingRequests((prev) => prev.filter((r) => r.id !== requestId))
+        toastSuccess('Solicitud rechazada')
+      }
+    } catch (error) {
+      console.error('Error rechazando solicitud:', error)
+      toastError('Error al rechazar la solicitud')
+    } finally {
+      setProcessingRequestId(null)
+    }
+  }
+
+  const closeModal = () => {
+    if (variantIsModalOnly) {
+      onModalClose?.()
+    } else {
+      setPillOpen(false)
+    }
+  }
+
+  const triggerCn = clsx(pillBtn, triggerClassName)
+
+  if (variantIsModalOnly && !isPrivate) {
     return null
   }
 
-  return (
-    <div className="relative">
+  if (!isPrivate && !variantIsModalOnly) {
+    return (
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="text-sm text-[#73FFA2] hover:text-[#66DEDB] transition-colors flex items-center gap-1"
-        title="Gestionar accesos"
+        type="button"
+        disabled
+        className={clsx(triggerCn, 'cursor-not-allowed opacity-40 hover:border-[#66DEDB]/40 hover:bg-black/35')}
+        title="Gestión de usuarios solo está disponible en wishlists privadas"
       >
-        <UserGroupIcon className="w-4 h-4" />
-        Accesos
+        <UserGroupIcon className="-ml-0.5 mr-1 h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
+        Acceso
       </button>
+    )
+  }
 
-      {isOpen && (
-        <>
-          {/* Overlay para cerrar al hacer click fuera */}
+  const titleName = wishlistName?.trim() || 'Wishlist'
+
+  return (
+    <>
+      {!variantIsModalOnly ? (
+      <div className="relative inline-flex">
+        <button
+          type="button"
+          onClick={() => setPillOpen(true)}
+          className={clsx(triggerCn, 'gap-1')}
+          title="Gestionar acceso y solicitudes"
+        >
+          <UserGroupIcon className="-ml-0.5 h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
+          Acceso
+        </button>
+      </div>
+      ) : null}
+
+      {modalOpen ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-transparent p-4"
+          role="presentation"
+          onClick={closeModal}
+        >
           <div
-            className="fixed inset-0 z-40"
-            onClick={() => setIsOpen(false)}
-          />
-          
-          {/* Panel de gestión de accesos */}
-          <div className="absolute right-0 top-full mt-2 w-96 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 max-h-96 overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-              <h3 className="text-white font-semibold">Usuarios con acceso</h3>
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="wishlist-access-modal-title"
+            className="flex max-h-[min(640px,calc(100vh-2rem))] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[#66DEDB]/25 bg-[#1a1d24] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
+              <div className="min-w-0">
+                <h2 id="wishlist-access-modal-title" className="text-lg font-semibold text-white">
+                  Acceso
+                </h2>
+                <p className="mt-0.5 truncate text-sm text-zinc-400" title={titleName}>
+                  {titleName}
+                </p>
+              </div>
               <button
-                onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-white transition-colors"
+                type="button"
+                onClick={closeModal}
+                className="shrink-0 rounded-lg p-2 text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="Cerrar"
               >
-                <XMarkIcon className="w-5 h-5" />
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-              {isLoading ? (
-                <div className="p-4 text-center text-gray-400">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#73FFA2] mx-auto mb-2"></div>
-                  <p className="text-sm">Cargando...</p>
-                </div>
-              ) : grants.length === 0 ? (
-                <div className="p-4 text-center text-gray-400 text-sm">
-                  No hay usuarios con acceso
-                </div>
-              ) : (
-                <>
-                  {grants.length > 1 && (
-                    <div className="p-3 border-b border-gray-700">
-                      <button
-                        onClick={handleRevokeAll}
-                        disabled={revokingId === 'all'}
-                        className="w-full py-2 px-3 text-sm bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                        Revocar todos los accesos
-                      </button>
-                    </div>
-                  )}
-                  <div className="divide-y divide-gray-700">
-                    {grants.map((grant) => {
-                      const userName = grant.username ||
-                        `${grant.firstName || ''} ${grant.lastName || ''}`.trim() ||
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              {/* Solicitudes pendientes (esta wishlist) */}
+              <section className="border-b border-white/10 px-4 py-4 sm:px-5">
+                <h3 className="mb-3 text-sm font-semibold text-[#66DEDB]">Solicitudes pendientes</h3>
+                {loadingRequests ? (
+                  <div className="py-6 text-center text-sm text-zinc-500">Cargando solicitudes…</div>
+                ) : filteredPendingRequests.length === 0 ? (
+                  <p className="text-sm text-zinc-500">No hay solicitudes pendientes para esta wishlist.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {filteredPendingRequests.map((request) => {
+                      const isProcessing = processingRequestId === request.id
+                      const requesterName =
+                        request.requester.username ||
+                        `${request.requester.firstName || ''} ${request.requester.lastName || ''}`.trim() ||
                         'Usuario'
-                      const avatarUrl = grant.avatar ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=1E1E1E&color=73FFA2&size=64`
 
                       return (
-                        <div
-                          key={grant.userId}
-                          className="p-3 flex items-center justify-between hover:bg-gray-700/50 transition-colors"
+                        <li
+                          key={request.id}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-3"
                         >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                            {request.requester.avatar ? (
                               <Image
-                                src={avatarUrl}
-                                alt={userName}
-                                fill
-                                className="object-cover"
-                                unoptimized
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement
-                                  target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=1E1E1E&color=73FFA2&size=64`
-                                }}
+                                src={request.requester.avatar}
+                                alt=""
+                                width={40}
+                                height={40}
+                                className="h-10 w-10 shrink-0 rounded-full object-cover"
+                                unoptimized={request.requester.avatar.startsWith('http')}
                               />
-                            </div>
+                            ) : (
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-sm font-medium text-zinc-300">
+                                {(request.requester.firstName?.[0] || request.requester.username?.[0] || 'U').toUpperCase()}
+                              </div>
+                            )}
                             <div className="min-w-0 flex-1">
-                              <p className="text-white font-medium truncate text-sm">
-                                {userName}
-                              </p>
-                              <p className="text-xs text-gray-400">
-                                Acceso desde {new Date(grant.grantedAt).toLocaleDateString('es-CO')}
-                              </p>
+                              <p className="truncate font-medium text-white">{requesterName}</p>
+                              <p className="truncate text-xs text-zinc-500">Quiere acceder</p>
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleRevokeAccess(grant.userId)}
-                            disabled={revokingId === grant.userId}
-                            className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                            title="Revocar acceso"
-                          >
-                            <XMarkIcon className="w-4 h-4" />
-                          </button>
-                        </div>
+                          <div className="flex shrink-0 gap-1.5">
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              className="rounded-lg bg-green-600/85 p-2 text-white transition-colors hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              title="Aprobar"
+                              onClick={() => void handleApprove(request.id)}
+                            >
+                              <CheckIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              className="rounded-lg bg-red-600/85 p-2 text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              title="Rechazar"
+                              onClick={() => void handleReject(request.id)}
+                            >
+                              <XMarkIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </li>
                       )
                     })}
-                  </div>
-                </>
-              )}
+                  </ul>
+                )}
+              </section>
+
+              {/* Personas con acceso */}
+              <section className="px-4 py-4 sm:px-5">
+                <h3 className="mb-3 text-sm font-semibold text-[#66DEDB]">Personas con acceso</h3>
+                {loadingGrants ? (
+                  <div className="py-6 text-center text-sm text-zinc-500">Cargando…</div>
+                ) : grants.length === 0 ? (
+                  <p className="text-sm text-zinc-500">
+                    Nadie tiene acceso aún. Cuando apruebes una solicitud, aparecerá aquí.
+                  </p>
+                ) : (
+                  <>
+                    {grants.length > 1 && (
+                      <div className="mb-3">
+                        <button
+                          type="button"
+                          onClick={() => void handleRevokeAll()}
+                          disabled={revokingId === 'all'}
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-500/15 px-3 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                          Revocar todos los accesos
+                        </button>
+                      </div>
+                    )}
+                    <ul className="divide-y divide-white/10 rounded-xl border border-white/10 bg-black/20">
+                      {grants.map((grant) => {
+                        const userName =
+                          grant.username || `${grant.firstName || ''} ${grant.lastName || ''}`.trim() || 'Usuario'
+                        const avatarUrl =
+                          grant.avatar ||
+                          `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=1E1E1E&color=73FFA2&size=64`
+
+                        return (
+                          <li
+                            key={grant.userId}
+                            className="flex items-center justify-between gap-3 p-3 first:rounded-t-xl last:rounded-b-xl hover:bg-white/[0.04]"
+                          >
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
+                                <Image
+                                  src={avatarUrl}
+                                  alt=""
+                                  fill
+                                  className="object-cover"
+                                  unoptimized
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement
+                                    target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=1E1E1E&color=73FFA2&size=64`
+                                  }}
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-white">{userName}</p>
+                                <p className="text-xs text-zinc-500">
+                                  Desde {new Date(grant.grantedAt as unknown as string).toLocaleDateString('es-CO')}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void handleRevokeAccess(grant.userId)}
+                              disabled={revokingId === grant.userId}
+                              className="shrink-0 rounded-lg p-2 text-red-400 transition-colors hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                              title="Revocar acceso"
+                            >
+                              <XMarkIcon className="h-4 w-4" />
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </>
+                )}
+              </section>
             </div>
           </div>
-        </>
-      )}
-    </div>
+        </div>
+      ) : null}
+    </>
   )
 }
-

@@ -97,7 +97,7 @@ export function StalkerGiftChatList({ onSelectChat }: StalkerGiftChatListProps) 
       onSelectChat(conversationId)
     } else {
       // ✅ Redirigir a /stalkergift, NO a /messages
-      router.push(`/stalkergift?tab=chats&conversation=${conversationId}`)
+      router.push(`/stalkergift?conversation=${conversationId}`)
     }
   }
 

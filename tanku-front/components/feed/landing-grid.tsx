@@ -78,7 +78,7 @@ export function LandingGrid({ items }: LandingGridProps) {
   // Renderizar secciones con banners
   let globalItemIndex = 0
   return (
-    <div className="w-full" ref={containerRef} style={{ maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="w-full" ref={containerRef} style={{ maxWidth: '1280px', margin: '0 auto' }}>
       {sections.map((section, sectionIndex) => {
         if (section.showBanner && section.bannerVariant) {
           // Renderizar banner

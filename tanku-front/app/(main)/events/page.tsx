@@ -1,7 +1,14 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useEvents, type CalendarEvent } from '@/lib/hooks/use-events'
+import { clsx } from 'clsx'
+import {
+  CalendarDaysIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '@heroicons/react/24/outline'
+import { useEvents, type CalendarEvent, type Event } from '@/lib/hooks/use-events'
 import { EventFormModal } from '@/components/events/event-form-modal'
 import { EventDayModal } from '@/components/events/event-day-modal'
 import { format, isSameDay, isSameMonth, addMonths, subMonths, addDays, startOfDay, isBefore, isAfter } from 'date-fns'
@@ -11,22 +18,14 @@ import { EVENT_COLOR_PRESETS, normalizeEventColor } from '@/lib/event-colors'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useEventColorPresets } from '@/lib/hooks/use-event-color-presets'
 import { BaseNav } from '@/components/layout/base-nav'
+import { NavBackToFeedLink } from '@/components/layout/nav-back-to-feed'
 
-/** Flechas tipo slider de categorías del feed (stroke negro sobre fondo cyan). */
-function MonthChevronLeft({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-    </svg>
-  )
-}
-function MonthChevronRight({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-    </svg>
-  )
-}
+const GLASS_PANEL =
+  'relative w-full min-w-0 overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] shadow-[0_12px_40px_rgba(0,0,0,0.2)] backdrop-blur-sm'
+
+/** Botón cuadrado del toolbar del calendario (flechas y acciones auxiliares) */
+const CAL_TOOL_BTN =
+  'inline-flex shrink-0 items-center justify-center rounded-xl border border-white/[0.1] bg-white/[0.05] text-zinc-100 transition-colors hover:bg-white/[0.09] active:bg-white/[0.06]'
 
 export default function EventsPage() {
   const { getEventsForMonth, deleteEvent, getEventById } = useEvents()
@@ -38,8 +37,7 @@ export default function EventsPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedEvents, setSelectedEvents] = useState<CalendarEvent[]>([])
   const [showFormModal, setShowFormModal] = useState(false)
-  const [editingEvent, setEditingEvent] = useState<string | null>(null)
-  const [editingEventData, setEditingEventData] = useState<any>(null)
+  const [editingEventData, setEditingEventData] = useState<Event | null>(null)
   const [showDayModal, setShowDayModal] = useState(false)
   const [formDefaultDate, setFormDefaultDate] = useState<string | null>(null)
   const [pastDateToast, setPastDateToast] = useState<string | null>(null)
@@ -75,13 +73,13 @@ export default function EventsPage() {
     }
   }, [currentDate, getEventsForMonth, isAuthenticated])
 
-  // Cargar eventos del mes cuando cambia la fecha o cuando se autentica
+  // Cargar eventos cuando cambian mes o sesión — difiere a microtask para no disparar react-hooks/set-state-in-effect en el propio efecto
   useEffect(() => {
-    loadEvents()
+    void Promise.resolve().then(() => loadEvents())
   }, [loadEvents])
 
   useEffect(() => {
-    if (isAuthenticated) loadPresets()
+    if (isAuthenticated) void Promise.resolve().then(() => loadPresets())
   }, [isAuthenticated, loadPresets])
 
   useEffect(() => {
@@ -111,7 +109,6 @@ export default function EventsPage() {
       showPastDateHint('No puedes crear eventos en fechas que ya pasaron')
       return
     }
-    setEditingEvent(null)
     setEditingEventData(null)
     setFormDefaultDate(date ? format(date, 'yyyy-MM-dd') : null)
     setShowFormModal(true)
@@ -120,7 +117,6 @@ export default function EventsPage() {
   const handleEditEvent = async (eventId: string) => {
     const event = await getEventById(eventId)
     if (event) {
-      setEditingEvent(eventId)
       setEditingEventData(event)
       setShowFormModal(true)
     }
@@ -144,7 +140,7 @@ export default function EventsPage() {
     loadEvents()
     loadPresets()
     setShowFormModal(false)
-    setEditingEvent(null)
+    setEditingEventData(null)
   }
 
   const goToPreviousMonth = () => {
@@ -203,140 +199,77 @@ export default function EventsPage() {
     return Array.from(s).sort()
   }, [baseUpcomingEvents, knownPresetHexes])
 
-  /** Sin hover:scale en filas con ancho ajustado: evita overflow y mini-scrollbars al pasar el ratón */
-  const navButtonBase =
-    'px-4 py-2 font-semibold transition-all duration-300 rounded-full shrink-0 hover:brightness-110 active:brightness-95'
-  /** Flechas móvil: tamaño fijo para que la barra de mes no se mueva al cambiar el nombre del mes */
-  const monthNavArrowMobileClass =
-    'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-300 hover:brightness-110 active:brightness-95'
-  const navCyan = {
-    backgroundColor: '#66DEDB',
-    color: '#2C3137',
-    boxShadow: '0px 4px 4px 0px #00000040 inset',
-  } as const
-  const navGreen = {
-    backgroundColor: '#73FFA2',
-    color: '#2C3137',
-    boxShadow: '0px 4px 4px 0px #00000040 inset',
-  } as const
-
-  /**
-   * Móvil: flex-1 + truncate. Desktop: crece/encoge con el ancho del calendario (sin 17rem rígido).
-   */
-  const monthTitle = (
-    <h2 className="min-w-0 flex-1 truncate text-center text-base font-semibold tabular-nums capitalize px-1 sm:text-lg lg:flex-1 lg:text-base lg:leading-tight xl:text-xl">
-      {format(currentDate, 'MMMM yyyy', { locale: es })}
-    </h2>
-  )
-
-  const newEventButtonDesktop = (
-    <button
-      type="button"
-      onClick={() => handleCreateEvent()}
-      className={`${navButtonBase} flex items-center justify-center gap-1.5 px-3 text-sm sm:px-4 sm:text-base xl:px-5`}
-      style={navGreen}
-    >
-      <span className="text-lg leading-none xl:text-xl">+</span>
-      <span className="whitespace-nowrap">Nuevo Evento</span>
-    </button>
-  )
-
-  /** Móvil: mismo alto que Hoy; el ancho lo iguala la cuadrícula (grid-cols-2) */
-  const newEventButtonMobile = (
-    <button
-      type="button"
-      onClick={() => handleCreateEvent()}
-      className="flex h-10 w-full min-w-0 items-center justify-center gap-1 rounded-full px-2 text-xs font-semibold transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
-      style={navGreen}
-    >
-      <span className="shrink-0 text-base leading-none">+</span>
-      <span className="truncate">Nuevo evento</span>
-    </button>
-  )
-
-  const todayButtonDesktop = (
-    <button
-      type="button"
-      onClick={goToToday}
-      className={`${navButtonBase} px-3 text-sm sm:px-4 sm:text-base xl:px-4`}
-      style={navGreen}
-    >
-      Hoy
-    </button>
-  )
-
-  const monthArrowsOnly = (
-    <div className="flex w-full min-w-0 flex-nowrap items-center gap-2">
-      <button
-        type="button"
-        onClick={goToPreviousMonth}
-        className={monthNavArrowMobileClass}
-        style={navCyan}
-        aria-label="Mes anterior"
-      >
-        <MonthChevronLeft className="h-5 w-5 text-black" />
-      </button>
-      {monthTitle}
-      <button
-        type="button"
-        onClick={goToNextMonth}
-        className={monthNavArrowMobileClass}
-        style={navCyan}
-        aria-label="Mes siguiente"
-      >
-        <MonthChevronRight className="h-5 w-5 text-black" />
-      </button>
-    </div>
-  )
-
-  const todayButtonMobile = (
-    <button
-      type="button"
-      onClick={goToToday}
-      className="h-10 w-full rounded-full text-xs font-semibold transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
-      style={navGreen}
-    >
-      Hoy
-    </button>
-  )
-
-  /** Ancho del calendario en lg+: misma fórmula que la tarjeta para alinear toolbar y rejilla. */
+  /** Ancho del calendario en lg+: alinea cabecera y rejilla. */
   const calendarWidthLg =
     'lg:max-w-[min(100%,max(15rem,calc((100dvh-16rem)*7/6)))]'
 
-  /** Desktop: solo cambio de mes (fila superior; Hoy/Nuevo van en la misma fila del grid, columna derecha). */
-  const calendarToolbarDesktop = (
-    <div className={`mx-auto flex w-full min-w-0 max-w-full shrink-0 flex-col items-stretch ${calendarWidthLg}`}>
-      <div className="flex min-w-0 w-full items-center justify-center gap-1.5 sm:gap-2">
+  /** Cabecera de mes + acciones (mismo aspecto que el mock / contenedor amigos) */
+  const calendarToolbar = (
+    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         <button
           type="button"
           onClick={goToPreviousMonth}
-          className={`${navButtonBase} shrink-0 px-3 text-sm sm:px-4 sm:text-base inline-flex items-center justify-center`}
-          style={navCyan}
+          className={clsx(CAL_TOOL_BTN, 'h-10 w-10')}
           aria-label="Mes anterior"
         >
-          <MonthChevronLeft className="h-5 w-5 text-black" />
+          <ChevronLeftIcon className="h-5 w-5 text-zinc-200" aria-hidden />
         </button>
-        {monthTitle}
+        <div className="flex min-w-0 flex-1 flex-nowrap items-center justify-center gap-2 sm:justify-center lg:flex-initial lg:justify-start">
+          <CalendarDaysIcon
+            className="hidden h-[1.125rem] w-[1.125rem] shrink-0 text-[#66DEDB]/90 sm:inline"
+            aria-hidden
+          />
+          <h2 className="min-w-0 truncate text-center text-[15px] font-semibold capitalize tabular-nums text-zinc-100 sm:text-base">
+            {format(currentDate, 'MMMM yyyy', { locale: es })}
+          </h2>
+          <ChevronDownIcon
+            className="hidden h-4 w-4 shrink-0 text-zinc-500 sm:inline"
+            aria-hidden
+          />
+        </div>
         <button
           type="button"
           onClick={goToNextMonth}
-          className={`${navButtonBase} shrink-0 px-3 text-sm sm:px-4 sm:text-base inline-flex items-center justify-center`}
-          style={navCyan}
+          className={clsx(CAL_TOOL_BTN, 'h-10 w-10')}
           aria-label="Mes siguiente"
         >
-          <MonthChevronRight className="h-5 w-5 text-black" />
+          <ChevronRightIcon className="h-5 w-5 text-zinc-200" aria-hidden />
+        </button>
+      </div>
+      <div className="flex w-full shrink-0 flex-row flex-wrap justify-stretch gap-2 sm:w-auto sm:justify-end">
+        <button
+          type="button"
+          onClick={goToToday}
+          className={clsx(
+            CAL_TOOL_BTN,
+            'h-10 flex-1 min-w-[6rem] px-4 text-sm font-semibold sm:flex-initial',
+          )}
+        >
+          Hoy
+        </button>
+        <button
+          type="button"
+          onClick={() => handleCreateEvent()}
+          className={clsx(
+            CAL_TOOL_BTN,
+            'h-10 flex-1 min-w-[8rem] gap-2 px-4 text-sm font-semibold shadow-[inset_0_-1px_0_rgba(0,0,0,0.35)] sm:flex-initial',
+            'border-[#73FFA2]/35 bg-[#73FFA2]/85 text-[#1f262c] hover:bg-[#73FFA2]',
+          )}
+        >
+          <span className="text-base leading-none">+</span>
+          <span className="truncate">Nuevo evento</span>
         </button>
       </div>
     </div>
   )
 
   const weekdayRow = (
-    <div className="mb-3 grid w-full grid-cols-7 gap-1.5 lg:mb-2 lg:gap-1">
+    <div className="mb-2 grid w-full grid-cols-7 gap-2 sm:gap-1.5">
       {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
         <div
           key={day}
-          className="py-1 text-center text-xs font-semibold text-gray-400 lg:py-1 lg:text-xs lg:leading-tight"
+          className="py-1 text-center text-[11px] font-medium text-zinc-500 sm:text-xs"
         >
           {day}
         </div>
@@ -344,126 +277,168 @@ export default function EventsPage() {
     </div>
   )
 
+  const calendarLegend = (
+    <div
+      className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-white/[0.06] pt-4"
+      aria-label="Leyenda de categorías de eventos"
+    >
+      {EVENT_COLOR_PRESETS.map((p) => (
+        <div key={p.key} className="flex items-center gap-1.5">
+          <span
+            className="h-2 w-2 shrink-0 rounded-full ring-1 ring-white/15"
+            style={{ backgroundColor: p.hex }}
+          />
+          <span className="text-[11px] text-zinc-400 sm:text-xs">{p.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+
   const dayCellsGrid = (
-    <div className="grid w-full grid-cols-7 gap-1.5 lg:gap-1">
+    <div className="grid w-full grid-cols-7 gap-2 sm:gap-1.5">
       {calendarDays.map((day) => {
         const dayEvents = getEventsForDay(day)
         const isToday = isSameDay(day, new Date())
         const isCurrentMonth = isSameMonth(day, currentDate)
+        const isSelectedDay =
+          selectedDate !== null && isSameDay(day, selectedDate)
 
         return (
           <button
             key={day.toISOString()}
+            type="button"
             onClick={() => handleDateClick(day)}
-            className={`
-                      aspect-square rounded-lg border-2 p-1.5 transition-all
-                      lg:rounded-md lg:border lg:p-1 lg:text-xs
-                      ${isToday ? 'border-[#73FFA2] bg-[#73FFA2]/10 lg:ring-1 lg:ring-[#73FFA2]/40' : 'border-gray-700 hover:border-gray-600'}
-                      ${!isCurrentMonth ? 'opacity-40 text-gray-500' : ''}
-                      ${dayEvents.length > 0 && isCurrentMonth ? 'bg-[#73FFA2]/20' : dayEvents.length > 0 ? 'bg-[#73FFA2]/10' : isCurrentMonth ? 'bg-gray-700/50' : 'bg-gray-800/40'}
-                    `}
-          >
-            <div className="mb-0.5 text-xs font-medium leading-none lg:mb-0 lg:leading-tight">
-              {format(day, 'd')}
-            </div>
-            {dayEvents.length > 0 && (
-              <div className="flex flex-wrap justify-center gap-0.5">
-                {dayEvents.slice(0, 4).map((event) => (
-                  <div
-                    key={`${event.id}_${event.date}`}
-                    className="h-1.5 w-1.5 shrink-0 rounded-full border border-white/10"
-                    style={{ backgroundColor: normalizeEventColor(event.color) }}
-                    title={event.title}
-                  />
-                ))}
-                {dayEvents.length > 4 && (
-                  <div className="text-[10px] leading-none text-gray-400 lg:text-[9px]">
-                    +{dayEvents.length - 4}
-                  </div>
-                )}
-              </div>
+            className={clsx(
+              'relative flex aspect-square min-h-0 flex-col rounded-xl border p-1 transition-[box-shadow,border-color,background-color]',
+              !isCurrentMonth && 'opacity-45',
+              !isSelectedDay &&
+                isToday &&
+                isCurrentMonth &&
+                'border-[#2bb391]/40 ring-1 ring-[#3dd4b0]/35',
+              !isSelectedDay &&
+                !isToday &&
+                'border-white/[0.08] bg-[#121a23]/95 hover:bg-white/[0.05]',
+              isSelectedDay &&
+                'scale-[1.01] border-[#3dd4b0] shadow-[0_0_14px_rgba(45,200,165,0.35)] ring-2 ring-[#3dd4b0]/70',
+              !isCurrentMonth && 'border-white/[0.04] bg-black/25 hover:bg-black/35',
+              !isSelectedDay &&
+                dayEvents.length > 0 &&
+                isCurrentMonth &&
+                'bg-[#0f181f]/98',
             )}
+            style={
+              isSelectedDay
+                ? {
+                    backgroundImage:
+                      'linear-gradient(180deg, #2bb391 0%, #151d26 92%)',
+                  }
+                : undefined
+            }
+          >
+            <span
+              className={clsx(
+                'pt-0.5 text-center text-[11px] font-semibold tabular-nums sm:text-xs',
+                !isCurrentMonth ? 'text-zinc-600' : 'text-zinc-100',
+              )}
+            >
+              {format(day, 'd')}
+            </span>
+            <div className="mt-auto flex min-h-[0.65rem] flex-wrap items-center justify-center gap-[3px] pb-0.5">
+              {dayEvents.slice(0, 4).map((event) => (
+                <span
+                  key={`${event.id}_${event.date}`}
+                  className="h-[5px] w-[5px] shrink-0 rounded-full ring-1 ring-black/35"
+                  style={{ backgroundColor: normalizeEventColor(event.color) }}
+                  title={event.title}
+                />
+              ))}
+              {dayEvents.length > 4 ? (
+                <span className="text-[9px] font-medium tabular-nums text-zinc-500">
+                  +{dayEvents.length - 4}
+                </span>
+              ) : null}
+            </div>
           </button>
         )
       })}
     </div>
   )
 
+  /** Calendario en panel cristal (mismo tratamiento visual que solicitudes/sugerencias en /friends). */
+  const calendarGlassCard = (
+    <section
+      className={clsx('flex flex-col p-3 sm:p-4 md:p-5', GLASS_PANEL)}
+      aria-label="Calendario de eventos"
+    >
+      {calendarToolbar}
+      {weekdayRow}
+      {dayCellsGrid}
+      {calendarLegend}
+    </section>
+  )
+
   return (
     <div
-      className="relative z-0 flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden text-white"
-      style={{ fontFamily: 'Poppins, sans-serif', backgroundColor: '#262626' }}
+      className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden text-white transition-colors duration-300"
+      style={{
+        fontFamily: 'Poppins, sans-serif',
+        backgroundColor: 'var(--color-surface-191e23-20)',
+      }}
     >
-      <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
+      <div className="pointer-events-none relative z-40 h-0 shrink-0 overflow-visible">
         <BaseNav
           showStories={false}
+          canHide={false}
+          isVisible={true}
           pageTitle="Eventos"
-          pageTitleColor="#66DEDB"
-          mobileTranslucentNav
+          pageTitleColor="#FFFFFF"
           mobileBackCenterTitleCartOnly
+          mobileTranslucentNav
           desktopNavTitleCentered
+          startContent={<NavBackToFeedLink />}
           className="pointer-events-auto"
         />
       </div>
       <div
         id="events-scroll-root"
-        className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden text-white"
+        className={clsx(
+          'custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+          'px-4 pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]',
+          'lg:px-8 lg:pb-8 lg:pt-28 xl:px-10 xl:pt-32',
+        )}
+        style={{
+          marginRight: '0',
+          scrollBehavior: 'auto',
+          scrollPaddingTop: 'max(env(safe-area-inset-top),12px)',
+          scrollPaddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        }}
       >
-        <div className="custom-scrollbar min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] px-3 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] pt-[max(6.25rem,calc(env(safe-area-inset-top,0px)+5.25rem))] sm:max-md:px-4 md:px-8 md:pb-6 md:pt-28 lg:px-10 lg:pb-6 lg:pt-28 xl:px-12">
-          <div className="mx-auto w-full max-w-7xl">
-            {/* Contenido principal: Calendario y Próximos Eventos */}
-            <div className="grid grid-cols-1 gap-6 pb-2 lg:grid-cols-3 lg:grid-rows-[auto_minmax(12rem,1fr)] lg:items-start lg:gap-x-8 lg:gap-y-3 lg:pb-1">
-              {/* Desktop fila 1: selector de mes (cols 1–2) + Hoy / Nuevo (col 3), misma línea horizontal */}
+        <div className="mx-auto w-full max-w-7xl pb-4">
+          <div className="grid grid-cols-1 gap-6 pb-2 lg:grid-cols-3 lg:items-start lg:gap-8 lg:pb-1">
+            <div
+              className={clsx(
+                'mx-auto w-full min-w-0 lg:col-span-2',
+                calendarWidthLg,
+              )}
+            >
+              {calendarGlassCard}
+            </div>
+
+            <div className="flex min-h-0 flex-col lg:col-span-1 lg:self-start">
               <div
-                className={`mx-auto hidden w-full min-w-0 lg:col-span-2 lg:row-start-1 lg:flex lg:min-h-0 lg:items-center lg:justify-center lg:self-center ${calendarWidthLg}`}
+                className={clsx(
+                  'sticky top-4 flex min-h-0 flex-col overflow-hidden p-3 sm:p-4',
+                  GLASS_PANEL,
+                  'h-[min(21rem,52svh)] max-h-[min(21rem,52svh)] lg:h-[30rem] lg:min-h-[30rem] lg:max-h-[30rem]',
+                  'lg:relative lg:top-auto lg:shrink-0',
+                )}
               >
-                {calendarToolbarDesktop}
+              <div className="mb-3 flex flex-nowrap items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
+                <h2 className="truncate text-[15px] font-semibold text-zinc-100 sm:text-base">
+                  Próximos eventos
+                </h2>
               </div>
-              <div className="hidden lg:col-span-1 lg:row-start-1 lg:col-start-3 lg:flex lg:min-h-0 lg:min-w-0 lg:flex-wrap lg:items-center lg:justify-end lg:gap-2 lg:self-center">
-                {todayButtonDesktop}
-                {newEventButtonDesktop}
-              </div>
-
-              {/* Móvil: tarjeta calendario completa + barra inferior */}
-              <div className="flex flex-col gap-4 lg:hidden">
-                <div
-                  className={`relative w-full max-w-full rounded-2xl border border-gray-700 bg-gray-800 p-4 ${calendarWidthLg}`}
-                >
-                  {weekdayRow}
-                  {dayCellsGrid}
-                </div>
-                <div className="sticky bottom-0 z-20 flex w-full justify-center border-t border-gray-700/60 bg-[#262626] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
-                  <div className="flex w-[20rem] max-w-[calc(100vw-2rem)] shrink-0 flex-col gap-2.5">
-                    {monthArrowsOnly}
-                    <div className="grid w-full grid-cols-2 gap-2">
-                      {todayButtonMobile}
-                      {newEventButtonMobile}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Desktop fila 2: calendario completo y Próximos eventos empiezan a la misma altura */}
-              <div
-                className={`hidden lg:col-span-2 lg:row-start-2 mx-auto w-full min-h-0 lg:block lg:self-stretch ${calendarWidthLg}`}
-              >
-                <div className="relative w-full max-w-full rounded-2xl border border-gray-700 bg-gray-800 p-4 lg:p-3">
-                  {weekdayRow}
-                  {dayCellsGrid}
-                </div>
-              </div>
-
-              {/* Próximos Eventos - Lista lateral (altura fija, scroll solo en la lista) */}
-              <div className="flex min-h-0 flex-col lg:col-span-1 lg:row-start-2 lg:col-start-3 lg:self-start">
-                <div
-                  className="sticky top-4 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-700 bg-gray-800 p-4 lg:relative lg:top-auto lg:shrink-0
-                    h-[min(21rem,52svh)] max-h-[min(21rem,52svh)]
-                    lg:h-[30rem] lg:min-h-[30rem] lg:max-h-[30rem]"
-                >
-              <h2 className="text-base font-bold mb-2 flex-shrink-0" style={{ color: '#73FFA2' }}>
-                Próximos eventos
-              </h2>
-              <p className="text-[10px] text-gray-500 mb-2 flex-shrink-0">Próximo mes</p>
+              <p className="mb-2 flex-shrink-0 text-[10px] text-zinc-500">Próximo mes</p>
               <div className="flex flex-wrap gap-1.5 mb-2 flex-shrink-0 md:gap-1">
                 <button
                   type="button"
@@ -592,11 +567,10 @@ export default function EventsPage() {
                   </div>
                 )}
               </div>
-                </div>
-              </div>
             </div>
           </div>
-          </div>
+        </div>
+      </div>
 
           {/* Modal de eventos del día */}
           <EventDayModal
@@ -631,7 +605,6 @@ export default function EventsPage() {
               isOpen={showFormModal}
               onClose={() => {
                 setShowFormModal(false)
-                setEditingEvent(null)
                 setEditingEventData(null)
                 setFormDefaultDate(null)
               }}

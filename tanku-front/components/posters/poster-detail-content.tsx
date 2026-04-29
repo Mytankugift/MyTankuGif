@@ -114,11 +114,14 @@ export function PosterDetailContent({
   }>>({})
   const [replyingTo, setReplyingTo] = useState<{ commentId: string; authorName: string; authorId: string } | null>(null)
   const [showMenu, setShowMenu] = useState(false)
+  const [showOwnerPageActionsModal, setShowOwnerPageActionsModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [isCommentsSheetOpen, setIsCommentsSheetOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [mediaOrientation, setMediaOrientation] = useState<'landscape' | 'portrait' | 'square'>('square')
   const menuRef = useRef<HTMLDivElement>(null)
+  const commentFormRef = useRef<HTMLDivElement>(null)
+  const commentsListRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setIsMounted(true)
@@ -458,6 +461,15 @@ export function PosterDetailContent({
     }
   }, [showMenu])
 
+  useEffect(() => {
+    if (!showOwnerPageActionsModal) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowOwnerPageActionsModal(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [showOwnerPageActionsModal])
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -485,6 +497,8 @@ export function PosterDetailContent({
   const authorName = poster.author?.firstName && poster.author?.lastName
     ? `${poster.author.firstName} ${poster.author.lastName}`
     : poster.author?.email?.split('@')[0] || 'Usuario'
+  const authorUsername = poster.author.username?.trim() || null
+  const accountHandle = authorUsername ? `@${authorUsername}` : null
   const postDateLabel = new Date(poster.createdAt).toLocaleDateString('es-ES', {
     year: 'numeric',
     month: 'long',
@@ -493,16 +507,81 @@ export function PosterDetailContent({
 
   const isOwner = user?.id === poster.author?.id
   const usePageLikeMobile = isPageView || mobilePageLike
+  /** Misma cáscara visual que /messages (tarjeta en page.tsx) */
+  const postPageBg = isPageView ? 'bg-[#171B21]' : 'bg-[var(--color-surface-191e23-20)]'
+  const postPageDivider = isPageView ? 'border-[#414141]' : 'border-white/10'
+  /** Solo divisores internos fuera de vista página (el borde exterior es la tarjeta en /posts/.../page) */
+  const innerRule = (classes: string) => (isPageView ? '' : classes)
+
+  const profileHref = poster.author.username
+    ? `/profile/${poster.author.username}`
+    : `/profile/${poster.author.id}`
+
+  const posterMedia = (
+    <>
+      {poster.videoUrl ? (
+        <video
+          src={poster.videoUrl}
+          controls
+          onLoadedMetadata={(e) => {
+            const el = e.currentTarget
+            if (!el.videoWidth || !el.videoHeight) return
+            if (el.videoWidth > el.videoHeight) setMediaOrientation('landscape')
+            else if (el.videoHeight > el.videoWidth) setMediaOrientation('portrait')
+            else setMediaOrientation('square')
+          }}
+          className={`max-h-full max-w-full ${
+            usePageLikeMobile
+              ? mediaOrientation === 'portrait'
+                ? 'h-full w-auto object-contain'
+                : 'w-full h-auto object-contain'
+              : 'h-full w-full object-contain'
+          }`}
+        />
+      ) : (
+        <Image
+          src={poster.imageUrl}
+          alt="Post"
+          width={1200}
+          height={1200}
+          onLoadingComplete={(img) => {
+            if (!img.naturalWidth || !img.naturalHeight) return
+            if (img.naturalWidth > img.naturalHeight) setMediaOrientation('landscape')
+            else if (img.naturalHeight > img.naturalWidth) setMediaOrientation('portrait')
+            else setMediaOrientation('square')
+          }}
+          className={`${
+            usePageLikeMobile
+              ? mediaOrientation === 'portrait'
+                ? 'h-full w-auto max-w-full object-contain'
+                : 'w-full h-auto max-h-full object-contain'
+              : 'h-full w-full max-h-full max-w-full object-contain'
+          }`}
+          unoptimized={isRemoteImageSrc(poster.imageUrl)}
+          style={
+            isPageView
+              ? undefined
+              : {
+                  maxHeight: '100%',
+                  width: 'auto',
+                  height: 'auto',
+                }
+          }
+        />
+      )}
+    </>
+  )
 
   return (
-    <div className={`${isPageView ? 'h-full flex flex-col' : 'flex flex-col'} ${isPageView ? '' : 'h-full'}`}>
+    <div className={`${isPageView ? 'flex h-full min-h-0 flex-col' : 'flex flex-col'} ${isPageView ? '' : 'h-full'}`}>
       {/* Header - Solo en pageView */}
       {isPageView && (
-        <div className="flex-shrink-0 border-b border-gray-700 bg-[#191E23]">
-          <div className="relative flex items-center justify-between px-4 py-3">
+        <div className={`flex-shrink-0 ${postPageBg}`}>
+          <div className="flex items-center gap-2 px-4 py-3">
             <button
+              type="button"
               onClick={() => router.back()}
-              className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-white/10"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/10"
               aria-label="Volver"
             >
               <Image
@@ -514,45 +593,56 @@ export function PosterDetailContent({
                 unoptimized
               />
             </button>
-            <h2 className="absolute left-1/2 -translate-x-1/2 text-sm font-semibold text-white">Publicación</h2>
-            <div className="w-9" />
+            <h2 className="min-w-0 flex-1 text-center text-sm font-semibold text-white">Publicación</h2>
+            <div className="flex max-w-[min(72%,300px)] shrink-0 items-center gap-2 sm:max-w-[min(65%,340px)]">
+              {isOwner && (
+                <div className="relative flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowOwnerPageActionsModal(true)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10"
+                    title="Más opciones"
+                    aria-expanded={showOwnerPageActionsModal}
+                    aria-haspopup="dialog"
+                  >
+                    <EllipsisVerticalIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              )}
+              <div className="hidden min-w-0 flex-1 text-right lg:block">
+                <p className="truncate text-sm font-semibold text-white">{authorName}</p>
+                {accountHandle ? (
+                  <p className="truncate text-xs text-gray-400">{accountHandle}</p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push(profileHref)}
+                className="hidden flex-shrink-0 rounded-full ring-1 ring-white/[0.12] transition-opacity hover:opacity-90 lg:flex"
+                aria-label={`Perfil de ${authorName}`}
+              >
+                <UserAvatar user={poster.author} size={36} />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center justify-between border-t border-gray-700/70 px-4 py-2.5">
+          <div className="h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/[0.14] to-transparent" aria-hidden />
+          {/* Debajo del nav: nombre + @ + avatar alineados a la derecha — tablet / móvil */}
+          <div className={`flex justify-end px-4 py-2.5 lg:hidden ${postPageBg}`}>
             <button
-              onClick={() => router.push(poster.author.username ? `/profile/${poster.author.username}` : `/profile/${poster.author.id}`)}
-              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+              type="button"
+              onClick={() => router.push(profileHref)}
+              className="flex max-w-full items-center gap-3 rounded-xl py-1 pl-2 text-right transition-colors hover:bg-white/[0.04]"
             >
-              <UserAvatar user={poster.author} size={36} />
-              <div>
-                <p className="text-white font-semibold hover:text-[#73FFA2] transition-colors">{authorName}</p>
+              <div className="min-w-0 text-right">
+                <p className="truncate font-semibold text-white">{authorName}</p>
+                {accountHandle ? (
+                  <p className="truncate text-sm text-gray-400">{accountHandle}</p>
+                ) : null}
               </div>
+              <UserAvatar user={poster.author} size={40} />
             </button>
-            {isOwner && (
-              <div className="relative" ref={menuRef}>
-                <button
-                  onClick={() => setShowMenu(!showMenu)}
-                  className="p-2 text-white hover:opacity-80 transition-opacity"
-                  title="Más opciones"
-                >
-                  <EllipsisVerticalIcon className="w-5 h-5" />
-                </button>
-                {showMenu && (
-                  <div className="absolute right-0 mt-2 bg-[#2A3036] rounded-xl shadow-lg border border-[#73FFA2]/40 z-20 px-3 py-2">
-                    <button
-                      onClick={() => {
-                        handleDelete()
-                        setShowMenu(false)
-                      }}
-                      disabled={isDeleting}
-                      className="whitespace-nowrap text-sm text-white hover:text-[#73FFA2] transition-colors disabled:opacity-50"
-                    >
-                      {isDeleting ? 'Eliminando...' : 'Eliminar publicación'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
+          <div className="h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/[0.1] to-transparent lg:hidden" aria-hidden />
         </div>
       )}
 
@@ -629,60 +719,44 @@ export function PosterDetailContent({
       )}
 
       {/* Content */}
-      <div className={`flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden ${isPageView ? '' : 'overflow-y-auto'} bg-[#11161B]`}>
-        {/* Media */}
-        <div className="lg:w-3/5 bg-black flex items-center justify-center min-h-[58dvh] lg:min-h-0 lg:h-full relative">
-          {poster.videoUrl ? (
-            <video
-              src={poster.videoUrl}
-              controls
-              onLoadedMetadata={(e) => {
-                const el = e.currentTarget
-                if (!el.videoWidth || !el.videoHeight) return
-                if (el.videoWidth > el.videoHeight) setMediaOrientation('landscape')
-                else if (el.videoHeight > el.videoWidth) setMediaOrientation('portrait')
-                else setMediaOrientation('square')
-              }}
-              className={`max-h-full max-w-full ${
-                usePageLikeMobile
-                  ? mediaOrientation === 'portrait'
-                    ? 'h-full w-auto object-contain'
-                    : 'w-full h-auto object-contain'
-                  : 'w-full h-full object-contain'
-              }`}
-            />
-          ) : (
-            <Image
-              src={poster.imageUrl}
-              alt="Post"
-              width={1200}
-              height={1200}
-              onLoadingComplete={(img) => {
-                if (!img.naturalWidth || !img.naturalHeight) return
-                if (img.naturalWidth > img.naturalHeight) setMediaOrientation('landscape')
-                else if (img.naturalHeight > img.naturalWidth) setMediaOrientation('portrait')
-                else setMediaOrientation('square')
-              }}
-              className={`${
-                usePageLikeMobile
-                  ? mediaOrientation === 'portrait'
-                    ? 'h-full w-auto max-w-full object-contain'
-                    : 'w-full h-auto max-h-full object-contain'
-                  : 'w-full h-full max-w-full max-h-full object-contain'
-              }`}
-              unoptimized={isRemoteImageSrc(poster.imageUrl)}
-              style={isPageView ? undefined : {
-                maxHeight: '100%',
-                width: 'auto',
-                height: 'auto',
-              }}
-            />
-          )}
-        </div>
+      <div
+        className={`flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row ${isPageView ? '' : 'overflow-y-auto'} ${postPageBg}`}
+      >
+        {isPageView ? (
+          <div className={`flex min-h-0 flex-col lg:h-full lg:min-h-0 lg:w-3/5 ${postPageBg}`}>
+            <div className="relative flex min-h-[58dvh] flex-1 items-center justify-center overflow-hidden px-2 pt-2 lg:min-h-0">
+              {posterMedia}
+            </div>
+            {/* Solo desktop (lg+): descripción bajo la imagen */}
+            <div className="hidden shrink-0 lg:block">
+              {poster.description ? (
+                <>
+                  <div
+                    className="mx-4 h-px shrink-0 bg-gradient-to-r from-transparent via-white/[0.14] to-transparent"
+                    aria-hidden
+                  />
+                  <div className="px-4 py-3">
+                    <p className="text-sm leading-relaxed text-white lg:text-[15px]">{poster.description}</p>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div
+            className={`relative flex min-h-[58dvh] items-center justify-center lg:h-full lg:min-h-0 lg:w-3/5 ${postPageBg}`}
+          >
+            {posterMedia}
+          </div>
+        )}
 
         {/* Bloque inferior en mobile page view: acciones + fecha + descripción */}
         {usePageLikeMobile && (
-          <div className="lg:hidden border-t border-gray-700 bg-[#191E23] px-4 py-3 space-y-2.5">
+          <div
+            className={`space-y-2.5 px-4 py-3 lg:hidden ${postPageBg} ${
+              isPageView ? 'border-t border-white/[0.08]' : innerRule(`border-t ${postPageDivider}`)
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
@@ -710,61 +784,49 @@ export function PosterDetailContent({
                   <span className="text-sm font-semibold">{poster.commentsCount}</span>
                 </button>
               </div>
-              <p className="text-xs text-gray-400">{postDateLabel}</p>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <p className="text-xs text-gray-400">{postDateLabel}</p>
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="p-1.5 text-gray-400 transition-colors hover:text-white"
+                  title="Compartir con amigos"
+                >
+                  <Image
+                    src="/icons_tanku/tanku_card_compartir_verde.svg"
+                    alt="Compartir"
+                    width={20}
+                    height={20}
+                    className="h-5 w-5 object-contain"
+                    unoptimized
+                  />
+                </button>
+              </div>
             </div>
-            {poster.description ? (
-              <p className="text-white text-sm leading-relaxed">{poster.description}</p>
+            {isPageView && poster.description ? (
+              <>
+                <div
+                  className="bg-gradient-to-r from-transparent via-white/[0.12] to-transparent"
+                  style={{ height: '1px' }}
+                  aria-hidden
+                />
+                <p className="text-sm leading-relaxed text-white">{poster.description}</p>
+              </>
             ) : null}
           </div>
         )}
 
         {/* Details */}
-        <div className={`${usePageLikeMobile ? 'hidden lg:flex' : 'flex'} lg:w-2/5 flex-col min-h-0 h-full lg:border-l border-t lg:border-t-0 border-gray-700 bg-[#191E23]`}>
-          {/* Description */}
-          {poster.description && (
-            <div className="flex-shrink-0 p-4 border-b border-gray-700 relative">
-              <p className="text-white pr-12">{poster.description}</p>
-              {/* Botón compartir en esquina derecha */}
-              <button
-                onClick={handleShare}
-                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition-colors"
-                title="Compartir con amigos"
-              >
-                <Image
-                  src="/icons_tanku/tanku_card_compartir_verde.svg"
-                  alt="Compartir"
-                  width={20}
-                  height={20}
-                  className="w-5 h-5 object-contain"
-                  unoptimized
-                />
-              </button>
-            </div>
-          )}
-          
-          {/* Si no hay descripción, mostrar botón compartir en la parte superior */}
-          {!poster.description && (
-            <div className="flex-shrink-0 p-4 border-b border-gray-700 relative">
-              <button
-                onClick={handleShare}
-                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition-colors"
-                title="Compartir con amigos"
-              >
-                <Image
-                  src="/icons_tanku/tanku_card_compartir_verde.svg"
-                  alt="Compartir"
-                  width={20}
-                  height={20}
-                  className="w-5 h-5 object-contain"
-                  unoptimized
-                />
-              </button>
-            </div>
-          )}
-
-
+        <div
+          className={`${usePageLikeMobile ? 'hidden lg:flex' : 'flex'} h-full min-h-0 flex-col lg:w-2/5 ${postPageBg} ${
+            isPageView ? 'lg:border-l lg:border-white/[0.08]' : innerRule(`border-t lg:border-t-0 lg:border-l ${postPageDivider}`)
+          }`}
+        >
           {/* Comments - Con altura definida y scroll interno */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 min-h-0 md:pb-0 pb-24">
+          <div
+            ref={commentsListRef}
+            className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 min-h-0 md:pb-0 pb-24"
+          >
             {poster.comments && poster.comments.length > 0 ? (
               <>
                 {poster.comments
@@ -802,26 +864,79 @@ export function PosterDetailContent({
             )}
           </div>
 
+          {usePageLikeMobile && (
+            <>
+              {isPageView && (
+                <div
+                  className="mx-4 h-px shrink-0 bg-gradient-to-r from-transparent via-white/[0.12] to-transparent"
+                  aria-hidden
+                />
+              )}
+              <div
+                className={`hidden shrink-0 items-center justify-between gap-3 px-4 py-3 lg:flex ${innerRule(`border-b ${postPageDivider}`)}`}
+              >
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleLike}
+                    disabled={isLiking}
+                    className={`flex items-center gap-1.5 transition-colors ${
+                      poster.isLiked ? 'text-red-500' : 'text-white hover:text-red-500'
+                    }`}
+                  >
+                    <Image
+                      src={poster.isLiked ? '/icons_tanku/tanku_megusta_relleno.svg' : '/icons_tanku/tanku_megusta_lineas_azul.svg'}
+                      alt={poster.isLiked ? 'Quitar me gusta' : 'Me gusta'}
+                      width={20}
+                      height={20}
+                      className="h-5 w-5 object-contain"
+                      unoptimized
+                    />
+                    <span className="text-sm font-semibold">{poster.likesCount}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = token ? commentFormRef.current : commentsListRef.current
+                      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }}
+                    className="flex items-center gap-1.5 text-white transition-colors hover:text-[#73FFA2]"
+                  >
+                    <ChatBubbleLeftIcon className="h-5 w-5" />
+                    <span className="text-sm font-semibold">{poster.commentsCount}</span>
+                  </button>
+                </div>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs text-gray-400">{postDateLabel}</p>
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="p-2 text-gray-400 transition-colors hover:text-white"
+                    title="Compartir con amigos"
+                  >
+                    <Image
+                      src="/icons_tanku/tanku_card_compartir_verde.svg"
+                      alt="Compartir"
+                      width={20}
+                      height={20}
+                      className="h-5 w-5 object-contain"
+                      unoptimized
+                    />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Comment Form - Siempre visible en la parte inferior, fijo en móvil */}
           {token && (
-            <div className="flex-shrink-0 p-4 border-t border-gray-700 space-y-3 bg-gray-900 md:relative fixed md:bottom-auto bottom-0 left-0 right-0 z-10 md:z-auto pb-20 md:pb-4">
+            <div
+              ref={commentFormRef}
+              className={`fixed bottom-0 left-0 right-0 z-10 flex-shrink-0 space-y-3 p-4 pb-20 md:relative md:bottom-auto md:z-auto md:pb-4 ${postPageBg} ${innerRule(`border-t ${postPageDivider}`)}`}
+            >
               {/* Form */}
-              <form onSubmit={handleComment} className="flex gap-3">
-                {user && (
-                  <UserAvatar 
-                    user={{
-                      avatar: user.profile?.avatar || null,
-                      firstName: user.firstName,
-                      lastName: user.lastName,
-                      email: user.email,
-                    }}
-                    size={40}
-                    className="flex-shrink-0"
-                  />
-                )}
-                
-                <div className="flex-1 flex gap-2">
-                  <div className="flex-1 relative">
+              <form onSubmit={handleComment} className="flex gap-2">
+                <div className="relative min-w-0 flex-1">
                     <UserMentionAutocomplete
                       value={commentText}
                       onChange={setCommentText}
@@ -839,7 +954,7 @@ export function PosterDetailContent({
                   <button
                     type="submit"
                     disabled={!commentText.trim() || isCommenting}
-                    className="w-10 h-10 flex items-center justify-center bg-[#73FFA2] hover:bg-[#66e891] text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#73FFA2] text-white transition-colors hover:bg-[#66e891] disabled:cursor-not-allowed disabled:opacity-50"
                     title={isCommenting ? 'Publicando...' : 'Publicar'}
                   >
                     {isCommenting ? (
@@ -848,7 +963,6 @@ export function PosterDetailContent({
                       <PaperAirplaneIcon className="w-5 h-5" />
                     )}
                   </button>
-                </div>
               </form>
 
               {/* Respondiendo a */}
@@ -869,25 +983,73 @@ export function PosterDetailContent({
               )}
             </div>
           )}
+          {!isPageView && poster.description ? (
+            <div className={`shrink-0 px-4 pb-4 pt-2 ${postPageBg}`}>
+              <div
+                className="mb-3 h-px bg-gradient-to-r from-transparent via-white/[0.12] to-transparent"
+                aria-hidden
+              />
+              <div className="relative">
+                <p className="pr-10 text-sm leading-relaxed text-white lg:text-[15px]">{poster.description}</p>
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="absolute right-0 top-0 p-2 text-gray-400 transition-colors hover:text-white"
+                  title="Compartir con amigos"
+                >
+                  <Image
+                    src="/icons_tanku/tanku_card_compartir_verde.svg"
+                    alt="Compartir"
+                    width={20}
+                    height={20}
+                    className="h-5 w-5 object-contain"
+                    unoptimized
+                  />
+                </button>
+              </div>
+            </div>
+          ) : !isPageView && !poster.description ? (
+            <div className={`flex shrink-0 justify-end px-4 pb-4 pt-2 ${postPageBg}`}>
+              <button
+                type="button"
+                onClick={handleShare}
+                className="p-2 text-gray-400 transition-colors hover:text-white"
+                title="Compartir con amigos"
+              >
+                <Image
+                  src="/icons_tanku/tanku_card_compartir_verde.svg"
+                  alt="Compartir"
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 object-contain"
+                  unoptimized
+                />
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
       {usePageLikeMobile && isMounted
         ? createPortal(
             <div
-              className={`fixed inset-0 z-[1000002] bg-black/60 transition-opacity duration-200 lg:hidden ${
+              className={`fixed inset-0 left-0 z-[1000002] bg-black/60 transition-opacity duration-200 md:left-36 lg:hidden ${
                 isCommentsSheetOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
               }`}
               onClick={() => setIsCommentsSheetOpen(false)}
               role="presentation"
             >
               <div
-                className={`absolute bottom-0 left-0 right-0 h-[72dvh] rounded-t-2xl border-t border-white/10 bg-[#191E23] transition-transform duration-200 flex flex-col ${
-                  isCommentsSheetOpen ? 'translate-y-0' : 'translate-y-full'
-                }`}
+                className={`absolute bottom-0 left-0 right-0 grid max-h-[92dvh] min-h-0 w-full grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-t-2xl transition-transform duration-200 ${
+                  isPageView
+                    ? 'h-[min(72dvh,92dvh)] bg-[#171B21]'
+                    : 'h-[min(72dvh,92dvh)] border-t border-white/10 bg-[var(--color-surface-191e23-20)]'
+                } ${isCommentsSheetOpen ? 'translate-y-0' : 'translate-y-full'}`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between border-b border-gray-700 px-4 py-3">
+                <div
+                  className={`flex shrink-0 items-center justify-between px-4 py-3 ${innerRule(`border-b ${postPageDivider}`)}`}
+                >
                   <button
                     type="button"
                     onClick={() => setIsCommentsSheetOpen(false)}
@@ -907,7 +1069,7 @@ export function PosterDetailContent({
                   <div className="w-9" />
                 </div>
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="min-h-0 overflow-y-auto overscroll-y-contain">
                   <div className="space-y-4 p-4">
                     {poster.comments && poster.comments.length > 0 ? (
                       <>
@@ -947,46 +1109,104 @@ export function PosterDetailContent({
                   </div>
                 </div>
 
-                {token && (
-                  <div className="border-t border-gray-700 bg-[#191E23] p-4 pb-[max(1rem,calc(1rem+env(safe-area-inset-bottom,0px)))]">
-                    <form onSubmit={handleComment} className="flex gap-3">
-                      {user && (
-                        <UserAvatar
-                          user={{
-                            avatar: user.profile?.avatar || null,
-                            firstName: user.firstName,
-                            lastName: user.lastName,
-                            email: user.email,
-                          }}
-                          size={40}
-                          className="flex-shrink-0"
+                {token ? (
+                  <div
+                    className={`shrink-0 border-t p-4 pb-[max(1rem,calc(1rem+env(safe-area-inset-bottom,0px)))] ${postPageBg} ${
+                      isPageView ? 'border-white/[0.08]' : 'border-white/10'
+                    }`}
+                  >
+                    <form onSubmit={handleComment} className="flex gap-2">
+                      <div className="relative min-w-0 flex-1">
+                        <UserMentionAutocomplete
+                          value={commentText}
+                          onChange={setCommentText}
+                          placeholder="Escribe un comentario..."
+                          disabled={isCommenting}
                         />
-                      )}
-                      <div className="flex-1 flex gap-2">
-                        <div className="relative min-w-0 flex-1">
-                          <UserMentionAutocomplete
-                            value={commentText}
-                            onChange={setCommentText}
-                            placeholder="Escribe un comentario..."
-                            disabled={isCommenting}
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={!commentText.trim() || isCommenting}
-                          className="w-10 h-10 flex items-center justify-center bg-[#73FFA2] hover:bg-[#66e891] text-black rounded-[14px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                          title={isCommenting ? 'Publicando...' : 'Publicar'}
-                        >
-                          {isCommenting ? (
-                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                          ) : (
-                            <PaperAirplaneIcon className="w-5 h-5" />
-                          )}
-                        </button>
                       </div>
+                      <button
+                        type="submit"
+                        disabled={!commentText.trim() || isCommenting}
+                        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] bg-[#73FFA2] text-black transition-colors hover:bg-[#66e891] disabled:cursor-not-allowed disabled:opacity-50"
+                        title={isCommenting ? 'Publicando...' : 'Publicar'}
+                      >
+                        {isCommenting ? (
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        ) : (
+                          <PaperAirplaneIcon className="h-5 w-5" />
+                        )}
+                      </button>
                     </form>
                   </div>
+                ) : (
+                  <div
+                    className={`shrink-0 border-t border-white/[0.08] px-4 py-3 pb-[max(0.75rem,calc(0.75rem+env(safe-area-inset-bottom,0px)))] text-center text-sm text-gray-500 ${postPageBg}`}
+                  >
+                    Inicia sesión para comentar
+                  </div>
                 )}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {isPageView && isOwner && showOwnerPageActionsModal && isMounted
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[1000003] flex items-end justify-center bg-black/55 sm:items-center sm:p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="owner-post-actions-title"
+              onClick={() => !isDeleting && setShowOwnerPageActionsModal(false)}
+            >
+              <div
+                className="w-full max-w-md rounded-t-2xl border border-white/10 bg-[#2A3036] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] shadow-2xl sm:rounded-2xl sm:pb-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p
+                  id="owner-post-actions-title"
+                  className="px-3 pt-2 text-xs font-medium uppercase tracking-wide text-gray-400"
+                >
+                  Tu publicación
+                </p>
+                <button
+                  type="button"
+                  className="mt-1 flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-left text-sm font-medium text-white transition-colors hover:bg-white/10"
+                  onClick={() => {
+                    setShowOwnerPageActionsModal(false)
+                    handleShare()
+                  }}
+                >
+                  <Image
+                    src="/icons_tanku/tanku_card_compartir_verde.svg"
+                    alt=""
+                    width={22}
+                    height={22}
+                    className="h-5 w-5 shrink-0 object-contain"
+                    unoptimized
+                  />
+                  Compartir
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-left text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+                  onClick={() => {
+                    setShowOwnerPageActionsModal(false)
+                    void handleDelete()
+                  }}
+                >
+                  <TrashIcon className="h-5 w-5 shrink-0" aria-hidden />
+                  {isDeleting ? 'Eliminando...' : 'Eliminar publicación'}
+                </button>
+                <button
+                  type="button"
+                  className="mt-1 w-full rounded-xl px-4 py-3 text-center text-sm text-gray-400 transition-colors hover:bg-white/5"
+                  onClick={() => setShowOwnerPageActionsModal(false)}
+                >
+                  Cancelar
+                </button>
               </div>
             </div>,
             document.body

@@ -32,6 +32,8 @@ interface BaseNavProps {
   additionalContent?: React.ReactNode
   /** Título a la izquierda del nav (ej. página de eventos) */
   pageTitle?: string
+  /** Título enriquecido (permite estilos por palabra e icono). Tiene prioridad sobre `pageTitle`. */
+  pageTitleRich?: React.ReactNode
   /** Subtítulo bajo el título (opcional) */
   pageSubtitle?: string
   /** Si es true, el subtítulo solo se muestra en móvil (&lt; md), no en escritorio */
@@ -61,6 +63,7 @@ export function BaseNav({
   showJoinButton = false,
   additionalContent,
   pageTitle,
+  pageTitleRich,
   pageSubtitle,
   pageSubtitleMobileOnly = false,
   pageTitleColor = '#73FFA2',
@@ -89,17 +92,18 @@ export function BaseNav({
     // Esta función se mantiene por compatibilidad pero no hace nada
   }
 
-  const showPageHeading = Boolean(pageTitle || pageSubtitle)
+  const titleContent = pageTitleRich ?? pageTitle
+  const showPageHeading = Boolean(titleContent || pageSubtitle)
 
   const renderPageHeading = () =>
     showPageHeading ? (
       <div className="flex min-w-0 flex-1 flex-col gap-0.5 pr-2">
-        {pageTitle ? (
+        {titleContent ? (
           <h1
             className="min-w-0 truncate text-lg font-bold sm:text-xl md:text-2xl"
-            style={{ color: pageTitleColor, fontFamily: 'Poppins, sans-serif' }}
+            style={{ color: pageTitleRich ? undefined : pageTitleColor, fontFamily: 'Poppins, sans-serif' }}
           >
-            {pageTitle}
+            {titleContent}
           </h1>
         ) : null}
         {pageSubtitle ? (
@@ -259,7 +263,7 @@ export function BaseNav({
                 className="absolute left-1/2 -translate-x-1/2 text-base font-semibold text-white"
                 style={{ fontFamily: 'Poppins, sans-serif' }}
               >
-                {pageTitle || 'Mi perfil'}
+                {titleContent || 'Mi perfil'}
               </h1>
               <Link href="/cart" className="flex h-9 w-9 items-center justify-center" aria-label="Ir al carrito">
                 <Image
@@ -277,14 +281,14 @@ export function BaseNav({
             className={`gap-2 p-2 pb-2 sm:p-3 md:p-4 md:pb-2 lg:gap-3 ${
               mobileBackCenterTitleCartOnly ? 'hidden md:flex' : 'flex'
             } ${
-              desktopNavTitleCentered && showPageHeading && pageTitle
+              desktopNavTitleCentered && showPageHeading && titleContent
                 ? 'relative min-h-[52px] items-center justify-between'
                 : showPageHeading
                   ? `min-w-0 items-start justify-between${hidePageHeadingMobile ? ' max-md:justify-end' : ''}`
                   : 'items-center justify-end'
             }`}
           >
-            {showPageHeading && desktopNavTitleCentered && pageTitle ? (
+            {showPageHeading && desktopNavTitleCentered && titleContent ? (
               <>
                 <div className="flex w-10 shrink-0 items-center justify-start sm:w-11">
                   {startContent ?? <span className="inline-block w-10 sm:w-11" aria-hidden />}
@@ -293,7 +297,7 @@ export function BaseNav({
                   className="pointer-events-none absolute left-1/2 top-1/2 max-w-[min(56vw,22rem)] -translate-x-1/2 -translate-y-1/2 truncate text-center text-lg font-semibold text-white sm:text-xl md:text-2xl"
                   style={{ fontFamily: 'Poppins, sans-serif' }}
                 >
-                  {pageTitle}
+                  {titleContent}
                 </h1>
                 <div className="flex shrink-0 items-center">{renderActionIcons()}</div>
               </>

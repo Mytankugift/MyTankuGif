@@ -62,7 +62,7 @@ export function FriendsList({
         className={
           layout === 'list'
             ? 'flex flex-col gap-3'
-            : 'grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-3 lg:gap-4'
+            : 'grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-4'
         }
       >
         {chunk.map((friend) => (

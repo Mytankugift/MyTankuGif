@@ -84,12 +84,17 @@ export class FriendsService {
    * Mapear usuario a FriendUserDTO
    */
   private mapUserToFriendUserDTO(user: any): FriendUserDTO {
+    const birthDate =
+      user.personalInfo?.birthDate != null
+        ? (user.personalInfo.birthDate as Date).toISOString()
+        : null;
     return {
       id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       username: user.username || null,
       email: user.email,
+      birthDate,
       profile: user.profile
         ? {
             avatar: user.profile.avatar,
@@ -387,10 +392,16 @@ export class FriendsService {
       },
       include: {
         user: {
-          include: { profile: true },
+          include: {
+            profile: true,
+            personalInfo: { select: { birthDate: true } },
+          },
         },
         friend: {
-          include: { profile: true },
+          include: {
+            profile: true,
+            personalInfo: { select: { birthDate: true } },
+          },
         },
       },
       orderBy: {
@@ -862,6 +873,10 @@ export class FriendsService {
 
     const cappedLimit = Math.min(Math.max(limit, 1), 50);
 
+    /** Nacidos en o antes de esta fecha → 18+ cumplidos (no mostrar menores confirmados en StalkerGift/buscar). */
+    const adultBirthDateUpperBound = new Date();
+    adultBirthDateUpperBound.setFullYear(adultBirthDateUpperBound.getFullYear() - 18);
+
     const existingRelations = await prisma.friend.findMany({
       where: {
         OR: [{ userId }, { friendId: userId }],
@@ -880,13 +895,27 @@ export class FriendsService {
     const users = await prisma.user.findMany({
       where: {
         id: { notIn: Array.from(excludedUserIds) },
-        OR: [
-          { username: { contains: q, mode: Prisma.QueryMode.insensitive } },
-          { firstName: { contains: q, mode: Prisma.QueryMode.insensitive } },
-          { lastName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+        AND: [
+          {
+            OR: [
+              { username: { contains: q, mode: Prisma.QueryMode.insensitive } },
+              { firstName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+              { lastName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+            ],
+          },
+          {
+            OR: [
+              { personalInfo: { is: null } },
+              { personalInfo: { birthDate: null } },
+              { personalInfo: { birthDate: { lte: adultBirthDateUpperBound } } },
+            ],
+          },
         ],
       },
-      include: { profile: true },
+      include: {
+        profile: true,
+        personalInfo: { select: { birthDate: true } },
+      },
       take: cappedLimit,
       orderBy: [{ username: 'asc' }, { id: 'asc' }],
     });

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { clsx } from 'clsx'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { PosterDetailContent } from '@/components/posters/poster-detail-content'
@@ -69,7 +70,10 @@ export default function PostPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
+      >
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2]"></div>
       </div>
     )
@@ -77,7 +81,10 @@ export default function PostPage() {
 
   if (error || !poster) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
+      >
         <div className="text-center">
           <p className="text-red-400 text-xl mb-4">{error || 'Post no encontrado'}</p>
           <button
@@ -93,25 +100,42 @@ export default function PostPage() {
 
   return (
     <div
-      className={`h-screen bg-gray-900 flex flex-col overflow-hidden transition-all duration-300 ease-out ${
-        fromProfile ? (animateIn ? 'opacity-100 scale-100' : 'opacity-0 scale-95') : ''
-      }`}
+      className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+      style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
     >
-      <PosterDetailContent
-        posterId={posterId}
-        initialPosterData={{
-          id: poster.id,
-          imageUrl: poster.imageUrl,
-          videoUrl: poster.videoUrl,
-          description: poster.description,
-          likesCount: poster.likesCount,
-          commentsCount: poster.commentsCount,
-          createdAt: poster.createdAt,
-          isLiked: poster.isLiked,
-          author: poster.author,
-        }}
-        isPageView={true}
-      />
+      <div
+        className={clsx(
+          'custom-scrollbar flex min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+          'px-4 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] pt-4',
+          'md:pt-6 lg:px-8 lg:pb-8 lg:pt-6 xl:px-10 xl:pt-8',
+        )}
+      >
+        <div
+          className={clsx(
+            'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-[#414141] shadow-xl',
+            'md:min-h-[calc(100dvh-10rem)] lg:min-h-[calc(100vh-11rem)] xl:min-h-[calc(100vh-12rem)]',
+            'transition-all duration-300 ease-out',
+            fromProfile && (animateIn ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.98]'),
+          )}
+          style={{ backgroundColor: '#171B21' }}
+        >
+          <PosterDetailContent
+            posterId={posterId}
+            initialPosterData={{
+              id: poster.id,
+              imageUrl: poster.imageUrl,
+              videoUrl: poster.videoUrl,
+              description: poster.description,
+              likesCount: poster.likesCount,
+              commentsCount: poster.commentsCount,
+              createdAt: poster.createdAt,
+              isLiked: poster.isLiked,
+              author: poster.author,
+            }}
+            isPageView={true}
+          />
+        </div>
+      </div>
     </div>
   )
 }

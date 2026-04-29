@@ -1,18 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import { ChevronDownIcon } from '@heroicons/react/24/outline'
 import type { ProductDTO } from '@/types/api'
+import { CHECKOUT_TANKU_INPUT, CHECKOUT_TANKU_SURFACE } from '@/lib/checkout-tanku-design'
+import { StalkerGiftVariantSheet } from '@/components/stalkergift/stalkergift-variant-sheet'
 
 interface GiftConfigProps {
   product: ProductDTO | null
   variantId: string | null
-  quantity: number
   senderAlias: string
   senderMessage: string
   onChange: (updates: {
     variantId?: string | null
-    quantity?: number
     senderAlias?: string
     senderMessage?: string
   }) => void
@@ -21,33 +22,23 @@ interface GiftConfigProps {
 export function GiftConfig({
   product,
   variantId,
-  quantity,
   senderAlias,
   senderMessage,
   onChange,
 }: GiftConfigProps) {
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(variantId)
+  const [variantSheetOpen, setVariantSheetOpen] = useState(false)
 
-  const selectedVariant = product?.variants?.find((v) => v.id === selectedVariantId)
+  /** Un solo SKU: fijar variante sin hoja. Varias: el padre llega sin variante hasta que el usuario elija. */
+  useEffect(() => {
+    if (!product?.variants?.length || product.variants.length !== 1) return
+    const id = product.variants[0].id
+    if (variantId !== id) onChange({ variantId: id })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- al cambiar producto o variante en memoria
+  }, [product?.id, product?.variants?.length, variantId])
 
-  const handleVariantChange = (newVariantId: string) => {
-    setSelectedVariantId(newVariantId)
-    onChange({ variantId: newVariantId })
-  }
+  const selectedVariant = product?.variants?.find((v) => v.id === variantId)
 
-  const handleQuantityChange = (newQuantity: number) => {
-    if (newQuantity >= 1) {
-      onChange({ quantity: newQuantity })
-    }
-  }
-
-  if (!product) {
-    return (
-      <div className="text-center py-12 text-gray-400">
-        Por favor selecciona un producto primero
-      </div>
-    )
-  }
+  const multiVariant = !!(product?.variants && product.variants.length > 1)
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-CO', {
@@ -58,172 +49,123 @@ export function GiftConfig({
     }).format(price)
   }
 
-  // Usar tankuPrice directamente (ya es el precio final con incremento)
   const finalUnitPrice = selectedVariant
     ? selectedVariant.tankuPrice || 0
-    : product.variants && product.variants.length > 0
-    ? product.variants[0].tankuPrice || 0
-    : 0
-  
-  // tankuPrice ya incluye el incremento, así que el precio base es el mismo
-  const baseUnitPrice = finalUnitPrice
-  
-  const subtotal = finalUnitPrice * quantity
+    : product?.variants?.length === 1
+      ? product.variants[0].tankuPrice || 0
+      : 0
+
+  if (!product) {
+    return (
+      <div className="py-12 text-center text-zinc-400">
+        Por favor selecciona un producto primero
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-white mb-2">Configura el regalo</h3>
-        <p className="text-sm text-gray-400">Personaliza tu regalo con un alias y mensaje</p>
-      </div>
-
-      {/* Producto seleccionado */}
-      <div className="bg-gray-700/50 rounded-lg p-4 flex gap-4">
-        {product.images && product.images.length > 0 && (
-          <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-            <Image
-              src={product.images[0]}
-              alt={product.title}
-              fill
-              className="object-cover"
-              unoptimized
-            />
-          </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <h4 className="text-base font-semibold text-white mb-1 truncate">{product.title}</h4>
-          {selectedVariant && (
-            <p className="text-sm text-gray-400 mb-1">Variante: {selectedVariant.title}</p>
+    <div className="space-y-5">
+      <div className={`${CHECKOUT_TANKU_SURFACE} !p-4 sm:!p-5`}>
+        <h3 className="sr-only">Producto elegido</h3>
+        <div className="flex gap-3 sm:gap-3.5">
+          {product.images && product.images.length > 0 && (
+            <div className="relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-xl border border-white/[0.08] bg-black/25 ring-1 ring-inset ring-white/[0.04] sm:h-[4.5rem] sm:w-[4.5rem]">
+              <Image
+                src={product.images[0]}
+                alt={product.title}
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            </div>
           )}
-          <p className="text-sm font-semibold text-[#66DEDB]">{formatPrice(subtotal)}</p>
-        </div>
-      </div>
-
-      {/* Selección de variante (si tiene) */}
-      {product.variants && product.variants.length > 1 && (
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Seleccionar variante
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {product.variants.map((variant) => {
-              const isSelected = selectedVariantId === variant.id
-              // Usar tankuPrice directamente (ya calculado en sync)
-              const variantPrice = variant.tankuPrice || 0
-
-              return (
-                <button
-                  key={variant.id}
-                  onClick={() => handleVariantChange(variant.id)}
-                  className={`p-3 rounded-lg border-2 transition-colors text-left ${
-                    isSelected
-                      ? 'border-[#66DEDB] bg-[#66DEDB]/10'
-                      : 'border-gray-600 bg-gray-700/50 hover:bg-gray-700'
-                  }`}
-                >
-                  <p className="text-sm font-medium text-white mb-1">{variant.title}</p>
-                  <p className="text-xs text-gray-400 mb-1">SKU: {variant.sku}</p>
-                  <p className="text-sm font-semibold text-[#66DEDB]">
-                    {formatPrice(variantPrice)}
-                  </p>
-                  {isSelected && (
-                    <p className="text-xs text-[#73FFA2] mt-1">✓ Seleccionado</p>
-                  )}
-                </button>
-              )
-            })}
+          <div className="min-w-0 flex-1 pt-0.5">
+            <h4 className="line-clamp-2 text-sm font-medium leading-snug text-zinc-100 sm:text-[0.9375rem]">
+              {product.title}
+            </h4>
+            <p className="mt-1 text-xs tabular-nums font-semibold text-[#73FFA2] sm:text-sm">
+              {multiVariant && !selectedVariant ? (
+                <span className="font-medium text-zinc-500">Elige una variante abajo</span>
+              ) : (
+                formatPrice(finalUnitPrice)
+              )}
+            </p>
           </div>
         </div>
-      )}
 
-      {/* Cantidad */}
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">Cantidad</label>
-        <div className="flex items-center gap-3">
+        {multiVariant ? (
           <button
             type="button"
-            onClick={() => handleQuantityChange(quantity - 1)}
-            disabled={quantity <= 1}
-            className="w-10 h-10 rounded-lg bg-gray-700 text-white hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            onClick={() => setVariantSheetOpen(true)}
+            className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-white/[0.12] bg-black/20 px-3 py-2.5 text-left transition hover:border-[#FE9600]/35"
           >
-            -
+            <span className="min-w-0 flex-1">
+              <span className="block text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                Variante
+              </span>
+              {selectedVariant ? (
+                <span className="block truncate text-sm font-medium text-zinc-100">{selectedVariant.title}</span>
+              ) : (
+                <span className="block text-sm text-amber-200/95">Toca para elegir opción</span>
+              )}
+            </span>
+            <ChevronDownIcon className="h-5 w-5 shrink-0 text-zinc-500" aria-hidden />
           </button>
-          <input
-            type="number"
-            value={quantity}
-            onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
-            min={1}
-            className="w-20 px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none text-center"
-          />
-          <button
-            type="button"
-            onClick={() => handleQuantityChange(quantity + 1)}
-            className="w-10 h-10 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
-          >
-            +
-          </button>
-        </div>
+        ) : null}
       </div>
 
-      {/* Alias del sender (obligatorio) */}
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Tu alias <span className="text-red-400">*</span>
+      {multiVariant && product.variants ? (
+        <StalkerGiftVariantSheet
+          open={variantSheetOpen}
+          variants={product.variants}
+          selectedId={variantId}
+          onClose={() => setVariantSheetOpen(false)}
+          onSelect={(id) => {
+            onChange({ variantId: id })
+          }}
+          formatPrice={formatPrice}
+        />
+      ) : null}
+
+      <div className={CHECKOUT_TANKU_SURFACE}>
+        <label
+          htmlFor="stalkergift-sender-alias"
+          className="mb-2 block text-xs font-medium text-zinc-400"
+        >
+          Alias{' '}
+          <span className="text-[#FE9600]" aria-hidden>
+            *
+          </span>{' '}
+          <span className="font-normal text-zinc-500">(obligatorio)</span>
         </label>
         <input
+          id="stalkergift-sender-alias"
           type="text"
           value={senderAlias}
           onChange={(e) => onChange({ senderAlias: e.target.value })}
-          placeholder="Ej: Tu amigo secreto, Anónimo, etc."
+          placeholder="Tu alias — cómo quieres que te nombre el receptor *"
           required
           maxLength={50}
-          className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none"
+          className={CHECKOUT_TANKU_INPUT}
+          autoComplete="off"
         />
-        <p className="text-xs text-gray-400 mt-1">
-          Este es el nombre que verá el receptor del regalo
-        </p>
       </div>
 
-      {/* Mensaje personalizado (opcional) */}
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Mensaje personalizado <span className="text-gray-500">(opcional)</span>
+      <div className={CHECKOUT_TANKU_SURFACE}>
+        <label className="sr-only" htmlFor="stalkergift-sender-message">
+          Mensaje opcional para el receptor
         </label>
         <textarea
+          id="stalkergift-sender-message"
           value={senderMessage}
           onChange={(e) => onChange({ senderMessage: e.target.value })}
-          placeholder="Escribe un mensaje para acompañar tu regalo..."
+          placeholder="Unas palabras para acompañar el regalo…"
           rows={4}
           maxLength={500}
-          className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-[#66DEDB] focus:outline-none resize-none"
+          className={`${CHECKOUT_TANKU_INPUT} min-h-[6.5rem] resize-none`}
         />
-        <p className="text-xs text-gray-400 mt-1">
-          {senderMessage.length}/500 caracteres
-        </p>
-      </div>
-
-      {/* Resumen de precio */}
-      <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-gray-300">Precio base:</span>
-          <span className="text-sm text-gray-400">{formatPrice(baseUnitPrice)}</span>
-        </div>
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-gray-300">Precio unitario (con incremento):</span>
-          <span className="text-sm font-semibold text-white">{formatPrice(finalUnitPrice)}</span>
-        </div>
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-gray-300">Cantidad:</span>
-          <span className="text-sm font-semibold text-white">{quantity}</span>
-        </div>
-        <div className="border-t border-gray-600 pt-2 mt-2">
-          <div className="flex justify-between items-center">
-            <span className="text-base font-semibold text-[#66DEDB]">Subtotal:</span>
-            <span className="text-lg font-bold text-[#66DEDB]">{formatPrice(subtotal)}</span>
-          </div>
-        </div>
+        <p className="mt-2 text-xs text-zinc-500">{senderMessage.length}/500 caracteres</p>
       </div>
     </div>
   )
 }
-

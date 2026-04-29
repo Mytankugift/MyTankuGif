@@ -18,11 +18,11 @@ export function buildMisTankusPeriodOptions(now: Date = new Date()): MisTankusPe
 
   const years: MisTankusPeriodOption[] = []
   for (let y = MIS_TANKUS_MIN_YEAR; y <= endYear; y++) {
-    years.push({ value: `year:${y}`, label: String(y) })
+    years.push({ value: `year:${y}`, label: `Año ${y} · calendario` })
   }
 
   return [
-    { value: '30d', label: 'Últimos 30 días' },
+    { value: '30d', label: 'Tiempo reciente · 30 días' },
     { value: '3m', label: 'Últimos 3 meses' },
     ...years,
   ]

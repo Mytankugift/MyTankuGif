@@ -1,29 +1,38 @@
-/**
- * Componente para ver wishlists guardadas de amigos con avatares hexagonales
- */
-
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
-import { useToast } from '@/lib/contexts/toast-context'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import { useCartStore } from '@/lib/stores/cart-store'
-import { fetchProductByHandle } from '@/lib/hooks/use-product'
-import { WishlistProductsModal } from './wishlist-products-modal'
+import { useWishlistExpandList } from '@/lib/hooks/use-wishlist-expand-list'
+import {
+  WishlistAccordionCard,
+  WishlistAccordionEllipsisButton,
+} from '@/components/wishlists/wishlist-accordion-card'
+import { WishlistInlineProducts } from '@/components/wishlists/wishlist-inline-products'
 import type { WishListDTO } from '@/types/api'
 
+interface SavedWishlist extends WishListDTO {
+  user: {
+    id: string
+    firstName: string | null
+    lastName: string | null
+    email: string
+    profile?: {
+      avatar: string | null
+    } | null
+  }
+}
+
 interface UserAvatarWithHexagonProps {
-  userId: string
   userData: { user: SavedWishlist['user']; wishlists: SavedWishlist[] }
   isSelected: boolean
   onSelect: () => void
 }
 
-function UserAvatarWithHexagon({ userId, userData, isSelected, onSelect }: UserAvatarWithHexagonProps) {
+function UserAvatarWithHexagon({ userData, isSelected, onSelect }: UserAvatarWithHexagonProps) {
   const fullName = `${userData.user.firstName || ''} ${userData.user.lastName || ''}`.trim() || 'Sin nombre'
   const avatarUrl =
     userData.user.profile?.avatar ||
@@ -31,15 +40,8 @@ function UserAvatarWithHexagon({ userId, userData, isSelected, onSelect }: UserA
   const [imgSrc, setImgSrc] = useState<string>(avatarUrl)
 
   return (
-    <div
-      key={userId}
-      className="relative cursor-pointer group"
-      onClick={onSelect}
-    >
-      {/* Avatar circular */}
-      <div
-        className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-gray-700 transition-all duration-300"
-      >
+    <div className="group relative cursor-pointer" onClick={onSelect}>
+      <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-gray-700 transition-all duration-300">
         <Image
           src={imgSrc}
           alt={fullName}
@@ -47,7 +49,7 @@ function UserAvatarWithHexagon({ userId, userData, isSelected, onSelect }: UserA
           className="object-cover"
           onError={() =>
             setImgSrc(
-              `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=1E1E1E&color=73FFA2&size=64`
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=1E1E1E&color=73FFA2&size=64`,
             )
           }
           referrerPolicy="no-referrer"
@@ -55,18 +57,15 @@ function UserAvatarWithHexagon({ userId, userData, isSelected, onSelect }: UserA
         />
       </div>
 
-      {/* Hexágono cuando está seleccionado - con lados laterales más largos */}
       {isSelected && (
-        <div className="absolute inset-0 pointer-events-none">
+        <div className="pointer-events-none absolute inset-0">
           <svg
             width="120"
             height="100"
             viewBox="0 0 120 100"
-            className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform"
             style={{ filter: 'drop-shadow(0 0 8px rgba(115, 255, 162, 0.5))' }}
           >
-            {/* Hexágono con 6 puntos: lados izquierdo y derecho más largos que las puntas de arriba/abajo */}
-            {/* Puntos: arriba, arriba-derecha, abajo-derecha, abajo, abajo-izquierda, arriba-izquierda */}
             <polygon
               points="
               60,6
@@ -85,9 +84,14 @@ function UserAvatarWithHexagon({ userId, userData, isSelected, onSelect }: UserA
         </div>
       )}
 
-      {/* Tooltip con nombre */}
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-        <div className="bg-gray-900 border border-[#73FFA2]/50 rounded-lg px-2 py-1 text-xs text-white whitespace-nowrap">
+      {/*
+        Tooltip: en md+ el rail lateral (z-50) tapa overlays dentro de main; evitar superposición
+        mostrando la etiqueta a la derecha del avatar en lugar de centrada arriba.
+      */}
+      <div
+        className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100 md:bottom-auto md:left-full md:top-1/2 md:mb-0 md:ml-2 md:translate-x-0 md:-translate-y-1/2"
+      >
+        <div className="whitespace-nowrap rounded-lg border border-[#73FFA2]/50 bg-gray-900 px-2 py-1 text-xs text-white shadow-lg shadow-black/40">
           {fullName}
         </div>
       </div>
@@ -95,30 +99,21 @@ function UserAvatarWithHexagon({ userId, userData, isSelected, onSelect }: UserA
   )
 }
 
-interface SavedWishlist extends WishListDTO {
-  user: {
-    id: string
-    firstName: string | null
-    lastName: string | null
-    email: string
-    profile?: {
-      avatar: string | null
-    } | null
-  }
-}
+const quitarWishlistDesktopCls =
+  'inline-flex shrink-0 items-center justify-center rounded-xl border border-red-500/45 bg-black/35 px-3 py-2 text-[11px] font-medium text-red-400 transition-colors hover:border-red-400/65 hover:bg-red-500/10 sm:text-xs'
 
 export function SavedWishlistsViewer() {
-  const router = useRouter()
   const { isAuthenticated, user } = useAuthStore()
-  const { addItem } = useCartStore()
-  const { cart } = useCartStore()
-  const { error: showError } = useToast()
   const [savedWishlists, setSavedWishlists] = useState<SavedWishlist[]>([])
-  const [selectedWishlist, setSelectedWishlist] = useState<SavedWishlist | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [confirmingUnsave, setConfirmingUnsave] = useState<string | null>(null)
-  const confirmRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const [mobileActionsWishlistId, setMobileActionsWishlistId] = useState<string | null>(null)
+
+  const { expandedWishlistId, mountedProductWishlistId, toggleWishlistExpanded, resetExpandList } =
+    useWishlistExpandList()
+
+  const noopRemoveFromList = async () => {}
 
   const fetchSavedWishlists = useCallback(async () => {
     if (!isAuthenticated || !user?.id) return
@@ -127,7 +122,6 @@ export function SavedWishlistsViewer() {
     try {
       const response = await apiClient.get<any[]>(API_ENDPOINTS.WISHLISTS.SAVED)
       if (response.success && response.data) {
-        // Transformar los datos del backend: owner -> user y asegurar userId
         const transformed = response.data.map((w: any) => ({
           ...w,
           userId: w.userId || w.owner?.id || w.user?.id,
@@ -154,67 +148,69 @@ export function SavedWishlistsViewer() {
       fetchSavedWishlists()
     }
   }, [isAuthenticated, fetchSavedWishlists])
-  
-  // Escuchar evento cuando se guarda una wishlist desde otra página
+
   useEffect(() => {
     if (!isAuthenticated) return
-    
+
     const handleWishlistSaved = () => {
-      // Pequeño delay para asegurar que el backend haya procesado el guardado
-      setTimeout(() => {
+      window.setTimeout(() => {
         fetchSavedWishlists()
       }, 300)
     }
-    
+
     window.addEventListener('wishlist-saved', handleWishlistSaved)
-    
+
     return () => {
       window.removeEventListener('wishlist-saved', handleWishlistSaved)
     }
   }, [isAuthenticated, fetchSavedWishlists])
-  
-  // También refrescar cuando el componente se monta y está en el tab "saved"
-  useEffect(() => {
-    if (isAuthenticated && typeof window !== 'undefined') {
-      // Verificar si estamos en la página de wishlists con el tab saved activo
-      const urlParams = new URLSearchParams(window.location.search)
-      if (urlParams.get('saved') === 'true') {
-        // Pequeño delay para asegurar que la navegación se complete
-        setTimeout(() => {
-          fetchSavedWishlists()
-        }, 500)
-      }
-    }
-  }, [isAuthenticated, fetchSavedWishlists])
 
-  // Escuchar evento cuando se aprueba acceso a una wishlist
   useEffect(() => {
     if (!isAuthenticated) return
-    
-    const handleAccessApproved = () => {
-      // Refrescar wishlists guardadas cuando se aprueba acceso
-      setTimeout(() => {
+
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('saved') === 'true') {
+      window.setTimeout(() => {
         fetchSavedWishlists()
       }, 500)
     }
-    
+  }, [isAuthenticated, fetchSavedWishlists])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const handleAccessApproved = () => {
+      window.setTimeout(() => {
+        fetchSavedWishlists()
+      }, 500)
+    }
+
     window.addEventListener('wishlist-access-approved', handleAccessApproved)
-    
+
     return () => {
       window.removeEventListener('wishlist-access-approved', handleAccessApproved)
     }
   }, [isAuthenticated, fetchSavedWishlists])
 
-  const handleUnsaveClick = (wishlistId: string) => {
-    setConfirmingUnsave(wishlistId)
-  }
+  /** Al cambiar de persona seleccionada, colapsar acordeón */
+  useEffect(() => {
+    resetExpandList()
+  }, [selectedUserId, resetExpandList])
 
-  const handleUnsaveConfirm = async (e: React.MouseEvent, wishlistId: string) => {
-    e.stopPropagation()
+  /** Si ya no quedan wishlists del usuario seleccionado, quitar selección */
+  useEffect(() => {
+    const ids = new Set(savedWishlists.map((w) => w.userId))
+    if (selectedUserId !== null && !ids.has(selectedUserId)) {
+      setSelectedUserId(null)
+    }
+  }, [savedWishlists, selectedUserId])
+
+  const handleUnsaveConfirm = async (wishlistId: string) => {
     try {
       await apiClient.delete(API_ENDPOINTS.WISHLISTS.UNSAVE(wishlistId))
       setSavedWishlists((prev) => prev.filter((w) => w.id !== wishlistId))
       setConfirmingUnsave(null)
+      setMobileActionsWishlistId(null)
     } catch (error) {
       console.error('Error dejando de ver wishlist:', error)
       alert('Error al desguardar la wishlist')
@@ -222,377 +218,202 @@ export function SavedWishlistsViewer() {
     }
   }
 
-  const handleUnsaveCancel = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setConfirmingUnsave(null)
-  }
+  const mobileMenuWishlist =
+    mobileActionsWishlistId != null
+      ? (savedWishlists.find((w) => w.id === mobileActionsWishlistId) ?? null)
+      : null
 
-  // Cerrar globito al hacer click fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!confirmingUnsave) return
-      
-      const target = event.target as Node
-      const confirmRef = confirmRefs.current.get(confirmingUnsave)
-      
-      // Verificar que el click no sea dentro del contenedor del globito
-      if (confirmRef && !confirmRef.contains(target)) {
-        setConfirmingUnsave(null)
-      }
-    }
-
-    if (confirmingUnsave) {
-      // Usar click en lugar de mousedown para que los botones puedan procesar primero
-      document.addEventListener('click', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('click', handleClickOutside)
-    }
-  }, [confirmingUnsave])
-
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price)
-
-  const getDisplayPrice = (item: SavedWishlist['items'][0]) => {
-    const finalPrice = item.variant?.tankuPrice || 0
-    if (finalPrice > 0) {
-      return formatPrice(finalPrice)
-    }
-    return '—'
-  }
-
-  const handleAddToCartFromWishlistItem = async (item: SavedWishlist['items'][0]) => {
-    try {
-      if (item.variantId) {
-        await addItem(item.variantId, 1)
-        return
-      }
-
-      const handle = item.product.handle
-      if (!handle) return
-      const fullProduct = await fetchProductByHandle(handle)
-      const variants = fullProduct?.variants || []
-      if (variants.length === 1) {
-        await addItem(variants[0].id, 1)
-        return
-      }
-
-      setSelectedWishlist((prev) => prev || null)
-    } catch (error: any) {
-      // Si el error es porque el carrito actual es de regalos
-      if (error.message === 'CART_IS_GIFT_CART') {
-        alert('Tienes productos en el carrito de regalos. Por favor, ve al carrito y finaliza tu compra de regalos antes de agregar productos a tu carrito normal, o limpia el carrito de regalos.')
-        return
-      }
-      console.error('Error agregando al carrito:', error)
-      alert(error.message || 'Error al agregar producto al carrito')
-    }
-  }
-
-  const handleSendAsGift = async (item: SavedWishlist['items'][0], wishlistOwnerId: string) => {
-    if (!item.variantId) {
-      alert('Este producto no tiene variante seleccionada')
-      return
-    }
-
-    // Validar que el usuario esté autenticado
-    if (!user?.id) {
-      router.push('/feed')
-      return
-    }
-
-    // Validar stock antes de continuar
-    try {
-      const variantResponse = await apiClient.get<any>(API_ENDPOINTS.PRODUCTS.VARIANT_BY_ID(item.variantId))
-      if (variantResponse.success && variantResponse.data) {
-        const stock = variantResponse.data.stock || 0
-        if (stock <= 0) {
-          showError('Este producto está agotado y no está disponible para regalo')
-          return
-        }
-        if (stock < 1) {
-          showError(`Stock insuficiente. Solo hay ${stock} unidad(es) disponible(s)`)
-          return
-        }
-      } else {
-        showError('No se pudo verificar el stock del producto')
-        return
-      }
-    } catch (error: any) {
-      showError(error.message || 'Error verificando disponibilidad del producto')
-      return
-    }
-
-    // Validar destinatario antes de continuar
-    try {
-      const eligibility = await apiClient.get<any>(API_ENDPOINTS.GIFTS.RECIPIENT_ELIGIBILITY(wishlistOwnerId))
-      if (!eligibility.success || !eligibility.data?.canReceive) {
-        showError(eligibility.data?.reason || 'Este usuario no puede recibir regalos')
-        return
-      }
-      if (eligibility.data?.canSendGift === false) {
-        showError(eligibility.data?.sendGiftReason || 'No puedes enviar regalos a este usuario')
-        return
-      }
-    } catch (error: any) {
-      showError(error.message || 'Error validando destinatario')
-      return
-    }
-
-    // ✅ NUEVO: Ir directamente al checkout de regalo sin carrito
-    router.push(`/checkout/gift-direct?variantId=${item.variantId}&recipientId=${wishlistOwnerId}&quantity=1`)
-  }
-
-
-  if (isLoading) {
-    return (
-      <div className="py-8 text-center text-gray-400">
-        Cargando wishlists guardadas...
-      </div>
-    )
-  }
-
-  // Agrupar wishlists por usuario
   const wishlistsByUser = savedWishlists.reduce((acc, wishlist) => {
-    if (!acc[wishlist.userId]) {
-      acc[wishlist.userId] = {
-        user: wishlist.user,
-        wishlists: [],
-      }
+    const uid = wishlist.userId
+    if (!acc[uid]) {
+      acc[uid] = { user: wishlist.user, wishlists: [] as SavedWishlist[] }
     }
-    acc[wishlist.userId].wishlists.push(wishlist)
+    acc[uid].wishlists.push(wishlist)
     return acc
   }, {} as Record<string, { user: SavedWishlist['user']; wishlists: SavedWishlist[] }>)
 
+  const selectedBundle =
+    selectedUserId != null ? (wishlistsByUser[selectedUserId] ?? null) : null
+  const selectedOwnerName = selectedBundle
+    ? `${selectedBundle.user.firstName || ''} ${selectedBundle.user.lastName || ''}`.trim() || 'este usuario'
+    : ''
+
+  if (isLoading) {
+    return <div className="py-8 text-center text-gray-400">Cargando wishlists guardadas...</div>
+  }
+
   if (savedWishlists.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-400">
+      <div className="py-12 text-center text-gray-400">
         <p>No tienes wishlists guardadas de amigos</p>
-        <p className="text-sm mt-2">
-          Las wishlists públicas de tus amigos aparecerán aquí cuando las guardes
-        </p>
+        <p className="mt-2 text-sm">Las wishlists públicas de tus amigos aparecerán aquí cuando las guardes</p>
       </div>
     )
   }
 
   return (
-    <div className="py-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-[#66DEDB] mb-2">Wishlists Guardadas</h2>
-        <p className="text-gray-400 text-sm">
-          Haz click para ver las wishlists guardadas
-        </p>
-      </div>
+      <div className="py-6">
+        <div className="mb-6">
+          <h2 className="mb-2 text-2xl font-bold text-[#66DEDB]">Wishlists Guardadas</h2>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <p className="min-w-0 flex-1 text-sm text-gray-400">
+              Haz click para ver las wishlists guardadas
+            </p>
+            <Link
+              href="/wishlist"
+              scroll={false}
+              className="shrink-0 text-sm font-medium text-[#73FFA2] transition-colors hover:text-[#66DEDB]"
+            >
+              ← Mis wishlists
+            </Link>
+          </div>
+        </div>
 
-      {/* Lista de usuarios con avatares */}
-      <div className="flex flex-wrap gap-4 mb-8">
-        {Object.entries(wishlistsByUser).map(([userId, userData]) => {
-          // Validar que userData.user existe
-          if (!userData?.user) {
-            console.warn('User data missing for userId:', userId)
-            return null
-          }
-          
-          const isSelected = selectedUserId === userId
-          const fullName = `${userData.user.firstName || ''} ${userData.user.lastName || ''}`.trim() || 'Sin nombre'
-          const avatarUrl =
-            userData.user.profile?.avatar ||
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=1E1E1E&color=73FFA2&size=64`
-          
+      <div className="mb-8 flex flex-wrap gap-4">
+        {Object.entries(wishlistsByUser).map(([uid, userData]) => {
+          if (!userData?.user) return null
+          const isSelected = selectedUserId === uid
           return (
             <UserAvatarWithHexagon
-              key={userId}
-              userId={userId}
+              key={uid}
               userData={userData}
               isSelected={isSelected}
-              onSelect={() => setSelectedUserId(isSelected ? null : userId)}
+              onSelect={() => setSelectedUserId(isSelected ? null : uid)}
             />
           )
         })}
       </div>
 
-      {/* Lista de wishlists del usuario seleccionado */}
-      {selectedUserId && wishlistsByUser[selectedUserId] && (
+      {selectedBundle ? (
         <div className="space-y-8">
-          <h3 className="text-lg font-semibold text-white">
-            Wishlists de {(() => {
-              const user = wishlistsByUser[selectedUserId].user
-              const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
-              return fullName || 'este usuario'
-            })()}
-          </h3>
-          {wishlistsByUser[selectedUserId].wishlists.map((wishlist) => (
-            <div key={wishlist.id} className="space-y-3">
-              {/* Header de wishlist */}
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <h4 className="text-base font-semibold text-white truncate">{wishlist.name}</h4>
-                  {wishlist.public && (
-                    <span className="text-xs text-gray-400">🌐 Pública</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-4 flex-shrink-0">
-                  <span className="text-sm text-gray-400">
-                    {wishlist.items.length} producto{wishlist.items.length !== 1 ? 's' : ''}
-                  </span>
-                  <div 
-                    className="relative" 
-                    ref={(el) => {
-                      if (el) {
-                        confirmRefs.current.set(wishlist.id, el)
-                      } else {
-                        confirmRefs.current.delete(wishlist.id)
-                      }
-                    }}
-                  >
-                    {confirmingUnsave === wishlist.id ? (
-                      <div 
-                        className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-20 bg-gray-900 border border-[#73FFA2]/50 rounded-lg p-3 shadow-xl whitespace-nowrap"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <p className="text-xs text-white mb-2">¿Quitar esta wishlist?</p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={(e) => handleUnsaveConfirm(e, wishlist.id)}
-                            className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                          >
-                            Sí
-                          </button>
-                          <button
-                            onClick={handleUnsaveCancel}
-                            className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
-                          >
-                            No
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
+          <h3 className="text-lg font-semibold text-white">Wishlists de {selectedOwnerName}</h3>
+          <div className="space-y-4">
+            {selectedBundle.wishlists.map((wishlist) => {
+              const expanded = expandedWishlistId === wishlist.id
+              const productsMounted = mountedProductWishlistId === wishlist.id
+              const gridRowsOpen =
+                mountedProductWishlistId === wishlist.id && expandedWishlistId === wishlist.id
+
+              return (
+                <WishlistAccordionCard
+                  key={wishlist.id}
+                  wishlist={wishlist}
+                  expanded={expanded}
+                  gridRowsOpen={gridRowsOpen}
+                  productsMounted={productsMounted}
+                  onToggleExpand={() => toggleWishlistExpanded(wishlist.id)}
+                  desktopPills={
                     <button
+                      type="button"
+                      className={quitarWishlistDesktopCls}
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleUnsaveClick(wishlist.id)
+                        setConfirmingUnsave(wishlist.id)
                       }}
-                      className="text-sm text-red-400 hover:text-red-300 transition-colors"
-                      title="Dejar de ver esta wishlist"
                     >
                       Quitar wishlist
                     </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Carrusel de productos con diseño minimalista */}
-              {wishlist.items.length > 0 ? (
-                <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                  {wishlist.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex-shrink-0 w-[120px]"
-                    >
-                      <div className="relative">
-                        <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-700/30">
-                          {item.product.thumbnail ? (
-                            <Image
-                              src={item.product.thumbnail}
-                              alt={item.product.title}
-                              fill
-                              className="object-cover"
-                              unoptimized
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <span className="text-gray-500 text-xs">Sin imagen</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-1 border border-gray-700/30 rounded-lg p-2 bg-gray-800/20">
-                        {/* Nombre con tooltip */}
-                        <div
-                          className="text-xs text-white line-clamp-1 cursor-default"
-                          title={item.product.title}
-                        >
-                          {item.product.title}
-                        </div>
-                        {/* Precio */}
-                        <div className="text-xs font-semibold text-[#3B9BC3] mt-1">
-                          {getDisplayPrice(item)}
-                        </div>
-                        {/* Acciones bajo el precio */}
-                        <div className="mt-2 flex items-center justify-between gap-1">
-                          {/* Carrito */}
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              await handleAddToCartFromWishlistItem(item)
-                            }}
-                            className="p-1.5 rounded bg-black/30 hover:bg-black/50 transition-colors flex-shrink-0"
-                            aria-label="Agregar al carrito"
-                            title="Agregar al carrito"
-                          >
-                            <Image
-                              src="/feed/Icons/Shopping_Cart_Green.png"
-                              alt="Carrito"
-                              width={14}
-                              height={14}
-                              className="object-contain"
-                              style={{ width: 'auto', height: 'auto' }}
-                            />
-                          </button>
-                          {/* Dar Tanku */}
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              await handleSendAsGift(item, wishlist.userId)
-                            }}
-                            className="px-2.5 py-1 rounded bg-[#3B9BC3] hover:bg-[#2a8ba8] transition-colors flex-shrink-0"
-                            aria-label="Dar Tanku"
-                            title="Dar Tanku"
-                          >
-                            <span className="text-[10px] font-semibold text-white">Dar Tanku</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Ver más como texto azul al final */}
-                  <button
-                    onClick={() => setSelectedWishlist(wishlist)}
-                    className="flex-shrink-0 text-sm text-[#3B9BC3] hover:underline px-2"
-                  >
-                    Ver más
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-400 text-sm">
-                  Esta wishlist está vacía
-                </div>
-              )}
-            </div>
-          ))}
+                  }
+                  mobileEllipsisButton={
+                    <WishlistAccordionEllipsisButton
+                      aria-expanded={mobileActionsWishlistId === wishlist.id}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMobileActionsWishlistId((prev) =>
+                          prev === wishlist.id ? null : wishlist.id,
+                        )
+                      }}
+                    />
+                  }
+                  inlineProductsSlot={
+                    <WishlistInlineProducts
+                      wishlist={wishlist}
+                      onRemoveItem={noopRemoveFromList}
+                      hideRemoveButton
+                      hideCartButton
+                    />
+                  }
+                />
+              )
+            })}
+          </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Modal para ver todos los productos */}
-      {selectedWishlist && (
-        <WishlistProductsModal
-          wishlist={selectedWishlist}
-          isOpen={!!selectedWishlist}
-          onClose={() => setSelectedWishlist(null)}
-          wishlistOwnerId={selectedWishlist.userId}
-          isOwnWishlist={false}
-        />
-      )}
+      {mobileMenuWishlist != null ? (
+        <div
+          className="fixed inset-0 z-[101] flex items-center justify-center bg-transparent p-4"
+          role="presentation"
+          onClick={() => setMobileActionsWishlistId(null)}
+        >
+          <div
+            role="dialog"
+            aria-labelledby="saved-wishlist-mobile-actions-title"
+            className="w-full max-w-sm overflow-hidden rounded-2xl border border-[#66DEDB]/25 bg-[#1a1d24] shadow-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-white/10 px-4 py-3 sm:px-5">
+              <h2 id="saved-wishlist-mobile-actions-title" className="text-lg font-semibold text-white">
+                Opciones
+              </h2>
+              <p className="mt-0.5 truncate text-sm text-zinc-400" title={mobileMenuWishlist.name}>
+                {mobileMenuWishlist.name}
+              </p>
+            </div>
+            <div className="flex flex-col p-2">
+              <button
+                type="button"
+                className="rounded-xl px-4 py-3 text-left text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/10"
+                onClick={() => {
+                  const id = mobileMenuWishlist.id
+                  setMobileActionsWishlistId(null)
+                  setConfirmingUnsave(id)
+                }}
+              >
+                Quitar wishlist
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
+      {confirmingUnsave != null ? (
+        <div
+          className="fixed inset-0 z-[105] flex items-center justify-center bg-transparent p-4"
+          role="presentation"
+          onClick={() => setConfirmingUnsave(null)}
+        >
+          <div
+            role="alertdialog"
+            aria-labelledby="saved-wishlist-unsave-title"
+            className="w-full max-w-sm rounded-2xl border border-[#66DEDB]/25 bg-[#1a1d24] px-5 py-5 shadow-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="saved-wishlist-unsave-title" className="mb-3 text-lg font-semibold text-white">
+              ¿Quitar esta wishlist?
+            </h3>
+            <p className="mb-6 text-sm text-zinc-400">
+              Seguirás pudiendo verla desde el perfil de su dueño/a si es pública.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmingUnsave(null)}
+                className="flex-1 rounded-xl border border-white/12 bg-transparent py-3 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/[0.05]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmingUnsave && void handleUnsaveConfirm(confirmingUnsave)}
+                className="flex-1 rounded-xl border border-red-500/50 bg-red-500/15 py-3 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/25"
+              >
+                Quitar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
-

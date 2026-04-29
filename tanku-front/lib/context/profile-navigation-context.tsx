@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { STALKERGIFT_PATH } from '@/components/stalkergift/stalkergift-paths'
 
 export type ProfileTab = 'PUBLICACIONES' | 'RED TANKU' | 'MIS TANKUS'
 
@@ -29,7 +30,7 @@ export function ProfileNavigationProvider({ children }: ProfileNavigationProvide
     const tabParam = urlParams.get('tab')
     const savedTab = localStorage.getItem('tanku_profile_tab')
 
-    // StalkerGift vive en /stalkergift (chats / recibidos / enviados)
+    // StalkerGift vive en /stalkergift (conversaciones / regalos)
     if (tabParam && window.location.pathname === '/profile') {
       const decodedTab = decodeURIComponent(tabParam).replace(/\+/g, ' ').trim()
       const stalkerUpper = decodedTab.toUpperCase()
@@ -37,12 +38,12 @@ export function ProfileNavigationProvider({ children }: ProfileNavigationProvide
         const orderId = urlParams.get('orderId')
         const q = new URLSearchParams()
         if (orderId) {
-          q.set('tab', 'orders')
+          q.set('sgFilter', 'all')
           q.set('orderId', orderId)
         } else {
-          q.set('tab', 'sent')
+          q.set('sgFilter', 'sent')
         }
-        router.replace(`/stalkergift?${q.toString()}`)
+        router.replace(`${STALKERGIFT_PATH.gifts}?${q.toString()}`)
         return
       }
     }

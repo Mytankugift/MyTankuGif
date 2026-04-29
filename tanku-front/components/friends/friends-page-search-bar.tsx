@@ -11,12 +11,15 @@ export function FriendsPageSearchBar({
   searchDropdownSlot,
   onSearchFocus,
   onSearchBlur,
+  searchPlaceholder = 'Buscar por nombre o @usuario…',
 }: {
   searchQuery: string
   onSearchChange: (v: string) => void
   searchDropdownSlot?: ReactNode
   onSearchFocus?: () => void
   onSearchBlur?: () => void
+  /** Texto del placeholder del input de búsqueda */
+  searchPlaceholder?: string
 }) {
   const blurDeferRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -56,7 +59,7 @@ export function FriendsPageSearchBar({
       </div>
       <input
         type="text"
-        placeholder="Buscar por nombre o @usuario…"
+        placeholder={searchPlaceholder}
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
         onFocus={() => {

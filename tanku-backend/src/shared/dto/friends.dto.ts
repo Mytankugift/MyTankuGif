@@ -11,6 +11,8 @@ export type FriendUserDTO = {
   lastName: string | null;
   username: string | null;
   email: string;
+  /** ISO 8601 desde `personal_information.birth_date`; null si no hay dato */
+  birthDate?: string | null;
   profile: {
     avatar: string | null;
     banner: string | null;

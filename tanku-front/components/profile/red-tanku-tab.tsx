@@ -5,7 +5,6 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import Image from 'next/image'
 import {
-  PlusIcon,
   PencilIcon,
   TrashIcon,
   UserPlusIcon,
@@ -397,18 +396,16 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
           <button
             onClick={handleCreateGroup}
             type="button"
-            className={`h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center ${redTankuActionButtonClass}`}
-            style={{ background: 'linear-gradient(90deg, #73FFA2 0%, #1A485C 100%)' }}
-            title="Crear grupo"
+            className="text-sm text-[#73FFA2] transition-colors hover:text-[#66DEDB]"
           >
-            <PlusIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            + Crear red
           </button>
         </div>
       </div>
 
       {/* Grupos recomendados */}
       {showRecommendedGroups && recommendedGroups.length > 0 && (
-        <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/60 p-4" onClick={handleCloseRecommendedGroups}>
+        <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-transparent p-4" onClick={handleCloseRecommendedGroups}>
           <div className={`w-full max-w-sm p-3.5 sm:p-4 ${tankuModalSurfaceClass}`} onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between">
               <h4 className="text-sm font-semibold text-[#66DEDB]">Sugerencias de red</h4>
@@ -550,7 +547,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
 
       {/* Modal crear/editar grupo */}
       {(showCreateModal || showEditModal) && (
-        <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/70 p-3 sm:p-4" onClick={(e) => {
+        <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-transparent p-3 sm:p-4" onClick={(e) => {
           if (e.target === e.currentTarget) {
             setShowCreateModal(false)
             setShowEditModal(false)
@@ -716,7 +713,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
       {/* Modal agregar miembros */}
       {showAddMembersModal && selectedGroup && (
         <div
-          className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/70 p-3 sm:p-4"
+          className="fixed inset-0 z-[1000000] flex items-center justify-center bg-transparent p-3 sm:p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowAddMembersModal(false)
@@ -845,7 +842,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
       {/* Modal gestionar miembros (clave para mobile) */}
       {showManageMembersModal && selectedGroup && (
         <div
-          className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/70 p-3 sm:p-4"
+          className="fixed inset-0 z-[1000000] flex items-center justify-center bg-transparent p-3 sm:p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowManageMembersModal(false)
@@ -919,7 +916,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
       {/* Modal confirmar eliminar red */}
       {groupPendingDelete && (
         <div
-          className="fixed inset-0 z-[1000001] flex items-center justify-center bg-black/70 p-3 sm:p-4"
+          className="fixed inset-0 z-[1000001] flex items-center justify-center bg-transparent p-3 sm:p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget && !isDeletingGroup) {
               setGroupPendingDelete(null)

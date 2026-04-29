@@ -148,6 +148,56 @@ html, body {
     background: rgba(102, 222, 219, 0.8);
   }
 
+  /* StalkerGift modal scrollbar — mismo patrón que variant-selector pero naranja Tanku (#FE9600) */
+  .stalkergift-modal-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(254, 150, 0, 0.55) rgba(31, 41, 55, 0.3);
+  }
+  .stalkergift-modal-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .stalkergift-modal-scrollbar::-webkit-scrollbar-track {
+    background: rgba(31, 41, 55, 0.3);
+    border-radius: 10px;
+  }
+  .stalkergift-modal-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(254, 150, 0, 0.55);
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+  .stalkergift-modal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(254, 150, 0, 0.85);
+  }
+
+  /* StalkerGift · accesos rápido amigos (burbujas suaves) */
+  @keyframes stalkergift-friend-float-a {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(4px, -10px, 0);
+    }
+  }
+  @keyframes stalkergift-friend-float-b {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(-5px, -8px, 0);
+    }
+  }
+  .stalkergift-friend-float-a {
+    animation: stalkergift-friend-float-a 4s ease-in-out infinite;
+    will-change: transform;
+  }
+  .stalkergift-friend-float-b {
+    animation: stalkergift-friend-float-b 3.4s ease-in-out infinite;
+    animation-delay: 0.55s;
+    will-change: transform;
+  }
+
   /* Checkout scrollbar - blanco sutil */
   .checkout-scrollbar {
     scrollbar-width: thin;
@@ -301,4 +351,5 @@ html, body {
     opacity: 0;
     transform: translateY(-100%);
   }
+
 }

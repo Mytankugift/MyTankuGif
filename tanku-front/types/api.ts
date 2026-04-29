@@ -11,6 +11,8 @@ export interface User {
   lastName: string | null
   username: string | null
   phone: string | null
+  /** ISO 8601 desde personal_information; opcional en respuestas de amigos/búsqueda */
+  birthDate?: string | null
   requiresDataPolicyAcceptance?: boolean
   profile: {
     avatar: string | null
@@ -403,6 +405,8 @@ export interface FriendUserDTO {
   lastName: string | null
   username: string | null
   email: string
+  /** ISO 8601; null si no hay dato en perfil */
+  birthDate?: string | null
   profile: {
     avatar: string | null
     banner: string | null

@@ -14,6 +14,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { useToast } from '@/lib/contexts/toast-context'
+import { GiftEligibilityMessageModal } from '@/components/gifts/gift-eligibility-message-modal'
 import type { WishListDTO } from '@/types/api'
 
 interface ProductStock {
@@ -43,6 +44,7 @@ export function WishlistProductsModal({
   const { error: showError, success: showSuccess } = useToast()
   const [productStocks, setProductStocks] = useState<ProductStock>({})
   const [loadingStocks, setLoadingStocks] = useState<{ [key: string]: boolean }>({})
+  const [giftEligibilityMessage, setGiftEligibilityMessage] = useState<string | null>(null)
 
   // Cargar stock de todos los productos al abrir el modal
   useEffect(() => {
@@ -75,9 +77,15 @@ export function WishlistProductsModal({
     }
   }, [isOpen, wishlist.items])
 
-  if (!isOpen) return null
+  useEffect(() => {
+    if (!isOpen) setGiftEligibilityMessage(null)
+  }, [isOpen])
+
+  if (!isOpen && !giftEligibilityMessage) return null
 
   return (
+    <>
+    {isOpen ? (
     <div
       className="fixed inset-0 z-[1000002] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-4"
       onClick={onClose}
@@ -335,7 +343,7 @@ export function WishlistProductsModal({
                           </button>
                         )}
 
-                        {/* Para wishlists de amigos: icono carrito sin círculo + Dar Tanku */}
+                        {/* Para wishlists de amigos: icono carrito sin círculo + Regalar Tanku */}
                         {wishlistOwnerId && !isOwnWishlist && (
                           <div className="flex items-center gap-2">
                             {/* Icono agregar al carrito - sin círculo */}
@@ -382,7 +390,7 @@ export function WishlistProductsModal({
                               />
                             </button>
 
-                            {/* Botón Dar Tanku */}
+                            {/* Botón Regalar Tanku */}
                             <button
                               onClick={async (e) => {
                                 e.stopPropagation()
@@ -423,15 +431,19 @@ export function WishlistProductsModal({
                                 try {
                                   const eligibility = await apiClient.get<any>(API_ENDPOINTS.GIFTS.RECIPIENT_ELIGIBILITY(wishlistOwnerId))
                                   if (!eligibility.success || !eligibility.data?.canReceive) {
-                                    showError(eligibility.data?.reason || 'Este usuario no puede recibir regalos')
+                                    setGiftEligibilityMessage(
+                                      eligibility.data?.reason || 'Este usuario no puede recibir regalos',
+                                    )
                                     return
                                   }
                                   if (eligibility.data?.canSendGift === false) {
-                                    showError(eligibility.data?.sendGiftReason || 'No puedes enviar regalos a este usuario')
+                                    setGiftEligibilityMessage(
+                                      eligibility.data?.sendGiftReason || 'No puedes enviar regalos a este usuario',
+                                    )
                                     return
                                   }
                                 } catch (error: any) {
-                                  showError(error.message || 'Error validando destinatario')
+                                  setGiftEligibilityMessage(error.message || 'Error validando destinatario')
                                   return
                                 }
 
@@ -445,7 +457,7 @@ export function WishlistProductsModal({
                                   : 'bg-[linear-gradient(90deg,#3B9BC3_0%,#2A5B74_100%)] text-white hover:opacity-90'
                               }`}
                             >
-                              Dar Tanku
+                              Regalar Tanku
                             </button>
                           </div>
                         )}
@@ -459,6 +471,13 @@ export function WishlistProductsModal({
         </div>
       </div>
     </div>
+    ) : null}
+    <GiftEligibilityMessageModal
+      open={Boolean(giftEligibilityMessage?.trim())}
+      message={giftEligibilityMessage ?? ''}
+      onClose={() => setGiftEligibilityMessage(null)}
+    />
+    </>
   )
 }
 

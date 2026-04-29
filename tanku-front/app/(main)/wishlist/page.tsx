@@ -1,108 +1,93 @@
 /**
- * Página de Wishlists
+ * Página de Wishlists — fondo y scroll alineados con /friends
  */
 
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useEffect, Suspense, useMemo, useRef, useState } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { clsx } from 'clsx'
 import { MyWishlists } from '@/components/wishlists/my-wishlists'
 import { SavedWishlistsViewer } from '@/components/wishlists/saved-wishlists-viewer'
 import { LikedProductsViewer } from '@/components/wishlists/liked-products-viewer'
 import { WishlistNav } from '@/components/layout/wishlist-nav'
-import { WishlistAccessRequests } from '@/components/wishlists/wishlist-access-requests'
+import { WishlistSavedShortcut } from '@/components/wishlists/wishlist-saved-shortcut'
 
-// Componente interno que usa useSearchParams
+type WishlistTab = 'liked' | 'mine' | 'saved'
+
 function WishlistPageContent() {
   const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState<'liked' | 'mine' | 'saved' | 'requests'>('liked')
-  
-  useEffect(() => {
+  const router = useRouter()
+  const prevTabRef = useRef<WishlistTab | null>(null)
+  const [savedPanelKey, setSavedPanelKey] = useState(0)
+
+  const activeTab = useMemo((): WishlistTab => {
     const t = searchParams.get('tab')
-    if (t === 'mine' || t === 'liked' || t === 'saved' || t === 'requests') {
-      setActiveTab(t)
-      return
-    }
-    if (searchParams.get('saved') === 'true') {
-      setActiveTab('saved')
-    }
+    if (t === 'mine' || t === 'liked' || t === 'saved') return t
+    if (searchParams.get('saved') === 'true') return 'saved'
+    return 'mine'
   }, [searchParams])
 
+  useEffect(() => {
+    /** La pestaña «Solicitudes» se unificó en Acceso (modal) en Mis wishlists. */
+    if (searchParams.get('tab') === 'requests') {
+      router.replace('/wishlist?tab=mine', { scroll: false })
+    }
+  }, [searchParams, router])
+
+  useEffect(() => {
+    const prev = prevTabRef.current
+    if (activeTab === 'saved' && prev !== null && prev !== 'saved') {
+      setSavedPanelKey((k) => k + 1)
+    }
+    prevTabRef.current = activeTab
+  }, [activeTab])
+
   return (
-    <>
+    <div
+      className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden transition-colors duration-300"
+      style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
+    >
       <WishlistNav />
       <div
-        className="min-h-screen overflow-x-hidden p-4 pt-28 sm:p-6 sm:pt-32 md:min-h-0 md:h-full md:max-h-full md:overflow-visible md:p-8 md:pt-40 lg:pt-44"
-        style={{ backgroundColor: '#1E1E1E' }}
+        id="wishlist-scroll-root"
+        className={clsx(
+          'custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+          'px-4 pt-[max(5rem,calc(env(safe-area-inset-top,0px)+4rem))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]',
+          'lg:px-8 lg:pb-8 lg:pt-20 xl:px-10 xl:pt-24',
+        )}
+        style={{
+          marginRight: 0,
+          scrollBehavior: 'auto',
+          scrollPaddingTop: 'max(env(safe-area-inset-top),12px)',
+          scrollPaddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        }}
       >
-        <div className="max-w-7xl mx-auto">
-        {/* Tabs */}
-        <div className="flex gap-2 border-b border-gray-700 mb-6">
-          <button
-            onClick={() => setActiveTab('liked')}
-            className={`px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'liked'
-                ? 'text-[#73FFA2] border-b-2 border-[#73FFA2]'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
-          >
-            Me gusta
-          </button>
-          <button
-            onClick={() => setActiveTab('mine')}
-            className={`px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'mine'
-                ? 'text-[#73FFA2] border-b-2 border-[#73FFA2]'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
-          >
-            Mis Wishlists
-          </button>
-          <button
-            onClick={() => setActiveTab('saved')}
-            className={`px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'saved'
-                ? 'text-[#73FFA2] border-b-2 border-[#73FFA2]'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
-          >
-            Wishlists Guardadas
-          </button>
-          <button
-            onClick={() => setActiveTab('requests')}
-            className={`px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'requests'
-                ? 'text-[#73FFA2] border-b-2 border-[#73FFA2]'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
-          >
-            Solicitudes de Acceso
-          </button>
-        </div>
+        <div className="w-full pb-3 md:pb-4">
+          <WishlistSavedShortcut activeTab={activeTab} />
 
-          {/* Contenido según tab */}
           {activeTab === 'liked' && <LikedProductsViewer />}
           {activeTab === 'mine' && <MyWishlists />}
-          {activeTab === 'saved' && <SavedWishlistsViewer />}
-          {activeTab === 'requests' && <WishlistAccessRequests />}
+          {activeTab === 'saved' && <SavedWishlistsViewer key={savedPanelKey} />}
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
-// Componente principal con Suspense boundary
 export default function WishlistPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 md:pt-40 lg:pt-44" style={{ backgroundColor: '#1E1E1E' }}>
-        <div className="max-w-7xl mx-auto">
+    <Suspense
+      fallback={
+        <div
+          className="flex min-h-screen flex-1 flex-col items-center justify-center px-4 py-24"
+          style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
+        >
           <div className="text-center text-gray-400">Cargando...</div>
         </div>
-      </div>
-    }>
+      }
+    >
       <WishlistPageContent />
     </Suspense>
   )
 }
-

@@ -5,14 +5,16 @@ import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { clsx } from 'clsx'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { GiftIcon } from '@heroicons/react/24/outline'
 import { useIsMaxWidth, useIsMinWidth } from '@/lib/hooks/use-is-max-width'
 import { useChat } from '@/lib/hooks/use-chat'
 import { ChatWindow } from '@/components/chat/chat-window'
 import { StalkerGiftChatList } from '@/components/stalkergift/stalkergift-chat-list'
+import { STALKERGIFT_PATH } from '@/components/stalkergift/stalkergift-paths'
 
 const rowDividerStyle = {
   borderImage:
-    'linear-gradient(90deg, #414141 0%, #73FFA2 34%, #73FFA2 70%, #414141 100%) 1',
+    'linear-gradient(90deg, #414141 0%, #FE9600B3 34%, #FE9600B3 70%, #414141 100%) 1',
 } as const
 
 /** Layout de chats igual que /messages: lista + ChatWindow en card; móvil portal pantalla completa. */
@@ -43,16 +45,17 @@ export function StalkerGiftChatsPanel() {
   const openConversation = (id: string) => {
     setActiveConversation(id)
     const q = new URLSearchParams(searchParams.toString())
-    q.set('tab', 'chats')
+    q.delete('tab')
     q.set('conversation', id)
-    router.replace(`/stalkergift?${q.toString()}`, { scroll: false })
+    router.replace(`${STALKERGIFT_PATH.chats}?${q.toString()}`, { scroll: false })
   }
 
   const closeConversation = () => {
     setActiveConversation(null)
     const q = new URLSearchParams(searchParams.toString())
     q.delete('conversation')
-    router.replace(`/stalkergift?${q.toString()}`, { scroll: false })
+    q.delete('tab')
+    router.replace(`${STALKERGIFT_PATH.chats}?${q.toString()}`, { scroll: false })
   }
 
   return (
@@ -79,18 +82,10 @@ export function StalkerGiftChatsPanel() {
             )}
           >
             <div className="shrink-0 border-b p-4" style={rowDividerStyle}>
-              <div className="mb-3 flex items-center gap-2">
-                <Image
-                  src="/icons_tanku/tanku_logo_menu_stalkergift_verde.svg"
-                  alt=""
-                  width={28}
-                  height={28}
-                  className="h-7 w-7 shrink-0 object-contain"
-                  unoptimized
-                />
-                <h2 className="text-base font-semibold leading-none text-white">Chats StalkerGift</h2>
+              <div className="mb-1 flex items-center gap-2">
+                <GiftIcon className="h-7 w-7 shrink-0 text-[#FE9600B3]" />
+                <h2 className="text-base font-semibold leading-snug text-white">Conversaciones anónimas</h2>
               </div>
-              <p className="mb-3 text-xs text-[#A7A7A7]">Anónimos hasta que se revele.</p>
             </div>
             <div className="min-h-0 flex-1 overflow-hidden px-2 pb-2 sm:px-4 md:px-4">
               <StalkerGiftChatList onSelectChat={openConversation} />
@@ -112,14 +107,7 @@ export function StalkerGiftChatsPanel() {
               />
             ) : (
               <div className="flex h-full flex-col items-center justify-center px-4 text-center text-gray-400">
-                <Image
-                  src="/icons_tanku/tanku_logo_menu_stalkergift_verde.svg"
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="mb-3 h-10 w-10 object-contain opacity-80"
-                  unoptimized
-                />
+                <GiftIcon className="mb-3 h-10 w-10 text-[#FE9600B3] opacity-80" />
                 <p className="mb-2 text-lg text-white/90">Selecciona una conversación</p>
                 <p className="text-sm text-[#A7A7A7]">O envía un regalo desde Enviar Tanku</p>
               </div>
