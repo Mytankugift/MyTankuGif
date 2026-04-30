@@ -9,7 +9,6 @@ const { escapeHtml } = require('./base.template');
  *   senderAvatarUrl: string,
  *   productTitle: string,
  *   productImageUrl: string,
- *   productPriceLabel: string,
  *   productSubtitle?: string,
  *   messageBody: string,
  *   ctaUrl: string,
@@ -44,7 +43,6 @@ function getGiftReceivedTemplate(p) {
   const sender = escapeHtml(p.senderDisplayName);
   const titleName = sender;
   const productTitle = escapeHtml(p.productTitle);
-  const price = escapeHtml(p.productPriceLabel);
   const subtitle = escapeHtml(p.productSubtitle || 'Producto');
   const message = escapeHtml(p.messageBody);
   const signoff = sender;
@@ -61,21 +59,31 @@ function getGiftReceivedTemplate(p) {
 <body style="margin:0;padding:0;background:#070b14;">
   <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#070b14;">
     <tr>
-      <td align="center" style="padding:20px;">
-        <table width="600" cellpadding="0" cellspacing="0" role="presentation"
-          style="max-width:600px;font-family:Arial,Helvetica,sans-serif;color:#e6ecff;border-radius:20px;overflow:hidden;background-color:#0b1220;border:1px solid #1a2338;">
+      <td align="center" style="padding:16px 12px;">
+        <!-- Tarjeta más compacta (≈ postcard) -->
+        <table width="480" cellpadding="0" cellspacing="0" role="presentation"
+          style="max-width:480px;width:100%;font-family:Arial,Helvetica,sans-serif;color:#e6ecff;border-radius:16px;overflow:hidden;background-color:#0b1220;border:1px solid #1a2338;">
 
           <tr>
-            <td style="padding:16px 20px;border-bottom:1px solid #1a2338;">
+            <td style="padding:12px 16px 12px;border-bottom:1px solid #1a2338;">
               <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
                 <tr>
-                  <td width="44" valign="middle">
-                    <img src="${escapeHtml(mark)}" width="36" height="36" alt="Tanku"
-                      style="display:block;width:36px;height:36px;border-radius:50%;object-fit:cover;">
+                  <td width="86" valign="middle" style="vertical-align:middle;padding-right:6px;">
+                    <!-- Mark; círculo #6ef2a6 (más ajustado al icono) -->
+                    <div style="display:inline-block;width:72px;line-height:0;margin-top:0;text-align:center;">
+                      <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;">
+                        <tr>
+                          <td align="center" valign="middle" style="background-color:#6ef2a6;border-radius:50%;width:26px;height:26px;line-height:26px;mso-padding-alt:0;">
+                            <img src="${escapeHtml(mark)}" width="52" height="52" alt="Tanku"
+                              style="display:inline-block;width:68px;height:68px;object-fit:contain;vertical-align:middle;-ms-interpolation-mode:bicubic;">
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
                   </td>
-                  <td style="padding-left:10px;" valign="middle">
-                    <div style="color:#6ef2a6;font-size:18px;font-weight:bold;">TANKU</div>
-                    <div style="font-size:12px;color:#8fa3c7;">Give-Commerce</div>
+                  <td style="padding-left:6px;padding-top:4px;" valign="middle">
+                    <div style="color:#6ef2a6;font-size:17px;font-weight:bold;line-height:1.15;letter-spacing:0.03em;">TANKU</div>
+                    <div style="font-size:11px;color:#8fa3c7;line-height:1.25;margin-top:3px;font-weight:normal;">Give-Commerce</div>
                   </td>
                 </tr>
               </table>
@@ -83,49 +91,52 @@ function getGiftReceivedTemplate(p) {
           </tr>
 
           <tr>
-            <td align="center" style="padding:30px 20px 10px;">
-              <table cellpadding="0" cellspacing="0" role="presentation" align="center">
-                <tr>
-                  <td align="center" style="vertical-align:middle;">
-                    <img src="${avatarUrl}" width="110" height="110" alt=""
-                      style="display:block;border-radius:50%;width:110px;height:110px;object-fit:cover;">
-                  </td>
-                  <td width="8"></td>
-                  <td valign="bottom" style="vertical-align:bottom;padding-bottom:4px;">
-                    <img src="${escapeHtml(giftBadge)}" width="40" height="40" alt=""
-                      style="display:block;width:40px;height:40px;">
-                  </td>
-                </tr>
-              </table>
+            <td align="center" style="padding:20px 16px 8px;">
+              <!-- Avatar + icono regalo superpuesto (esquina inferior derecha) -->
+              <div style="display:inline-block;position:relative;width:100px;height:100px;line-height:0;">
+                <img src="${avatarUrl}" width="100" height="100" alt=""
+                  style="display:block;width:100px;height:100px;border-radius:50%;object-fit:cover;border:2px solid #1f2a44;">
+                <div style="position:absolute;right:-6px;bottom:-6px;width:42px;height:42px;line-height:0;text-align:right;">
+                  <img src="${escapeHtml(giftBadge)}" width="42" height="42" alt=""
+                    style="display:block;width:42px;height:42px;border-radius:50%;border:2px solid #0b1220;box-sizing:border-box;">
+                </div>
+              </div>
 
-              <h1 style="margin:20px 0 10px;font-size:28px;line-height:1.25;font-weight:bold;">
+              <h1 style="margin:16px 0 8px;font-size:23px;line-height:1.2;font-weight:bold;">
                 ¡<span style="color:#ffffff;">${titleName}</span> te<br>
                 <span style="color:#6ef2a6;">regaló algo especial!</span>
               </h1>
 
-              <p style="color:#a8b6d9;font-size:14px;max-width:400px;margin:0 auto;line-height:1.5;">
+              <p style="color:#a8b6d9;font-size:13px;max-width:360px;margin:0 auto;line-height:1.45;">
                 Alguien pensó en ti y quiere que disfrutes este producto increíble.
               </p>
             </td>
           </tr>
 
           <tr>
-            <td style="padding:0 20px 20px;">
+            <td style="padding:0 16px 14px;">
               <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
-                style="background:#0f1a2b;border-radius:16px;border:1px solid #1f2a44;">
+                style="background-color:#0f1a2b;border-radius:14px;border:1px solid #223154;overflow:hidden;">
                 <tr>
-                  <td width="50%" style="padding:16px;">
-                    <img src="${escapeHtml(p.productImageUrl)}" width="260" alt=""
-                      style="display:block;width:100%;max-width:260px;height:auto;border-radius:12px;">
+                  <td width="42%" valign="middle" style="padding:14px 10px 14px 14px;">
+                    <img src="${escapeHtml(p.productImageUrl)}" width="152" alt=""
+                      style="display:block;width:100%;max-width:152px;height:auto;border-radius:12px;margin:0 auto;border:1px solid #273a56;box-sizing:border-box;">
                   </td>
-                  <td width="50%" style="padding:16px;vertical-align:top;">
-                    <div style="color:#6ef2a6;font-size:12px;margin-bottom:6px;">${subtitle}</div>
-                    <div style="font-size:20px;font-weight:bold;margin-bottom:6px;line-height:1.3;">
-                      ${productTitle}
-                    </div>
-                    <div style="color:#6ef2a6;font-size:18px;font-weight:bold;">
-                      ${price}
-                    </div>
+                  <td width="58%" valign="middle" style="padding:14px 14px 14px 6px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                      <tr>
+                        <td valign="top" style="padding:0;border-left:3px solid #6ef2a6;padding-left:12px;">
+                          <div style="margin-bottom:10px;">
+                            <span style="display:inline-block;background-color:#07121f;border:1px solid #1e3048;border-radius:20px;padding:5px 10px;">
+                              <span style="color:#6ef2a6;font-size:10px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;">${subtitle}</span>
+                            </span>
+                          </div>
+                          <div style="color:#f0f4ff;font-size:18px;font-weight:700;line-height:1.3;margin:0;letter-spacing:-0.02em;">
+                            ${productTitle}
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
@@ -133,43 +144,58 @@ function getGiftReceivedTemplate(p) {
           </tr>
 
           <tr>
-            <td style="padding:0 20px 20px;">
-              <div style="background:#0f1a2b;padding:16px;border-radius:14px;border:1px solid #1f2a44;">
-                <div style="color:#6ef2a6;font-size:36px;line-height:1;">“</div>
-                <p style="margin:4px 0 12px;font-size:14px;line-height:1.55;color:#e6ecff;">
-                  ${message}
-                </p>
-                <div style="color:#6ef2a6;font-size:14px;">– ${signoff}</div>
-              </div>
+            <td style="padding:0 16px 14px;">
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                style="background:#0f1a2b;border-radius:14px;border:1px solid #1f2a44;">
+                <tr>
+                  <td valign="top" width="34" style="padding:14px 0 14px 14px;color:#6ef2a6;font-family:Georgia,'Times New Roman',serif;font-size:40px;line-height:0.85;">&#8220;</td>
+                  <td valign="middle" style="padding:14px 8px 10px;font-size:14px;line-height:1.55;color:#cfd8ee;font-style:italic;">
+                    ${message}
+                  </td>
+                  <td valign="bottom" width="34" align="right" style="padding:0 14px 18px 0;color:#6ef2a6;font-family:Georgia,'Times New Roman',serif;font-size:40px;line-height:0.85;">&#8221;</td>
+                </tr>
+                <tr>
+                  <td colspan="3" style="padding:0 16px 14px;font-size:13px;color:#6ef2a6;text-align:right;">
+                    &#8212; ${signoff}
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
           <tr>
-            <td align="center" style="padding:10px 20px 30px;">
+            <td align="center" style="padding:4px 16px 18px;">
               <a href="${cta}"
-                style="display:inline-block;padding:14px 28px;background:#6ef2a6;color:#062312;border-radius:999px;font-weight:bold;text-decoration:none;font-size:16px;">
-                Ver mi regalo →
+                style="display:inline-block;padding:12px 28px;background:#5ee8a8;color:#04271e;border-radius:999px;font-weight:bold;text-decoration:none;font-size:15px;border:1px solid #4dd89a;box-shadow:inset 0 2px 0 rgba(255,255,255,0.45),inset 0 -4px 10px rgba(4,52,44,0.38),inset 0 -1px 0 rgba(4,39,34,0.35);">
+                Ver mi regalo &#8594;
               </a>
             </td>
           </tr>
 
           <tr>
-            <td style="border-top:1px solid #1a2338;padding:20px;">
-              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="text-align:center;font-size:12px;color:#8fa3c7;">
+            <td style="border-top:1px solid #1a2338;padding:14px 8px;">
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="font-size:11px;color:#8fa3c7;">
                 <tr>
-                  <td style="width:25%;"><img src="${escapeHtml(iconLock)}" width="20" height="20" alt="" style="display:inline-block;"><br>Seguro</td>
-                  <td style="width:25%;"><img src="${escapeHtml(iconHeart)}" width="20" height="20" alt="" style="display:inline-block;"><br>Confiable</td>
-                  <td style="width:25%;"><img src="${escapeHtml(iconHome)}" width="20" height="20" alt="" style="display:inline-block;"><br>Especial</td>
-                  <td style="width:25%;"><img src="${escapeHtml(iconUnique)}" width="20" height="20" alt="" style="display:inline-block;"><br>Único</td>
+                  <td width="25%" align="center" valign="top" style="padding:10px 8px;line-height:1.35;font-weight:normal;">
+                    <img src="${escapeHtml(iconLock)}" width="28" height="36" alt="" style="display:block;margin:0 auto 8px;width:28px;height:36px;max-width:28px;object-fit:contain;"><span style="display:block;padding:0 2px;">Seguro</span>
+                  </td>
+                  <td width="25%" align="center" valign="top" style="padding:10px 8px;line-height:1.35;">
+                    <img src="${escapeHtml(iconHeart)}" width="28" height="28" alt="" style="display:block;margin:0 auto 8px;width:28px;height:28px;max-width:28px;object-fit:contain;"><span style="display:block;padding:0 2px;">Confiable</span>
+                  </td>
+                  <td width="25%" align="center" valign="top" style="padding:10px 8px;line-height:1.35;">
+                    <img src="${escapeHtml(iconHome)}" width="28" height="28" alt="" style="display:block;margin:0 auto 8px;width:28px;height:28px;max-width:28px;object-fit:contain;"><span style="display:block;padding:0 2px;">Especial</span>
+                  </td>
+                  <td width="25%" align="center" valign="top" style="padding:10px 8px;line-height:1.35;">
+                    <img src="${escapeHtml(iconUnique)}" width="28" height="28" alt="" style="display:block;margin:0 auto 8px;width:28px;height:28px;max-width:28px;object-fit:contain;"><span style="display:block;padding:0 2px;">Único</span>
+                  </td>
                 </tr>
               </table>
             </td>
           </tr>
 
           <tr>
-            <td align="center" style="padding:20px;font-size:12px;color:#6c7ea6;">
+            <td align="center" style="padding:12px 16px 14px;font-size:11px;color:#6c7ea6;">
               Gracias por ser parte de <span style="color:#6ef2a6;">TANKU</span>
-              <br><br>
             </td>
           </tr>
 
@@ -183,11 +209,10 @@ function getGiftReceivedTemplate(p) {
   const text = [
     `¡${p.senderDisplayName} te regaló algo especial en Tanku!`,
     '',
-    p.messageBody,
+    `\u201C${p.messageBody}\u201D`,
     `– ${p.senderDisplayName}`,
     '',
     `Producto: ${p.productTitle}`,
-    `Precio: ${p.productPriceLabel}`,
     '',
     `Ver tu regalo: ${p.ctaUrl}`,
   ].join('\n');

@@ -5,13 +5,7 @@ import { env } from '../../config/env';
 const { getGiftReceivedTemplate } = require('../../email/templates/gift-received.template.js');
 const { sendEmail } = require('../../email/email.service.js');
 
-function moneyCOP(amount: number): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+
 
 function normalizeProductImageUrl(imagePath: string | null | undefined): string | null {
   if (!imagePath) return null;
@@ -129,14 +123,11 @@ export async function sendGiftReceivedEmailAfterPayment(orderId: string): Promis
   if (!senderAvatarUrl) senderAvatarUrl = defaultGiftSenderAvatarIconUrl();
 
   const qty = primary.quantity || 1;
-  const unit = primary.finalPrice || primary.price;
   let title = primary.product.title;
   if (primary.variant?.title) {
     title = `${primary.product.title} — ${primary.variant.title}`;
   }
   if (qty > 1) title = `${title} (×${qty})`;
-
-  const productPriceLabel = moneyCOP(unit * qty);
 
   const name = senderDisplayName(sender);
   const messageBody =
@@ -164,7 +155,6 @@ export async function sendGiftReceivedEmailAfterPayment(orderId: string): Promis
     senderAvatarUrl,
     productTitle: title,
     productImageUrl,
-    productPriceLabel,
     productSubtitle: 'PRODUCTO',
     messageBody,
     ctaUrl,

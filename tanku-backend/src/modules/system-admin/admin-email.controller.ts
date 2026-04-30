@@ -63,7 +63,6 @@ interface GiftTemplatePayload {
   senderAvatarUrl: string;
   productTitle: string;
   productImageUrl: string;
-  productPriceLabel: string;
   productSubtitle?: string;
   messageBody: string;
   ctaUrl: string;
@@ -102,11 +101,6 @@ function resolveGiftPreviewTemplatePayload(bodyRaw: unknown): GiftTemplatePayloa
       ? body.productImageUrl.trim()
       : emailAssetUrl(assetBase, 'tennis.png');
 
-  const productPriceLabel =
-    typeof body.productPriceLabel === 'string' && body.productPriceLabel.trim()
-      ? body.productPriceLabel.trim()
-      : '$200.000';
-
   const messageBody =
     typeof body.messageBody === 'string' && body.messageBody.trim()
       ? body.messageBody.trim()
@@ -132,7 +126,6 @@ function resolveGiftPreviewTemplatePayload(bodyRaw: unknown): GiftTemplatePayloa
     senderAvatarUrl,
     productTitle,
     productImageUrl,
-    productPriceLabel,
     productSubtitle: 'PRODUCTO',
     messageBody,
     ctaUrl,

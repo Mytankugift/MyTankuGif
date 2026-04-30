@@ -47,7 +47,6 @@ export default function EmailTestSettingsPage() {
   const [giftAvatarUrl, setGiftAvatarUrl] = useState(demoAssetUrl('tanku-email-icon-user.png'))
   const [giftProductTitle, setGiftProductTitle] = useState('Tenis Nike Retro')
   const [giftProductImg, setGiftProductImg] = useState(demoAssetUrl('tennis.png'))
-  const [giftPrice, setGiftPrice] = useState('$200.000')
   const [giftMessage, setGiftMessage] = useState(
     'Espero que te gusten, los elegí pensando en ti. ¡Disfrútalos!'
   )
@@ -67,7 +66,6 @@ export default function EmailTestSettingsPage() {
     setGiftAvatarUrl(demoAssetUrl('tanku-email-icon-user.png'))
     setGiftProductTitle('Tenis Nike Retro')
     setGiftProductImg(demoAssetUrl('tennis.png'))
-    setGiftPrice('$200.000')
     setGiftMessage('Espero que te gusten, los elegí pensando en ti. ¡Disfrútalos!')
     setGiftCta(`${publicSiteUrl}/profile?tab=MIS_TANKUS`)
     setGiftAssetBase(emailPublicAssetsBase)
@@ -79,7 +77,6 @@ export default function EmailTestSettingsPage() {
     senderAvatarUrl: giftAvatarUrl.trim(),
     productTitle: giftProductTitle.trim(),
     productImageUrl: giftProductImg.trim(),
-    productPriceLabel: giftPrice.trim(),
     messageBody: giftMessage.trim(),
     ctaUrl: giftCta.trim(),
     assetBase: giftAssetBase.trim(),
@@ -273,25 +270,14 @@ export default function EmailTestSettingsPage() {
               />
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Nombre quien envía</label>
-                <input
-                  type="text"
-                  value={giftSenderName}
-                  onChange={(e) => setGiftSenderName(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Precio mostrado (texto)</label>
-                <input
-                  type="text"
-                  value={giftPrice}
-                  onChange={(e) => setGiftPrice(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Nombre quien envía</label>
+              <input
+                type="text"
+                value={giftSenderName}
+                onChange={(e) => setGiftSenderName(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
             </div>
 
             <div>
