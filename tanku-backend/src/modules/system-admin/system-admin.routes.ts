@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { SystemAdminController } from './system-admin.controller';
 import { AdminCronController } from './admin-cron.controller';
+import { AdminEmailController } from './admin-email.controller';
 import { authenticateAdmin } from '../admin/admin-auth/admin-auth.middleware';
 
 const router = Router();
 const systemAdminController = new SystemAdminController();
 const adminCronController = new AdminCronController();
+const adminEmailController = new AdminEmailController();
 
 /**
  * GET /api/v1/admin/system/proxy/status
@@ -26,5 +28,14 @@ router.post(
   adminCronController.postTestNotification
 );
 
-export default router;
+/** Vista previa HTML correo regalo (no envía correo) */
+router.post(
+  '/email/gift-preview/render',
+  authenticateAdmin,
+  adminEmailController.postGiftPreviewRender
+);
 
+/** Envía correo de prueba plantilla regalo */
+router.post('/email/gift-preview', authenticateAdmin, adminEmailController.postGiftPreview);
+
+export default router;

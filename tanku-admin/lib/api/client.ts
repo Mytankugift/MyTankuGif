@@ -51,13 +51,22 @@ apiClient.interceptors.response.use(
       console.error('  4. Problemas de SSL/certificados')
       console.error('Error completo:', error)
     } else {
-      console.error('API Error:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-        url: error.config?.url,
-        baseURL: error.config?.baseURL,
-      })
+      /* JSON.stringify para que Turbopack/Chrome no muestre `{}` cuando hay campos definidos pero anidados. */
+      console.error(
+        'API Error:',
+        JSON.stringify(
+          {
+            message: error.message,
+            code: error.code,
+            status: error.response?.status,
+            data: error.response?.data,
+            url: error.config?.url,
+            baseURL: error.config?.baseURL,
+          },
+          null,
+          2
+        )
+      )
     }
     return Promise.reject(error)
   }

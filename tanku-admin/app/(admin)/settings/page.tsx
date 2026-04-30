@@ -37,7 +37,8 @@ export default function SettingsPage() {
     {
       id: 'email-test',
       name: 'Email de prueba',
-      description: 'Enviar un correo de prueba para validar la configuración del proveedor de email',
+      description:
+        'Correo simple SMTP y plantilla HTML de regalo con datos demo (tu cuenta / www.mytanku.com)',
       icon: EnvelopeIcon,
       href: '/settings/email-test',
     },

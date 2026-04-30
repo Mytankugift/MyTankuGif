@@ -46,4 +46,4 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
-module.exports = { wrap };
+module.exports = { wrap, escapeHtml };

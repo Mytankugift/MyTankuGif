@@ -81,6 +81,8 @@ export const API_ENDPOINTS = {
       CRON_STATUS: `${API_BASE}/api/v1/admin/system/cron/status`,
       CRON_RUN_EVENT_REMINDERS: `${API_BASE}/api/v1/admin/system/cron/event-reminders/run`,
       NOTIFICATIONS_TEST: `${API_BASE}/api/v1/admin/system/notifications/test`,
+      EMAIL_GIFT_PREVIEW: `${API_BASE}/api/v1/admin/system/email/gift-preview`,
+      EMAIL_GIFT_PREVIEW_RENDER: `${API_BASE}/api/v1/admin/system/email/gift-preview/render`,
     },
   },
 } as const

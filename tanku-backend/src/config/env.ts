@@ -43,7 +43,8 @@ const envSchema = z.object({
   // CORS & Frontend
   FRONTEND_URL: z.string().url('FRONTEND_URL debe ser una URL válida'),
   NEXT_PUBLIC_API_URL: z.string().url('NEXT_PUBLIC_API_URL debe ser una URL válida').optional(),
-  CORS_ORIGINS: z.string().default('http://localhost:8000'),
+  /** Orígenes separados por coma. Incluir `http://localhost:3001` para ERP (tanku-admin en dev). */
+  CORS_ORIGINS: z.string().default('http://localhost:8000,http://localhost:3001'),
 
   // Google OAuth
   GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID es requerido'),
@@ -83,7 +84,7 @@ const envSchema = z.object({
   WEBHOOK_PROXY_KEY: z.string().optional(),
 
   // Socket.io
-  SOCKET_CORS_ORIGINS: z.string().default('http://localhost:8000'),
+  SOCKET_CORS_ORIGINS: z.string().default('http://localhost:8000,http://localhost:3001'),
 
   // Logging
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),

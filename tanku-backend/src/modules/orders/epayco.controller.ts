@@ -8,6 +8,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { NotFoundError } from '../../shared/errors/AppError';
+import { sendGiftReceivedEmailAfterPayment } from '../email/gift-email.service';
 
 export class EpaycoController {
   private ordersService: OrdersService;
@@ -211,9 +212,9 @@ export class EpaycoController {
             );
             console.log(`✅ [EPAYCO-WEBHOOK] Notificación de regalo creada exitosamente`);
           } catch (notificationError: any) {
-            // No fallar el webhook si la notificación falla
             console.error(`⚠️ [EPAYCO-WEBHOOK] Error creando notificación de regalo:`, notificationError?.message);
           }
+          await sendGiftReceivedEmailAfterPayment(updatedOrder.id);
         }
 
         return res.status(200).json({
@@ -442,9 +443,9 @@ export class EpaycoController {
             );
             console.log(`✅ [EPAYCO-WEBHOOK] Notificación de regalo creada exitosamente`);
           } catch (notificationError: any) {
-            // No fallar el webhook si la notificación falla
             console.error(`⚠️ [EPAYCO-WEBHOOK] Error creando notificación de regalo:`, notificationError?.message);
           }
+          await sendGiftReceivedEmailAfterPayment(updatedOrder.id);
         }
 
         // Vaciar carrito solo si Dropi fue exitoso y solo los items seleccionados
