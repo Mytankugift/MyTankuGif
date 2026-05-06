@@ -220,7 +220,7 @@ function GiftCheckoutContent() {
       if (isEpaycoSmartMode()) {
         setShowConfirmationModal(false)
         try {
-          const smartRes = await apiClient.post<{ sessionId: string }>(
+          const smartRes = await apiClient.post<{ sessionId: string; test?: boolean }>(
             API_ENDPOINTS.CHECKOUT.EPAYCO_SMART_SESSION,
             { flow: 'cart', dataForm, dataCart }
           )
@@ -230,7 +230,7 @@ function GiftCheckoutContent() {
                 'No se pudo crear la sesión de pago'
             )
           }
-          openEpaycoSmartCheckout(smartRes.data.sessionId)
+          openEpaycoSmartCheckout(smartRes.data.sessionId, 'gift_cart', smartRes.data.test)
         } catch (epaycoSmartErr: any) {
           console.error('[GIFT CHECKOUT] [EPAYCO-SMART]', epaycoSmartErr)
           setButtonTooltip(epaycoSmartErr.message || 'Error al iniciar el pago')

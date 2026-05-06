@@ -313,7 +313,7 @@ function GiftDirectCheckoutContent() {
 
     try {
       if (isEpaycoSmartMode()) {
-        const smartRes = await apiClient.post<{ sessionId: string }>(
+        const smartRes = await apiClient.post<{ sessionId: string; test?: boolean }>(
           API_ENDPOINTS.CHECKOUT.EPAYCO_SMART_SESSION,
           {
             flow: 'gift_direct',
@@ -331,7 +331,7 @@ function GiftDirectCheckoutContent() {
           )
           return
         }
-        openEpaycoSmartCheckout(smartRes.data.sessionId)
+        openEpaycoSmartCheckout(smartRes.data.sessionId, 'gift_direct', smartRes.data.test)
         return
       }
 

@@ -357,6 +357,12 @@ export class CheckoutController {
         },
       });
 
+      console.log(
+        `✅ [EPAYCO-SMART] Sesión Apify creada flow=${flow} identifier=${identifier.slice(0, 12)}… test=${env.EPAYCO_TEST_MODE} sessionId=${session.sessionId.slice(0, 12)}…`
+      );
+      console.log(`   [EPAYCO-SMART] response=${responseUrl}`);
+      console.log(`   [EPAYCO-SMART] confirmation=${confirmation}`);
+
       return res.status(200).json(
         successResponse({
           sessionId: session.sessionId,

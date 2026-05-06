@@ -228,7 +228,7 @@ export function StalkerGiftModal({ isOpen, onClose, onSuccess }: StalkerGiftModa
       }
 
       if (isEpaycoSmartMode()) {
-        const smartRes = await apiClient.post<{ sessionId: string }>(
+        const smartRes = await apiClient.post<{ sessionId: string; test?: boolean }>(
           API_ENDPOINTS.CHECKOUT.EPAYCO_SMART_SESSION,
           { flow: 'stalker_gift', ...checkoutData }
         )
@@ -239,7 +239,7 @@ export function StalkerGiftModal({ isOpen, onClose, onSuccess }: StalkerGiftModa
           )
         }
         onClose()
-        openEpaycoSmartCheckout(smartRes.data.sessionId)
+        openEpaycoSmartCheckout(smartRes.data.sessionId, 'stalker_gift', smartRes.data.test)
         onSuccess?.()
         setIsSubmitting(false)
         return

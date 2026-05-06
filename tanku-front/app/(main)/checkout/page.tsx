@@ -300,7 +300,7 @@ function CheckoutContent() {
       if (paymentMethod === 'epayco' && isEpaycoSmartMode()) {
         setShowConfirmationModal(false)
         try {
-          const smartRes = await apiClient.post<{ sessionId: string }>(
+          const smartRes = await apiClient.post<{ sessionId: string; test?: boolean }>(
             API_ENDPOINTS.CHECKOUT.EPAYCO_SMART_SESSION,
             { flow: 'cart', dataForm, dataCart }
           )
@@ -313,7 +313,7 @@ function CheckoutContent() {
           if (typeof window !== 'undefined' && selectedItemIds.size > 0) {
             localStorage.setItem('epayco-selected-items', JSON.stringify(Array.from(selectedItemIds)))
           }
-          openEpaycoSmartCheckout(smartRes.data.sessionId)
+          openEpaycoSmartCheckout(smartRes.data.sessionId, 'cart', smartRes.data.test)
         } catch (epaycoSmartErr: any) {
           console.error('[EPAYCO-SMART]', epaycoSmartErr)
           setButtonTooltip(epaycoSmartErr.message || 'Error al iniciar el pago')
