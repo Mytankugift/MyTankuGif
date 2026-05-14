@@ -1,116 +1,184 @@
 const { escapeHtml } = require('./base.template');
 
+const MAX_MESSAGE_HTML_NEWLINES = 32;
+
+/** Maestro tanku-email-card.png (px). Ajustá si cambiás el arte. */
+const BG_MASTER_W = 2901;
+const BG_MASTER_H = 4482;
+/** Ancho del correo: un poco más ancho suele verse más nítido al escalar el PNG. */
+const MAIL_CARD_W = 480;
+
+const AVATAR_BORDER = '3px solid #000000';
+const IMG_RENDER = '-ms-interpolation-mode:bicubic;image-rendering:auto;';
+
+/** Misma familia que tanku-front (globals.css / layout.tsx). Fallbacks si el cliente bloquea la webfont. */
+const FONT_STACK =
+  "'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Ubuntu,sans-serif";
+
+const POPPINS_GOOGLE_STYLESHEET =
+  'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap';
+
+function messageWithBreaks(escapedPlain) {
+  const parts = escapedPlain.split(/\r\n|\n|\r/);
+  if (parts.length > MAX_MESSAGE_HTML_NEWLINES + 1) {
+    parts.splice(MAX_MESSAGE_HTML_NEWLINES, parts.length, '…');
+  }
+  return parts.join('<br/>');
+}
+
+function resolveBackgroundCardUrl(assetBase, overrides) {
+  const u = overrides && typeof overrides === 'object' ? overrides : {};
+  const keys = ['backgroundCard', 'cardHero'];
+  for (const k of keys) {
+    const o = u[k];
+    if (typeof o === 'string' && o.trim()) return o.trim();
+  }
+  return `${assetBase}/tanku-email-card.png`;
+}
+
 /**
- * HTML transaccional: regalo Tanku tras pago confirmado.
- * Imagenes estaticas: `${assetBase}/…` (ver tanku-front/public/email/README.md).
+ * Fondo único `tanku-email-card.png` (header, marcos de cards y pie ya en la imagen).
  *
  * @param {{
  *   senderDisplayName: string,
  *   senderAvatarUrl: string,
- *   productTitle: string,
- *   productImageUrl: string,
- *   productSubtitle?: string,
+ *   recipientAvatarUrl: string,
+ *   productTitle?: string,
  *   messageBody: string,
  *   ctaUrl: string,
  *   assetBase: string,
- *   assetUrls?: Partial<{
- *     mark: string,
- *     giftBadge: string,
- *     iconLock: string,
- *     iconHeart: string,
- *     iconHome: string,
- *     iconUnique: string,
- *   }>,
+ *   assetUrls?: Partial<{ backgroundCard: string, cardHero: string }>,
  * }} p
- * @returns {{ html: string, text: string }}
  */
-function resolveEmailAsset(assetBase, defaultFile, overrides, key) {
-  const o = overrides && typeof overrides === 'object' ? overrides[key] : undefined;
-  if (typeof o === 'string' && o.trim()) return o.trim();
-  return `${assetBase}/${defaultFile}`;
-}
-
 function getGiftReceivedTemplate(p) {
   const assetBase = p.assetBase.replace(/\/$/, '');
   const u = p.assetUrls || {};
-  const mark = resolveEmailAsset(assetBase, 'tanku-email-mark.png', u, 'mark');
-  const giftBadge = resolveEmailAsset(assetBase, 'tanku-email-gift-badge.png', u, 'giftBadge');
-  const iconLock = resolveEmailAsset(assetBase, 'tanku-email-icon-lock.png', u, 'iconLock');
-  const iconHeart = resolveEmailAsset(assetBase, 'tanku-email-icon-heart-hand.png', u, 'iconHeart');
-  const iconHome = resolveEmailAsset(assetBase, 'tanku-email-icon-home.png', u, 'iconHome');
-  const iconUnique = resolveEmailAsset(assetBase, 'tanku-email-icon-unique.png', u, 'iconUnique');
+  const bgUrl = resolveBackgroundCardUrl(assetBase, u);
+  const bgEsc = escapeHtml(bgUrl);
 
-  const sender = escapeHtml(p.senderDisplayName);
-  const titleName = sender;
-  const productTitle = escapeHtml(p.productTitle);
-  const subtitle = escapeHtml(p.productSubtitle || 'Producto');
-  const message = escapeHtml(p.messageBody);
-  const signoff = sender;
+  const senderAvatarEscaped = escapeHtml(p.senderAvatarUrl);
+  const recipientAvatarEscaped = escapeHtml(p.recipientAvatarUrl);
+  const senderName = escapeHtml(p.senderDisplayName);
+  const message = messageWithBreaks(escapeHtml(p.messageBody));
   const cta = escapeHtml(p.ctaUrl);
-  const avatarUrl = escapeHtml(p.senderAvatarUrl);
+
+  const accentTeal = '#66DEDB';
+  const accentGreen = '#5cff9a';
+  const fallbackBg = '#0a0b0f';
+  /** Botón “Ver producto”: barrido horizontal (clientes sin gradiente ven `ctaBtnSolid`). */
+  const ctaBtnGradLight = '#73ffa2';
+  const ctaBtnGradDark = '#064e3b';
+  const ctaBtnSolid = '#0d9560';
+
+  const scale = MAIL_CARD_W / BG_MASTER_W;
+  const scaledTotalH = Math.round(BG_MASTER_H * scale);
+
+  /** Y maestro PNG: valores ↑ mueven ese bloque más abajo en el lienzo. */
+  const yAvatarsMaster = 515;
+  const yMainMaster = 1800;
+  const yBubbleMaster = 2715;
+
+  const spacerTopPx = Math.round(yAvatarsMaster * scale);
+  const mainStartDisp = Math.round(yMainMaster * scale);
+  const clusterDispH = Math.max(136, mainStartDisp - spacerTopPx);
+
+  const bottomReservePx = Math.max(96, Math.round(420 * scale));
+
+  const bubbleTopDisp = Math.round(yBubbleMaster * scale);
+  const bubbleMinH = Math.max(
+    92,
+    scaledTotalH - bubbleTopDisp - bottomReservePx - 12
+  );
+
+  /** Hueco del bloque «No es solo…» + botón (fuente más grande) */
+  const mainBlockApproxDisp = 150;
+  const spacerMiddlePx = Math.max(
+    0,
+    bubbleTopDisp - spacerTopPx - clusterDispH - mainBlockApproxDisp
+  );
+
+  /** Avatars: mayor solapamiento (derecha ~24% del diámetro sobre la izquierda). */
+  const avSize = 84;
+  const avRad = Math.round(avSize / 2);
+  const avOverlapPx = Math.max(14, Math.round(avSize * 0.24));
+  const avatarClusterOuterW = avSize + avSize - avOverlapPx;
 
   const html = `<!DOCTYPE html>
-<html lang="es">
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width">
-  <!-- Diseño claro por defecto: reduce inversiones fuertes en modo oscuro de algunos clientes de correo. -->
-  <meta name="color-scheme" content="light">
-  <title>Tienes un regalo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="${POPPINS_GOOGLE_STYLESHEET}" rel="stylesheet">
+  <meta name="color-scheme" content="dark light">
+  <meta name="supported-color-schemes" content="dark light">
+  <title>Un regalo en Tanku</title>
 </head>
-<body bgcolor="#edf2f7" style="margin:0;padding:0;background-color:#edf2f7;color:#334155;">
-  <table width="100%" bgcolor="#edf2f7" cellpadding="0" cellspacing="0" role="presentation"
-    style="background-color:#edf2f7;mso-cellspacing:0;">
+<body bgcolor="${fallbackBg}" style="margin:0;padding:16px 0;background-color:${fallbackBg};color:#ffffff;font-family:${FONT_STACK};">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="${fallbackBg}" style="background-color:${fallbackBg};margin:0;">
     <tr>
-      <td align="center" style="padding:16px 12px;">
-        <!-- Tarjeta más compacta (≈ postcard) -->
-        <table width="480" bgcolor="#ffffff" cellpadding="0" cellspacing="0" role="presentation"
-          style="max-width:480px;width:100%;font-family:Arial,Helvetica,sans-serif;color:#334155;border-radius:16px;overflow:hidden;background-color:#ffffff;border:1px solid #e2e8f0;mso-cellspacing:0;">
-
+      <td align="center" style="padding:0 12px;">
+        <table align="center" width="${MAIL_CARD_W}" cellpadding="0" cellspacing="0" role="presentation"
+          style="border-collapse:separate;mso-cellspacing:0;width:100%;max-width:${MAIL_CARD_W}px;background-color:${fallbackBg};">
           <tr>
-            <td bgcolor="#ffffff" style="padding:12px 16px 12px;border-bottom:1px solid #e8ecf1;background-color:#ffffff;">
-              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+            <td width="${MAIL_CARD_W}" valign="top" align="center" height="${scaledTotalH}"
+              background="${bgEsc}"
+              bgcolor="${fallbackBg}"
+              style="
+                padding:0 20px;
+                vertical-align:top;
+                height:${scaledTotalH}px;
+                min-height:${scaledTotalH}px;
+                background:url('${bgEsc}') center top no-repeat;
+                background-size:${MAIL_CARD_W}px auto;
+                background-color:${fallbackBg};
+                -webkit-print-color-adjust:exact;
+              ">
+              <!-- Avatars + titular -->
+              <table cellpadding="0" cellspacing="0" align="center" role="presentation" width="100%" style="max-width:${MAIL_CARD_W - 40}px;margin:0 auto;">
+                ${spacerTopPx ? `<tr><td height="${spacerTopPx}" style="font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</td></tr>` : ''}
                 <tr>
-                  <td width="86" valign="middle" style="vertical-align:middle;padding-right:6px;">
-                    <!-- Mark: mismo tamaño círculo e imagen declarados para evitar glitches entre clients -->
-                    <div style="display:inline-block;width:72px;line-height:0;margin-top:0;text-align:center;">
-                      <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;border-collapse:collapse;">
-                        <tr>
-                          <td align="center" valign="middle" bgcolor="#6ef2a6" height="72" width="72"
-                            style="background-color:#6ef2a6;border-radius:36px;line-height:72px;mso-padding-alt:0;text-align:center;">
-                            <img src="${escapeHtml(mark)}" width="62" height="62" alt="Tanku"
-                              style="display:inline-block;width:62px;height:62px;object-fit:contain;vertical-align:middle;-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;">
-                          </td>
-                        </tr>
-                      </table>
-                    </div>
-                  </td>
-                  <td style="padding-left:6px;padding-top:4px;" valign="middle">
-                    <div style="color:#0f766e;font-size:17px;font-weight:bold;line-height:1.15;letter-spacing:0.03em;">TANKU</div>
-                    <div style="font-size:11px;color:#64748b;line-height:1.25;margin-top:3px;font-weight:normal;">Give-Commerce</div>
+                  <td align="center" valign="middle" height="${clusterDispH}" style="height:${clusterDispH}px;line-height:normal;font-family:${FONT_STACK};">
+                    <table align="center" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;border-collapse:collapse;width:${avatarClusterOuterW}px;">
+                      <tr>
+                        <td valign="middle" align="right" width="${avSize}" style="padding:0;line-height:0;">
+                          <img src="${senderAvatarEscaped}" width="${avSize}" height="${avSize}" alt=""
+                            style="display:block;width:${avSize}px;height:${avSize}px;border-radius:${avRad}px;object-fit:cover;border:${AVATAR_BORDER};box-sizing:border-box;${IMG_RENDER}">
+                        </td>
+                        <td valign="middle" align="left" width="${avSize - avOverlapPx}" style="padding:0;line-height:0;">
+                          <img src="${recipientAvatarEscaped}" width="${avSize}" height="${avSize}" alt=""
+                            style="display:block;margin-left:-${avOverlapPx}px;width:${avSize}px;height:${avSize}px;border-radius:${avRad}px;object-fit:cover;border:${AVATAR_BORDER};box-sizing:border-box;${IMG_RENDER}">
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin:14px 8px 0;color:#ffffff;font-size:24px;line-height:1.28;font-weight:700;text-align:center;letter-spacing:0.02em;">
+                      <span style="color:${accentTeal};">¡${senderName}</span>
+                      <span style="color:${accentGreen};"> te<br>regaló algo especial!</span>
+                    </p>
                   </td>
                 </tr>
               </table>
-            </td>
-          </tr>
 
-          <tr>
-            <td align="center" bgcolor="#ffffff" style="padding:20px 16px 8px;background-color:#ffffff;">
-              <table cellpadding="0" cellspacing="0" role="presentation" align="center" style="margin:0 auto;border-collapse:collapse;">
+              <!-- Primera card: solo texto fijo + CTA dentro del hueco del PNG -->
+              <table cellpadding="0" cellspacing="0" align="center" role="presentation" width="100%" style="max-width:${MAIL_CARD_W - 52}px;margin:0 auto;">
                 <tr>
-                  <td align="center" style="padding:0 0 4px;line-height:0;mso-padding-alt:0;">
-                    <img src="${avatarUrl}" width="100" height="100" alt=""
-                      style="display:block;width:100px;height:100px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;box-sizing:content-box;">
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style="padding:8px 0 0;line-height:0;mso-padding-alt:0;">
-                    <table cellpadding="0" cellspacing="0" bgcolor="#e8edf3" role="presentation" align="center"
-                      style="margin:0 auto;background-color:#e8edf3;border-radius:999px;border-collapse:separate;mso-cellspacing:0;line-height:0;">
+                  <td align="center" style="padding:54px 24px 10px;font-family:${FONT_STACK};">
+                    <p style="margin:0 0 16px;color:#ffffff;font-size:19px;line-height:1.5;font-weight:600;text-align:center;letter-spacing:0.025em;font-style:normal;">
+                      No es solo un regalo, es una forma de decirte cuánto importas.
+                    </p>
+                    <table cellpadding="0" cellspacing="0" align="center" role="presentation" style="margin:0 auto;">
                       <tr>
-                        <td align="center" valign="middle" style="padding:6px;line-height:0;mso-padding-alt:6px;">
-                          <img src="${escapeHtml(giftBadge)}" width="36" height="36" alt="Regalo"
-                            style="display:block;width:36px;height:36px;border:0;outline:none;border-radius:50%;box-sizing:border-box;">
+                        <td align="center" bgcolor="${ctaBtnSolid}" style="
+                            border-radius:999px;
+                            background-color:${ctaBtnSolid};
+                            background-image:linear-gradient(90deg,${ctaBtnGradLight} 0%,${ctaBtnGradDark} 100%);
+                            box-shadow:inset 0 2px 5px rgba(0,0,0,0.45),inset 0 -2px 4px rgba(0,0,0,0.28);
+                          ">
+                          <a href="${cta}"
+                            style="display:inline-block;padding:10px 40px;font-family:${FONT_STACK};font-size:16px;font-weight:700;line-height:1.15;color:#ffffff;text-decoration:none;border-radius:999px;letter-spacing:0.03em;box-shadow:inset 0 2px 4px rgba(0,0,0,0.45),inset 0 -2px 3px rgba(0,0,0,0.25);">
+                            Ver producto
+                          </a>
                         </td>
                       </tr>
                     </table>
@@ -118,113 +186,36 @@ function getGiftReceivedTemplate(p) {
                 </tr>
               </table>
 
-              <h1 style="margin:12px 0 8px;font-size:23px;line-height:1.2;font-weight:bold;color:#0f172a;">
-                ¡<span style="color:#0f172a;">${titleName}</span> te<br>
-                <span style="color:#0d9f5c;">regaló algo especial!</span>
-              </h1>
+              ${spacerMiddlePx ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td height="${spacerMiddlePx}" style="font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</td></tr></table>` : ''}
 
-              <p style="color:#64748b;font-size:13px;max-width:360px;margin:0 auto;line-height:1.45;">
-                Alguien pensó en ti y quiere que disfrutes este producto increíble.
-              </p>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="padding:0 16px 14px;">
-              <table width="100%" bgcolor="#fafbfc" cellpadding="0" cellspacing="0" role="presentation"
-                style="background-color:#fafbfc;border-radius:14px;border:1px solid #e2e8f0;border-collapse:separate;mso-cellspacing:0;">
+              <!-- Mensaje contenido dentro de la burbuja (ancho limitado para no desbordar el arte) -->
+              <table cellpadding="0" cellspacing="0" align="center" role="presentation" width="100%"
+                style="max-width:${MAIL_CARD_W - 52}px;margin:0 auto;">
                 <tr>
-                  <td width="42%" valign="top" style="padding:14px 10px 14px 14px;">
-                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" align="center"
-                      style="max-width:152px;width:100%;margin:0 auto;border-collapse:collapse;">
-                      <tr>
-                        <td align="center" style="padding:0;line-height:0;mso-padding-alt:0;">
-                          <div style="display:inline-block;max-width:152px;width:100%;line-height:0;">
-                            <img src="${escapeHtml(p.productImageUrl)}" width="152" alt=""
-                              style="display:block;width:100%;max-width:152px;height:auto;border-radius:12px;margin:0;border:1px solid #e2e8f0;box-sizing:border-box;vertical-align:top;background-color:#ffffff;">
-                          </div>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                  <td width="58%" valign="middle" bgcolor="#fafbfc" style="padding:14px 14px 14px 6px;background-color:#fafbfc;">
-                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;">
-                      <tr>
-                        <td valign="middle" bgcolor="#fafbfc"
-                          style="padding:0;border-left:3px solid #34d399;padding-left:12px;mso-padding-left:12px;background-color:#fafbfc;">
-                          <div style="margin-bottom:10px;">
-                            <span style="display:inline-block;background-color:#ecfdf5;border:1px solid #a7f3d0;border-radius:20px;padding:5px 10px;line-height:1.2;">
-                              <span style="color:#047857;font-size:10px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;">${subtitle}</span>
-                            </span>
-                          </div>
-                          <div style="color:#0f172a;font-size:18px;font-weight:700;line-height:1.3;margin:0;letter-spacing:-0.02em;">
-                            ${productTitle}
-                          </div>
-                        </td>
-                      </tr>
-                    </table>
+                  <td align="center" valign="top" height="${bubbleMinH}"
+                    style="
+                      min-height:${bubbleMinH}px;
+                      vertical-align:top;
+                      padding:38px 34px 16px;
+                      font-family:${FONT_STACK};
+                      font-size:17px;
+                      line-height:1.58;
+                      color:#fdfcff;
+                      text-align:center;
+                      letter-spacing:0.02em;
+                      font-weight:500;
+                    ">
+                    <table align="center" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;max-width:288px;width:90%;"><tr><td style="padding:6px 4px;color:#f4f4f8;">
+                      ${message}
+                    </td></tr></table>
                   </td>
                 </tr>
               </table>
+
+              <!-- Pie dibujado en el PNG -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td height="${bottomReservePx}" style="font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</td></tr></table>
             </td>
           </tr>
-
-          <tr>
-            <td style="padding:0 16px 14px;">
-              <table width="100%" bgcolor="#fafbfc" cellpadding="0" cellspacing="0" role="presentation"
-                style="background-color:#fafbfc;border-radius:14px;border:1px solid #e2e8f0;">
-                <tr>
-                  <td valign="top" width="34" style="padding:14px 0 14px 14px;color:#0d9f5c;font-family:Georgia,'Times New Roman',serif;font-size:40px;line-height:0.85;">&#8220;</td>
-                  <td valign="middle" style="padding:14px 8px 10px;font-size:14px;line-height:1.55;color:#475569;font-style:italic;">
-                    ${message}
-                  </td>
-                  <td valign="bottom" width="34" align="right" style="padding:0 14px 18px 0;color:#0d9f5c;font-family:Georgia,'Times New Roman',serif;font-size:40px;line-height:0.85;">&#8221;</td>
-                </tr>
-                <tr>
-                  <td colspan="3" style="padding:0 16px 14px;font-size:13px;color:#0f766e;text-align:right;font-style:normal;">
-                    &#8212; ${signoff}
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <tr>
-            <td align="center" style="padding:4px 16px 18px;">
-              <a href="${cta}"
-                style="display:inline-block;padding:12px 28px;background:#34d399;color:#065f46;border-radius:999px;font-weight:bold;text-decoration:none;font-size:15px;border:1px solid #10b981;">
-                Ver mi regalo &#8594;
-              </a>
-            </td>
-          </tr>
-
-          <tr>
-            <td bgcolor="#fafafa" style="border-top:1px solid #e8ecf1;padding:14px 8px;background-color:#fafafa;">
-              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="font-size:11px;color:#64748b;">
-                <tr>
-                  <td width="25%" align="center" valign="top" style="padding:10px 8px;line-height:1.35;font-weight:normal;">
-                    <img src="${escapeHtml(iconLock)}" width="28" height="36" alt="" style="display:block;margin:0 auto 8px;width:28px;height:36px;max-width:28px;object-fit:contain;"><span style="display:block;padding:0 2px;">Seguro</span>
-                  </td>
-                  <td width="25%" align="center" valign="top" style="padding:10px 8px;line-height:1.35;">
-                    <img src="${escapeHtml(iconHeart)}" width="28" height="28" alt="" style="display:block;margin:0 auto 8px;width:28px;height:28px;max-width:28px;object-fit:contain;"><span style="display:block;padding:0 2px;">Confiable</span>
-                  </td>
-                  <td width="25%" align="center" valign="top" style="padding:10px 8px;line-height:1.35;">
-                    <img src="${escapeHtml(iconHome)}" width="28" height="28" alt="" style="display:block;margin:0 auto 8px;width:28px;height:28px;max-width:28px;object-fit:contain;"><span style="display:block;padding:0 2px;">Especial</span>
-                  </td>
-                  <td width="25%" align="center" valign="top" style="padding:10px 8px;line-height:1.35;">
-                    <img src="${escapeHtml(iconUnique)}" width="28" height="28" alt="" style="display:block;margin:0 auto 8px;width:28px;height:28px;max-width:28px;object-fit:contain;"><span style="display:block;padding:0 2px;">Único</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <tr>
-            <td align="center" bgcolor="#ffffff" style="padding:12px 16px 14px;font-size:11px;color:#94a3b8;background-color:#ffffff;">
-              Gracias por ser parte de <span style="color:#0f766e;">TANKU</span>
-            </td>
-          </tr>
-
         </table>
       </td>
     </tr>
@@ -236,11 +227,8 @@ function getGiftReceivedTemplate(p) {
     `¡${p.senderDisplayName} te regaló algo especial en Tanku!`,
     '',
     `\u201C${p.messageBody}\u201D`,
-    `– ${p.senderDisplayName}`,
     '',
-    `Producto: ${p.productTitle}`,
-    '',
-    `Ver tu regalo: ${p.ctaUrl}`,
+    `Ver producto: ${p.ctaUrl}`,
   ].join('\n');
 
   return { html, text };

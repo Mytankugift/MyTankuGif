@@ -37,6 +37,8 @@ export interface CheckoutOrderRequest {
   email: string;
   payment_method: string;
   cart_id?: string;
+  /** Mensaje opcional del remitente; solo regalos. Máx. 500 caracteres al persistir. */
+  gift_message?: string;
 }
 
 export interface DataCart {
@@ -346,6 +348,10 @@ export class CheckoutService {
       ? 'not_paid' 
       : 'awaiting';
 
+    const giftMessageRaw =
+      typeof dataForm.gift_message === 'string' ? dataForm.gift_message.trim().slice(0, 500) : '';
+    const giftMessagePersist = isGiftCart && giftMessageRaw ? giftMessageRaw : undefined;
+
     const orderInput: CreateOrderInput = {
       userId: finalUserId,
       email: dataForm.email,
@@ -372,6 +378,7 @@ export class CheckoutService {
         cart_id: dataCart.cart_id,
         billing_address: billingAddress,
         isGiftCart: isGiftCart,
+        ...(giftMessagePersist ? { giftMessage: giftMessagePersist } : {}),
       },
     };
 

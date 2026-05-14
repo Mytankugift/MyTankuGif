@@ -5,17 +5,8 @@ import { env } from '../../config/env';
 const { getGiftReceivedTemplate } = require('../../email/templates/gift-received.template.js');
 const { sendEmail } = require('../../email/email.service.js');
 
-
-
-function normalizeProductImageUrl(imagePath: string | null | undefined): string | null {
-  if (!imagePath) return null;
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
-  }
-  const cdnBase = env.DROPI_CDN_BASE || 'https://d39ru7awumhhs2.cloudfront.net';
-  const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
-  return `${cdnBase}/${cleanPath}`;
-}
+const FALLBACK_GIFT_NOTE =
+  '¡Esperamos que te guste! Fue elegido pensando en ti. Entrá a Mis Tankus para ver todos los detalles.';
 
 function normalizeUserImageUrl(imagePath: string | null | undefined): string | null {
   if (!imagePath) return null;
@@ -33,8 +24,7 @@ function emailAssetsBase(): string {
   return `${env.FRONTEND_URL.replace(/\/$/, '')}/email`;
 }
 
-/** Avatar genérico del remitente en correo (PNG en tanku-front/public/email). */
-function defaultGiftSenderAvatarIconUrl(): string {
+function defaultGiftAvatarIconUrl(): string {
   return `${emailAssetsBase()}/tanku-email-icon-user.png`;
 }
 
@@ -47,6 +37,14 @@ function senderDisplayName(u: {
   if (fn) return fn;
   if (u.username) return `@${u.username}`;
   return 'Alguien en Tanku';
+}
+
+function giftMessageFromOrderMetadata(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== 'object') return null;
+  const raw = (metadata as Record<string, unknown>).giftMessage;
+  if (typeof raw !== 'string') return null;
+  const t = raw.trim();
+  return t.length > 0 ? t : null;
 }
 
 /**
@@ -66,17 +64,16 @@ export async function sendGiftReceivedEmailAfterPayment(orderId: string): Promis
       isGiftOrder: true,
       giftRecipientId: true,
       giftSenderId: true,
+      metadata: true,
       items: {
         take: 1,
         orderBy: { createdAt: 'asc' },
         select: {
           quantity: true,
-          finalPrice: true,
-          price: true,
           product: {
             select: {
               title: true,
-              images: true,
+              handle: true,
             },
           },
           variant: {
@@ -91,7 +88,10 @@ export async function sendGiftReceivedEmailAfterPayment(orderId: string): Promis
 
   const recipient = await prisma.user.findUnique({
     where: { id: order.giftRecipientId },
-    select: { email: true },
+    select: {
+      email: true,
+      profile: { select: { avatar: true } },
+    },
   });
   if (!recipient?.email) {
     console.warn(`[gift-email] Destinatario sin email: ${order.giftRecipientId}`);
@@ -115,26 +115,28 @@ export async function sendGiftReceivedEmailAfterPayment(orderId: string): Promis
     return;
   }
 
-  const rawImg = primary.product.images?.[0];
-  const productImageUrl =
-    normalizeProductImageUrl(rawImg) || `${emailAssetsBase()}/tanku-email-product-fallback.png`;
-  const avatarRaw = sender.profile?.avatar;
-  let senderAvatarUrl = normalizeUserImageUrl(avatarRaw);
-  if (!senderAvatarUrl) senderAvatarUrl = defaultGiftSenderAvatarIconUrl();
+  const avatarRawRecipient = recipient.profile?.avatar;
+  let recipientAvatarUrl = normalizeUserImageUrl(avatarRawRecipient);
+  if (!recipientAvatarUrl) recipientAvatarUrl = defaultGiftAvatarIconUrl();
+
+  const avatarRawSender = sender.profile?.avatar;
+  let senderAvatarUrl = normalizeUserImageUrl(avatarRawSender);
+  if (!senderAvatarUrl) senderAvatarUrl = defaultGiftAvatarIconUrl();
 
   const qty = primary.quantity || 1;
-  let title = primary.product.title;
+  let productTitle = primary.product.title;
   if (primary.variant?.title) {
-    title = `${primary.product.title} — ${primary.variant.title}`;
+    productTitle = `${primary.product.title} — ${primary.variant.title}`;
   }
-  if (qty > 1) title = `${title} (×${qty})`;
+  if (qty > 1) productTitle = `${productTitle} (×${qty})`;
 
   const name = senderDisplayName(sender);
-  const messageBody =
-    '¡Esperamos que te guste! Fue elegido pensando en ti. Entra a Mis Tankus para ver todos los detalles.';
+  const persistedNote = giftMessageFromOrderMetadata(order.metadata);
+  const messageBody = persistedNote ?? FALLBACK_GIFT_NOTE;
 
   const frontendBase = env.FRONTEND_URL.replace(/\/$/, '');
-  const ctaUrl = `${frontendBase}/profile?tab=MIS_TANKUS`;
+  const handle = primary.product.handle?.trim();
+  const ctaUrl = handle ? `${frontendBase}/products/${handle}` : `${frontendBase}/profile?tab=MIS_TANKUS`;
 
   const assetBaseToUse = emailAssetsBase();
 
@@ -153,9 +155,8 @@ export async function sendGiftReceivedEmailAfterPayment(orderId: string): Promis
   const { html, text } = getGiftReceivedTemplate({
     senderDisplayName: name,
     senderAvatarUrl,
-    productTitle: title,
-    productImageUrl,
-    productSubtitle: 'PRODUCTO',
+    recipientAvatarUrl,
+    productTitle,
     messageBody,
     ctaUrl,
     assetBase: assetBaseToUse,

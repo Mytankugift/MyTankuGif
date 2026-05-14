@@ -295,6 +295,8 @@ export interface CheckoutOrderRequest {
   email: string
   payment_method: string
   cart_id?: string
+  /** Opcional: mensaje personal para el correo al destinatario (regalos). Máx. 500 caracteres en backend. */
+  gift_message?: string
 }
 
 export interface CheckoutDataCart {

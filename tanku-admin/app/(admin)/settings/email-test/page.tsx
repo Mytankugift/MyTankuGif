@@ -45,12 +45,14 @@ export default function EmailTestSettingsPage() {
   const [giftTo, setGiftTo] = useState('')
   const [giftSenderName, setGiftSenderName] = useState('Danna')
   const [giftAvatarUrl, setGiftAvatarUrl] = useState(demoAssetUrl('tanku-email-icon-user.png'))
+  const [giftRecipientAvatarUrl, setGiftRecipientAvatarUrl] = useState(
+    demoAssetUrl('tanku-email-icon-user.png')
+  )
   const [giftProductTitle, setGiftProductTitle] = useState('Tenis Nike Retro')
-  const [giftProductImg, setGiftProductImg] = useState(demoAssetUrl('tennis.png'))
   const [giftMessage, setGiftMessage] = useState(
     'Espero que te gusten, los elegí pensando en ti. ¡Disfrútalos!'
   )
-  const [giftCta, setGiftCta] = useState(`${publicSiteUrl}/profile?tab=MIS_TANKUS`)
+  const [giftCta, setGiftCta] = useState(`${publicSiteUrl}/products/demo-producto`)
   const [giftAssetBase, setGiftAssetBase] = useState(emailPublicAssetsBase)
   const [sendingGift, setSendingGift] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -64,10 +66,10 @@ export default function EmailTestSettingsPage() {
   const resetGiftDemoDefaults = () => {
     setGiftSenderName('Danna')
     setGiftAvatarUrl(demoAssetUrl('tanku-email-icon-user.png'))
+    setGiftRecipientAvatarUrl(demoAssetUrl('tanku-email-icon-user.png'))
     setGiftProductTitle('Tenis Nike Retro')
-    setGiftProductImg(demoAssetUrl('tennis.png'))
     setGiftMessage('Espero que te gusten, los elegí pensando en ti. ¡Disfrútalos!')
-    setGiftCta(`${publicSiteUrl}/profile?tab=MIS_TANKUS`)
+    setGiftCta(`${publicSiteUrl}/products/demo-producto`)
     setGiftAssetBase(emailPublicAssetsBase)
     showNotification('Valores demo restaurados (URL pública configurada)', 'success')
   }
@@ -75,8 +77,8 @@ export default function EmailTestSettingsPage() {
   const getGiftPreviewRequestBody = () => ({
     senderDisplayName: giftSenderName.trim() || 'Danna',
     senderAvatarUrl: giftAvatarUrl.trim(),
+    recipientAvatarUrl: giftRecipientAvatarUrl.trim(),
     productTitle: giftProductTitle.trim(),
-    productImageUrl: giftProductImg.trim(),
     messageBody: giftMessage.trim(),
     ctaUrl: giftCta.trim(),
     assetBase: giftAssetBase.trim(),
@@ -233,11 +235,9 @@ export default function EmailTestSettingsPage() {
             Plantilla regalo recibido (HTML)
           </h2>
           <p className="text-sm text-gray-600 mb-5">
-            Previsualización con datos falsos configurable. Por defecto usa imágenes publicadas en{' '}
-            <code className="text-xs bg-gray-100 px-1 rounded">{emailPublicAssetsBase}</code> — tenis{' '}
-            <code className="text-xs bg-gray-100 px-1">tennis.png</code>, avatar{' '}
-            <code className="text-xs bg-gray-100 px-1">tanku-email-icon-user.png</code> e iconos{' '}
-            <code className="text-xs bg-gray-100 px-1">tanku-email-icon-*.png</code>.
+            Previsualización con datos falsos. Requiere el PNG público{' '}
+            <code className="text-xs bg-gray-100 px-1">tanku-email-card.png</code> (
+            header, marcos y pie van en ese fondo); avatars de prueba vía URLs HTTPS.
             Requiere sesión ERP (JWT admin). El correo sólo usa el backend; las imágenes las pide Gmail desde internet usando la URL absoluta HTTPS que indiques (archivos del{' '}
             <code className="text-xs bg-gray-100 px-1">tanku-front/public/email</code> cuando ese front está online). Si ves error de
             red/CORS en consola: en <code className="text-xs">tanku-backend/.env</code> agrega{' '}
@@ -246,7 +246,7 @@ export default function EmailTestSettingsPage() {
 
           {(mentionsLocalHost(giftAssetBase) ||
             mentionsLocalHost(giftAvatarUrl) ||
-            mentionsLocalHost(giftProductImg)) && (
+            mentionsLocalHost(giftRecipientAvatarUrl)) && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-950 text-sm p-3 mb-4 leading-relaxed">
               <strong>Gmail no puede abrir localhost.</strong> Pegaste o usás URLs con{' '}
               <code className="text-xs">localhost</code>: los servidores de Google intentan descargarlas desde ellos mismos,
@@ -291,7 +291,7 @@ export default function EmailTestSettingsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">URL imagen avatar (remitente)</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">URL avatar remitente</label>
               <input
                 type="url"
                 value={giftAvatarUrl}
@@ -301,11 +301,11 @@ export default function EmailTestSettingsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">URL imagen producto</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">URL avatar destinatario</label>
               <input
                 type="url"
-                value={giftProductImg}
-                onChange={(e) => setGiftProductImg(e.target.value)}
+                value={giftRecipientAvatarUrl}
+                onChange={(e) => setGiftRecipientAvatarUrl(e.target.value)}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono"
               />
             </div>
@@ -321,7 +321,7 @@ export default function EmailTestSettingsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Botón «Ver mi regalo» → URL</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Botón «Ver producto» → URL</label>
               <input
                 type="url"
                 value={giftCta}

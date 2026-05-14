@@ -45,15 +45,11 @@ function emailAssetUrl(baseRaw: string, fileName: string): string {
 }
 
 /** Assets = nombres en tanku-front/public/email */
+/** Solo el PNG maestro del correo regalo (`tanku-email-card.png`): header, cards y pie van en esa imagen. */
 function defaultMytankuAssetUrls(assetBase = DEFAULT_PUBLIC_EMAIL_BASE) {
   const b = assetBase.replace(/\/$/, '');
   return {
-    mark: emailAssetUrl(b, 'tanku-email-mark.png'),
-    giftBadge: emailAssetUrl(b, 'tanku-email-gift-badge.png'),
-    iconLock: emailAssetUrl(b, 'tanku-email-icon-lock.png'),
-    iconHeart: emailAssetUrl(b, 'tanku-email-icon-heart-hand.png'),
-    iconHome: emailAssetUrl(b, 'tanku-email-icon-home.png'),
-    iconUnique: emailAssetUrl(b, 'tanku-email-icon-unique.png'),
+    cardHero: emailAssetUrl(b, 'tanku-email-card.png'),
   };
 }
 
@@ -61,9 +57,8 @@ function defaultMytankuAssetUrls(assetBase = DEFAULT_PUBLIC_EMAIL_BASE) {
 interface GiftTemplatePayload {
   senderDisplayName: string;
   senderAvatarUrl: string;
+  recipientAvatarUrl: string;
   productTitle: string;
-  productImageUrl: string;
-  productSubtitle?: string;
   messageBody: string;
   ctaUrl: string;
   assetBase: string;
@@ -91,15 +86,15 @@ function resolveGiftPreviewTemplatePayload(bodyRaw: unknown): GiftTemplatePayloa
       ? body.senderAvatarUrl.trim()
       : emailAssetUrl(assetBase, 'tanku-email-icon-user.png');
 
+  const recipientAvatarUrl =
+    typeof body.recipientAvatarUrl === 'string' && body.recipientAvatarUrl.trim()
+      ? body.recipientAvatarUrl.trim()
+      : emailAssetUrl(assetBase, 'tanku-email-icon-user.png');
+
   const productTitle =
     typeof body.productTitle === 'string' && body.productTitle.trim()
       ? body.productTitle.trim()
       : 'Tenis Nike Retro';
-
-  const productImageUrl =
-    typeof body.productImageUrl === 'string' && body.productImageUrl.trim()
-      ? body.productImageUrl.trim()
-      : emailAssetUrl(assetBase, 'tennis.png');
 
   const messageBody =
     typeof body.messageBody === 'string' && body.messageBody.trim()
@@ -124,9 +119,8 @@ function resolveGiftPreviewTemplatePayload(bodyRaw: unknown): GiftTemplatePayloa
   return {
     senderDisplayName,
     senderAvatarUrl,
+    recipientAvatarUrl,
     productTitle,
-    productImageUrl,
-    productSubtitle: 'PRODUCTO',
     messageBody,
     ctaUrl,
     assetBase,
@@ -173,7 +167,7 @@ export class AdminEmailController {
       assertPublicImageUrls([
         payload.assetBase,
         payload.senderAvatarUrl,
-        payload.productImageUrl,
+        payload.recipientAvatarUrl,
         ...Object.values(payload.assetUrls || {}),
       ]);
 

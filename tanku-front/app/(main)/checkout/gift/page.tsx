@@ -67,6 +67,7 @@ function GiftCheckoutContent() {
   // Método de pago (solo Epayco para regalos)
   const [paymentMethod, setPaymentMethod] = useState<string>('epayco')
   const [email, setEmail] = useState(user?.email || '')
+  const [giftMessage, setGiftMessage] = useState('')
   const [recipientName, setRecipientName] = useState<string | null>(null)
   const [recipientAvatar, setRecipientAvatar] = useState<string | null>(null)
 
@@ -203,6 +204,9 @@ function GiftCheckoutContent() {
         email,
         payment_method: 'epayco',
         cart_id: giftCart.id,
+        ...(giftMessage.trim()
+          ? { gift_message: giftMessage.trim().slice(0, 500) }
+          : {}),
       }
 
       // Preparar dataCart
@@ -442,6 +446,22 @@ function GiftCheckoutContent() {
                   )}
 
                   <CheckoutProductList items={giftCart.items} />
+
+                  <div className={CHECKOUT_TANKU_SURFACE}>
+                    <p className={CHECKOUT_TANKU_SECTION_LABEL}>Mensaje para tu amigo (opcional)</p>
+                    <p className="mb-2 text-xs text-zinc-500">
+                      Aparecerá en el correo que recibe al confirmarse el pago. Máximo 500 caracteres.
+                    </p>
+                    <textarea
+                      value={giftMessage}
+                      onChange={(e) => setGiftMessage(e.target.value.slice(0, 500))}
+                      rows={4}
+                      maxLength={500}
+                      className={`${CHECKOUT_TANKU_INPUT} resize-y min-h-[100px]`}
+                      placeholder="Ej.: Espero que te guste, lo elegí pensando en ti…"
+                    />
+                    <p className="mt-1 text-right text-xs text-zinc-500">{giftMessage.length}/500</p>
+                  </div>
 
                   <div className={CHECKOUT_TANKU_SURFACE}>
                     <p className={CHECKOUT_TANKU_SECTION_LABEL}>Contacto</p>
