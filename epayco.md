@@ -811,3 +811,196 @@ Permiso por Protección Temporal
 Numérico
 
 mínimo 7 dígitos y máximo 15 dígitos
+
+
+-----------------
+API Services ePayco Producción
+En este documento podrá encontrar toda la información necesaria para consumir los servicios de Apiservices ePayco. Recuerde que debe ser un usuario registrado de ePayco para acceder a este servicio, en caso de no serlo lo invitamos a registrarse
+
+Certificados Digitales (Opcional)
+Si decide usar mutual TLS para las peticiones es necesario enviar un certificado digital el cual debe tener las siguientes características:
+
+características
+*Certificado Digital 2048 bits RSA
+
+*Se recibe certificado autofirmado: Si.
+
+Variables curl envio de certificado.
+CURLOPT_SSLCERT => 'ruta_absoluta.crt'
+
+CURLOPT_SSLKEY => 'ruta_absoluta.key'
+
+CURLOPT_SSLKEYPASSWD => 'clave para abrir el certificado'.
+
+Notas
+Si la petición no envía el certificado digital se rechazará inmediatamente solicitando el certificado.
+
+ApiFy ePayco Producción
+La Apify de ePayco le brinda la posibilidad de ejecutar una serie de acciones de la plataforma relacionadas con los clientes y sus respectivos saldos, catálagos, transacciones, movimientos, subscripciones. Básicamente, con el uso de estos servicios puede manejar todas las opciones que le brinda la plataforma.
+
+Consideraciones Generales del uso de la Api
+Debe tomar en cuenta primeramente que debe estar registrado en la plataforma ya que para la autenticación debe emplear unas llaves públicas y privadas que sólo puede obtener en el dashboard de la plataforma en el apartado integraciones.
+
+Así mismo, hay unos servicios que están disponibles solo para usuarios que tienen un plan adquirido en la plataforma, en cada sección de estos servicios se especifica esta opción.
+
+Errores generales
+Nota: Tome en cuenta que todas las solicitudes que realice a los endpoint deben realizarse del lado del servidor, ya que si lo realiza desde el lado del cliente obtendrá el error de solicitud de orígenes cruzados (CORS).
+
+La Api de la plataforma de ePayco tiene una serie de respuestas generales en caso que la solicitud no se esté realizando correctamente, estas respuestas se detallan a continuación:
+
+Si realiza una solicitud a un endpoint que no existe recibirá una respuesta con código HTTP/1.1 404 NOT FOUND.
+
+Si en la solicitud no se envía en la cabecera el token_apify (se genera al realizar el login de forma satisfactoria) obtendrá una respuesta con código HTTP/1.1 401 Unauthorized.
+
+También, existen unos códigos generales de respuestas de los servicios en caso de validación de campos o errores en parámetros enviados que se describen en la siguiente tabla:
+
+View More
+Código	Mensaje Respuesta: Descripción
+A001	field required: Validación de campos requeridos
+A002	field invalid: Validación de campos válidos
+A003	field max length: Validación del máximo de caracteres de un campo
+A004	code not found: Código no encontrado (Códigos maestros)
+A005	email already exist: Correo ya existe en ePayco (creación de cuenta)
+A006	restrictive list: Validación de listas restrictivas
+A007	error validation: Ocurrió un error en la validación
+AL001	URL not send: Validación de campo URL requerido
+AL002	URL is required: Validación de campo URL requerido
+AL003	The URL structure is wrong: Formato inválido de URL
+AED100	La información ingresada no cumple con los parámetros definidos en términos y condiciones. Diligencie el campo de nuevo.
+Sólo usuarios registrados pueden establecer una comunicación con la aplicación, en caso de no serlo lo invitamos a registrarse.
+
+Con la API de ePayco puede controlar varias acciones que tenemos disponibles para usted, la cual puede hacer uso con la siguiente url base que deberá reemplazar por la variable url_apify:
+
+Ambiente	API Url
+Producción	https://apify.epayco.co
+Colección en Postman
+Como plataforma poseemos una colección de nuestra API en postman que le permitirá realizar sus intregaciones de la manera mas fácil y simple, la cual puede obtener por medio del botón a continuación:
+
+
+
+
+
+POST
+Crear session v2
+https://apify.epayco.co/payment/session/create
+AUTHORIZATION
+Bearer Token
+Token
+HEADERS
+Content-Type
+application/json
+
+Authorization
+Bearer
+
+Body
+raw (json)
+View More
+json
+{
+  // ==================== REQUERIDOS ====================
+  "checkout_version": "2",
+  "name": "Shops Online S.A. S",
+  "currency": "COP",
+  "amount": 20000.00, // Total a pagar
+  // ==================== OPCIONALES ====================
+  "description": "Buzo con capucha color negro unisex",
+  "lang": "ES", // ES | EN
+  "invoice": "2341233", // numero de factura
+  "country": "CO", // Código alpha-2
+  "taxBase": 16806.72,
+  "tax": 3193.28,
+  "taxIco": 0,
+  "response": "https://mysite.com",
+  "confirmation": "https://webhook.site/8b4bb363-099e-42e8-afe7-0bf11c59eeb1",
+  // ==================== CONFIGURACIÓN (OPCIONAL) ====================
+  "methodsDisable": [],
+  "method": "POST", // GET | POST
+  "dues": 1,
+  // ==================== SPLIT PAYMENT (OPCIONAL) ====================
+  "splitPayment": {
+    "type": "percentage",
+    "receivers": [
+      {
+        "merchantId": 9898,
+        "amount": 15000.00,
+        "taxBase": 12605.04,
+        "tax": 2394.96,
+        "fee": 1
+      },
+      {
+        "merchantId": 1485968,
+        "amount": 5000,
+        "taxBase": 4201.68,
+        "tax": 798.32,
+        "fee":  1
+      }
+    ]
+  },
+  // ==================== PSE MULTICREDITO (OPCIONAL) ====================
+  "PSEMultiCredit": {
+    "serviceCode": "SERV-01",
+    "credits": [
+      {
+        "code": "77700102",
+        "amount": 12000.00,
+        "companyIdentification": "8001234567"
+      },
+      {
+        "code": "77700103",
+        "amount": 8000.00,
+        "companyIdentification": "8009876543"
+      }
+    ]
+  },
+  // ==================== EXTRAS (OPCIONAL) ====================
+  "extras": {
+    "extra1": "extra1",
+    "extra2": "extra2",
+    "extra3": "extra3",
+    "extra4": "extra4",
+    "extra5": "extra5",
+    "extra6": "extra6",
+    "extra7":  "extra7",
+    "extra8": "extra8",
+    "extra9": "extra9",
+    "extra10": "extra10",
+    "extra11": "extra11"
+  },
+  // ==================== BILLING (OPCIONAL) ====================
+  "billing": {
+    "email": "cliente@gmail.com",
+    "name":  "CLiente Martinez",
+    "address": "AV 18 # 18 - 17",
+    "typeDoc": "CC",
+    "numberDoc": "103242123",
+    "callingCode": "+57",
+    "mobilePhone": "312456654"
+  }
+}
+Example Request
+Crear session v2
+View More
+javascript
+var myHeaders = new Headers();
+myHeaders.append("Content-Type", "application/json");
+myHeaders.append("Authorization", "Bearer ");
+
+var raw = "{\n  // ==================== REQUERIDOS ====================\n  \"checkout_version\": \"2\",\n  \"name\": \"Shops Online S.A. S\",\n  \"currency\": \"COP\",\n  \"amount\": 20000.00, // Total a pagar\n  // ==================== OPCIONALES ====================\n  \"description\": \"Buzo con capucha color negro unisex\",\n  \"lang\": \"ES\", // ES | EN\n  \"invoice\": \"2341233\", // numero de factura\n  \"country\": \"CO\", // Código alpha-2\n  \"taxBase\": 16806.72,\n  \"tax\": 3193.28,\n  \"taxIco\": 0,\n  \"response\": \"https://mysite.com\",\n  \"confirmation\": \"https://webhook.site/8b4bb363-099e-42e8-afe7-0bf11c59eeb1\",\n  // ==================== CONFIGURACIÓN (OPCIONAL) ====================\n  \"methodsDisable\": [],\n  \"method\": \"POST\", // GET | POST\n  \"dues\": 1,\n  // ==================== SPLIT PAYMENT (OPCIONAL) ====================\n  \"splitPayment\": {\n    \"type\": \"percentage\",\n    \"receivers\": [\n      {\n        \"merchantId\": 9898,\n        \"amount\": 15000.00,\n        \"taxBase\": 12605.04,\n        \"tax\": 2394.96,\n        \"fee\": 1\n      },\n      {\n        \"merchantId\": 1485968,\n        \"amount\": 5000,\n        \"taxBase\": 4201.68,\n        \"tax\": 798.32,\n        \"fee\":  1\n      }\n    ]\n  },\n  // ==================== PSE MULTICREDITO (OPCIONAL) ====================\n  \"PSEMultiCredit\": {\n    \"serviceCode\": \"SERV-01\",\n    \"credits\": [\n      {\n        \"code\": \"77700102\",\n        \"amount\": 12000.00,\n        \"companyIdentification\": \"8001234567\"\n      },\n      {\n        \"code\": \"77700103\",\n        \"amount\": 8000.00,\n        \"companyIdentification\": \"8009876543\"\n      }\n    ]\n  },\n  // ==================== EXTRAS (OPCIONAL) ====================\n  \"extras\": {\n    \"extra1\": \"extra1\",\n    \"extra2\": \"extra2\",\n    \"extra3\": \"extra3\",\n    \"extra4\": \"extra4\",\n    \"extra5\": \"extra5\",\n    \"extra6\": \"extra6\",\n    \"extra7\":  \"extra7\",\n    \"extra8\": \"extra8\",\n    \"extra9\": \"extra9\",\n    \"extra10\": \"extra10\",\n    \"extra11\": \"extra11\"\n  },\n  // ==================== BILLING (OPCIONAL) ====================\n  \"billing\": {\n    \"email\": \"cliente@gmail.com\",\n    \"name\":  \"CLiente Martinez\",\n    \"address\": \"AV 18 # 18 - 17\",\n    \"typeDoc\": \"CC\",\n    \"numberDoc\": \"103242123\",\n    \"callingCode\": \"+57\",\n    \"mobilePhone\": \"312456654\"\n  }\n}";
+
+var requestOptions = {
+  method: 'POST',
+  headers: myHeaders,
+  body: raw,
+  redirect: 'follow'
+};
+
+fetch("https://apify.epayco.co/payment/session/create", requestOptions)
+  .then(response => response.text())
+  .then(result => console.log(result))
+  .catch(error => console.log('error', error));
+Example Response
+Body
+Headers (0)
+No response body
+This request doesn't return any response body
