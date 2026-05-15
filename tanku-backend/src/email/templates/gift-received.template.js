@@ -10,7 +10,7 @@ const MAX_MESSAGE_HTML_NEWLINES = 32;
  * Definís **una vez** tamaños en escritorio; tablet y móvil usan `tabletScale` y `mobileScale`
  * sobre esos valores (avatares, fuentes, paddings del lead y burbuja, etc.).
  *
- * | Querés… | Mové… |
+ * | Querés… | Mové… |2
  * |---------|--------|
  * | Área **avatares + «Nombre te regaló…»** más alta | `clusterMinHeightPx` ↑ |
  * | Más espacio entre fotos y titular | `headlineGapBelowAvatarsPx` ↑ |
