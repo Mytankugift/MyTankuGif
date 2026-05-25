@@ -471,6 +471,8 @@ model DropiProduct {
   descriptionSyncedAt  DateTime? @map("description_synced_at")
   lastPriceStockSyncAt DateTime? @map("last_price_stock_sync_at")
   lastSyncedAt         DateTime? @map("last_synced_at")
+  /** Solo lo actualiza ENRICH tras 429; no usar para backoff tras normalize. */
+  lastEnrichAttemptAt  DateTime? @map("last_enrich_attempt_at")
   mainImageS3Path      String?   @map("main_image_s3_path")
   suggestedPrice       Int?      @map("suggested_price")
   images               Json?

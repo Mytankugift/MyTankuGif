@@ -114,7 +114,7 @@ export class DropiNormalizeService {
           warehouseProduct: warehouseProduct.length > 0 ? warehouseProduct : undefined, // ✅ AGREGADO (undefined para campos JSON vacíos)
           variationsData: variationsData && variationsData.length > 0 ? variationsData : undefined, // ✅ AGREGADO (undefined para campos JSON vacíos)
           mainImageS3Path: mainImageS3Path, // ✅ AGREGADO
-          lastSyncedAt: new Date(),
+          // lastSyncedAt / lastEnrichAttemptAt: solo ENRICH (evita bloquear enrich tras normalize)
         };
 
         if (existing) {

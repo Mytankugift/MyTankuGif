@@ -71,21 +71,17 @@ export class DropiEnrichService {
         alreadyComplete = beforeFilter - productsToEnrich.length;
       }
 
-      // ✅ MEJORA 2: Evitar productos que fallaron recientemente
-      // Si un producto tiene lastSyncedAt muy reciente pero no tiene description,
-      // puede ser que falló recientemente (especialmente con 429)
+      // Evitar reintentar tras 429: solo lastEnrichAttemptAt (normalize ya no lo pisa)
       const RECENT_FAILURE_THRESHOLD = 1000 * 60 * 60; // 1 hora
       const beforeRecentFilter = productsToEnrich.length;
       productsToEnrich = productsToEnrich.filter((p) => {
-        // Si no tiene description pero tiene lastSyncedAt reciente, probablemente falló
-        if (!p.description && p.lastSyncedAt) {
-          const timeSinceLastSync = Date.now() - p.lastSyncedAt.getTime();
-          // Si se intentó hace menos de 1 hora y no tiene description, probablemente falló
-          if (timeSinceLastSync < RECENT_FAILURE_THRESHOLD) {
-            return false; // Omitir este producto por ahora
-          }
-        }
-        return true;
+        if (!p.lastEnrichAttemptAt) return true;
+        const timeSinceAttempt = Date.now() - p.lastEnrichAttemptAt.getTime();
+        if (timeSinceAttempt >= RECENT_FAILURE_THRESHOLD) return true;
+        const hasDescription = p.description && p.descriptionSyncedAt;
+        const hasImages = p.images && Array.isArray(p.images) && p.images.length > 0;
+        if (hasDescription && hasImages) return true;
+        return false;
       });
       const skippedRecentFailures = beforeRecentFilter - productsToEnrich.length;
 
@@ -216,11 +212,10 @@ export class DropiEnrichService {
               
               if (is429Error) {
                 failed429Products.add(product.dropiId);
-                // Actualizar lastSyncedAt para que no se intente de nuevo pronto
                 try {
                   await prisma.dropiProduct.update({
                     where: { id: product.id },
-                    data: { lastSyncedAt: new Date() },
+                    data: { lastEnrichAttemptAt: new Date() },
                   });
                 } catch (e) { /* ignore */ }
                 

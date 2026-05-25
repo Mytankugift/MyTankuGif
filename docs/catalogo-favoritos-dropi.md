@@ -37,7 +37,7 @@ No se puede activar (`active=true`) si `in_dropi_catalog=false` o no existe en `
 **Operación:**
 
 - **Sincronizar catálogo** — pipeline completo (RAW → normalizar/retiro → Tanku → stock/ranking).
-- **Enriquecer** — solo `dropi_products` del catálogo actual (último raw).
+- **Enriquecer** — solo `dropi_products` del catálogo actual (último raw). El backoff tras 429 usa `last_enrich_attempt_at` (normalize ya no actualiza `last_synced_at`).
 
 **Debug** (rutas existentes, no listadas en `/workers`): RAW, Normalizar, Sincronizar backend.
 
@@ -52,4 +52,5 @@ No se puede activar (`active=true`) si `in_dropi_catalog=false` o no existe en `
 ## Scripts
 
 - Migración: `prisma/migrations/20260523120000_product_dropi_catalog_fields/`
+- Migración enrich: `prisma/migrations/20260525120000_dropi_product_last_enrich_attempt/`
 - Backfill `dropi_id` desde handle: `tanku-backend/scripts/backfill-product-dropi-id.sql`
