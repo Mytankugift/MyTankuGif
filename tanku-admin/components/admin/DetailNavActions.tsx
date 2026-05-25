@@ -32,6 +32,7 @@ export function DetailNavActions({ placement = 'nav' }: { placement?: Placement 
             <button
               key={action.id}
               type="button"
+              title={action.title}
               onClick={action.onClick}
               disabled={action.disabled}
               className={`${variantClasses[variant]} disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
@@ -45,6 +46,7 @@ export function DetailNavActions({ placement = 'nav' }: { placement?: Placement 
           <button
             key={action.id}
             type="button"
+            title={action.title}
             onClick={action.onClick}
             disabled={action.disabled}
             className={`text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]}`}

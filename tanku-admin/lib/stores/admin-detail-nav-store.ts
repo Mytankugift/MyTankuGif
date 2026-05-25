@@ -9,6 +9,8 @@ export interface DetailNavAction {
   label: string
   variant?: DetailNavActionVariant
   disabled?: boolean
+  /** Tooltip nativo del botón (p. ej. por qué está deshabilitado). */
+  title?: string
   onClick: () => void
 }
 
