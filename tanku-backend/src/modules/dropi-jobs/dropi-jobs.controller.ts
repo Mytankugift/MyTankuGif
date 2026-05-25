@@ -155,7 +155,13 @@ export class DropiJobsController {
 
       if (job.type === DropiJobType.SYNC_STOCK && job.metadata == null) {
         await this.dropiJobsService.initSyncStockMetadata(id);
-        job = await this.dropiJobsService.getJob(id);
+        const refreshed = await this.dropiJobsService.getJob(id);
+        if (!refreshed) {
+          return res.status(404).json({
+            error: 'Job no encontrado',
+          });
+        }
+        job = refreshed;
       }
 
       res.status(200).json({
