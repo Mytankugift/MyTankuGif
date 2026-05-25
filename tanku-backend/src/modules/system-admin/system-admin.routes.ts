@@ -22,6 +22,16 @@ router.post(
   authenticateAdmin,
   adminCronController.runEventReminders
 );
+router.patch(
+  '/cron/dropi-sync-stock/config',
+  authenticateAdmin,
+  adminCronController.patchDropiSyncStockConfig
+);
+router.post(
+  '/cron/dropi-sync-stock/run',
+  authenticateAdmin,
+  adminCronController.runDropiSyncStock
+);
 router.post(
   '/notifications/test',
   authenticateAdmin,

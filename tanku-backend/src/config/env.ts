@@ -97,6 +97,7 @@ const envSchema = z.object({
   // Jobs & Cron
   ENABLE_CRON_JOBS: z.string().transform((val) => val === 'true').default('true'),
   DROPI_SYNC_CRON: z.string().default('0 */6 * * *'),
+  DROPI_SYNC_CRON_TZ: z.string().optional().or(z.literal('')),
 
   // Feature Flags
   ENABLE_SOCIAL_FEATURES: z.string().transform((val) => val === 'true').default('true'),

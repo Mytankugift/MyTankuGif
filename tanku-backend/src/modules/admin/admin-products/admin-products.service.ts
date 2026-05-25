@@ -14,6 +14,8 @@ export interface ProductFilters {
   /** Filtra por la marca directa del producto (no por categoría) */
   restrictToAdults?: boolean;
   inRanking?: boolean;
+  /** in_catalog | historical_only | all */
+  catalogStatus?: 'in_catalog' | 'historical_only' | 'all';
   sortBy?: 'default' | 'ranking';
 }
 
@@ -41,7 +43,12 @@ export interface ProductWithVariants {
   priceFormulaValue: any;
   createdAt: Date;
   updatedAt: Date;
-  inRanking: boolean; // Indica si está en el ranking global (visible en frontend)
+  inRanking: boolean;
+  dropiId: number | null;
+  inDropiCatalog: boolean;
+  removedFromCatalogAt: Date | null;
+  hasOrderHistory: boolean;
+  catalogLabel: string;
   rankingInfo: {
     globalScore: number;
     createdAt: Date;
@@ -107,11 +114,22 @@ export interface ProductListItem {
   lockedAt: Date | null;
   lockedBy: string | null;
   inRanking: boolean; // Indica si está en el ranking global (visible en frontend)
+  dropiId: number | null;
+  inDropiCatalog: boolean;
+  removedFromCatalogAt: Date | null;
+  hasOrderHistory: boolean;
+  catalogLabel: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export class AdminProductService {
+  static catalogLabel(inDropiCatalog: boolean, hasOrderHistory: boolean): string {
+    if (inDropiCatalog) return 'En catálogo Dropi';
+    if (hasOrderHistory) return 'Solo historial (pedidos)';
+    return 'Fuera de catálogo';
+  }
+
   /**
    * Listar productos con filtros y paginación
    * Todos los admins ven todo en Fase 1 (sin permisos por categoría)
@@ -206,6 +224,13 @@ export class AdminProductService {
       where.restrictToAdults = filters.restrictToAdults;
     }
 
+    if (filters.catalogStatus === 'in_catalog') {
+      where.inDropiCatalog = true;
+    } else if (filters.catalogStatus === 'historical_only') {
+      where.inDropiCatalog = false;
+      where.orderItems = { some: {} };
+    }
+
     // Filtro por inRanking (visible en frontend)
     if (filters.inRanking !== undefined) {
       // Necesitamos hacer una subconsulta para verificar si está en ranking
@@ -290,6 +315,15 @@ export class AdminProductService {
       whereConditions.push(`p."restrict_to_adults" = $${paramIndex}`);
       whereParams.push(filters.restrictToAdults);
       paramIndex++;
+    }
+
+    if (filters.catalogStatus === 'in_catalog') {
+      whereConditions.push(`p."in_dropi_catalog" = true`);
+    } else if (filters.catalogStatus === 'historical_only') {
+      whereConditions.push(`p."in_dropi_catalog" = false`);
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM "order_items" oi WHERE oi."product_id" = p.id
+      )`);
     }
 
     // Filtro por inRanking
@@ -389,6 +423,9 @@ export class AdminProductService {
             lastName: true,
           },
         },
+        _count: {
+          select: { orderItems: true },
+        },
       },
     });
 
@@ -463,6 +500,14 @@ export class AdminProductService {
         lockedByAdmin: product.lockedByAdmin,
         lockedAt: product.lockedAt,
         lockedBy: product.lockedBy,
+        dropiId: product.dropiId,
+        inDropiCatalog: product.inDropiCatalog,
+        removedFromCatalogAt: product.removedFromCatalogAt,
+        hasOrderHistory: (product as any)._count?.orderItems > 0,
+        catalogLabel: AdminProductService.catalogLabel(
+          product.inDropiCatalog,
+          (product as any)._count?.orderItems > 0
+        ),
         inRanking: (() => {
           // Verificar si está en ranking Y cumple requisitos
           const isInRanking = rankingIds.has(product.id);
@@ -523,6 +568,7 @@ export class AdminProductService {
     const product = await prisma.product.findUnique({
       where: { id },
       include: {
+        _count: { select: { orderItems: true } },
         category: {
           select: {
             id: true,
@@ -632,6 +678,14 @@ export class AdminProductService {
       lockedByAdmin: product.lockedByAdmin,
       lockedAt: product.lockedAt,
       lockedBy: product.lockedBy,
+      dropiId: product.dropiId,
+      inDropiCatalog: product.inDropiCatalog,
+      removedFromCatalogAt: product.removedFromCatalogAt,
+      hasOrderHistory: product._count.orderItems > 0,
+      catalogLabel: AdminProductService.catalogLabel(
+        product.inDropiCatalog,
+        product._count.orderItems > 0
+      ),
       priceFormulaType: product.priceFormulaType,
       priceFormulaValue: product.priceFormulaValue,
       createdAt: product.createdAt,
@@ -703,6 +757,24 @@ export class AdminProductService {
 
     if (!product) {
       throw new NotFoundError('Producto no encontrado');
+    }
+
+    if (active) {
+      if (!product.inDropiCatalog) {
+        throw new BadRequestError(
+          'No está en favoritos Dropi. Márcalo favorito en Dropi y ejecuta Sincronizar catálogo.'
+        );
+      }
+      if (product.dropiId != null) {
+        const inDropiLayer = await prisma.dropiProduct.findUnique({
+          where: { dropiId: product.dropiId },
+        });
+        if (!inDropiLayer) {
+          throw new BadRequestError(
+            'No existe en dropi_products (catálogo actual). Ejecuta Sincronizar catálogo.'
+          );
+        }
+      }
     }
 
     // Calcular stock total del producto
@@ -987,55 +1059,7 @@ export class AdminProductService {
 
     console.log(`[ADMIN PRODUCTS] Producto ${id} actualizado y bloqueado por admin ${adminUserId}`);
 
-    // Retornar en formato ProductWithVariants
-    return {
-      id: updatedProduct.id,
-      title: updatedProduct.title,
-      handle: updatedProduct.handle,
-      description: updatedProduct.description,
-      images: updatedProduct.images,
-      customImageUrls: updatedProduct.customImageUrls || [],
-      hiddenImages: updatedProduct.hiddenImages || [],
-      categoryId: updatedProduct.categoryId,
-      restrictToAdults: updatedProduct.restrictToAdults,
-      active: updatedProduct.active,
-      lockedByAdmin: updatedProduct.lockedByAdmin,
-      lockedAt: updatedProduct.lockedAt,
-      lockedBy: updatedProduct.lockedBy,
-      priceFormulaType: updatedProduct.priceFormulaType,
-      priceFormulaValue: updatedProduct.priceFormulaValue,
-      createdAt: updatedProduct.createdAt,
-      updatedAt: updatedProduct.updatedAt,
-      inRanking: !!(meetsRequirements && rankingEntry),
-      rankingInfo: null,
-      metrics: null,
-      category: updatedProduct.category,
-      variants: updatedProduct.variants.map((v) => {
-        const variantStock = v.warehouseVariants?.reduce(
-          (sum, wv) => sum + (wv.stock || 0),
-          0
-        ) || 0;
-
-        return {
-          id: v.id,
-          sku: v.sku,
-          title: v.title,
-          price: v.price,
-          suggestedPrice: v.suggestedPrice,
-          tankuPrice: v.tankuPrice,
-          stock: variantStock,
-          active: v.active,
-          warehouseVariants: v.warehouseVariants?.map((wv) => ({
-            id: wv.id,
-            warehouseId: wv.warehouseId,
-            warehouseName: wv.warehouseName,
-            warehouseCity: wv.warehouseCity,
-            stock: wv.stock,
-          })) || [],
-        };
-      }),
-      locker: updatedProduct.locker,
-    };
+    return this.getProductById(id);
   }
 
   /**
@@ -1177,84 +1201,7 @@ export class AdminProductService {
 
     console.log(`[ADMIN PRODUCTS] Imágenes reordenadas para producto ${id} por admin ${adminUserId}`);
 
-    // Retornar en formato ProductWithVariants
-    const MIN_STOCK_THRESHOLD = 30;
-    const totalStock = updatedProduct.variants.reduce((total, variant) => {
-      const variantStock = variant.warehouseVariants?.reduce(
-        (sum, wv) => sum + (wv.stock || 0),
-        0
-      ) || 0;
-      return total + variantStock;
-    }, 0);
-
-    const hasValidTitle = updatedProduct.title && 
-                         updatedProduct.title.trim() !== '' && 
-                         updatedProduct.title !== 'Sin nombre';
-    const hasValidImages = updatedProduct.images && 
-                          Array.isArray(updatedProduct.images) && 
-                          updatedProduct.images.length > 0;
-    const meetsRequirements = totalStock >= MIN_STOCK_THRESHOLD && 
-                             hasValidTitle && 
-                             hasValidImages && 
-                             updatedProduct.active;
-
-    const rankingEntry = await (prisma as any).globalRanking.findUnique({
-      where: {
-        itemId_itemType: {
-          itemId: updatedProduct.id,
-          itemType: 'product',
-        },
-      },
-    });
-
-    return {
-      id: updatedProduct.id,
-      title: updatedProduct.title,
-      handle: updatedProduct.handle,
-      description: updatedProduct.description,
-      images: updatedProduct.images,
-      customImageUrls: updatedProduct.customImageUrls || [],
-      hiddenImages: updatedProduct.hiddenImages || [],
-      categoryId: updatedProduct.categoryId,
-      restrictToAdults: updatedProduct.restrictToAdults,
-      active: updatedProduct.active,
-      lockedByAdmin: updatedProduct.lockedByAdmin,
-      lockedAt: updatedProduct.lockedAt,
-      lockedBy: updatedProduct.lockedBy,
-      priceFormulaType: updatedProduct.priceFormulaType,
-      priceFormulaValue: updatedProduct.priceFormulaValue,
-      createdAt: updatedProduct.createdAt,
-      updatedAt: updatedProduct.updatedAt,
-      inRanking: !!(meetsRequirements && rankingEntry),
-      rankingInfo: null,
-      metrics: null,
-      category: updatedProduct.category,
-      variants: updatedProduct.variants.map((v) => {
-        const variantStock = v.warehouseVariants?.reduce(
-          (sum, wv) => sum + (wv.stock || 0),
-          0
-        ) || 0;
-
-        return {
-          id: v.id,
-          sku: v.sku,
-          title: v.title,
-          price: v.price,
-          suggestedPrice: v.suggestedPrice,
-          tankuPrice: v.tankuPrice,
-          stock: variantStock,
-          active: v.active,
-          warehouseVariants: v.warehouseVariants?.map((wv) => ({
-            id: wv.id,
-            warehouseId: wv.warehouseId,
-            warehouseName: wv.warehouseName,
-            warehouseCity: wv.warehouseCity,
-            stock: wv.stock,
-          })) || [],
-        };
-      }),
-      locker: updatedProduct.locker,
-    };
+    return this.getProductById(id);
   }
 
   /**
@@ -1300,87 +1247,9 @@ export class AdminProductService {
       },
     });
 
-    // Validar y actualizar ranking si es necesario
-    const feedService = new FeedService();
-    const totalStock = updatedProduct.variants.reduce((total, variant) => {
-      const variantStock = variant.warehouseVariants?.reduce(
-        (sum, wv) => sum + (wv.stock || 0),
-        0
-      ) || 0;
-      return total + variantStock;
-    }, 0);
-
-    const MIN_STOCK_THRESHOLD = 30;
-    const hasValidTitle = updatedProduct.title && 
-                         updatedProduct.title.trim() !== '' && 
-                         updatedProduct.title !== 'Sin nombre';
-    const hasValidImages = updatedProduct.images && 
-                          Array.isArray(updatedProduct.images) && 
-                          updatedProduct.images.length > 0;
-    const meetsRequirements = totalStock >= MIN_STOCK_THRESHOLD && 
-                             hasValidTitle && 
-                             hasValidImages && 
-                             updatedProduct.active;
-
-    const rankingEntry = await (prisma as any).globalRanking.findUnique({
-      where: {
-        itemId_itemType: {
-          itemId: updatedProduct.id,
-          itemType: 'product',
-        },
-      },
-    });
-
     console.log(`[ADMIN PRODUCTS] Imagen agregada al producto ${productId} por admin ${adminUserId}`);
 
-    return {
-      id: updatedProduct.id,
-      title: updatedProduct.title,
-      handle: updatedProduct.handle,
-      description: updatedProduct.description,
-      images: updatedProduct.images,
-      customImageUrls: updatedProduct.customImageUrls || [],
-      hiddenImages: updatedProduct.hiddenImages || [],
-      categoryId: updatedProduct.categoryId,
-      restrictToAdults: updatedProduct.restrictToAdults,
-      active: updatedProduct.active,
-      lockedByAdmin: updatedProduct.lockedByAdmin,
-      lockedAt: updatedProduct.lockedAt,
-      lockedBy: updatedProduct.lockedBy,
-      priceFormulaType: updatedProduct.priceFormulaType,
-      priceFormulaValue: updatedProduct.priceFormulaValue,
-      createdAt: updatedProduct.createdAt,
-      updatedAt: updatedProduct.updatedAt,
-      inRanking: !!(meetsRequirements && rankingEntry),
-      rankingInfo: null,
-      metrics: null,
-      category: updatedProduct.category,
-      variants: updatedProduct.variants.map((v) => {
-        const variantStock = v.warehouseVariants?.reduce(
-          (sum, wv) => sum + (wv.stock || 0),
-          0
-        ) || 0;
-
-        return {
-          id: v.id,
-          sku: v.sku,
-          title: v.title,
-          price: v.price,
-          suggestedPrice: v.suggestedPrice,
-          tankuPrice: v.tankuPrice,
-          stock: variantStock,
-          active: v.active,
-          warehouseVariants: v.warehouseVariants?.map((wv) => ({
-            id: wv.id,
-            warehouseId: wv.warehouseId,
-            warehouseName: wv.warehouseName,
-            warehouseCity: wv.warehouseCity,
-            stock: wv.stock,
-          })) || [],
-        };
-      }),
-      locker: updatedProduct.locker,
-    };
+    return this.getProductById(productId);
   }
 
   /**
@@ -1444,87 +1313,9 @@ export class AdminProductService {
       },
     });
 
-    // Validar y actualizar ranking si es necesario
-    const feedService = new FeedService();
-    const totalStock = updatedProduct.variants.reduce((total, variant) => {
-      const variantStock = variant.warehouseVariants?.reduce(
-        (sum, wv) => sum + (wv.stock || 0),
-        0
-      ) || 0;
-      return total + variantStock;
-    }, 0);
-
-    const MIN_STOCK_THRESHOLD = 30;
-    const hasValidTitle = updatedProduct.title && 
-                         updatedProduct.title.trim() !== '' && 
-                         updatedProduct.title !== 'Sin nombre';
-    const hasValidImages = updatedProduct.images && 
-                          Array.isArray(updatedProduct.images) && 
-                          updatedProduct.images.length > 0;
-    const meetsRequirements = totalStock >= MIN_STOCK_THRESHOLD && 
-                             hasValidTitle && 
-                             hasValidImages && 
-                             updatedProduct.active;
-
-    const rankingEntry = await (prisma as any).globalRanking.findUnique({
-      where: {
-        itemId_itemType: {
-          itemId: updatedProduct.id,
-          itemType: 'product',
-        },
-      },
-    });
-
     console.log(`[ADMIN PRODUCTS] Imagen propia eliminada del producto ${productId} por admin ${adminUserId}`);
 
-    return {
-      id: updatedProduct.id,
-      title: updatedProduct.title,
-      handle: updatedProduct.handle,
-      description: updatedProduct.description,
-      images: updatedProduct.images,
-      customImageUrls: updatedProduct.customImageUrls || [],
-      hiddenImages: updatedProduct.hiddenImages || [],
-      categoryId: updatedProduct.categoryId,
-      restrictToAdults: updatedProduct.restrictToAdults,
-      active: updatedProduct.active,
-      lockedByAdmin: updatedProduct.lockedByAdmin,
-      lockedAt: updatedProduct.lockedAt,
-      lockedBy: updatedProduct.lockedBy,
-      priceFormulaType: updatedProduct.priceFormulaType,
-      priceFormulaValue: updatedProduct.priceFormulaValue,
-      createdAt: updatedProduct.createdAt,
-      updatedAt: updatedProduct.updatedAt,
-      inRanking: !!(meetsRequirements && rankingEntry),
-      rankingInfo: null,
-      metrics: null,
-      category: updatedProduct.category,
-      variants: updatedProduct.variants.map((v) => {
-        const variantStock = v.warehouseVariants?.reduce(
-          (sum, wv) => sum + (wv.stock || 0),
-          0
-        ) || 0;
-
-        return {
-          id: v.id,
-          sku: v.sku,
-          title: v.title,
-          price: v.price,
-          suggestedPrice: v.suggestedPrice,
-          tankuPrice: v.tankuPrice,
-          stock: variantStock,
-          active: v.active,
-          warehouseVariants: v.warehouseVariants?.map((wv) => ({
-            id: wv.id,
-            warehouseId: wv.warehouseId,
-            warehouseName: wv.warehouseName,
-            warehouseCity: wv.warehouseCity,
-            stock: wv.stock,
-          })) || [],
-        };
-      }),
-      locker: updatedProduct.locker,
-    };
+    return this.getProductById(productId);
   }
 
   /**

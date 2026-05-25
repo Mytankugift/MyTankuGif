@@ -1,7 +1,58 @@
 import { prisma } from '../../config/database';
-import { DropiJobType, DropiJobStatus } from '@prisma/client';
+import { DropiJobType, DropiJobStatus, Prisma } from '@prisma/client';
+import {
+  SyncStockJobMetadata,
+  SyncStockStepKey,
+  StepRunStatus,
+  createInitialSyncStockMetadata,
+  computeOverallProgress,
+} from './dropi-job-step-metadata';
+import {
+  getDropiJobRetentionPerType,
+  DROPI_JOB_LIST_DEFAULT_LIMIT,
+  DROPI_JOB_LIST_MAX_LIMIT,
+} from './dropi-job-retention';
 
 export class DropiJobsService {
+  /**
+   * Conserva solo los N jobs más recientes por tipo; borra DONE/FAILED más viejos.
+   * Nunca borra PENDING ni RUNNING.
+   */
+  async pruneOldJobs(type: DropiJobType, keepCount?: number): Promise<number> {
+    const keep = keepCount ?? getDropiJobRetentionPerType();
+    const recent = await prisma.dropiJob.findMany({
+      where: { type },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, status: true },
+    });
+
+    const keepIds = new Set(recent.slice(0, keep).map((j) => j.id));
+    const terminal = [DropiJobStatus.DONE, DropiJobStatus.FAILED] as DropiJobStatus[];
+    const deleteIds = recent
+      .filter((j) => !keepIds.has(j.id) && terminal.includes(j.status))
+      .map((j) => j.id);
+
+    if (deleteIds.length === 0) return 0;
+
+    const result = await prisma.dropiJob.deleteMany({
+      where: { id: { in: deleteIds } },
+    });
+
+    if (result.count > 0) {
+      console.log(
+        `[DROPI JOBS] Purgados ${result.count} job(s) antiguos de tipo ${type} (retención: ${keep})`
+      );
+    }
+    return result.count;
+  }
+
+  private async pruneAfterTerminal(jobId: string): Promise<void> {
+    const job = await prisma.dropiJob.findUnique({
+      where: { id: jobId },
+      select: { type: true },
+    });
+    if (job) await this.pruneOldJobs(job.type);
+  }
   /**
    * Crear un nuevo job
    */
@@ -18,6 +69,10 @@ export class DropiJobsService {
         attempts: 0,
       },
     });
+
+    if (type === DropiJobType.SYNC_STOCK) {
+      await this.initSyncStockMetadata(job.id);
+    }
 
     return {
       id: job.id,
@@ -108,6 +163,7 @@ export class DropiJobsService {
         lockedAt: null,
       },
     });
+    await this.pruneAfterTerminal(jobId);
   }
 
   /**
@@ -124,6 +180,7 @@ export class DropiJobsService {
         lockedAt: null,
       },
     });
+    await this.pruneAfterTerminal(jobId);
   }
 
   /**
@@ -134,6 +191,89 @@ export class DropiJobsService {
       where: { id: jobId },
       data: {
         progress: Math.min(100, Math.max(0, progress)),
+      },
+    });
+  }
+
+  async initSyncStockMetadata(jobId: string): Promise<void> {
+    const metadata = createInitialSyncStockMetadata();
+    await prisma.dropiJob.update({
+      where: { id: jobId },
+      data: {
+        metadata: metadata as unknown as Prisma.InputJsonValue,
+        progress: 0,
+      },
+    });
+  }
+
+  async updateSyncStockStep(
+    jobId: string,
+    stepKey: SyncStockStepKey,
+    options: {
+      status?: StepRunStatus;
+      progress?: number;
+      stats?: Record<string, unknown>;
+      message?: string;
+      currentStep?: SyncStockStepKey | 'done';
+    }
+  ): Promise<void> {
+    const job = await prisma.dropiJob.findUnique({
+      where: { id: jobId },
+      select: { metadata: true },
+    });
+    if (!job) return;
+
+    const base =
+      (job.metadata as unknown as SyncStockJobMetadata) || createInitialSyncStockMetadata();
+
+    const prev = base.steps[stepKey];
+    base.steps[stepKey] = {
+      status: options.status ?? prev.status,
+      progress: options.progress ?? prev.progress,
+      stats: options.stats ? { ...prev.stats, ...options.stats } : prev.stats,
+      message: options.message ?? prev.message,
+    };
+
+    if (options.currentStep) {
+      base.currentStep = options.currentStep;
+    } else if (options.status === 'running') {
+      base.currentStep = stepKey;
+    }
+
+    const overall = computeOverallProgress(base);
+
+    await prisma.dropiJob.update({
+      where: { id: jobId },
+      data: {
+        metadata: base as unknown as Prisma.InputJsonValue,
+        progress: overall,
+      },
+    });
+  }
+
+  async finalizeSyncStockMetadata(jobId: string, success: boolean): Promise<void> {
+    const job = await prisma.dropiJob.findUnique({
+      where: { id: jobId },
+      select: { metadata: true },
+    });
+    if (!job?.metadata) return;
+
+    const metadata = job.metadata as unknown as SyncStockJobMetadata;
+    metadata.currentStep = 'done';
+    if (success) {
+      for (const key of Object.keys(metadata.steps) as SyncStockStepKey[]) {
+        if (metadata.steps[key].status !== 'failed') {
+          metadata.steps[key].status = 'completed';
+          metadata.steps[key].progress = 100;
+        }
+      }
+    }
+
+    await prisma.dropiJob.update({
+      where: { id: jobId },
+      data: {
+        metadata: metadata as unknown as Prisma.InputJsonValue,
+        progress: success ? 100 : computeOverallProgress(metadata),
       },
     });
   }
@@ -150,15 +290,31 @@ export class DropiJobsService {
     type: DropiJobType;
     status: DropiJobStatus;
     progress: number;
+    metadata: unknown;
     attempts: number;
     error: string | null;
     createdAt: Date;
     startedAt: Date | null;
     finishedAt: Date | null;
   }>> {
-    const { limit = 50, type, status } = options || {};
+    const retention = getDropiJobRetentionPerType();
+    const requested = options?.limit ?? DROPI_JOB_LIST_DEFAULT_LIMIT;
+    const limit = Math.min(
+      Math.max(1, requested),
+      DROPI_JOB_LIST_MAX_LIMIT,
+      retention
+    );
+    const { type, status } = options || {};
 
-    const where: any = {};
+    if (type) {
+      await this.pruneOldJobs(type);
+    } else {
+      for (const t of Object.values(DropiJobType)) {
+        await this.pruneOldJobs(t);
+      }
+    }
+
+    const where: Prisma.DropiJobWhereInput = {};
     if (type) where.type = type;
     if (status) where.status = status;
 
@@ -175,6 +331,7 @@ export class DropiJobsService {
       type: job.type,
       status: job.status,
       progress: job.progress,
+      metadata: job.metadata,
       attempts: job.attempts,
       error: job.error,
       createdAt: job.createdAt,
@@ -243,6 +400,8 @@ export class DropiJobsService {
         lockedAt: null,
       },
     });
+
+    await this.pruneAfterTerminal(jobId);
 
     return {
       id: job.id,

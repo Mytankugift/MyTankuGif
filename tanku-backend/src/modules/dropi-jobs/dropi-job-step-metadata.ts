@@ -1,0 +1,39 @@
+/** Pasos del job SYNC_STOCK (4 fases en UI) */
+export const SYNC_STOCK_STEP_KEYS = ['raw', 'normalize', 'sync', 'status'] as const;
+export type SyncStockStepKey = (typeof SYNC_STOCK_STEP_KEYS)[number];
+
+export type StepRunStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export interface SyncStockStepState {
+  status: StepRunStatus;
+  progress: number;
+  stats: Record<string, unknown>;
+  message?: string;
+}
+
+export interface SyncStockJobMetadata {
+  currentStep: SyncStockStepKey | 'done';
+  steps: Record<SyncStockStepKey, SyncStockStepState>;
+}
+
+export function createInitialSyncStockMetadata(): SyncStockJobMetadata {
+  const steps = {} as Record<SyncStockStepKey, SyncStockStepState>;
+  for (const key of SYNC_STOCK_STEP_KEYS) {
+    steps[key] = { status: 'pending', progress: 0, stats: {} };
+  }
+  return { currentStep: 'raw', steps };
+}
+
+export function computeOverallProgress(metadata: SyncStockJobMetadata): number {
+  const weights = 100 / SYNC_STOCK_STEP_KEYS.length;
+  let total = 0;
+  for (const key of SYNC_STOCK_STEP_KEYS) {
+    const step = metadata.steps[key];
+    if (step.status === 'completed') {
+      total += weights;
+    } else if (step.status === 'running') {
+      total += (step.progress / 100) * weights;
+    }
+  }
+  return Math.min(100, Math.round(total));
+}

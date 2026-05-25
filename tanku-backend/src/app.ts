@@ -432,12 +432,18 @@ async function startServer() {
       `);
     });
 
-    // Inicializar cron job de recordatorios de eventos
     try {
-      const { initializeEventsRemindersCron } = require('./modules/events/events-reminders.cron');
-      initializeEventsRemindersCron();
+      const { APP_CONSTANTS } = require('./config/constants');
+      if (APP_CONSTANTS.ENABLE_CRON_JOBS) {
+        const { initializeEventsRemindersCron } = require('./modules/events/events-reminders.cron');
+        initializeEventsRemindersCron();
+        const { initializeDropiSyncStockCron } = require('./modules/dropi-jobs/dropi-sync-stock.cron');
+        void initializeDropiSyncStockCron();
+      } else {
+        console.log('[APP] ENABLE_CRON_JOBS=false — crons no programados');
+      }
     } catch (error) {
-      console.error('[APP] Error inicializando cron de recordatorios:', error);
+      console.error('[APP] Error inicializando crons:', error);
     }
 
     // Manejo de cierre graceful

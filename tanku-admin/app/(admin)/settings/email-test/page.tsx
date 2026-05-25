@@ -1,14 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useAdminAuthStore } from '@/lib/stores/admin-auth-store'
+import { AdminSettingsLayout } from '@/components/admin/AdminSettingsLayout'
+import { AdminCollapsibleCard } from '@/components/admin/AdminCollapsibleCard'
+import { AdminFormSection } from '@/components/admin/AdminFormSection'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { extractApiErrorMessage } from '@/lib/api/errors'
 import { emailPublicAssetsBase, publicSiteUrl } from '@/lib/config'
 import { showNotification } from '@/components/notifications'
-import { ArrowLeftIcon, EnvelopeIcon, EyeIcon, GiftIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline'
+import { EnvelopeIcon, EyeIcon, GiftIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline'
 
 interface EmailTestResponse {
   success: boolean
@@ -184,22 +186,15 @@ export default function EmailTestSettingsPage() {
   }
 
   return (
-    <div className="h-full overflow-auto bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-      <div className="max-w-3xl mx-auto space-y-6">
-        <Link
-          href="/settings"
-          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+    <AdminSettingsLayout>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+        <AdminCollapsibleCard
+          title="Correo simple (SMTP)"
+          summary="Prueba mínima de entrega"
+          defaultOpen
         >
-          <ArrowLeftIcon className="w-4 h-4" />
-          Volver a ajustes
-        </Link>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h1 className="text-xl font-semibold text-gray-900 mb-1 flex items-center gap-2">
-            <EnvelopeIcon className="w-6 h-6 text-blue-600" />
-            Correo simple (SMTP / proveedor)
-          </h1>
-          <p className="text-sm text-gray-600 mb-5">
+          <p className="text-sm text-gray-600 mb-4 flex items-center gap-2">
+            <EnvelopeIcon className="w-5 h-5 text-blue-600 shrink-0" />
             Plantilla interna mínima para confirmar credenciales y entrega sin HTML complejo.
           </p>
 
@@ -227,40 +222,47 @@ export default function EmailTestSettingsPage() {
               {sendingSimple ? 'Enviando...' : 'Enviar prueba simple'}
             </button>
           </div>
-        </div>
+        </AdminCollapsibleCard>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center gap-2">
-            <GiftIcon className="w-6 h-6 text-emerald-600" />
-            Plantilla regalo recibido (HTML)
-          </h2>
-          <p className="text-sm text-gray-600 mb-5">
-            Previsualización con datos falsos. Requiere el PNG público{' '}
-            <code className="text-xs bg-gray-100 px-1">tanku-email-card.png</code> (
-            header, marcos y pie van en ese fondo); avatars de prueba vía URLs HTTPS.
-            Requiere sesión ERP (JWT admin). El correo sólo usa el backend; las imágenes las pide Gmail desde internet usando la URL absoluta HTTPS que indiques (archivos del{' '}
-            <code className="text-xs bg-gray-100 px-1">tanku-front/public/email</code> cuando ese front está online). Si ves error de
-            red/CORS en consola: en <code className="text-xs">tanku-backend/.env</code> agrega{' '}
-            <code className="text-xs">http://localhost:3001</code> a <code className="text-xs">CORS_ORIGINS</code>.
+        <AdminCollapsibleCard
+          title="Plantilla regalo (HTML)"
+          summary={giftProductTitle}
+          defaultOpen={false}
+        >
+          <p className="text-sm text-gray-600 mb-4 flex items-center gap-2">
+            <GiftIcon className="w-5 h-5 text-emerald-600 shrink-0" />
+            HTML de regalo recibido con datos de prueba (requiere PNG y URLs públicas en producción).
           </p>
 
-          {(mentionsLocalHost(giftAssetBase) ||
-            mentionsLocalHost(giftAvatarUrl) ||
-            mentionsLocalHost(giftRecipientAvatarUrl)) && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-950 text-sm p-3 mb-4 leading-relaxed">
-              <strong>Gmail no puede abrir localhost.</strong> Pegaste o usás URLs con{' '}
-              <code className="text-xs">localhost</code>: los servidores de Google intentan descargarlas desde ellos mismos,
-              no desde tu PC. Poné como base URLs públicas donde ya esté desplegado el front (
-              <code className="text-xs break-all">{emailPublicAssetsBase}</code>) o configurá{' '}
-              <code className="text-xs">NEXT_PUBLIC_EMAIL_PUBLIC_ASSETS_BASE</code> /{' '}
-              <code className="text-xs">NEXT_PUBLIC_PUBLIC_SITE_URL</code> en <code className="text-xs">tanku-admin</code>{' '}
-              y pulsá «Restaurar demo».
-            </div>
-          )}
+          <div className="space-y-3">
+            <AdminFormSection
+              title="Notas técnicas"
+              summary="PNG, CORS, Gmail y localhost"
+              defaultOpen={false}
+            >
+              <ul className="text-sm text-gray-600 space-y-2 list-disc pl-4">
+                <li>
+                  PNG público <code className="text-xs bg-gray-100 px-1">tanku-email-card.png</code> en{' '}
+                  <code className="text-xs bg-gray-100 px-1">tanku-front/public/email</code>.
+                </li>
+                <li>Sesión ERP (JWT admin) para vista previa y envío.</li>
+                <li>
+                  CORS: agregar <code className="text-xs">http://localhost:3001</code> a{' '}
+                  <code className="text-xs">CORS_ORIGINS</code> en el backend si hace falta.
+                </li>
+              </ul>
+              {(mentionsLocalHost(giftAssetBase) ||
+                mentionsLocalHost(giftAvatarUrl) ||
+                mentionsLocalHost(giftRecipientAvatarUrl)) && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-950 text-sm p-3 leading-relaxed">
+                  <strong>Gmail no puede usar localhost.</strong> Usá URLs públicas (
+                  <code className="text-xs break-all">{emailPublicAssetsBase}</code>) o «Restaurar demo».
+                </div>
+              )}
+            </AdminFormSection>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Correo de destino (cuenta)</label>
+            <AdminFormSection title="Destinatario" summary={giftTo || 'Correo de prueba'} defaultOpen>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Correo de destino</label>
               <input
                 type="email"
                 value={giftTo}
@@ -268,119 +270,125 @@ export default function EmailTestSettingsPage() {
                 placeholder="tu@ejemplo.com"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
-            </div>
+            </AdminFormSection>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Nombre quien envía</label>
-              <input
-                type="text"
-                value={giftSenderName}
-                onChange={(e) => setGiftSenderName(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
+            <AdminFormSection
+              title="Contenido del regalo"
+              summary={`${giftSenderName} · ${giftProductTitle}`}
+              defaultOpen
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Nombre quien envía</label>
+                  <input
+                    type="text"
+                    value={giftSenderName}
+                    onChange={(e) => setGiftSenderName(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Título producto</label>
+                  <input
+                    type="text"
+                    value={giftProductTitle}
+                    onChange={(e) => setGiftProductTitle(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Mensaje (cita)</label>
+                  <textarea
+                    value={giftMessage}
+                    onChange={(e) => setGiftMessage(e.target.value)}
+                    rows={4}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm min-h-[100px] resize-y"
+                  />
+                </div>
+              </div>
+            </AdminFormSection>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Título producto</label>
-              <input
-                type="text"
-                value={giftProductTitle}
-                onChange={(e) => setGiftProductTitle(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
+            <AdminFormSection title="URLs e imágenes" summary="Avatars, CTA y carpeta /email" defaultOpen={false}>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">URL avatar remitente</label>
+                  <input
+                    type="url"
+                    value={giftAvatarUrl}
+                    onChange={(e) => setGiftAvatarUrl(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">URL avatar destinatario</label>
+                  <input
+                    type="url"
+                    value={giftRecipientAvatarUrl}
+                    onChange={(e) => setGiftRecipientAvatarUrl(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Botón «Ver producto» (URL)</label>
+                  <input
+                    type="url"
+                    value={giftCta}
+                    onChange={(e) => setGiftCta(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    Base pública <code className="text-xs bg-gray-100 px-1">/email</code>
+                  </label>
+                  <input
+                    type="url"
+                    value={giftAssetBase}
+                    onChange={(e) => setGiftAssetBase(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Por defecto: <strong>{emailPublicAssetsBase}</strong>
+                  </p>
+                </div>
+              </div>
+            </AdminFormSection>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">URL avatar remitente</label>
-              <input
-                type="url"
-                value={giftAvatarUrl}
-                onChange={(e) => setGiftAvatarUrl(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">URL avatar destinatario</label>
-              <input
-                type="url"
-                value={giftRecipientAvatarUrl}
-                onChange={(e) => setGiftRecipientAvatarUrl(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Mensaje (cita)</label>
-              <textarea
-                value={giftMessage}
-                onChange={(e) => setGiftMessage(e.target.value)}
-                rows={3}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Botón «Ver producto» → URL</label>
-              <input
-                type="url"
-                value={giftCta}
-                onChange={(e) => setGiftCta(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                Base pública donde están los <code className="text-xs bg-gray-100 px-1">tanku-email-*</code> (Next{' '}
-                <code className="text-xs bg-gray-100 px-1">public/email</code>)
-              </label>
-              <input
-                type="url"
-                value={giftAssetBase}
-                onChange={(e) => setGiftAssetBase(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Ejemplo público por defecto: <strong>{emailPublicAssetsBase}</strong>. Para otro dominio configurá{' '}
-                <code className="text-xs">NEXT_PUBLIC_EMAIL_PUBLIC_ASSETS_BASE</code>.
+            <AdminFormSection title="Enviar o previsualizar" defaultOpen>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenGiftHtmlPreview}
+                  disabled={previewLoading || sendingGift}
+                  className="inline-flex justify-center items-center gap-2 px-4 py-2 rounded-lg border border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
+                >
+                  <EyeIcon className="w-4 h-4" />
+                  {previewLoading ? 'Generando…' : 'Vista previa'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendGiftPreview}
+                  disabled={sendingGift || previewLoading}
+                  className="inline-flex justify-center items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  <PaperAirplaneIcon className="w-4 h-4" />
+                  {sendingGift ? 'Enviando…' : 'Enviar plantilla'}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetGiftDemoDefaults}
+                  className="inline-flex px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Restaurar demo
+                </button>
+              </div>
+              <p className="text-xs text-gray-500">
+                La vista previa usa el mismo HTML que el correo enviado.
               </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                type="button"
-                onClick={handleOpenGiftHtmlPreview}
-                disabled={previewLoading || sendingGift}
-                className="inline-flex justify-center items-center gap-2 px-4 py-2 rounded-lg border border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
-              >
-                <EyeIcon className="w-4 h-4" />
-                {previewLoading ? 'Generando…' : 'Vista previa en navegador'}
-              </button>
-              <button
-                type="button"
-                onClick={handleSendGiftPreview}
-                disabled={sendingGift || previewLoading}
-                className="inline-flex justify-center items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-              >
-                <PaperAirplaneIcon className="w-4 h-4" />
-                {sendingGift ? 'Enviando…' : 'Enviar plantilla regalo (prueba ERP)'}
-              </button>
-              <button
-                type="button"
-                onClick={resetGiftDemoDefaults}
-                className="inline-flex px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                Restaurar demo www.mytanku.com
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 pt-1">
-              La vista previa abre el mismo HTML que se envía por correo. Si las URLs de imágenes son públicas (p. ej.{' '}
-              mytanku.com), se verán igual que en Gmail; con localhost solo se verán en tu máquina al abrir la pestaña.
-            </p>
+            </AdminFormSection>
           </div>
-        </div>
+        </AdminCollapsibleCard>
       </div>
-    </div>
+    </AdminSettingsLayout>
   )
 }

@@ -17,27 +17,31 @@ export class DropiNormalizeService {
     let normalizedTotal = 0;
     const errors: any[] = [];
 
-    // Tomar todos los productos RAW ordenados
-    let pendingRaw = await prisma.dropiRawProduct.findMany({
-      orderBy: { createdAt: 'asc' },
-    });
+    let totalPending: number;
+    let batch: DropiRawProduct[];
 
-    // Filtrar por categoría si aplica
     if (categoryId) {
-      pendingRaw = pendingRaw.filter((p) => {
+      const allRaw = await prisma.dropiRawProduct.findMany({
+        orderBy: { createdAt: 'asc' },
+      });
+      const pendingRaw = allRaw.filter((p) => {
         const payload = p.payload as any;
         const cat = payload.categories?.[0];
         const id = cat?.pivot?.category_id || cat?.id;
         return id === categoryId;
       });
+      totalPending = pendingRaw.length;
+      batch = processAll ? pendingRaw : pendingRaw.slice(offset, offset + batchSize);
+    } else {
+      totalPending = await prisma.dropiRawProduct.count();
+      batch = processAll
+        ? await prisma.dropiRawProduct.findMany({ orderBy: { createdAt: 'asc' } })
+        : await prisma.dropiRawProduct.findMany({
+            orderBy: { createdAt: 'asc' },
+            skip: offset,
+            take: batchSize,
+          });
     }
-
-    const totalPending = pendingRaw.length;
-    
-    // Si processAll es true, ignoramos offset y batchSize
-    const batch = processAll
-      ? pendingRaw
-      : pendingRaw.slice(offset, offset + batchSize);
 
     let isFirstProduct = true;
 
@@ -93,6 +97,8 @@ export class DropiNormalizeService {
           ? `${payload.sku}-DP-${payload.id}`
           : `DP-${payload.id}`;
 
+        const privatedProduct = payload.privated_product === true;
+
         const existing = await prisma.dropiProduct.findUnique({ where: { dropiId: payload.id } });
         const productData: any = {
           dropiId: payload.id,
@@ -101,6 +107,7 @@ export class DropiNormalizeService {
           sku: compositeSku,
           price: finalPrice,
           suggestedPrice: suggestedPrice, // ✅ AGREGADO
+          privatedProduct,
           categoryDropiId: categoryDropiId, // ✅ AGREGADO
           categoryDropiIds: categoryDropiIds.length > 0 ? categoryDropiIds : null, // ✅ AGREGADO
           stock: stock, // ✅ AGREGADO

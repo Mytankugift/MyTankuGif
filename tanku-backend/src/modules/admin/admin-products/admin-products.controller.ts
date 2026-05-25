@@ -25,6 +25,7 @@ export class AdminProductController {
         lockedByAdmin,
         restrictToAdults,
         inRanking,
+        catalogStatus,
         sortBy,
         page,
         limit,
@@ -38,6 +39,10 @@ export class AdminProductController {
         ...(restrictToAdults !== undefined &&
           restrictToAdults !== '' && { restrictToAdults: restrictToAdults === 'true' }),
         ...(inRanking !== undefined && inRanking !== '' && { inRanking: inRanking === 'true' }),
+        ...(catalogStatus &&
+          ['in_catalog', 'historical_only', 'all'].includes(catalogStatus as string) && {
+            catalogStatus: catalogStatus as 'in_catalog' | 'historical_only' | 'all',
+          }),
         ...(sortBy && { sortBy: sortBy as 'default' | 'ranking' }),
       };
 

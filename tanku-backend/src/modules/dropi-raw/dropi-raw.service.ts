@@ -1,5 +1,20 @@
+import { randomUUID } from 'crypto';
 import { prisma } from '../../config/database';
 import { DropiService } from '../dropi/dropi.service';
+
+export type SyncRawProgressUpdate = {
+  percent: number;
+  /** Página completada (1-based) */
+  pageNumber: number;
+  totalProcessed: number;
+};
+
+export type SyncRawProductsOptions = {
+  onProgress?: (update: SyncRawProgressUpdate) => void | Promise<void>;
+  shouldAbort?: () => boolean | Promise<boolean>;
+  categoryIds?: string[];
+  favorite?: boolean;
+};
 
 export class DropiRawService {
   private dropiService: DropiService;
@@ -8,22 +23,60 @@ export class DropiRawService {
     this.dropiService = new DropiService();
   }
 
-  /**
-   * Helper para hacer delay entre peticiones
-   */
   private async delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
-   * Sincronizar productos RAW desde Dropi
-   * Guarda el JSON crudo en DropiRawProduct
-   * 
-   * @param startPage Página inicial (default: 0)
-   * @param maxPages Máximo de páginas a procesar (null = todas)
-   * @returns Estadísticas de sincronización
+   * Elimina filas raw de corridas anteriores (solo tras RAW completo exitoso).
    */
-  async syncRawProducts(startPage: number = 0, maxPages: number | null = null): Promise<{
+  /**
+   * IDs Dropi del catálogo actual (último RAW exitoso con este syncRunId).
+   */
+  /**
+   * Catálogo del RAW más reciente (último syncRunId en BD).
+   */
+  async getLatestCatalogDropiIds(): Promise<number[]> {
+    const latest = await prisma.dropiRawProduct.findFirst({
+      where: { syncRunId: { not: null } },
+      orderBy: { syncedAt: 'desc' },
+      select: { syncRunId: true },
+    });
+    if (!latest?.syncRunId) return [];
+    return this.getCatalogDropiIds(latest.syncRunId);
+  }
+
+  async getCatalogDropiIds(syncRunId: string): Promise<number[]> {
+    const rows = await prisma.dropiRawProduct.findMany({
+      where: { syncRunId },
+      select: { dropiId: true },
+      distinct: ['dropiId'],
+    });
+    return rows.map((r) => r.dropiId);
+  }
+
+  async purgeStaleRawProducts(currentSyncRunId: string): Promise<number> {
+    const result = await prisma.dropiRawProduct.deleteMany({
+      where: {
+        OR: [{ syncRunId: null }, { syncRunId: { not: currentSyncRunId } }],
+      },
+    });
+    console.log(
+      `[SYNC RAW] Limpieza post-éxito: ${result.count} filas de corridas anteriores eliminadas (run=${currentSyncRunId})`
+    );
+    return result.count;
+  }
+
+  /**
+   * Sincronizar productos RAW desde Dropi.
+   * Filtros opcionales: `favorite`, `categoryIds` (ver `listProducts`).
+   * Al terminar sin error: elimina raw de corridas anteriores vía syncRunId.
+   */
+  async syncRawProducts(
+    startPage: number = 0,
+    maxPages: number | null = null,
+    options?: SyncRawProductsOptions
+  ): Promise<{
     success: boolean;
     message: string;
     processed: number;
@@ -31,43 +84,71 @@ export class DropiRawService {
     pages_processed: number;
     next_start_page: number;
     has_more: boolean;
+    sync_run_id: string;
+    purged_stale: number;
   }> {
-    const pageSize = 40; // Fijo según Dropi API
-    const categoryId = 1; // Fijo según configuración
-    const DELAY_BETWEEN_REQUESTS = 2000; // ✅ 2 segundos entre peticiones (conservador para evitar 429)
-    const MAX_RETRIES = 5; // ✅ Más reintentos
-    const INITIAL_RETRY_DELAY = 3000; // ✅ 3 segundos inicial para retry
+    const pageSize = 40;
+    const DELAY_BETWEEN_REQUESTS = 2000;
+    const MAX_RETRIES = 5;
+    const INITIAL_RETRY_DELAY = 3000;
+    const syncRunId = randomUUID();
 
     let totalCount = 0;
     let totalProcessed = 0;
     let startData = startPage * pageSize;
     let pageNumber = startPage;
 
-    console.log(`\n[SYNC RAW] Iniciando sincronización`);
+    const abortIfNeeded = async () => {
+      if (options?.shouldAbort && (await options.shouldAbort())) {
+        throw new Error('Job cancelado por el usuario');
+      }
+    };
+
+    const reportProgress = async () => {
+      if (!options?.onProgress) return;
+      const percent =
+        totalCount > 0 ? Math.min(Math.round((totalProcessed / totalCount) * 100), 100) : 0;
+      await options.onProgress({
+        percent,
+        pageNumber: pageNumber + 1,
+        totalProcessed,
+      });
+    };
+
+    const listProductsParams = (startDataOffset: number) => ({
+      pageSize,
+      startData: startDataOffset,
+      ...(options?.favorite === true ? { favorite: true } : {}),
+      ...(options?.categoryIds?.length ? { categoryIds: options.categoryIds } : {}),
+    });
+
+    console.log(`\n[SYNC RAW] Iniciando sincronización (syncRunId=${syncRunId})`);
     console.log(`[SYNC RAW] Página inicial: ${startPage}, startData: ${startData}`);
-    console.log(`[SYNC RAW] Delay entre peticiones: ${DELAY_BETWEEN_REQUESTS}ms`);
+    if (options?.favorite === true) {
+      console.log('[SYNC RAW] Filtro: solo favoritos Dropi (favorite=true)');
+    } else if (options?.categoryIds?.length) {
+      console.log(
+        `[SYNC RAW] Filtro categoría Dropi: ${options.categoryIds.length === 1 ? `"${options.categoryIds[0]}"` : `[${options.categoryIds.join(', ')}]`}`
+      );
+    } else {
+      console.log('[SYNC RAW] Sin filtro (catálogo completo según API Dropi)');
+    }
 
     try {
-      // Primera llamada para obtener el total
-      const firstPage = await this.dropiService.listProducts({
-        pageSize,
-        startData,
-        category_id: categoryId,
-      });
+      await abortIfNeeded();
+
+      const firstPage = await this.dropiService.listProducts(listProductsParams(startData));
 
       if (!firstPage?.isSuccess) {
         throw new Error(
-          `Dropi API returned isSuccess: false. Message: ${firstPage?.message || "N/A"}`
+          `Dropi API returned isSuccess: false. Message: ${firstPage?.message || 'N/A'}`
         );
       }
 
       totalCount = firstPage.count || 0;
       const firstPageProducts = firstPage.objects || [];
-
-      // ✅ Calcular total de páginas estimadas
-      const estimatedTotalPages = totalCount > 0 
-        ? Math.ceil(totalCount / pageSize) 
-        : null;
+      const estimatedTotalPages =
+        totalCount > 0 ? Math.ceil(totalCount / pageSize) : null;
 
       console.log(`[SYNC RAW] Total de productos en Dropi: ${totalCount}`);
       console.log(`[SYNC RAW] Productos en primera página: ${firstPageProducts.length}`);
@@ -75,86 +156,97 @@ export class DropiRawService {
         console.log(`[SYNC RAW] Total estimado de páginas: ${estimatedTotalPages}`);
       }
 
-      // Guardar primera página
       if (firstPageProducts.length > 0) {
-        await this.saveRawProducts(firstPageProducts, 'index');
+        await abortIfNeeded();
+        await this.saveRawProducts(firstPageProducts, 'index', syncRunId);
         totalProcessed += firstPageProducts.length;
-        console.log(`[SYNC RAW] ✅ Página ${pageNumber + 1}: ${firstPageProducts.length} productos guardados | Total acumulado: ${totalProcessed}/${totalCount}`);
+        await reportProgress();
+        console.log(
+          `[SYNC RAW] Página ${pageNumber + 1}: ${firstPageProducts.length} guardados | acumulado ${totalProcessed}/${totalCount}`
+        );
         pageNumber++;
       }
 
-      // Loop para las siguientes páginas
       startData += pageSize;
       while (true) {
-        // Verificar límite de páginas si está definido
+        await abortIfNeeded();
+
         if (maxPages !== null && pageNumber >= startPage + maxPages) {
           break;
         }
-        
-        // Si tenemos un total válido, verificar si ya llegamos al final
+
         if (totalCount > 0 && startData >= totalCount) {
           break;
         }
 
-        // ✅ DELAY ANTES DE CADA PETICIÓN (excepto la primera)
         await this.delay(DELAY_BETWEEN_REQUESTS);
 
         let page;
         let retries = 0;
 
-        // ✅ Retry con backoff exponencial para errores 429
         while (retries <= MAX_RETRIES) {
           try {
-            page = await this.dropiService.listProducts({
-              pageSize,
-              startData,
-              category_id: categoryId,
-            });
-
-            // Si llegamos aquí, la petición fue exitosa
+            page = await this.dropiService.listProducts(listProductsParams(startData));
             break;
           } catch (error: any) {
-            // Si el error contiene 429, reintentar
-            if (error?.message?.includes('429') || error?.message?.includes('Too Many Attempts')) {
+            if (
+              error?.message?.includes('429') ||
+              error?.message?.includes('Too Many Attempts')
+            ) {
               retries++;
               if (retries > MAX_RETRIES) {
-                throw new Error(`Error 429 después de ${MAX_RETRIES} reintentos. Rate limit de Dropi excedido.`);
+                throw new Error(
+                  `Error 429 después de ${MAX_RETRIES} reintentos. Rate limit de Dropi excedido.`
+                );
               }
               const waitTime = INITIAL_RETRY_DELAY * Math.pow(2, retries - 1);
-              console.log(`[SYNC RAW] ⚠️ Error 429 capturado. Esperando ${waitTime}ms antes de reintentar (intento ${retries}/${MAX_RETRIES})...`);
+              console.log(
+                `[SYNC RAW] Error 429, reintento ${retries}/${MAX_RETRIES} en ${waitTime}ms...`
+              );
               await this.delay(waitTime);
               continue;
             }
-            // Si es otro error, lanzarlo
             throw error;
           }
         }
 
         if (!page?.isSuccess || !Array.isArray(page.objects) || page.objects.length === 0) {
-          console.log(`[SYNC RAW] ⚠️ No hay más productos en página ${pageNumber + 1}, terminando`);
+          console.log(`[SYNC RAW] Fin de paginación en página ${pageNumber + 1}`);
           break;
         }
 
-        // Guardar productos
-        await this.saveRawProducts(page.objects, 'index');
-
+        await this.saveRawProducts(page.objects, 'index', syncRunId);
         totalProcessed += page.objects.length;
-        const remaining = totalCount > 0 ? totalCount - totalProcessed : 0;
-        const pagesRemaining = totalCount > 0 ? Math.ceil(remaining / pageSize) : 0;
+        await reportProgress();
 
-        // ✅ Mejorar el log para mostrar progreso más claro
         if (estimatedTotalPages) {
-          console.log(`[SYNC RAW] ✅ Página ${pageNumber + 1}/${estimatedTotalPages}: ${page.objects.length} productos guardados | Total: ${totalProcessed}/${totalCount} | Faltan: ${pagesRemaining} páginas (${remaining} productos)`);
-        } else {
-          console.log(`[SYNC RAW] ✅ Página ${pageNumber + 1}: ${page.objects.length} productos guardados | Total: ${totalProcessed} | Continuando...`);
+          const remaining = totalCount > 0 ? totalCount - totalProcessed : 0;
+          console.log(
+            `[SYNC RAW] Página ${pageNumber + 1}/${estimatedTotalPages}: +${page.objects.length} | total ${totalProcessed}/${totalCount} | faltan ~${remaining}`
+          );
         }
 
         startData += pageSize;
         pageNumber++;
       }
 
-      console.log(`[SYNC RAW] ✅ Sincronización completada`);
-      console.log(`[SYNC RAW] Total procesado: ${totalProcessed} productos en ${pageNumber - startPage} páginas`);
+      await abortIfNeeded();
+
+      const purgedStale = await this.purgeStaleRawProducts(syncRunId);
+
+      console.log(`[SYNC RAW] Sincronización completada`);
+      console.log(
+        `[SYNC RAW] Procesados: ${totalProcessed} en ${pageNumber - startPage} páginas | purgados: ${purgedStale}`
+      );
+
+      if (options?.onProgress) {
+        const pagesDone = Math.max(pageNumber - startPage, 0);
+        await options.onProgress({
+          percent: 100,
+          pageNumber: pagesDone,
+          totalProcessed,
+        });
+      }
 
       return {
         success: true,
@@ -163,24 +255,25 @@ export class DropiRawService {
         total: totalCount,
         pages_processed: pageNumber - startPage,
         next_start_page: pageNumber,
-        has_more: totalCount > 0 ? startData < totalCount : false, // Si totalCount es 0, asumimos que no hay más
+        has_more: totalCount > 0 ? startData < totalCount : false,
+        sync_run_id: syncRunId,
+        purged_stale: purgedStale,
       };
     } catch (error: any) {
-      console.error(`[SYNC RAW] ❌ Error: ${error?.message}`);
+      console.error(
+        `[SYNC RAW] Error (syncRunId=${syncRunId}, sin limpieza de corridas anteriores): ${error?.message}`
+      );
       throw error;
     }
   }
 
-  /**
-   * Guardar productos RAW en la base de datos
-   * Usa upsert para actualizar si ya existe
-   */
-  private async saveRawProducts(products: any[], source: string): Promise<void> {
+  private async saveRawProducts(
+    products: any[],
+    source: string,
+    syncRunId: string
+  ): Promise<void> {
     const now = new Date();
 
-    // Usar createMany con skipDuplicates o upsert individual
-    // Prisma no soporta upsert en createMany, así que hacemos upsert individual
-    // El constraint único es [dropiId, source]
     for (const product of products) {
       try {
         await prisma.dropiRawProduct.upsert({
@@ -194,31 +287,33 @@ export class DropiRawService {
             dropiId: product.id,
             source: source,
             payload: product as any,
+            syncRunId,
             syncedAt: now,
           },
           update: {
             payload: product as any,
+            syncRunId,
             syncedAt: now,
             updatedAt: now,
           },
         });
       } catch (error: any) {
-        // Si falla el upsert, intentar crear directamente
-        // Esto puede pasar si el constraint único no está definido correctamente
-        console.warn(`[SYNC RAW] Error en upsert para producto ${product.id}, intentando create:`, error?.message);
+        console.warn(
+          `[SYNC RAW] Error en upsert para producto ${product.id}, reintento:`,
+          error?.message
+        );
         try {
           await prisma.dropiRawProduct.create({
             data: {
               dropiId: product.id,
               source: source,
               payload: product as any,
+              syncRunId,
               syncedAt: now,
             },
           });
         } catch (createError: any) {
-          // Si ya existe, ignorar
           if (createError?.code === 'P2002') {
-            console.log(`[SYNC RAW] Producto ${product.id} ya existe, actualizando...`);
             await prisma.dropiRawProduct.updateMany({
               where: {
                 dropiId: product.id,
@@ -226,6 +321,7 @@ export class DropiRawService {
               },
               data: {
                 payload: product as any,
+                syncRunId,
                 syncedAt: now,
                 updatedAt: now,
               },

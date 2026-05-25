@@ -1,21 +1,22 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter, useParams, useSearchParams } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAdminAuthStore } from '@/lib/stores/admin-auth-store'
 import { showNotification, closeNotification } from '@/components/notifications'
 import {
-  ArrowLeftIcon,
   LockClosedIcon,
   LockOpenIcon,
   PhotoIcon,
-  EllipsisHorizontalIcon,
   CheckCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { AdminPageShell } from '@/components/admin/AdminPageShell'
+import { DetailNavActions } from '@/components/admin/DetailNavActions'
+import { useAdminDetailNavStore } from '@/lib/stores/admin-detail-nav-store'
 
 interface WarehouseVariant {
   id: string
@@ -57,6 +58,11 @@ interface ProductDetail {
   createdAt: string
   updatedAt: string
   inRanking: boolean
+  dropiId: number | null
+  inDropiCatalog: boolean
+  removedFromCatalogAt: string | null
+  hasOrderHistory: boolean
+  catalogLabel: string
   rankingInfo: {
     globalScore: number
     createdAt: string
@@ -87,7 +93,6 @@ interface ProductDetail {
 export default function ProductDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const searchParams = useSearchParams()
   const productId = params.id as string
   const { isAuthenticated, _hasHydrated: hasHydrated, user } = useAdminAuthStore()
   const [product, setProduct] = useState<ProductDetail | null>(null)
@@ -108,7 +113,8 @@ export default function ProductDetailPage() {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('')
   const [subcategories, setSubcategories] = useState<Array<{ id: string; name: string; handle: string }>>([])
   const [allCategoriesTree, setAllCategoriesTree] = useState<any[]>([])
-  const [showOptionsMenu, setShowOptionsMenu] = useState(false)
+  const setDetailNav = useAdminDetailNavStore((s) => s.setDetailNav)
+  const clearDetailNav = useAdminDetailNavStore((s) => s.clearDetailNav)
   const [priceFormulas, setPriceFormulas] = useState<Array<{
     id: string
     name: string
@@ -119,20 +125,6 @@ export default function ProductDetailPage() {
   }>>([])
   const [selectedFormulaId, setSelectedFormulaId] = useState<string>('')
   const [loadingFormulas, setLoadingFormulas] = useState(false)
-
-  // Construir URL de retorno con los filtros guardados
-  const getBackUrl = () => {
-    const params = new URLSearchParams()
-    if (searchParams.get('page')) params.set('page', searchParams.get('page')!)
-    if (searchParams.get('limit')) params.set('limit', searchParams.get('limit')!)
-    if (searchParams.get('search')) params.set('search', searchParams.get('search')!)
-    if (searchParams.get('categoryId')) params.set('categoryId', searchParams.get('categoryId')!)
-    if (searchParams.get('active')) params.set('active', searchParams.get('active')!)
-    if (searchParams.get('lockedByAdmin')) params.set('lockedByAdmin', searchParams.get('lockedByAdmin')!)
-    if (searchParams.get('inRanking')) params.set('inRanking', searchParams.get('inRanking')!)
-    if (searchParams.get('sortBy')) params.set('sortBy', searchParams.get('sortBy')!)
-    return params.toString() ? `/products?${params.toString()}` : '/products'
-  }
 
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated) return
@@ -172,23 +164,6 @@ export default function ProductDetailPage() {
       })
     }
   }, [product, isEditing])
-
-  // Cerrar menú de opciones al hacer click fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('.options-menu-container')) {
-        setShowOptionsMenu(false)
-      }
-    }
-
-    if (showOptionsMenu) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside)
-      }
-    }
-  }, [showOptionsMenu])
 
   const loadProduct = async () => {
     try {
@@ -710,6 +685,45 @@ export default function ProductDetailPage() {
     }
   }
 
+  useEffect(() => {
+    if (!product) return
+
+    const actions: Parameters<typeof setDetailNav>[0]['actions'] = [
+      {
+        id: 'toggle-active',
+        label: product.active ? 'Marcar como inactivo' : 'Activar producto',
+        variant: product.active ? 'danger' : 'primary',
+        disabled:
+          actionLoading || (!product.active && !product.inDropiCatalog),
+        title:
+          !product.active && !product.inDropiCatalog
+            ? 'No está en favoritos Dropi. Sincroniza catálogo tras marcar favorito.'
+            : undefined,
+        onClick: () => void handleToggleActive(),
+      },
+    ]
+
+    if (product.lockedByAdmin && user?.role === 'SUPER_ADMIN') {
+      actions.push({
+        id: 'unlock',
+        label: 'Desbloquear',
+        variant: 'default',
+        disabled: actionLoading,
+        onClick: () => void handleUnlock(),
+      })
+    }
+
+    setDetailNav({
+      title: product.title,
+      subtitle: product.handle,
+      actions,
+    })
+  }, [product, actionLoading, user?.role, setDetailNav])
+
+  useEffect(() => {
+    return () => clearDetailNav()
+  }, [clearDetailNav])
+
   if (!hasHydrated || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -728,112 +742,67 @@ export default function ProductDetailPage() {
 
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <p className="text-red-600 mb-4">{error || 'Producto no encontrado'}</p>
-            <Link
-              href="/products"
-              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-900"
-            >
-              <ArrowLeftIcon className="w-5 h-5" />
-              Volver a productos
-            </Link>
-          </div>
+      <AdminPageShell>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <p className="text-red-600">{error || 'Producto no encontrado'}</p>
         </div>
-      </div>
+      </AdminPageShell>
     )
   }
 
   return (
-    <div className="h-full overflow-auto bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <Link
-            href={getBackUrl()}
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-          >
-            <ArrowLeftIcon className="w-5 h-5" />
-            Volver a productos
-          </Link>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.title}</h1>
-              <p className="text-gray-600">{product.handle}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* Solo icono de candado si está bloqueado */}
-              {product.lockedByAdmin && (
-                <LockClosedIcon className="w-5 h-5 text-amber-600" title="Producto bloqueado" />
-              )}
-              
-              {/* Solo icono para visible en frontend */}
-              {product.inRanking ? (
-                <CheckCircleIcon className="w-5 h-5 text-green-600" title="Visible en Frontend" />
-              ) : (
-                <XCircleIcon className="w-5 h-5 text-gray-400" title="No visible en Frontend" />
-              )}
-              
-              <div className="flex items-center gap-2">
-                {/* Botón para marcar como inactivo/activo */}
-                <button
-                  onClick={handleToggleActive}
-                  disabled={actionLoading}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
-                    product.active
-                      ? 'bg-red-600 text-white hover:bg-red-700'
-                      : 'bg-green-600 text-white hover:bg-green-700'
-                  }`}
-                >
-                  {product.active ? 'Marcar como inactivo' : 'Activar producto'}
-                </button>
-                
-                {/* Menú de opciones (tres puntos) - Solo mostrar si hay opciones disponibles */}
-                {product.lockedByAdmin && user?.role === 'SUPER_ADMIN' && (
-                  <div className="relative options-menu-container">
-                    <button
-                      onClick={() => setShowOptionsMenu(!showOptionsMenu)}
-                      className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="Más opciones"
-                    >
-                      <EllipsisHorizontalIcon className="w-5 h-5" />
-                    </button>
-                    
-                    {showOptionsMenu && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-                        <button
-                          onClick={() => {
-                            handleUnlock()
-                            setShowOptionsMenu(false)
-                          }}
-                          disabled={actionLoading}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
-                          <LockOpenIcon className="w-4 h-4" />
-                          Desbloquear
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+    <AdminPageShell>
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {product.lockedByAdmin && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">
+              <LockClosedIcon className="w-3.5 h-3.5" />
+              Bloqueado por admin
+            </span>
+          )}
+          {product.inRanking ? (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-50 text-green-800 border border-green-200">
+              <CheckCircleIcon className="w-3.5 h-3.5" />
+              Visible en frontend
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200">
+              <XCircleIcon className="w-3.5 h-3.5" />
+              No visible en frontend
+            </span>
+          )}
+          {!product.active && (
+            <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+              Inactivo
+            </span>
+          )}
+          {!product.inDropiCatalog && (
+            <span
+              className={`px-2 py-1 rounded-full text-xs font-medium border ${
+                product.hasOrderHistory
+                  ? 'bg-slate-50 text-slate-800 border-slate-200'
+                  : 'bg-gray-50 text-gray-600 border-gray-200'
+              }`}
+            >
+              {product.catalogLabel}
+            </span>
+          )}
+        </div>
+
+        <div className="lg:hidden pb-3 mb-2 border-b border-gray-200">
+          <DetailNavActions placement="inline" />
         </div>
 
         {/* Variantes - OCUPA TODO EL ANCHO */}
         <div className="mb-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col gap-3 mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">Variantes</h2>
-                {/* Selector de fórmulas */}
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full max-w-full sm:max-w-lg sm:ml-auto">
                   <select
                     value={selectedFormulaId}
                     onChange={(e) => setSelectedFormulaId(e.target.value)}
                     disabled={actionLoading || loadingFormulas}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    className="w-full min-w-0 flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-50 text-sm"
                   >
                     <option value="">Aplicar fórmula...</option>
                     {priceFormulas.map((formula) => (
@@ -843,9 +812,10 @@ export default function ProductDetailPage() {
                     ))}
                   </select>
                   <button
+                    type="button"
                     onClick={handleApplyFormula}
                     disabled={actionLoading || !selectedFormulaId || loadingFormulas}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium whitespace-nowrap"
+                    className="w-full sm:w-auto shrink-0 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
                   >
                     Aplicar
                   </button>
@@ -864,7 +834,8 @@ export default function ProductDetailPage() {
               {product.variants.length === 0 ? (
                 <p className="text-gray-500">No hay variantes</p>
               ) : (
-                <div className="overflow-x-auto">
+                <>
+                <div className="hidden lg:block overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -986,14 +957,94 @@ export default function ProductDetailPage() {
                     </tbody>
                   </table>
                 </div>
+                <div className="lg:hidden space-y-3">
+                  {product.variants.map((variant) => (
+                    <div
+                      key={variant.id}
+                      className="rounded-lg border border-gray-200 p-3 bg-gray-50/50 space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-mono text-gray-600">{variant.sku}</p>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                            variant.active
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}
+                        >
+                          {variant.active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      {editingVariantTitle === variant.id ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={variantTitleValue}
+                            onChange={(e) => setVariantTitleValue(e.target.value)}
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveVariantTitle(variant.id)}
+                            disabled={actionLoading}
+                            className="px-2 py-1 bg-green-600 text-white rounded text-xs"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCancelEditVariantTitle}
+                            className="px-2 py-1 bg-gray-600 text-white rounded text-xs"
+                          >
+                            ✗
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-gray-900">{variant.title}</p>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditVariantTitle(variant)}
+                            className="text-xs text-blue-600 shrink-0"
+                          >
+                            Editar
+                          </button>
+                        </div>
+                      )}
+                      <dl className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <dt className="text-gray-400">Sugerido</dt>
+                          <dd>{formatPrice(variant.suggestedPrice)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-400">Tanku</dt>
+                          <dd className="text-blue-600 font-medium">
+                            {formatPrice(variant.tankuPrice)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-400">Stock</dt>
+                          <dd
+                            className={
+                              variant.stock > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'
+                            }
+                          >
+                            {variant.stock}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  ))}
+                </div>
+                </>
               )}
           </div>
         </div>
 
         {/* Resto de información en grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_min(320px,22rem)] xl:grid-cols-[minmax(0,1fr)_min(300px,20rem)] 2xl:grid-cols-[minmax(0,1fr)_min(340px,22rem)] gap-6 items-start">
           {/* Columna principal */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="space-y-6 min-w-0">
             {/* Información básica */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
@@ -1052,12 +1103,12 @@ export default function ProductDetailPage() {
                     <textarea
                       value={editData.description}
                       onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                      rows={6}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
+                      rows={14}
+                      className="w-full min-h-[320px] px-4 py-3 text-base leading-relaxed border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
                       placeholder="Descripción del producto"
                     />
                   ) : (
-                    <p className="text-gray-900 whitespace-pre-wrap">
+                    <p className="text-gray-900 whitespace-pre-wrap text-base leading-relaxed min-h-[4rem]">
                       {product.description || 'Sin descripción'}
                     </p>
                   )}
@@ -1236,10 +1287,10 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Columna lateral */}
-          <div className="space-y-6">
+          {/* Columna lateral — ancho acotado en pantallas grandes */}
+          <div className="space-y-6 w-full max-w-sm mx-auto lg:max-w-none lg:mx-0 lg:sticky lg:top-4">
             {/* Imágenes */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 lg:p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">Imágenes</h2>
                 <label className="px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 transition-colors text-sm font-medium">
@@ -1280,7 +1331,7 @@ export default function ProductDetailPage() {
                   <div className="space-y-3">
                     {/* Imagen principal destacada */}
                     <div className="relative">
-                      <div className="relative aspect-square rounded-lg overflow-hidden border-2 border-blue-500 shadow-md">
+                      <div className="relative aspect-square max-h-[280px] lg:max-h-[240px] mx-auto rounded-lg overflow-hidden border-2 border-blue-500 shadow-md">
                         <img
                           src={visibleImages[0]}
                           alt={`${product.title} - Imagen principal`}
@@ -1330,7 +1381,7 @@ export default function ProductDetailPage() {
                     {visibleImages.length > 1 && (
                       <div>
                         <p className="text-sm text-gray-600 mb-2">Otras imágenes ({visibleImages.length - 1})</p>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-2 max-w-[220px] lg:max-w-none mx-auto lg:mx-0">
                           {visibleImages.slice(1).map((image, index) => {
                             const actualIndex = product.images.indexOf(image) // Índice real en el array original
                             const isCustom = product.customImageUrls.includes(image)
@@ -1586,8 +1637,7 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </AdminPageShell>
   )
 }
 

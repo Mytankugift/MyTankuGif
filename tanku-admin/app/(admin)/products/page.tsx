@@ -20,6 +20,7 @@ import {
   CheckIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { AdminMobileSheet } from '@/components/admin/AdminMobileSheet'
 
 interface ProductListItem {
   id: string
@@ -43,6 +44,11 @@ interface ProductListItem {
   lockedAt: string | null
   lockedBy: string | null
   inRanking: boolean
+  dropiId: number | null
+  inDropiCatalog: boolean
+  removedFromCatalogAt: string | null
+  hasOrderHistory: boolean
+  catalogLabel: string
   createdAt: string
   updatedAt: string
 }
@@ -815,12 +821,52 @@ export default function ProductsPage() {
   }, [showBulkActiveModal, products, selectedProductIds])
 
   return (
+    <>
     <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
       <div className="flex-shrink-0 p-6 pb-4">
-        <div className="max-w-7xl mx-auto">
-          {/* Filters - Todo en una sola barra */}
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          {/* Filtros y búsqueda */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
+            {/* Móvil */}
+            <div className="lg:hidden space-y-3">
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar productos..."
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(true)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-800"
+                >
+                  <FunnelIcon className="w-5 h-5" />
+                  Filtros y orden
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsBulkEditMode(!isBulkEditMode)
+                    setSelectedProductIds(new Set())
+                  }}
+                  className="inline-flex items-center justify-center w-11 h-11 rounded-lg border border-gray-300 shrink-0"
+                  title={isBulkEditMode ? 'Cancelar edición masiva' : 'Editar en masa'}
+                >
+                  {isBulkEditMode ? (
+                    <XMarkIcon className="w-5 h-5 text-red-600" />
+                  ) : (
+                    <PencilIcon className="w-5 h-5 text-blue-600" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="hidden lg:flex items-center gap-3">
               {/* Search - Ocupa el resto del espacio */}
               <div className="flex-1">
                 <div className="relative">
@@ -1181,6 +1227,7 @@ export default function ProductsPage() {
                   </>
                 )}
               </div>
+              </div>
 
               {/* Botón de edición masiva */}
               <button
@@ -1199,7 +1246,6 @@ export default function ProductsPage() {
               </button>
             </div>
           </div>
-          </div>
 
           {/* Error */}
           {error && (
@@ -1213,7 +1259,7 @@ export default function ProductsPage() {
 
       {/* Table Container con scroll */}
       <div className="flex-1 overflow-hidden px-6 pb-6">
-        <div className="h-full max-w-7xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
+        <div className="h-full w-full px-4 sm:px-6 lg:px-8 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
           {loading ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
@@ -1227,8 +1273,8 @@ export default function ProductsPage() {
             </div>
           ) : (
             <>
-              {/* Tabla con scroll */}
-              <div className="flex-1 overflow-auto">
+              {/* Tabla desktop */}
+              <div className="hidden lg:block flex-1 overflow-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
@@ -1388,6 +1434,18 @@ export default function ProductsPage() {
                                 Bloqueado
                               </span>
                             )}
+                            {!product.inDropiCatalog && (
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium w-fit ${
+                                  product.hasOrderHistory
+                                    ? 'bg-slate-100 text-slate-700'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
+                                title={product.catalogLabel}
+                              >
+                                {product.catalogLabel}
+                              </span>
+                            )}
                             {product.inRanking ? (
                               <span className="px-2 py-1 rounded-full text-xs font-medium w-fit bg-green-100 text-green-700" title="Visible en Frontend">
                                 ✓ Frontend
@@ -1422,6 +1480,115 @@ export default function ProductsPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Cards móvil / tablet */}
+              <div className="lg:hidden flex-1 overflow-auto p-3 space-y-3">
+                {products.map((product, index) => {
+                  const productNumber = (pagination.page - 1) * pagination.limit + index + 1
+                  const detailQs = new URLSearchParams({
+                    ...(pagination.page > 1 && { page: pagination.page.toString() }),
+                    ...(pagination.limit !== 50 && { limit: pagination.limit.toString() }),
+                    ...(filters.search && { search: filters.search }),
+                    ...(filters.categoryId && { categoryId: filters.categoryId }),
+                    ...(filters.active && { active: filters.active }),
+                    ...(filters.lockedByAdmin && { lockedByAdmin: filters.lockedByAdmin }),
+                    ...(filters.inRanking && { inRanking: filters.inRanking }),
+                    ...(sortBy && sortBy !== 'default' && { sortBy: sortBy }),
+                  }).toString()
+                  return (
+                    <div
+                      key={product.id}
+                      className={`rounded-xl border p-3 ${
+                        selectedProductIds.has(product.id)
+                          ? 'border-blue-300 bg-blue-50/50'
+                          : 'border-gray-200 bg-white'
+                      }`}
+                    >
+                      <div className="flex gap-3">
+                        {isBulkEditMode && (
+                          <input
+                            type="checkbox"
+                            checked={selectedProductIds.has(product.id)}
+                            onChange={(e) => {
+                              const newSet = new Set(selectedProductIds)
+                              if (e.target.checked) newSet.add(product.id)
+                              else newSet.delete(product.id)
+                              setSelectedProductIds(newSet)
+                            }}
+                            className="mt-1 w-4 h-4 shrink-0"
+                          />
+                        )}
+                        <ProductImageThumbnail
+                          image={product.image}
+                          title={product.title}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-xs text-gray-400">#{productNumber}</p>
+                              <p className="font-medium text-gray-900 text-sm leading-snug line-clamp-2">
+                                {product.title}
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">{product.handle}</p>
+                            </div>
+                            {product.lockedByAdmin && (
+                              <LockClosedIcon className="w-4 h-4 text-amber-500 shrink-0" />
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                product.active
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {product.active ? 'Activo' : 'Inactivo'}
+                            </span>
+                            {product.inRanking ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700">
+                                Frontend
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                        <div>
+                          <dt className="text-gray-400">Categoría</dt>
+                          <dd className="text-gray-800 truncate">
+                            {product.category?.name ?? 'Sin categoría'}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-400">Stock</dt>
+                          <dd
+                            className={`font-medium ${
+                              product.stock > 0 ? 'text-green-600' : 'text-red-600'
+                            }`}
+                          >
+                            {product.stock}
+                          </dd>
+                        </div>
+                        <div className="col-span-2">
+                          <dt className="text-gray-400">Precios</dt>
+                          <dd className="text-gray-800">
+                            Sug. {formatPrice(product.suggestedPrice)} · Tanku{' '}
+                            {formatPrice(product.tankuPrice)}
+                          </dd>
+                        </div>
+                      </dl>
+                      <Link
+                        href={`/products/${product.id}?${detailQs}`}
+                        className="mt-3 flex w-full items-center justify-center gap-1 py-2 text-sm font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50"
+                      >
+                        <EyeIcon className="w-4 h-4" />
+                        Ver producto
+                      </Link>
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Pagination - Siempre visible en la parte inferior */}
@@ -1822,6 +1989,159 @@ export default function ProductsPage() {
         </div>
       )}
     </div>
+
+    <AdminMobileSheet
+      open={showFilters}
+      onClose={() => setShowFilters(false)}
+      title="Filtros y orden"
+      footer={
+        <div className="p-4">
+          <button
+            type="button"
+            onClick={() => setShowFilters(false)}
+            className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium"
+          >
+            Aplicar
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-5">
+        <section>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">Categoría</h3>
+          <select
+            value={filters.categoryId || ''}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v === '') {
+                setSelectedParentCategory('')
+                setSelectedSubcategory('')
+                handleFilterChange('categoryId', '')
+              } else if (v === 'null') {
+                handleFilterChange('categoryId', 'null')
+              } else {
+                setSelectedParentCategory(v)
+                handleFilterChange('categoryId', v)
+              }
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            <option value="">Todas las categorías</option>
+            <option value="null">Sin categoría</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+        </section>
+
+        <section>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">Estado</h3>
+          <div className="space-y-2 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedStates.active === true}
+                onChange={(e) =>
+                  handleStateChange('active', e.target.checked ? true : null)
+                }
+              />
+              Activo
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedStates.active === false}
+                onChange={(e) =>
+                  handleStateChange('active', e.target.checked ? false : null)
+                }
+              />
+              Inactivo
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedStates.locked === true}
+                onChange={(e) =>
+                  handleStateChange('locked', e.target.checked ? true : null)
+                }
+              />
+              Bloqueado
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedStates.front === true}
+                onChange={(e) =>
+                  handleStateChange('front', e.target.checked ? true : null)
+                }
+              />
+              Visible en frontend
+            </label>
+          </div>
+        </section>
+
+        <section>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">Ordenar</h3>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSortBy('default')
+                updateURL(filters, pagination, 'default')
+              }}
+              className={`flex-1 py-2 rounded-lg text-sm border ${
+                sortBy === 'default'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'border-gray-300'
+              }`}
+            >
+              Por defecto
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSortBy('ranking')
+                updateURL(filters, pagination, 'ranking')
+              }}
+              className={`flex-1 py-2 rounded-lg text-sm border ${
+                sortBy === 'ranking'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'border-gray-300'
+              }`}
+            >
+              Ranking
+            </button>
+          </div>
+        </section>
+
+        <section>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">Productos por página</h3>
+          <div className="flex flex-wrap gap-2">
+            {[20, 50, 100, 200].map((limit) => (
+              <button
+                key={limit}
+                type="button"
+                onClick={() => {
+                  const newPagination = { ...pagination, limit, page: 1 }
+                  setPagination(newPagination)
+                  updateURL(filters, newPagination)
+                }}
+                className={`px-3 py-1.5 rounded-lg text-sm border ${
+                  pagination.limit === limit
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'border-gray-300'
+                }`}
+              >
+                {limit}
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+    </AdminMobileSheet>
+    </>
   )
 }
 

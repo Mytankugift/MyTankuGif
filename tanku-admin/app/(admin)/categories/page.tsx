@@ -399,7 +399,7 @@ export default function CategoriesPage() {
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
       <div className="flex-shrink-0 p-6 pb-4">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           {/* Filters - Todo en una sola barra */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-3">
@@ -431,7 +431,7 @@ export default function CategoriesPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto h-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8 h-full">
           {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>

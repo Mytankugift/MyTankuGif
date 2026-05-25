@@ -5,11 +5,6 @@ import { DropiNormalizeService } from '../../dropi-normalize/dropi-normalize.ser
 import { DropiSyncService } from '../../dropi-sync/dropi-sync.service';
 import { prisma } from '../../../config/database';
 
-/**
- * Worker para procesar jobs SYNC_STOCK
- * Sincroniza solo stock y precios (para ejecución periódica vía cron)
- * Este es un flujo independiente, no crea otros jobs
- */
 export class SyncStockWorker extends BaseWorker {
   private dropiRawService: DropiRawService;
   private dropiNormalizeService: DropiNormalizeService;
@@ -24,86 +19,311 @@ export class SyncStockWorker extends BaseWorker {
 
   protected async processJob(jobId: string): Promise<void> {
     console.log(`[SYNC_STOCK WORKER] Procesando job ${jobId}`);
+    await this.dropiJobsService.initSyncStockMetadata(jobId);
 
-    // PASO 1: Sincronizar RAW completo (para obtener stock/precios actualizados)
-    console.log(`[SYNC_STOCK WORKER] Sincronizando RAW...`);
-    await this.dropiRawService.syncRawProducts(0, null);
+    try {
+      // —— Paso 1: RAW ——
+      await this.dropiJobsService.updateSyncStockStep(jobId, 'raw', {
+        status: 'running',
+        progress: 0,
+        message: 'Descargando favoritos desde Dropi…',
+      });
 
-    // PASO 2: Normalizar solo productos que ya existen (actualizar stock/precios)
-    // Usar processAll=false para solo actualizar productos existentes
-    console.log(`[SYNC_STOCK WORKER] Normalizando productos (solo stock/precios)...`);
-    let offset = 0;
-    const batchSize = 100;
-    let hasMore = true;
+      const rawResult = await this.dropiRawService.syncRawProducts(0, null, {
+        favorite: true,
+        shouldAbort: () => this.isJobCancelled(jobId),
+        onProgress: async ({ percent, pageNumber, totalProcessed }) => {
+          await this.dropiJobsService.updateSyncStockStep(jobId, 'raw', {
+            status: 'running',
+            progress: percent,
+            message: `Descargando… página ${pageNumber} · ${totalProcessed} productos`,
+            stats: {
+              productosProcesados: totalProcessed,
+              paginas: pageNumber,
+            },
+          });
+        },
+      });
 
-    while (hasMore) {
-      const result = await this.dropiNormalizeService.normalizeProducts(
-        batchSize,
-        offset,
-        undefined,
-        false
-      );
+      const syncRunId = rawResult.sync_run_id;
+      const catalogDropiIds = await this.dropiRawService.getCatalogDropiIds(syncRunId);
 
-      console.log(`[SYNC_STOCK WORKER] Batch normalizado: ${result.normalized} productos`);
+      await this.dropiJobsService.updateSyncStockStep(jobId, 'raw', {
+        status: 'completed',
+        progress: 100,
+        message: 'RAW completado',
+        stats: {
+          productosProcesados: rawResult.processed,
+          totalDropi: rawResult.total,
+          paginas: rawResult.pages_processed,
+          syncRunId,
+          catalogDropiIdsCount: catalogDropiIds.length,
+          filasPurgadasCorridasAnteriores: rawResult.purged_stale,
+          limpiezaRaw: `${rawResult.purged_stale} filas de corridas anteriores eliminadas`,
+        },
+      });
 
-      if (result.next_offset === null) {
-        hasMore = false;
-      } else {
-        offset = result.next_offset;
+      // —— Paso 2: Normalizar ——
+      await this.dropiJobsService.updateSyncStockStep(jobId, 'normalize', {
+        status: 'running',
+        progress: 0,
+        message: 'Normalizando a dropi_products…',
+        currentStep: 'normalize',
+      });
+
+      let offset = 0;
+      const batchSize = 100;
+      let hasMore = true;
+      let normalizedTotal = 0;
+      let totalPending = 0;
+
+      while (hasMore) {
+        if (await this.isJobCancelled(jobId)) {
+          throw new Error('Job cancelado por el usuario');
+        }
+
+        const result = await this.dropiNormalizeService.normalizeProducts(
+          batchSize,
+          offset,
+          undefined,
+          false
+        );
+
+        normalizedTotal += result.normalized;
+        totalPending = result.total_pending;
+
+        const stepProgress =
+          result.total_pending > 0
+            ? Math.round(
+                ((result.total_pending - result.remaining) / result.total_pending) * 100
+              )
+            : 100;
+
+        await this.dropiJobsService.updateSyncStockStep(jobId, 'normalize', {
+          status: 'running',
+          progress: stepProgress,
+          message: `Normalizando ${result.total_pending - result.remaining}/${result.total_pending}`,
+          stats: {
+            normalizadosAcumulado: normalizedTotal,
+            totalRaw: result.total_pending,
+            erroresAcumulado: result.errors,
+          },
+        });
+
+        if (result.next_offset === null) {
+          hasMore = false;
+        } else {
+          offset = result.next_offset;
+        }
       }
 
-      // Actualizar progreso
-      const progress = result.total_pending > 0
-        ? Math.round(((result.total_pending - result.remaining) / result.total_pending) * 100)
-        : 100;
-      await this.updateProgress(jobId, progress);
-    }
+      const purgedDropiProducts =
+        await this.dropiSyncService.purgeDropiProductsNotInCatalog(catalogDropiIds);
 
-    // PASO 3: Sincronizar stock actualizado al backend (actualizar warehouseVariants)
-    console.log(`[SYNC_STOCK WORKER] Sincronizando stock al backend...`);
-    await this.dropiSyncService.syncToBackend(
-      50,
-      0,
-      true, // activeOnly
-      true  // skipExisting - solo actualizar productos existentes
-    );
+      const retireStats =
+        await this.dropiSyncService.retireProductsNotInCatalog(catalogDropiIds);
 
-    // PASO 4: Actualizar estados de productos y variantes según stock
-    console.log(`[SYNC_STOCK WORKER] Actualizando estados según stock...`);
-    // ✅ Procesar TODOS los productos (bloqueados y no bloqueados)
-    // El bloqueo NO protege el estado active, solo precios/categorías/información
-    const allProducts = await prisma.product.findMany({
-      select: { id: true },
-    });
+      const privatizadosDesactivados =
+        await this.dropiSyncService.deactivateTankuProductsForPrivateDropi();
 
-    let updatedCount = 0;
-    for (const product of allProducts) {
-      try {
-        // 1. Actualizar estado de todas las variantes del producto según stock
+      const privatizadosEnDropi = await prisma.dropiProduct.count({
+        where: { privatedProduct: true },
+      });
+
+      await this.dropiJobsService.updateSyncStockStep(jobId, 'normalize', {
+        status: 'completed',
+        progress: 100,
+        message: 'Normalización y retiro fuera de catálogo completados',
+        stats: {
+          normalizados: normalizedTotal,
+          totalRaw: totalPending,
+          catalogDropiIdsCount: catalogDropiIds.length,
+          purgedDropiProducts,
+          retainedForOrders: retireStats.retainedForOrders,
+          deletedNoOrders: retireStats.deletedNoOrders,
+          markedOutOfCatalog: retireStats.markedOutOfCatalog,
+          privatizadosEnDropi,
+          privatizadosDesactivadosEnTanku: privatizadosDesactivados,
+        },
+      });
+
+      // —— Paso 3: Sync backend ——
+      await this.dropiJobsService.updateSyncStockStep(jobId, 'sync', {
+        status: 'running',
+        progress: 0,
+        message: 'Sincronizando stock a Tanku…',
+        currentStep: 'sync',
+      });
+
+      let syncOffset = 0;
+      const syncBatchSize = 50;
+      let syncHasMore = true;
+      let syncBatches = 0;
+      let variantsUpdated = 0;
+      let warehouseVariantsCreated = 0;
+
+      while (syncHasMore) {
+        if (await this.isJobCancelled(jobId)) {
+          throw new Error('Job cancelado por el usuario');
+        }
+
+        const syncResult = await this.dropiSyncService.syncToBackend(
+          syncBatchSize,
+          syncOffset,
+          true,
+          true,
+          catalogDropiIds
+        );
+
+        syncBatches++;
+        variantsUpdated += syncResult.variants_updated;
+        warehouseVariantsCreated += syncResult.warehouse_variants_created;
+
+        const stepProgress =
+          syncResult.total > 0
+            ? Math.round(
+                ((syncResult.total - syncResult.remaining) / syncResult.total) * 100
+              )
+            : 100;
+
+        await this.dropiJobsService.updateSyncStockStep(jobId, 'sync', {
+          status: 'running',
+          progress: stepProgress,
+          message: `Backend ${syncResult.total - syncResult.remaining}/${syncResult.total} dropi_products`,
+          stats: {
+            lotes: syncBatches,
+            dropiProductsTotal: syncResult.total,
+            variantesActualizadas: variantsUpdated,
+            warehouseVariantsCreados: warehouseVariantsCreated,
+            excluidosSinStockRanking: syncResult.products_excluded_no_stock,
+            incluidosConStockRanking: syncResult.products_included_with_stock,
+          },
+        });
+
+        if (syncResult.next_offset === null) {
+          syncHasMore = false;
+        } else {
+          syncOffset = syncResult.next_offset;
+        }
+      }
+
+      await this.dropiJobsService.updateSyncStockStep(jobId, 'sync', {
+        status: 'completed',
+        progress: 100,
+        message: 'Sync backend completado',
+        stats: {
+          lotes: syncBatches,
+          variantesActualizadas: variantsUpdated,
+          warehouseVariantsCreados: warehouseVariantsCreated,
+        },
+      });
+
+      // —— Paso 4: Estados por stock ——
+      await this.dropiJobsService.updateSyncStockStep(jobId, 'status', {
+        status: 'running',
+        progress: 0,
+        message: 'Actualizando activo/inactivo por stock…',
+        currentStep: 'status',
+      });
+
+      const catalogProducts = await prisma.product.findMany({
+        where: { inDropiCatalog: true },
+        select: { id: true },
+      });
+
+      let processed = 0;
+      let variantsInactivated = 0;
+      let productsInactivated = 0;
+
+      for (const product of catalogProducts) {
+        if (await this.isJobCancelled(jobId)) {
+          throw new Error('Job cancelado por el usuario');
+        }
+
         const variants = await prisma.productVariant.findMany({
           where: { productId: product.id },
-          select: { id: true },
+          select: { id: true, active: true },
         });
 
         for (const variant of variants) {
+          const wasActive = variant.active;
           await this.dropiSyncService.updateVariantStockStatus(variant.id);
+          const after = await prisma.productVariant.findUnique({
+            where: { id: variant.id },
+            select: { active: true },
+          });
+          if (wasActive && after && !after.active) {
+            variantsInactivated++;
+          }
         }
 
-        // 2. Actualizar estado del producto basándose en el estado de sus variantes
+        const productBefore = await prisma.product.findUnique({
+          where: { id: product.id },
+          select: { active: true },
+        });
+
         await this.dropiSyncService.updateProductStatusFromVariants(product.id);
 
-        // 3. Actualizar ranking del producto (el bloqueo SÍ protege el ranking)
+        const productAfter = await prisma.product.findUnique({
+          where: { id: product.id },
+          select: { active: true },
+        });
+
+        if (productBefore?.active && productAfter && !productAfter.active) {
+          productsInactivated++;
+        }
+
         await this.dropiSyncService.updateProductRankingStatus(product.id);
 
-        updatedCount++;
-        if (updatedCount % 50 === 0) {
-          console.log(`[SYNC_STOCK WORKER] Actualizados ${updatedCount} productos...`);
+        processed++;
+        if (
+          processed % 25 === 0 ||
+          processed === catalogProducts.length ||
+          catalogProducts.length === 0
+        ) {
+          const stepProgress =
+            catalogProducts.length > 0
+              ? Math.round((processed / catalogProducts.length) * 100)
+              : 100;
+          await this.dropiJobsService.updateSyncStockStep(jobId, 'status', {
+            status: 'running',
+            progress: stepProgress,
+            message: `Estados ${processed}/${catalogProducts.length} productos en catálogo`,
+            stats: {
+              productosRevisados: processed,
+              productosEnCatalogo: catalogProducts.length,
+              variantesInactivadas: variantsInactivated,
+              productosInactivados: productsInactivated,
+            },
+          });
         }
-      } catch (error: any) {
-        console.error(`[SYNC_STOCK WORKER] Error actualizando producto ${product.id}:`, error?.message);
       }
-    }
 
-    console.log(`[SYNC_STOCK WORKER] Sincronización de stock completada. ${updatedCount} productos actualizados.`);
+      await this.dropiJobsService.updateSyncStockStep(jobId, 'status', {
+        status: 'completed',
+        progress: 100,
+        message: 'Estados actualizados',
+        stats: {
+          productosRevisados: processed,
+          productosEnCatalogo: catalogProducts.length,
+          variantesInactivadas: variantsInactivated,
+          productosInactivados: productsInactivated,
+        },
+      });
+
+      await this.dropiJobsService.finalizeSyncStockMetadata(jobId, true);
+      console.log(`[SYNC_STOCK WORKER] Completado. ${processed} productos revisados.`);
+    } catch (error: any) {
+      const step = await this.dropiJobsService.getJob(jobId);
+      const meta = step?.metadata as { currentStep?: string } | null;
+      const failedStep = (meta?.currentStep as 'raw' | 'normalize' | 'sync' | 'status') || 'raw';
+      if (['raw', 'normalize', 'sync', 'status'].includes(failedStep)) {
+        await this.dropiJobsService.updateSyncStockStep(jobId, failedStep, {
+          status: 'failed',
+          message: error?.message || 'Error',
+        });
+      }
+      throw error;
+    }
   }
 }

@@ -7,7 +7,6 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAdminAuthStore } from '@/lib/stores/admin-auth-store'
 import { showNotification } from '@/components/notifications'
 import {
-  ArrowLeftIcon,
   LockClosedIcon,
   LockOpenIcon,
   PhotoIcon,
@@ -18,6 +17,9 @@ import {
   FolderIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { AdminPageShell } from '@/components/admin/AdminPageShell'
+import { DetailNavActions } from '@/components/admin/DetailNavActions'
+import { useAdminDetailNavStore } from '@/lib/stores/admin-detail-nav-store'
 
 interface CategoryDetail {
   id: string
@@ -73,6 +75,8 @@ export default function CategoryDetailPage() {
     isDefault: boolean
   }>>([])
   const [selectedFormulaId, setSelectedFormulaId] = useState<string>('')
+  const setDetailNav = useAdminDetailNavStore((s) => s.setDetailNav)
+  const clearDetailNav = useAdminDetailNavStore((s) => s.clearDetailNav)
   const [showCreateSubcategoryModal, setShowCreateSubcategoryModal] = useState(false)
   const [newSubcategory, setNewSubcategory] = useState({
     name: '',
@@ -418,6 +422,73 @@ export default function CategoryDetailPage() {
     )
   }
 
+  useEffect(() => {
+    if (!category) return
+
+    const subtitle = [
+      category.handle,
+      category.dropiId != null ? `Dropi ID: ${category.dropiId}` : null,
+    ]
+      .filter(Boolean)
+      .join(' • ')
+
+    if (isEditing) {
+      setDetailNav({
+        title: 'Editar categoría',
+        subtitle,
+        actions: [
+          {
+            id: 'cancel',
+            label: 'Cancelar',
+            variant: 'muted',
+            disabled: actionLoading,
+            onClick: () => setIsEditing(false),
+          },
+          {
+            id: 'save',
+            label: 'Guardar',
+            variant: 'primary',
+            disabled: actionLoading,
+            onClick: () => void handleSave(),
+          },
+        ],
+      })
+      return
+    }
+
+    setDetailNav({
+      title: category.name,
+      subtitle,
+      actions: [
+        {
+          id: 'edit',
+          label: 'Editar',
+          variant: 'default',
+          disabled: actionLoading,
+          onClick: () => setIsEditing(true),
+        },
+        {
+          id: 'block',
+          label: category.blocked ? 'Desbloquear' : 'Bloquear',
+          variant: 'default',
+          disabled: actionLoading,
+          onClick: () => void handleToggleBlock(),
+        },
+        {
+          id: 'delete',
+          label: 'Eliminar',
+          variant: 'danger',
+          disabled: actionLoading,
+          onClick: () => void handleDelete(),
+        },
+      ],
+    })
+  }, [category, isEditing, actionLoading, setDetailNav])
+
+  useEffect(() => {
+    return () => clearDetailNav()
+  }, [clearDetailNav])
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -428,97 +499,22 @@ export default function CategoryDetailPage() {
 
   if (error || !category) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
+      <AdminPageShell>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
           <p className="text-red-600 mb-4">{error || 'Categoría no encontrada'}</p>
-          <Link
-            href="/categories"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Volver a Categorías
-          </Link>
         </div>
-      </div>
+      </AdminPageShell>
     )
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 overflow-y-auto">
-      {/* Header */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/categories"
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-            >
-              <ArrowLeftIcon className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {isEditing ? 'Editar Categoría' : category.name}
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                {category.handle} {category.dropiId && `• Dropi ID: ${category.dropiId}`}
-              </p>
-            </div>
+    <AdminPageShell className="space-y-6">
+          <div className="lg:hidden pb-3 border-b border-gray-200">
+            <DetailNavActions placement="inline" />
           </div>
 
-          <div className="flex items-center gap-2">
-            {!isEditing ? (
-              <>
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                >
-                  Editar
-                </button>
-                <button
-                  onClick={handleToggleBlock}
-                  disabled={actionLoading}
-                  className={`text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                    category.blocked
-                      ? 'text-red-600 hover:text-red-700'
-                      : 'text-gray-600 hover:text-gray-700'
-                  }`}
-                >
-                  {category.blocked ? 'Desbloquear' : 'Bloquear'}
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={actionLoading}
-                  className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Eliminar
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={actionLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <CheckIcon className="w-4 h-4" />
-                  Guardar
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Información básica e Imagen en la misma línea */}
-          <div className="grid grid-cols-2 gap-6">
+          {/* Información básica e Imagen */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Información básica */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Información Básica</h2>
@@ -696,7 +692,7 @@ export default function CategoryDetailPage() {
           </div>
 
           {/* Estadísticas y Subcategorías en la misma línea */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Estadísticas */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Estadísticas</h2>
@@ -843,8 +839,6 @@ export default function CategoryDetailPage() {
               </button>
             </div>
           </div>
-        </div>
-      </div>
 
       {/* Modal Nueva Subcategoría */}
       {showCreateSubcategoryModal && (
@@ -1105,7 +1099,7 @@ export default function CategoryDetailPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPageShell>
   )
 }
 

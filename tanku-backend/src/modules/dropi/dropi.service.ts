@@ -181,19 +181,29 @@ export class DropiService {
   async listProducts(params: {
     pageSize: number;
     startData?: number;
-    category_id?: number;
+    /** Un ID → string en API Dropi (`"1"`). Varios → array. */
+    categoryIds?: string[];
+    /** Solo productos favoritos del usuario de integración. */
+    favorite?: boolean;
+    no_count?: boolean;
   }): Promise<DropiListResponse> {
     const body: any = {
       pageSize: params.pageSize,
-      no_count: false, // Siempre obtener count
+      no_count: params.no_count ?? true,
     };
 
     if (params.startData !== undefined) {
       body.startData = params.startData;
     }
 
-    if (params.category_id !== undefined) {
-      body.category_id = params.category_id;
+    if (params.favorite === true) {
+      body.favorite = true;
+    }
+
+    if (params.categoryIds?.length === 1) {
+      body.category = params.categoryIds[0];
+    } else if (params.categoryIds && params.categoryIds.length > 1) {
+      body.category = params.categoryIds;
     }
 
     return this.request<DropiListResponse>(
@@ -340,7 +350,6 @@ export class DropiService {
     const response = await this.listProducts({
       pageSize: limit,
       startData: 0,
-      category_id: 1, // Categoría por defecto
     });
 
     if (!response.isSuccess || !response.objects) {

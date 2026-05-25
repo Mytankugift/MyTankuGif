@@ -162,10 +162,12 @@ export class DropiSyncService {
       select: {
         lockedByAdmin: true,
         active: true,
+        inDropiCatalog: true,
       },
     });
 
     if (!product) return;
+    if (!product.inDropiCatalog) return;
 
     // Contar variantes activas del producto
     const activeVariantsCount = await prisma.productVariant.count({
@@ -215,25 +217,19 @@ export class DropiSyncService {
   /**
    * Actualizar estado del producto en el ranking según su stock
    * Método público para que pueda ser llamado desde otros servicios (ej: worker de stock)
-   * ✅ El bloqueo SÍ protege el ranking (no agregar productos bloqueados al ranking)
+   * Elegibilidad de ranking (stock, título, imágenes, active). No aplica a productos fuera de catálogo Dropi.
    */
   async updateProductRankingStatus(productId: string): Promise<void> {
-    // Verificar si el producto está bloqueado
     const productCheck = await prisma.product.findUnique({
       where: { id: productId },
       select: {
-        lockedByAdmin: true,
         active: true,
+        inDropiCatalog: true,
       },
     });
 
     if (!productCheck) return;
-
-    // ✅ Si el producto está bloqueado, NO actualizar ranking (el bloqueo SÍ protege el ranking)
-    if (productCheck.lockedByAdmin) {
-      console.log(`[SYNC TO BACKEND] 🔒 Producto bloqueado, no se actualiza ranking: ${productId}`);
-      return;
-    }
+    if (!productCheck.inDropiCatalog) return;
 
     const totalStock = await this.calculateProductStock(productId);
     const product = await prisma.product.findUnique({
@@ -281,6 +277,197 @@ export class DropiSyncService {
   }
 
   /**
+   * Productos privatizados en Dropi: no van al catálogo Tanku.
+   * Desactiva Product existente y lo saca del ranking (no usa lockedByAdmin).
+   */
+  /**
+   * Elimina dropi_products que ya no están en favoritos (catálogo actual).
+   */
+  async purgeDropiProductsNotInCatalog(catalogDropiIds: number[]): Promise<number> {
+    if (catalogDropiIds.length === 0) {
+      const result = await prisma.dropiProduct.deleteMany({});
+      console.log(
+        `[SYNC] Purga dropi_products (catálogo vacío): ${result.count} eliminados`
+      );
+      return result.count;
+    }
+    const result = await prisma.dropiProduct.deleteMany({
+      where: { dropiId: { notIn: catalogDropiIds } },
+    });
+    console.log(
+      `[SYNC] Purga dropi_products fuera de catálogo: ${result.count} eliminados`
+    );
+    return result.count;
+  }
+
+  /**
+   * Retira productos Tanku que salieron de favoritos Dropi.
+   * Con pedidos: inactivo + fuera de catálogo (conserva fila para historial).
+   * Sin pedidos: borra fila y dependencias.
+   */
+  async retireProductsNotInCatalog(catalogDropiIds: number[]): Promise<{
+    retainedForOrders: number;
+    deletedNoOrders: number;
+    markedOutOfCatalog: number;
+  }> {
+    const catalogSet = new Set(catalogDropiIds);
+    const inCatalog = await prisma.product.findMany({
+      where: { inDropiCatalog: true },
+      select: {
+        id: true,
+        dropiId: true,
+        handle: true,
+        _count: { select: { orderItems: true } },
+      },
+    });
+
+    const resolveDropiId = (p: { dropiId: number | null; handle: string }): number | null => {
+      if (p.dropiId != null) return p.dropiId;
+      const match = p.handle.match(/-(\d+)$/);
+      return match ? parseInt(match[1], 10) : null;
+    };
+
+    const candidates = inCatalog.filter((p) => {
+      const id = resolveDropiId(p);
+      if (id == null) return catalogDropiIds.length === 0;
+      return !catalogSet.has(id);
+    });
+
+    let retainedForOrders = 0;
+    let deletedNoOrders = 0;
+    let markedOutOfCatalog = 0;
+
+    for (const product of candidates) {
+      try {
+        await (prisma as any).globalRanking.deleteMany({
+          where: { itemId: product.id, itemType: 'product' },
+        });
+      } catch {
+        // ignorar
+      }
+
+      if (product._count.orderItems > 0) {
+        await prisma.product.update({
+          where: { id: product.id },
+          data: {
+            active: false,
+            inDropiCatalog: false,
+            removedFromCatalogAt: new Date(),
+          },
+        });
+        retainedForOrders++;
+        markedOutOfCatalog++;
+        continue;
+      }
+
+      const deleted = await this.deleteProductWithoutOrders(product.id);
+      if (deleted) {
+        deletedNoOrders++;
+      } else {
+        await prisma.product.update({
+          where: { id: product.id },
+          data: {
+            active: false,
+            inDropiCatalog: false,
+            removedFromCatalogAt: new Date(),
+          },
+        });
+        markedOutOfCatalog++;
+      }
+    }
+
+    console.log(
+      `[SYNC] Retiro catálogo: ${retainedForOrders} conservados por pedidos, ${deletedNoOrders} eliminados sin pedidos`
+    );
+    return { retainedForOrders, deletedNoOrders, markedOutOfCatalog };
+  }
+
+  private async deleteProductWithoutOrders(productId: string): Promise<boolean> {
+    const orderCount = await prisma.orderItem.count({ where: { productId } });
+    if (orderCount > 0) return false;
+
+    const variantIds = (
+      await prisma.productVariant.findMany({
+        where: { productId },
+        select: { id: true },
+      })
+    ).map((v) => v.id);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.wishListItem.deleteMany({ where: { productId } });
+      await tx.productLike.deleteMany({ where: { productId } });
+      if (variantIds.length > 0) {
+        await tx.cartItem.deleteMany({ where: { variantId: { in: variantIds } } });
+      }
+      await tx.stalkerGift.deleteMany({ where: { productId } });
+      await tx.storiesUser.updateMany({
+        where: { productId },
+        data: { productId: null },
+      });
+      try {
+        await (tx as any).globalRanking.deleteMany({
+          where: { itemId: productId, itemType: 'product' },
+        });
+      } catch {
+        // ignorar
+      }
+      await tx.product.delete({ where: { id: productId } });
+    });
+    return true;
+  }
+
+  private catalogFieldsForDropi(dropiId: number) {
+    return {
+      dropiId,
+      inDropiCatalog: true,
+      removedFromCatalogAt: null,
+    };
+  }
+
+  async deactivateTankuProductsForPrivateDropi(): Promise<number> {
+    const privateDropi = await prisma.dropiProduct.findMany({
+      where: { privatedProduct: true },
+      select: { dropiId: true, name: true },
+    });
+
+    let deactivated = 0;
+
+    for (const dropiProduct of privateDropi) {
+      const handle = generateHandle(dropiProduct.name, dropiProduct.dropiId);
+      const tankuProduct = await prisma.product.findUnique({
+        where: { handle },
+        select: { id: true, active: true },
+      });
+
+      if (!tankuProduct) continue;
+
+      if (tankuProduct.active) {
+        await prisma.product.update({
+          where: { id: tankuProduct.id },
+          data: { active: false },
+        });
+        deactivated++;
+      }
+
+      try {
+        await (prisma as any).globalRanking.deleteMany({
+          where: { itemId: tankuProduct.id, itemType: 'product' },
+        });
+      } catch {
+        // ignorar si no estaba en ranking
+      }
+    }
+
+    if (privateDropi.length > 0) {
+      console.log(
+        `[SYNC TO BACKEND] Privatizados Dropi: ${privateDropi.length} en dropi_products, ${deactivated} desactivados en Tanku`
+      );
+    }
+
+    return deactivated;
+  }
+
+  /**
    * Sincronizar productos desde DropiProduct a Product/ProductVariant/WarehouseVariant
    * 
    * @param batchSize Número de productos a procesar por lote (default: 50)
@@ -293,7 +480,8 @@ export class DropiSyncService {
     batchSize: number = 50,
     offset: number = 0,
     activeOnly: boolean = true,
-    skipExisting: boolean = false
+    skipExisting: boolean = false,
+    catalogDropiIds?: number[]
   ): Promise<{
     success: boolean;
     message: string;
@@ -314,13 +502,19 @@ export class DropiSyncService {
     console.log(`🔄 [SYNC TO BACKEND] batch_size: ${batchSize}, offset: ${offset}, active_only: ${activeOnly}, skip_existing: ${skipExisting}`);
 
     try {
-      // Buscar productos desde DropiProduct
-      const where: any = {};
-      // Nota: DropiProduct no tiene campo 'active' en el schema actual
-      // Si necesitamos filtrar por activos, podemos agregar el campo o filtrar por otro criterio
+      if (offset === 0) {
+        await this.deactivateTankuProductsForPrivateDropi();
+      }
+
+      const dropiWhere: { privatedProduct: boolean; dropiId?: { in: number[] } } = {
+        privatedProduct: false,
+      };
+      if (catalogDropiIds !== undefined) {
+        dropiWhere.dropiId = { in: catalogDropiIds };
+      }
 
       const allDropiProducts = await prisma.dropiProduct.findMany({
-        where,
+        where: dropiWhere,
         orderBy: {
           createdAt: 'asc',
         },
@@ -459,8 +653,10 @@ export class DropiSyncService {
             // NO incluir active aquí - se maneja según bloqueo
           };
 
-          const existingProduct = await prisma.product.findUnique({
-            where: { handle },
+          const existingProduct = await prisma.product.findFirst({
+            where: {
+              OR: [{ handle }, { dropiId: dropiProduct.dropiId }],
+            },
             select: {
               id: true,
               lockedByAdmin: true,
@@ -468,33 +664,32 @@ export class DropiSyncService {
           });
 
           let product: Product;
+          const catalogFields = this.catalogFieldsForDropi(dropiProduct.dropiId);
+
           if (existingProduct) {
             if (skipExisting) {
-              // Si skipExisting es true, usar el producto existente pero NO actualizar sus datos
-              // Sin embargo, SÍ actualizamos variantes y warehouseVariants (para worker de stock)
-              product = await prisma.product.findUniqueOrThrow({
+              product = await prisma.product.update({
                 where: { id: existingProduct.id },
+                data: catalogFields,
               });
               console.log(`[SYNC TO BACKEND] ⏭️ Usando producto existente (skipExisting): ${existingProduct.id}`);
             } else {
               const isLocked = existingProduct.lockedByAdmin;
               
               if (isLocked) {
-                // Producto bloqueado: solo actualizar stock, NO tocar active ni otros campos
-                // Tampoco actualizar tankuPrice (se respeta la fórmula configurada por admin)
                 console.log(`[SYNC TO BACKEND] 🔒 Producto bloqueado, solo actualizando stock (NO precios): ${existingProduct.id}`);
-                product = await prisma.product.findUniqueOrThrow({
+                product = await prisma.product.update({
                   where: { id: existingProduct.id },
-                  // No necesitamos incluir nada, solo obtener el producto con sus campos (priceFormulaType, priceFormulaValue)
+                  data: catalogFields,
                 });
-                // No actualizar el producto, solo las variantes (pero sin tocar tankuPrice)
               } else {
-                // Producto no bloqueado: actualizar todo incluyendo active
+                const { categoryId: _dropiCategory, ...productDataWithoutCategory } = productData;
                 product = await prisma.product.update({
                   where: { id: existingProduct.id },
                   data: {
-                    ...productData,
-                    active: true, // Solo si no está bloqueado
+                    ...productDataWithoutCategory,
+                    ...catalogFields,
+                    active: true,
                   },
                 });
                 productsUpdated++;
@@ -548,6 +743,7 @@ export class DropiSyncService {
             product = await prisma.product.create({
               data: {
                 ...productData,
+                ...catalogFields,
                 active: true,
               },
             });

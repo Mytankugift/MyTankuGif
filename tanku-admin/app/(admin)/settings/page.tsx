@@ -29,8 +29,8 @@ export default function SettingsPage() {
     },
     {
       id: 'cron',
-      name: 'Cron y recordatorios',
-      description: 'Estado del job de eventos, ejecutar manualmente y prueba de notificaciones',
+      name: 'Cron y sincronización',
+      description: 'Sync stock Dropi (programación), recordatorios de eventos y notificaciones',
       icon: ClockIcon,
       href: '/settings/cron',
     },
@@ -45,10 +45,10 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="h-full overflow-auto bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 pb-10">
         {/* Settings Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {settingsOptions.map((option) => {
             const Icon = option.icon
             return (

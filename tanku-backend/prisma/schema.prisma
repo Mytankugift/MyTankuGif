@@ -162,6 +162,12 @@ model Product {
   /// Restricción puntual a mayores (+18) cuando la categoría no es +18
   restrictToAdults Boolean @default(false) @map("restrict_to_adults")
 
+  /// ID Dropi (favoritos); enlace estable con dropi_products / raw
+  dropiId              Int?      @unique @map("dropi_id")
+  /// true = presente en el último RAW de favoritos exitoso
+  inDropiCatalog       Boolean   @default(true) @map("in_dropi_catalog")
+  removedFromCatalogAt DateTime? @map("removed_from_catalog_at")
+
   orderItems    OrderItem[]
   productLikes  ProductLike[]
   variants      ProductVariant[]
@@ -175,6 +181,8 @@ model Product {
   @@index([active])
   @@index([categoryId, active]) // ✅ Índice compuesto para queries comunes del feed
   @@index([restrictToAdults])
+  @@index([inDropiCatalog])
+  @@index([dropiId])
   @@map("products")
 }
 
@@ -452,6 +460,7 @@ model DropiProduct {
   description          String?
   price                Int
   stock                Int       @default(0)
+  privatedProduct      Boolean   @default(false) @map("privated_product")
   warehouseProduct     Json?     @map("warehouse_product")
   variationsData       Json?     @map("variations_data")
   userVerified         Boolean   @default(false) @map("user_verified")
@@ -467,6 +476,7 @@ model DropiProduct {
   images               Json?
 
   @@index([categoryDropiId])
+  @@index([privatedProduct])
   @@map("dropi_products")
 }
 
@@ -499,18 +509,20 @@ model WarehouseVariant {
 }
 
 model DropiRawProduct {
-  id        String   @id @default(cuid())
-  dropiId   Int      @map("dropi_id")
-  source    String
-  payload   Json
-  createdAt DateTime @default(now()) @map("created_at")
-  syncedAt  DateTime @default(now()) @map("synced_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  id         String   @id @default(cuid())
+  dropiId    Int      @map("dropi_id")
+  source     String
+  syncRunId  String?  @map("sync_run_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  syncedAt   DateTime @default(now()) @map("synced_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+  payload    Json
 
   @@unique([dropiId, source])
   @@index([dropiId])
   @@index([source])
   @@index([syncedAt])
+  @@index([syncRunId])
   @@map("dropi_raw_products")
 }
 
@@ -632,6 +644,7 @@ model DropiJob {
   type       DropiJobType
   status     DropiJobStatus @default(PENDING)
   progress   Int            @default(0)
+  metadata   Json?
   attempts   Int            @default(0)
   error      String?
   lockedBy   String?        @map("locked_by")

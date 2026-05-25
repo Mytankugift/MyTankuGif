@@ -1,6 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { DropiJobsService } from './dropi-jobs.service';
 import { DropiJobType, DropiJobStatus } from '@prisma/client';
+import {
+  DROPI_JOB_LIST_DEFAULT_LIMIT,
+  DROPI_JOB_LIST_MAX_LIMIT,
+  getDropiJobRetentionPerType,
+} from './dropi-job-retention';
 
 export class DropiJobsController {
   private dropiJobsService: DropiJobsService;
@@ -105,7 +110,15 @@ export class DropiJobsController {
    */
   listJobs = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const retention = getDropiJobRetentionPerType();
+      const parsedLimit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : DROPI_JOB_LIST_DEFAULT_LIMIT;
+      const limit = Math.min(
+        Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : retention),
+        DROPI_JOB_LIST_MAX_LIMIT,
+        retention
+      );
       const type = req.query.type as DropiJobType | undefined;
       const status = req.query.status as DropiJobStatus | undefined;
 
@@ -118,6 +131,7 @@ export class DropiJobsController {
       res.status(200).json({
         jobs,
         count: jobs.length,
+        retentionPerType: retention,
       });
     } catch (error) {
       next(error);
@@ -131,7 +145,7 @@ export class DropiJobsController {
   getJobStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const job = await this.dropiJobsService.getJob(id);
+      let job = await this.dropiJobsService.getJob(id);
 
       if (!job) {
         return res.status(404).json({
@@ -139,11 +153,17 @@ export class DropiJobsController {
         });
       }
 
+      if (job.type === DropiJobType.SYNC_STOCK && job.metadata == null) {
+        await this.dropiJobsService.initSyncStockMetadata(id);
+        job = await this.dropiJobsService.getJob(id);
+      }
+
       res.status(200).json({
         id: job.id,
         type: job.type,
         status: job.status,
         progress: job.progress,
+        metadata: job.metadata,
         attempts: job.attempts,
         error: job.error,
         createdAt: job.createdAt,

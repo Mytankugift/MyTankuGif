@@ -53,4 +53,17 @@ export class CronJobStateService {
   async getByKey(jobKey: string) {
     return prisma.cronJobState.findUnique({ where: { jobKey } });
   }
+
+  async upsertConfig(jobKey: string, metadata: Record<string, unknown>): Promise<void> {
+    await prisma.cronJobState.upsert({
+      where: { jobKey },
+      create: {
+        jobKey,
+        metadata: metadata as Prisma.InputJsonValue,
+      },
+      update: {
+        metadata: metadata as Prisma.InputJsonValue,
+      },
+    });
+  }
 }

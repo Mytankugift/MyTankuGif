@@ -1,19 +1,29 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useParams } from 'next/navigation'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
-import { 
-  PlayIcon, 
-  StopIcon, 
+import {
+  SyncStockJobProgress,
+  type SyncStockJobMetadata,
+} from '@/components/workers/SyncStockJobProgress'
+import {
+  computeSyncStockOverallProgress,
+  getSyncStockActiveStepLabel,
+} from '@/lib/dropi/sync-stock-progress'
+import { parseSyncStockMetadata } from '@/lib/dropi/parse-sync-stock-metadata'
+import { AdminPageShell } from '@/components/admin/AdminPageShell'
+import { AdminConfirmModal } from '@/components/admin/AdminConfirmModal'
+import { getWorkerProcess } from '@/lib/admin/worker-processes'
+import { useWorkerToolbarStore } from '@/lib/stores/worker-toolbar-store'
+import {
   ArrowPathIcon,
-  ArrowLeftIcon,
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
   ChevronDownIcon,
-  ChevronUpIcon
+  ChevronUpIcon,
 } from '@heroicons/react/24/outline'
 
 interface DropiJob {
@@ -21,6 +31,7 @@ interface DropiJob {
   type: 'RAW' | 'NORMALIZE' | 'ENRICH' | 'SYNC_PRODUCT' | 'SYNC_STOCK'
   status: 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED'
   progress: number
+  metadata?: SyncStockJobMetadata | null
   attempts: number
   error: string | null
   createdAt: string
@@ -35,83 +46,14 @@ interface ProcessStep {
   message?: string
 }
 
-const PROCESSES: Record<string, {
-  id: string
-  name: string
-  description: string
-  type: 'RAW' | 'NORMALIZE' | 'ENRICH' | 'SYNC_PRODUCT' | 'SYNC_STOCK'
-  color: string
-  icon: string
-  endpoint: string
-  steps: Array<{ name: string; key: string }>
-}> = {
-  'sync-raw': {
-    id: 'sync-raw',
-    name: 'Sincronizar RAW',
-    description: 'Guarda JSON crudo en DropiRawProduct',
-    endpoint: API_ENDPOINTS.DROPI.SYNC_RAW,
-    type: 'RAW',
-    color: 'bg-blue-500',
-    icon: '📦',
-    steps: [
-      { name: 'Sincronizando productos RAW', key: 'raw' }
-    ]
-  },
-  'normalize': {
-    id: 'normalize',
-    name: 'Normalizar',
-    description: 'Normaliza a DropiProduct',
-    endpoint: API_ENDPOINTS.DROPI.NORMALIZE,
-    type: 'NORMALIZE',
-    color: 'bg-purple-500',
-    icon: '🔄',
-    steps: [
-      { name: 'Normalizando productos', key: 'normalize' }
-    ]
-  },
-  'enrich': {
-    id: 'enrich',
-    name: 'Enriquecer',
-    description: 'Enriquece con descripciones e imágenes',
-    endpoint: API_ENDPOINTS.DROPI.ENRICH,
-    type: 'ENRICH',
-    color: 'bg-yellow-500',
-    icon: '✨',
-    steps: [
-      { name: 'Enriqueciendo productos', key: 'enrich' }
-    ]
-  },
-  'sync-backend': {
-    id: 'sync-to-backend',
-    name: 'Sincronizar Backend',
-    description: 'Sincroniza a Product/ProductVariant/WarehouseVariant',
-    endpoint: API_ENDPOINTS.DROPI.SYNC_TO_BACKEND,
-    type: 'SYNC_PRODUCT',
-    color: 'bg-green-500',
-    icon: '🚀',
-    steps: [
-      { name: 'Sincronizando al backend', key: 'sync' }
-    ]
-  },
-  'sync-stock': {
-    id: 'sync-stock',
-    name: 'Sincronizar Stock',
-    description: 'Actualiza stock y precios, marca productos sin stock como inactivos',
-    endpoint: API_ENDPOINTS.DROPI.SYNC_STOCK,
-    type: 'SYNC_STOCK',
-    color: 'bg-indigo-500',
-    icon: '📊',
-    steps: [
-      { name: 'Sincronizando RAW', key: 'raw' },
-      { name: 'Normalizando productos', key: 'normalize' },
-      { name: 'Sincronizando al backend', key: 'sync' },
-      { name: 'Actualizando estados', key: 'status' }
-    ]
-  },
+const POLL_ACTIVE_MS = 5000
+const POLL_IDLE_LIST_MS = 45000
+
+function noCacheParams() {
+  return { _t: Date.now() }
 }
 
 export default function WorkerPage() {
-  const router = useRouter()
   const params = useParams()
   const workerId = params.workerId as string
 
@@ -119,105 +61,140 @@ export default function WorkerPage() {
   const [loading, setLoading] = useState(true)
   const [executing, setExecuting] = useState(false)
   const [activeJob, setActiveJob] = useState<DropiJob | null>(null)
-  const [expandedHistory, setExpandedHistory] = useState(true)
+  const [expandedHistory, setExpandedHistory] = useState(false)
+  const [historyReady, setHistoryReady] = useState(false)
   const [processSteps, setProcessSteps] = useState<ProcessStep[]>([])
+  const [expandedHistoryJobId, setExpandedHistoryJobId] = useState<string | null>(null)
+  const [confirmAction, setConfirmAction] = useState<
+    'execute' | { type: 'cancel'; jobId: string } | null
+  >(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const activeJobIdRef = useRef<string | null>(null)
 
-  const process = PROCESSES[workerId]
+  const process = getWorkerProcess(workerId)
+  const isSyncStock = workerId === 'sync-stock'
 
-  if (!process) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-            <p className="text-gray-600">Worker no encontrado</p>
-            <button
-              onClick={() => router.push('/workers')}
-              className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg"
-            >
-              Volver a Workers
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const updateSteps = useCallback(
+    (job: DropiJob) => {
+      if (!process) return
+      const steps: ProcessStep[] = process.steps.map((step, index) => {
+        const totalSteps = process.steps.length
+        if (job.status === 'RUNNING') {
+          if (index * (100 / totalSteps) < job.progress) {
+            return { ...step, status: 'completed' as const, progress: 100 }
+          }
+          if (
+            index * (100 / totalSteps) <= job.progress &&
+            job.progress < (index + 1) * (100 / totalSteps)
+          ) {
+            return {
+              ...step,
+              status: 'running' as const,
+              progress: (job.progress % (100 / totalSteps)) * totalSteps,
+            }
+          }
+          return { ...step, status: 'pending' as const }
+        }
+        if (job.status === 'DONE') {
+          return { ...step, status: 'completed' as const, progress: 100 }
+        }
+        if (job.status === 'FAILED') {
+          return { ...step, status: 'failed' as const }
+        }
+        return { ...step, status: 'pending' as const }
+      })
+      setProcessSteps(steps)
+    },
+    [process]
+  )
 
-  // Cargar jobs del proceso
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async () => {
+    if (!process) return
     try {
       const response = await apiClient.get<{ jobs: DropiJob[]; count: number }>(
-        `${API_ENDPOINTS.DROPI.JOBS.LIST}?limit=100&type=${process.type}`
+        API_ENDPOINTS.DROPI.JOBS.LIST,
+        {
+          params: {
+            limit: 10,
+            type: process.type,
+            ...noCacheParams(),
+          },
+        }
       )
       if (response.data) {
-        // El backend ya filtra por tipo, pero por si acaso filtramos también en el frontend
-        const processJobs = response.data.jobs.filter(job => job.type === process.type)
+        const processJobs = response.data.jobs
+          .filter((job) => job.type === process.type)
+          .map((job) =>
+            isSyncStock
+              ? { ...job, metadata: parseSyncStockMetadata(job.metadata) ?? job.metadata }
+              : job
+          )
         setJobs(processJobs)
-        
-        // Buscar job activo
         const active = processJobs.find(
-          j => j.status === 'PENDING' || j.status === 'RUNNING'
+          (j) => j.status === 'PENDING' || j.status === 'RUNNING'
         )
         setActiveJob(active || null)
-        
-        if (active) {
+        activeJobIdRef.current = active?.id ?? null
+        if (active && !isSyncStock) {
           updateSteps(active)
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error cargando jobs:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [process, isSyncStock, updateSteps])
 
-  // Cargar estado de un job específico
-  const loadJobStatus = async (jobId: string) => {
-    try {
-      const response = await apiClient.get<DropiJob>(
-        API_ENDPOINTS.DROPI.JOBS.BY_ID(jobId)
-      )
-      if (response.data) {
-        if (response.data.status === 'PENDING' || response.data.status === 'RUNNING') {
-          setActiveJob(response.data)
-          updateSteps(response.data)
+  const loadJobStatus = useCallback(
+    async (jobId: string): Promise<DropiJob | null> => {
+      try {
+        const response = await apiClient.get<DropiJob>(
+          API_ENDPOINTS.DROPI.JOBS.BY_ID(jobId),
+          { params: noCacheParams() }
+        )
+        if (!response.data) return null
+
+        const job = {
+          ...response.data,
+          metadata: isSyncStock
+            ? parseSyncStockMetadata(response.data.metadata) ?? response.data.metadata
+            : response.data.metadata,
+        }
+        setJobs((prev) => prev.map((j) => (j.id === jobId ? job : j)))
+
+        if (job.status === 'PENDING' || job.status === 'RUNNING') {
+          setActiveJob(job)
+          activeJobIdRef.current = job.id
+          if (!isSyncStock) updateSteps(job)
         } else {
           setActiveJob(null)
+          activeJobIdRef.current = null
+          void loadJobs()
         }
-        setJobs(prev => prev.map(j => j.id === jobId ? response.data : j))
+        return job
+      } catch (error) {
+        console.error('Error cargando estado del job:', error)
+        return null
       }
-    } catch (error) {
-      console.error('Error cargando estado del job:', error)
+    },
+    [isSyncStock, updateSteps, loadJobs]
+  )
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
     }
-  }
+  }, [])
 
-  // Actualizar pasos del proceso
-  const updateSteps = (job: DropiJob) => {
-    const steps: ProcessStep[] = process.steps.map((step, index) => {
-      const totalSteps = process.steps.length
-      const stepProgress = Math.floor((job.progress / totalSteps) * 100)
-      
-      if (job.status === 'RUNNING') {
-        if (index * (100 / totalSteps) < job.progress) {
-          return { ...step, status: 'completed' as const, progress: 100 }
-        } else if (index * (100 / totalSteps) <= job.progress && job.progress < (index + 1) * (100 / totalSteps)) {
-          return { ...step, status: 'running' as const, progress: (job.progress % (100 / totalSteps)) * totalSteps }
-        } else {
-          return { ...step, status: 'pending' as const }
-        }
-      } else if (job.status === 'DONE') {
-        return { ...step, status: 'completed' as const, progress: 100 }
-      } else if (job.status === 'FAILED') {
-        return { ...step, status: 'failed' as const }
-      } else {
-        return { ...step, status: 'pending' as const }
-      }
-    })
+  const setWorkerPage = useWorkerToolbarStore((s) => s.setWorkerPage)
+  const patchWorkerPage = useWorkerToolbarStore((s) => s.patchWorkerPage)
+  const clearWorkerPage = useWorkerToolbarStore((s) => s.clearWorkerPage)
 
-    setProcessSteps(steps)
-  }
-
-  // Ejecutar proceso
-  const executeProcess = async () => {
+  const executeProcess = useCallback(async () => {
+    if (!process) return
     setExecuting(true)
     try {
       const response = await apiClient.post<{ jobId: string; status: string; type: string }>(
@@ -226,288 +203,410 @@ export default function WorkerPage() {
       )
       if (response.data) {
         await loadJobs()
-        startJobPolling(response.data.jobId)
+        void loadJobStatus(response.data.jobId)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string }
       console.error('Error ejecutando proceso:', error)
-      alert(`Error: ${error.response?.data?.error || error.message || 'No se pudo ejecutar el proceso'}`)
+      alert(
+        `Error: ${err.response?.data?.error || err.message || 'No se pudo ejecutar el proceso'}`
+      )
     } finally {
       setExecuting(false)
     }
-  }
+  }, [process, loadJobs, loadJobStatus])
 
-  // Polling para jobs activos
-  const startJobPolling = (jobId: string) => {
-    const interval = setInterval(async () => {
-      await loadJobStatus(jobId)
-      // Si el job terminó, dejar de hacer polling
-      const currentJob = jobs.find(j => j.id === jobId)
-      if (currentJob && (currentJob.status === 'DONE' || currentJob.status === 'FAILED')) {
-        clearInterval(interval)
+  const cancelJob = useCallback(
+    async (jobId: string) => {
+      stopPolling()
+      setActiveJob(null)
+      activeJobIdRef.current = null
+      try {
+        await apiClient.delete(API_ENDPOINTS.DROPI.JOBS.CANCEL(jobId))
+        await loadJobs()
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { error?: string } }; message?: string }
+        alert(`Error cancelando job: ${err.response?.data?.error || err.message}`)
+        await loadJobs()
       }
-    }, 2000)
-    
-    setTimeout(() => clearInterval(interval), 10 * 60 * 1000)
-  }
+    },
+    [stopPolling, loadJobs]
+  )
 
-  // Cancelar job
-  const cancelJob = async (jobId: string) => {
-    if (!confirm('¿Estás seguro de cancelar este job?')) return
-    
+  useEffect(() => {
+    if (!process) return
+    setWorkerPage(workerId, {
+      execute: () => setConfirmAction('execute'),
+      cancel: (id) => setConfirmAction({ type: 'cancel', jobId: id }),
+    })
+    return () => clearWorkerPage()
+  }, [workerId, process, setWorkerPage, clearWorkerPage])
+
+  const handleConfirmAction = useCallback(async () => {
+    if (!confirmAction) return
+    setConfirmLoading(true)
     try {
-      await apiClient.delete(API_ENDPOINTS.DROPI.JOBS.CANCEL(jobId))
-      await loadJobs()
-    } catch (error: any) {
-      alert(`Error cancelando job: ${error.response?.data?.error || error.message}`)
+      if (confirmAction === 'execute') {
+        await executeProcess()
+      } else {
+        await cancelJob(confirmAction.jobId)
+      }
+      setConfirmAction(null)
+    } finally {
+      setConfirmLoading(false)
     }
-  }
+  }, [confirmAction, executeProcess, cancelJob])
 
-  // Cargar jobs al montar y cada 5 segundos
   useEffect(() => {
-    loadJobs()
-    const interval = setInterval(loadJobs, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
-  // Polling para job activo
-  useEffect(() => {
-    if (!activeJob) return
-
+    if (!process) return
+    void loadJobs()
     const interval = setInterval(() => {
-      loadJobStatus(activeJob.id)
-    }, 2000)
-
+      if (!activeJobIdRef.current) void loadJobs()
+    }, POLL_IDLE_LIST_MS)
     return () => clearInterval(interval)
-  }, [activeJob?.id])
+  }, [process, loadJobs])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING': return 'bg-amber-100 text-amber-800 border-amber-200'
-      case 'RUNNING': return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'DONE': return 'bg-green-100 text-green-800 border-green-200'
-      case 'FAILED': return 'bg-red-100 text-red-800 border-red-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
+  useEffect(() => {
+    stopPolling()
+    if (!activeJob?.id) return
+
+    const jobId = activeJob.id
+    const poll = async () => {
+      if (activeJobIdRef.current !== jobId) return
+      const job = await loadJobStatus(jobId)
+      if (job && (job.status === 'DONE' || job.status === 'FAILED')) {
+        stopPolling()
+      }
     }
-  }
+
+    void poll()
+    pollingRef.current = setInterval(poll, POLL_ACTIVE_MS)
+    return stopPolling
+  }, [activeJob?.id, loadJobStatus, stopPolling])
+
+  const syncStockOverall =
+    activeJob && isSyncStock
+      ? computeSyncStockOverallProgress(activeJob.metadata)
+      : activeJob?.progress ?? 0
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'PENDING': return 'Pendiente'
-      case 'RUNNING': return 'Ejecutando'
-      case 'DONE': return 'Completado'
-      case 'FAILED': return 'Fallido'
-      default: return status
+      case 'PENDING':
+        return 'Pendiente'
+      case 'RUNNING':
+        return 'Ejecutando'
+      case 'DONE':
+        return 'Completado'
+      case 'FAILED':
+        return 'Fallido'
+      default:
+        return status
+    }
+  }
+
+  useEffect(() => {
+    if (!process) return
+    const syncStepLabel =
+      isSyncStock && activeJob ? getSyncStockActiveStepLabel(activeJob.metadata) : null
+
+    patchWorkerPage({
+      executing,
+      activeJob: activeJob
+        ? {
+            id: activeJob.id,
+            status: activeJob.status,
+            statusLabel:
+              syncStepLabel ??
+              (activeJob.status === 'PENDING' ? 'En cola' : getStatusLabel(activeJob.status)),
+            progressText: isSyncStock
+              ? `${syncStockOverall}%`
+              : `${activeJob.progress}%`,
+          }
+        : null,
+    })
+  }, [executing, activeJob, syncStockOverall, isSyncStock, process, patchWorkerPage])
+
+  useEffect(() => {
+    if (loading) return
+    setHistoryReady(true)
+  }, [loading])
+
+  useEffect(() => {
+    if (!historyReady) return
+    if (activeJob) {
+      setExpandedHistory(false)
+      setExpandedHistoryJobId(null)
+    } else {
+      setExpandedHistory(true)
+    }
+  }, [historyReady, activeJob?.id])
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'bg-amber-100 text-amber-800 border-amber-200'
+      case 'RUNNING':
+        return 'bg-blue-100 text-blue-800 border-blue-200'
+      case 'DONE':
+        return 'bg-green-100 text-green-800 border-green-200'
+      case 'FAILED':
+        return 'bg-red-100 text-red-800 border-red-200'
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
 
   const getStepStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed': return <CheckCircleIcon className="w-5 h-5 text-green-500" />
-      case 'running': return <ArrowPathIcon className="w-5 h-5 text-blue-500 animate-spin" />
-      case 'failed': return <XCircleIcon className="w-5 h-5 text-red-500" />
-      default: return <ClockIcon className="w-5 h-5 text-gray-400" />
+      case 'completed':
+        return <CheckCircleIcon className="w-5 h-5 text-green-500" />
+      case 'running':
+        return <ArrowPathIcon className="w-5 h-5 text-blue-500 animate-spin" />
+      case 'failed':
+        return <XCircleIcon className="w-5 h-5 text-red-500" />
+      default:
+        return <ClockIcon className="w-5 h-5 text-gray-400" />
     }
   }
 
+  if (!process) {
+    return (
+      <div className="h-full flex items-center justify-center p-6">
+        <p className="text-gray-600">Worker no encontrado</p>
+      </div>
+    )
+  }
+
+  const historyLocked = !!activeJob
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-            <button
-              onClick={() => router.push('/workers')}
-              className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeftIcon className="w-5 h-5" />
-              <span>Volver a Workers</span>
-            </button>
-          
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-1">
-                <div className={`w-16 h-16 ${process.color} rounded-xl flex items-center justify-center text-3xl shadow-sm`}>
-                  {process.icon}
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{process.name}</h1>
-                  <p className="text-sm text-gray-600">{process.description}</p>
-                </div>
-              </div>
-              {/* Botón ejecutar dentro del header */}
-              {!activeJob && (
-                <button
-                  onClick={executeProcess}
-                  disabled={executing}
-                  className={`px-4 py-2 ${process.color} hover:opacity-90 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm text-sm whitespace-nowrap`}
-                >
-                  {executing ? (
-                    <>
-                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                      Ejecutando...
-                    </>
-                  ) : (
-                    <>
-                      <PlayIcon className="w-4 h-4" />
-                      Ejecutar
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Estado actual */}
-        {activeJob && (
-          <div className="mb-6 bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Ejecución Actual</h2>
-              <span className={`px-3 py-1 rounded-lg text-sm font-medium border ${getStatusColor(activeJob.status)}`}>
-                {getStatusLabel(activeJob.status)}
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-gray-600">Progreso general</span>
-                  <span className="text-gray-900 font-semibold">{activeJob.progress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                  <div
-                    className={`h-full ${process.color} transition-all duration-300 rounded-full`}
-                    style={{ width: `${activeJob.progress}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Pasos del proceso */}
-              <div className="space-y-3 pt-4 border-t border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Pasos del proceso</h3>
-                {processSteps.map((step, index) => (
-                  <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                    {getStepStatusIcon(step.status)}
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium ${
-                        step.status === 'completed' ? 'text-gray-900' : 
-                        step.status === 'running' ? 'text-blue-600' : 
-                        'text-gray-500'
-                      }`}>
-                        {step.name}
-                      </p>
-                      {step.progress !== undefined && step.status === 'running' && (
-                        <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5">
-                          <div
-                            className="h-full bg-blue-500 rounded-full transition-all"
-                            style={{ width: `${step.progress}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                    {step.progress !== undefined && step.status === 'running' && (
-                      <span className="text-xs text-gray-500 font-medium">{Math.round(step.progress)}%</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200 text-xs text-gray-500">
-                <span>Iniciado: {activeJob.startedAt ? new Date(activeJob.startedAt).toLocaleString('es-ES') : '-'}</span>
-                <button
-                  onClick={() => cancelJob(activeJob.id)}
-                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors border border-red-200"
-                >
-                  <StopIcon className="w-3.5 h-3.5" />
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Historial */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-          <button
-            onClick={() => setExpandedHistory(!expandedHistory)}
-            className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
-          >
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Historial</h2>
-              <p className="text-sm text-gray-500 mt-1">{jobs.length} ejecuciones</p>
-            </div>
-            {expandedHistory ? (
-              <ChevronUpIcon className="w-5 h-5 text-gray-400" />
-            ) : (
-              <ChevronDownIcon className="w-5 h-5 text-gray-400" />
-            )}
-          </button>
-
-          {expandedHistory && (
-            <div className="border-t border-gray-200 flex-1 overflow-hidden flex flex-col">
-              {loading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-                  <p className="text-gray-500 mt-3">Cargando historial...</p>
-                </div>
-              ) : jobs.length === 0 ? (
-                <p className="text-gray-500 text-center py-12">No hay historial</p>
+    <AdminPageShell>
+      <div className="flex flex-col gap-10">
+          {activeJob && (
+            <section className="bg-white rounded-xl shadow-sm p-5 border border-gray-200">
+              <h2 className="text-base font-semibold text-gray-900 mb-4">Proceso en curso</h2>
+              {isSyncStock ? (
+              <SyncStockJobProgress
+                metadata={parseSyncStockMetadata(activeJob.metadata)}
+                jobStatus={activeJob.status}
+                overallProgress={syncStockOverall}
+                fallbackProgress={activeJob.progress}
+              />
               ) : (
-                <div className="divide-y divide-gray-200 overflow-y-auto max-h-[500px]">
-                  {jobs.map((job) => (
-                    <div
-                      key={job.id}
-                      className="p-6 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <span className={`px-3 py-1 rounded-lg text-xs font-medium border ${getStatusColor(job.status)}`}>
-                            {getStatusLabel(job.status)}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {job.startedAt ? new Date(job.startedAt).toLocaleString('es-ES') : 'No iniciado'}
-                          </span>
-                        </div>
-                        <span className="text-sm font-semibold text-gray-900">{job.progress}%</span>
-                      </div>
-                      
-                      <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-                        <div
-                          className={`h-2 rounded-full ${getStatusColor(job.status).split(' ')[0]}`}
-                          style={{ width: `${job.progress}%` }}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>
-                          {job.finishedAt 
-                            ? `Finalizado: ${new Date(job.finishedAt).toLocaleString('es-ES')}`
-                            : 'En progreso...'}
-                        </span>
-                        {(job.status === 'PENDING' || job.status === 'RUNNING') && (
-                          <button
-                            onClick={() => cancelJob(job.id)}
-                            className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-200 transition-colors text-xs"
-                          >
-                            Cancelar
-                          </button>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-gray-600">Progreso</span>
+                      <span className="text-gray-900 font-semibold">{activeJob.progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 transition-all duration-300 rounded-full"
+                        style={{ width: `${activeJob.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {processSteps.map((step, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg"
+                      >
+                        {getStepStatusIcon(step.status)}
+                        <p className="text-sm font-medium text-gray-800 flex-1">{step.name}</p>
+                        {step.status === 'running' && step.progress !== undefined && (
+                          <span className="text-xs text-gray-500">{Math.round(step.progress)}%</span>
                         )}
                       </div>
-
-                      {job.error && (
-                        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <p className="text-xs text-red-700 font-medium">Error:</p>
-                          <p className="text-xs text-red-600 mt-1">{job.error}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
+              <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-100">
+                {activeJob.startedAt ? (
+                  <>
+                    Iniciado: {new Date(activeJob.startedAt).toLocaleString('es-ES')}
+                  </>
+                ) : activeJob.createdAt ? (
+                  <>
+                    Encolado: {new Date(activeJob.createdAt).toLocaleString('es-ES')}
+                    {activeJob.status === 'PENDING' ? ' (esperando worker)' : null}
+                  </>
+                ) : (
+                  'Sin fecha'
+                )}
+              </p>
+            </section>
           )}
-        </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <button
+              type="button"
+              onClick={() => {
+                if (historyLocked) return
+                setExpandedHistory(!expandedHistory)
+              }}
+              disabled={historyLocked}
+              aria-expanded={expandedHistory}
+              className={`w-full px-5 py-4 flex items-center justify-between transition-colors ${
+                historyLocked
+                  ? 'cursor-not-allowed bg-gray-50/80'
+                  : 'hover:bg-gray-50'
+              }`}
+            >
+              <div className="text-left">
+                <h2 className="text-base font-semibold text-gray-900">Historial</h2>
+                <p className="text-sm text-gray-500">
+                  {historyLocked
+                    ? 'Disponible cuando termine el proceso en curso'
+                    : `Últimas ${jobs.length} ejecuciones (máx. 10 por tipo en BD)`}
+                </p>
+              </div>
+              {expandedHistory ? (
+                <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+              ) : (
+                <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+              )}
+            </button>
+
+            {expandedHistory && (
+              <div className="border-t border-gray-200">
+                {loading ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto" />
+                    <p className="text-gray-500 mt-3 text-sm">Cargando historial...</p>
+                  </div>
+                ) : jobs.length === 0 ? (
+                  <p className="text-gray-500 text-center py-12 text-sm">No hay historial</p>
+                ) : (
+                  <div className="divide-y divide-gray-200">
+                    {jobs.map((job) => {
+                      const historyProgress = isSyncStock
+                        ? computeSyncStockOverallProgress(job.metadata)
+                        : job.progress
+                      const showDetail =
+                        isSyncStock &&
+                        !!job.metadata &&
+                        expandedHistoryJobId === job.id
+
+                      return (
+                        <div key={job.id} className="px-5 py-4 hover:bg-gray-50/80">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-lg text-xs font-medium border ${getStatusColor(job.status)}`}
+                              >
+                                {getStatusLabel(job.status)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {job.startedAt
+                                  ? new Date(job.startedAt).toLocaleString('es-ES')
+                                  : 'No iniciado'}
+                              </span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 tabular-nums">
+                              {historyProgress}%
+                            </span>
+                          </div>
+
+                          {!isSyncStock && (
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                              <div
+                                className={`h-1.5 rounded-full ${getStatusColor(job.status).split(' ')[0]}`}
+                                style={{ width: `${job.progress}%` }}
+                              />
+                            </div>
+                          )}
+
+                          {isSyncStock && job.metadata && (
+                            <div className="mb-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedHistoryJobId((id) =>
+                                    id === job.id ? null : job.id
+                                  )
+                                }
+                                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                              >
+                                {expandedHistoryJobId === job.id
+                                  ? 'Ocultar detalle'
+                                  : 'Ver detalle por pasos'}
+                              </button>
+                              {showDetail && (
+                                <div className="mt-2">
+                                  <SyncStockJobProgress
+                                    metadata={job.metadata}
+                                    jobStatus={job.status}
+                                    overallProgress={historyProgress}
+                                    compact
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between text-xs text-gray-500">
+                            <span>
+                              {job.finishedAt
+                                ? `Finalizado: ${new Date(job.finishedAt).toLocaleString('es-ES')}`
+                                : 'En progreso...'}
+                            </span>
+                            {(job.status === 'PENDING' || job.status === 'RUNNING') &&
+                              job.id !== activeJob?.id && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setConfirmAction({ type: 'cancel', jobId: job.id })
+                                  }
+                                  className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded border border-red-200"
+                                >
+                                  Cancelar
+                                </button>
+                              )}
+                          </div>
+
+                          {job.error && (
+                            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                              <p className="text-xs text-red-600">{job.error}</p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
       </div>
-    </div>
+
+      <AdminConfirmModal
+        open={confirmAction !== null}
+        title={
+          confirmAction === 'execute'
+            ? `Ejecutar ${process.name}`
+            : 'Cancelar ejecución'
+        }
+        message={
+          confirmAction === 'execute' ? (
+            <>
+              Se encolará el proceso <strong>{process.name}</strong>. Puede tardar varios minutos
+              según el catálogo Dropi.
+            </>
+          ) : confirmAction ? (
+            <>
+              ¿Cancelar el job en curso? El worker dejará de procesarlo; los datos ya guardados no
+              se revierten.
+            </>
+          ) : null
+        }
+        confirmLabel={confirmAction === 'execute' ? 'Ejecutar' : 'Cancelar job'}
+        variant={confirmAction === 'execute' ? 'primary' : 'danger'}
+        loading={confirmLoading || executing}
+        onClose={() => !confirmLoading && setConfirmAction(null)}
+        onConfirm={() => void handleConfirmAction()}
+      />
+    </AdminPageShell>
   )
 }
-

@@ -136,7 +136,7 @@ export default function PriceFormulasPage() {
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
       <div className="flex-shrink-0 p-6 pb-4">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           {/* Filters - Todo en una sola barra */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-3">
@@ -168,7 +168,7 @@ export default function PriceFormulasPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto p-6 pt-0">
+        <div className="w-full px-4 sm:px-6 lg:px-8 p-6 pt-0">
 
           {/* Formulas List */}
           {loading ? (

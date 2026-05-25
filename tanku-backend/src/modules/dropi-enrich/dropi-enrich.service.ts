@@ -1,11 +1,14 @@
 import { prisma } from '../../config/database';
 import { DropiService } from '../dropi/dropi.service';
+import { DropiRawService } from '../dropi-raw/dropi-raw.service';
 
 export class DropiEnrichService {
   private dropiService: DropiService;
+  private dropiRawService: DropiRawService;
 
   constructor() {
     this.dropiService = new DropiService();
+    this.dropiRawService = new DropiRawService();
   }
 
   /**
@@ -37,8 +40,16 @@ export class DropiEnrichService {
     console.log(`\n🔍 [ENRICH] Iniciando enriquecimiento (limit: ${limit}, priority: ${priority}, force: ${force})`);
 
     try {
-      // Buscar todos los productos
+      const catalogDropiIds = await this.dropiRawService.getLatestCatalogDropiIds();
+      const dropiWhere: { privatedProduct: boolean; dropiId?: { in: number[] } } = {
+        privatedProduct: false,
+      };
+      if (catalogDropiIds.length > 0) {
+        dropiWhere.dropiId = { in: catalogDropiIds };
+      }
+
       const allProducts = await prisma.dropiProduct.findMany({
+        where: dropiWhere,
         orderBy: {
           createdAt: 'asc',
         },
