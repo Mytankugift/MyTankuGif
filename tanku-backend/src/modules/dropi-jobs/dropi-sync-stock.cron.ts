@@ -47,7 +47,10 @@ export async function enqueueDropiSyncStockJob(source: 'cron' | 'manual'): Promi
 
   await cronStateService!.markStarted(DROPI_SYNC_STOCK_CRON_JOB_KEY);
   try {
-    const job = await dropiJobsService!.createJob(DropiJobType.SYNC_STOCK);
+    const job = await dropiJobsService!.createSyncStockJob({
+      propagateProductFicha: false,
+      source: 'cron',
+    });
     await cronStateService!.markSuccess(DROPI_SYNC_STOCK_CRON_JOB_KEY, {
       source,
       enqueuedJobId: job.id,

@@ -134,18 +134,16 @@ export class DropiSyncService {
     const stock = await this.calculateVariantStock(variantId);
     
     if (stock <= 0) {
-      // Marcar variante como inactiva si no tiene stock
       await prisma.productVariant.update({
         where: { id: variantId },
-        data: { active: false },
+        data: { active: false, stock: 0 },
       });
       const lockNote = variant.product.lockedByAdmin ? ' (producto bloqueado, pero estado active se actualiza)' : '';
       console.log(`[SYNC TO BACKEND]    ⚠️ Variante ${variantId} tiene stock 0, marcada como inactiva${lockNote}`);
     } else {
-      // Activar variante si tiene stock
       await prisma.productVariant.update({
         where: { id: variantId },
-        data: { active: true },
+        data: { active: true, stock },
       });
     }
   }

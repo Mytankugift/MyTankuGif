@@ -70,10 +70,29 @@ export class DropiJobsService {
       },
     });
 
-    if (type === DropiJobType.SYNC_STOCK) {
-      await this.initSyncStockMetadata(job.id);
-    }
+    return {
+      id: job.id,
+      type: job.type,
+      status: job.status,
+    };
+  }
 
+  /**
+   * Encolar SYNC_STOCK con opciones (cron vs manual + propagar ficha a products).
+   */
+  async createSyncStockJob(options?: {
+    propagateProductFicha?: boolean;
+    source?: 'cron' | 'manual';
+  }): Promise<{ id: string; type: DropiJobType; status: DropiJobStatus }> {
+    const job = await prisma.dropiJob.create({
+      data: {
+        type: DropiJobType.SYNC_STOCK,
+        status: DropiJobStatus.PENDING,
+        progress: 0,
+        attempts: 0,
+      },
+    });
+    await this.initSyncStockMetadata(job.id, options);
     return {
       id: job.id,
       type: job.type,
@@ -195,8 +214,11 @@ export class DropiJobsService {
     });
   }
 
-  async initSyncStockMetadata(jobId: string): Promise<void> {
-    const metadata = createInitialSyncStockMetadata();
+  async initSyncStockMetadata(
+    jobId: string,
+    options?: { propagateProductFicha?: boolean; source?: 'cron' | 'manual' }
+  ): Promise<void> {
+    const metadata = createInitialSyncStockMetadata(options);
     await prisma.dropiJob.update({
       where: { id: jobId },
       data: {

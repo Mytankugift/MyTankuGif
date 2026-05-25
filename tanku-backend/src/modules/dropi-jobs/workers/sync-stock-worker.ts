@@ -4,6 +4,7 @@ import { DropiRawService } from '../../dropi-raw/dropi-raw.service';
 import { DropiNormalizeService } from '../../dropi-normalize/dropi-normalize.service';
 import { DropiSyncService } from '../../dropi-sync/dropi-sync.service';
 import { prisma } from '../../../config/database';
+import type { SyncStockJobMetadata } from '../dropi-job-step-metadata';
 
 export class SyncStockWorker extends BaseWorker {
   private dropiRawService: DropiRawService;
@@ -19,7 +20,16 @@ export class SyncStockWorker extends BaseWorker {
 
   protected async processJob(jobId: string): Promise<void> {
     console.log(`[SYNC_STOCK WORKER] Procesando job ${jobId}`);
-    await this.dropiJobsService.initSyncStockMetadata(jobId);
+
+    const jobRow = await prisma.dropiJob.findUnique({
+      where: { id: jobId },
+      select: { metadata: true },
+    });
+    const jobMeta = (jobRow?.metadata as SyncStockJobMetadata | null) ?? null;
+    const skipExistingOnSync = jobMeta?.propagateProductFicha !== true;
+    console.log(
+      `[SYNC_STOCK WORKER] Paso sync: skipExisting=${skipExistingOnSync} (propagateProductFicha=${jobMeta?.propagateProductFicha === true}, source=${jobMeta?.source ?? 'unknown'})`
+    );
 
     try {
       // —— Paso 1: RAW ——
@@ -171,7 +181,7 @@ export class SyncStockWorker extends BaseWorker {
           syncBatchSize,
           syncOffset,
           true,
-          true,
+          skipExistingOnSync,
           catalogDropiIds
         );
 

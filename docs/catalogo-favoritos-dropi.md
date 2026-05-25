@@ -36,8 +36,9 @@ No se puede activar (`active=true`) si `in_dropi_catalog=false` o no existe en `
 
 **Operación:**
 
-- **Sincronizar catálogo** — pipeline completo (RAW → normalizar/retiro → Tanku → stock/ranking).
+- **Sincronizar catálogo** — pipeline completo (RAW → normalizar/retiro → Tanku → stock/ranking). Cron: paso sync con `skipExisting` (solo flags). Manual: checkbox *Actualizar ficha en Tanku* → `propagateProductFicha` y copia description/images a `products`.
 - **Enriquecer** — solo `dropi_products` del catálogo actual (último raw). El backoff tras 429 usa `last_enrich_attempt_at` (normalize ya no actualiza `last_synced_at`).
+- **Propagar a Tanku** (`SYNC_PRODUCT`) — `skipExisting=false`, solo catálogo actual; usar tras Enrich si no marcaste el checkbox en catálogo.
 
 **Debug** (rutas existentes, no listadas en `/workers`): RAW, Normalizar, Sincronizar backend.
 

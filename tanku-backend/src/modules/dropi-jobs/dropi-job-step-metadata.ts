@@ -14,14 +14,24 @@ export interface SyncStockStepState {
 export interface SyncStockJobMetadata {
   currentStep: SyncStockStepKey | 'done';
   steps: Record<SyncStockStepKey, SyncStockStepState>;
+  /** Manual en admin: paso sync con skipExisting=false (descripción, imágenes, etc.). Cron siempre false. */
+  propagateProductFicha?: boolean;
+  source?: 'cron' | 'manual';
 }
 
-export function createInitialSyncStockMetadata(): SyncStockJobMetadata {
+export function createInitialSyncStockMetadata(
+  options?: Pick<SyncStockJobMetadata, 'propagateProductFicha' | 'source'>
+): SyncStockJobMetadata {
   const steps = {} as Record<SyncStockStepKey, SyncStockStepState>;
   for (const key of SYNC_STOCK_STEP_KEYS) {
     steps[key] = { status: 'pending', progress: 0, stats: {} };
   }
-  return { currentStep: 'raw', steps };
+  return {
+    currentStep: 'raw',
+    steps,
+    propagateProductFicha: options?.propagateProductFicha ?? false,
+    source: options?.source ?? 'manual',
+  };
 }
 
 export function computeOverallProgress(metadata: SyncStockJobMetadata): number {

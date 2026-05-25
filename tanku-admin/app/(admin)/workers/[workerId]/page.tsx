@@ -69,6 +69,7 @@ export default function WorkerPage() {
     'execute' | { type: 'cancel'; jobId: string } | null
   >(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
+  const [propagateProductFicha, setPropagateProductFicha] = useState(false)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const activeJobIdRef = useRef<string | null>(null)
 
@@ -197,9 +198,11 @@ export default function WorkerPage() {
     if (!process) return
     setExecuting(true)
     try {
+      const body =
+        isSyncStock && propagateProductFicha ? { propagateProductFicha: true } : {}
       const response = await apiClient.post<{ jobId: string; status: string; type: string }>(
         process.endpoint,
-        {}
+        body
       )
       if (response.data) {
         await loadJobs()
@@ -214,7 +217,7 @@ export default function WorkerPage() {
     } finally {
       setExecuting(false)
     }
-  }, [process, loadJobs, loadJobStatus])
+  }, [process, loadJobs, loadJobStatus, isSyncStock, propagateProductFicha])
 
   const cancelJob = useCallback(
     async (jobId: string) => {
@@ -591,8 +594,25 @@ export default function WorkerPage() {
         message={
           confirmAction === 'execute' ? (
             <>
-              Se encolará el proceso <strong>{process.name}</strong>. Puede tardar varios minutos
-              según el catálogo Dropi.
+              <p className="mb-3">
+                Se encolará el proceso <strong>{process.name}</strong>. Puede tardar varios minutos
+                según el catálogo Dropi.
+              </p>
+              {isSyncStock ? (
+                <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1 rounded border-gray-300"
+                    checked={propagateProductFicha}
+                    onChange={(e) => setPropagateProductFicha(e.target.checked)}
+                  />
+                  <span>
+                    <strong>Actualizar ficha en Tanku</strong> (descripción e imágenes desde
+                    enrich). Recomendado tras <strong>Enriquecer</strong>. El cron no usa esta
+                    opción.
+                  </span>
+                </label>
+              ) : null}
             </>
           ) : confirmAction ? (
             <>

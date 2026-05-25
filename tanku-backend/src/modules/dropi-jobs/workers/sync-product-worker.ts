@@ -1,6 +1,7 @@
 import { BaseWorker } from './base-worker';
 import { DropiJobType } from '@prisma/client';
 import { DropiSyncService } from '../../dropi-sync/dropi-sync.service';
+import { DropiRawService } from '../../dropi-raw/dropi-raw.service';
 
 /**
  * Worker para procesar jobs SYNC_PRODUCT
@@ -9,10 +10,12 @@ import { DropiSyncService } from '../../dropi-sync/dropi-sync.service';
  */
 export class SyncProductWorker extends BaseWorker {
   private dropiSyncService: DropiSyncService;
+  private dropiRawService: DropiRawService;
 
   constructor() {
     super(DropiJobType.SYNC_PRODUCT);
     this.dropiSyncService = new DropiSyncService();
+    this.dropiRawService = new DropiRawService();
   }
 
   protected async processJob(jobId: string): Promise<void> {
@@ -30,6 +33,11 @@ export class SyncProductWorker extends BaseWorker {
         throw new Error('Job cancelado antes de iniciar');
       }
 
+      const catalogDropiIds = await this.dropiRawService.getLatestCatalogDropiIds();
+      console.log(
+        `[SYNC_PRODUCT WORKER] Catálogo actual: ${catalogDropiIds.length} dropiIds`
+      );
+
       while (hasMore) {
         // ⚠️ VERIFICAR CANCELACIÓN ANTES DE CADA BATCH
         if (await this.isJobCancelled(jobId)) {
@@ -42,7 +50,8 @@ export class SyncProductWorker extends BaseWorker {
           batchSize,
           offset,
           true, // activeOnly
-          false // skipExisting
+          false, // skipExisting — propaga description/images a products
+          catalogDropiIds.length > 0 ? catalogDropiIds : undefined
         );
 
         console.log(`[SYNC_PRODUCT WORKER] Batch sincronizado: ${result.products_created} creados, ${result.products_updated} actualizados`);

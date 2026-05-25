@@ -24,7 +24,8 @@ export const WORKER_PROCESSES: WorkerProcessConfig[] = [
   {
     id: 'sync-stock',
     name: 'Sincronizar catálogo',
-    description: 'Favoritos Dropi: RAW, normalizar, Tanku, stock y retiro fuera de catálogo',
+    description:
+      'Favoritos Dropi: RAW, normalizar, Tanku, stock. Opción manual: propagar descripción/imágenes tras Enrich.',
     type: 'SYNC_STOCK',
     color: 'bg-indigo-500',
     icon: '📊',
@@ -34,11 +35,21 @@ export const WORKER_PROCESSES: WorkerProcessConfig[] = [
   {
     id: 'enrich',
     name: 'Enriquecer',
-    description: 'Descripciones e imágenes (solo productos del catálogo actual)',
+    description: 'Descripciones e imágenes en dropi_products (catálogo actual)',
     type: 'ENRICH',
     color: 'bg-yellow-500',
     icon: '✨',
     route: '/workers/enrich',
+  },
+  {
+    id: 'sync-to-backend',
+    name: 'Propagar a Tanku',
+    description:
+      'Copia descripción e imágenes de dropi_products a products. Ejecutar después de Enriquecer.',
+    type: 'SYNC_PRODUCT',
+    color: 'bg-green-500',
+    icon: '🚀',
+    route: '/workers/sync-to-backend',
   },
 ]
 
@@ -62,15 +73,6 @@ export const WORKER_PROCESSES_DEBUG: WorkerProcessConfig[] = [
     icon: '🔄',
     route: '/workers/normalize',
   },
-  {
-    id: 'sync-to-backend',
-    name: 'Sincronizar Backend',
-    description: 'Sincroniza a Product/ProductVariant/WarehouseVariant',
-    type: 'SYNC_PRODUCT',
-    color: 'bg-green-500',
-    icon: '🚀',
-    route: '/workers/sync-to-backend',
-  },
 ]
 
 export type WorkerProcessDetail = WorkerProcessConfig & {
@@ -78,9 +80,14 @@ export type WorkerProcessDetail = WorkerProcessConfig & {
   steps: Array<{ name: string; key: string }>
 }
 
+const ALL_WORKER_PROCESSES: WorkerProcessConfig[] = [
+  ...WORKER_PROCESSES,
+  ...WORKER_PROCESSES_DEBUG,
+]
+
 export const WORKER_PROCESSES_BY_ID: Record<string, WorkerProcessDetail> = {
   'sync-stock': {
-    ...WORKER_PROCESSES.find((p) => p.id === 'sync-stock')!,
+    ...ALL_WORKER_PROCESSES.find((p) => p.id === 'sync-stock')!,
     endpoint: API_ENDPOINTS.DROPI.SYNC_STOCK,
     steps: [
       { name: 'Favoritos Dropi (RAW)', key: 'raw' },
@@ -90,22 +97,22 @@ export const WORKER_PROCESSES_BY_ID: Record<string, WorkerProcessDetail> = {
     ],
   },
   'sync-raw': {
-    ...WORKER_PROCESSES.find((p) => p.id === 'sync-raw')!,
+    ...ALL_WORKER_PROCESSES.find((p) => p.id === 'sync-raw')!,
     endpoint: API_ENDPOINTS.DROPI.SYNC_RAW,
     steps: [{ name: 'Sincronizando productos RAW', key: 'raw' }],
   },
   normalize: {
-    ...WORKER_PROCESSES.find((p) => p.id === 'normalize')!,
+    ...ALL_WORKER_PROCESSES.find((p) => p.id === 'normalize')!,
     endpoint: API_ENDPOINTS.DROPI.NORMALIZE,
     steps: [{ name: 'Normalizando productos', key: 'normalize' }],
   },
   enrich: {
-    ...WORKER_PROCESSES.find((p) => p.id === 'enrich')!,
+    ...ALL_WORKER_PROCESSES.find((p) => p.id === 'enrich')!,
     endpoint: API_ENDPOINTS.DROPI.ENRICH,
     steps: [{ name: 'Enriqueciendo productos', key: 'enrich' }],
   },
   'sync-to-backend': {
-    ...WORKER_PROCESSES.find((p) => p.id === 'sync-to-backend')!,
+    ...ALL_WORKER_PROCESSES.find((p) => p.id === 'sync-to-backend')!,
     endpoint: API_ENDPOINTS.DROPI.SYNC_TO_BACKEND,
     steps: [{ name: 'Sincronizando al backend', key: 'sync' }],
   },

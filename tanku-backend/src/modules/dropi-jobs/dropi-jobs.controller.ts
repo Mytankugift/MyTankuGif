@@ -92,7 +92,11 @@ export class DropiJobsController {
    */
   createSyncStockJob = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const job = await this.dropiJobsService.createJob(DropiJobType.SYNC_STOCK);
+      const propagateProductFicha = req.body?.propagateProductFicha === true;
+      const job = await this.dropiJobsService.createSyncStockJob({
+        propagateProductFicha,
+        source: 'manual',
+      });
 
       res.status(202).json({
         jobId: job.id,
