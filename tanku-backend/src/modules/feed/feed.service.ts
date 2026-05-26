@@ -9,6 +9,10 @@ import {
   viewerCannotSeeAdultCatalog,
 } from '../../shared/catalog/catalog-age-policy';
 import { getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
+import {
+  productMeetsStockThreshold,
+  stockEligibilityReason,
+} from '../../shared/catalog/catalog-stock-policy';
 
 /**
  * Feed Service
@@ -1908,7 +1912,7 @@ export class FeedService {
     itemId: string,
     itemType: 'product' | 'poster'
   ) {
-    // ✅ VALIDAR: Para productos, verificar que tengan título, imágenes, active Y stock >= 30
+    // ✅ VALIDAR: título, imágenes, active y al menos una variante con stock >= 30
     if (itemType === 'product') {
       const product = await prisma.product.findUnique({
         where: { id: itemId },
@@ -1942,20 +1946,13 @@ export class FeedService {
       const visibleImages = (product.images || []).filter(img => !hiddenImages.includes(img));
       const hasValidImages = Array.isArray(visibleImages) && visibleImages.length > 0;
 
-      // Calcular stock total
-      const MIN_STOCK_THRESHOLD = 30;
-      const totalStock = product.variants.reduce((total, variant) => {
-        const variantStock = variant.warehouseVariants?.reduce(
-          (sum, wv) => sum + (wv.stock || 0),
-          0
-        ) || 0;
-        return total + variantStock;
-      }, 0);
-
-      const hasEnoughStock = totalStock >= MIN_STOCK_THRESHOLD;
+      const hasEnoughStock = productMeetsStockThreshold(product.variants);
 
       if (!hasValidTitle || !hasValidImages || !product.active || !hasEnoughStock) {
-        console.warn(`[FEED-SERVICE] Producto ${itemId} no cumple requisitos para ranking (title: ${hasValidTitle}, images: ${hasValidImages}, active: ${product.active}, stock: ${totalStock} < ${MIN_STOCK_THRESHOLD}), omitiendo`);
+        const stockReason = stockEligibilityReason(product.variants);
+        console.warn(
+          `[FEED-SERVICE] Producto ${itemId} no cumple requisitos para ranking (title: ${hasValidTitle}, images: ${hasValidImages}, active: ${product.active}, stock: ${stockReason}), omitiendo`
+        );
         return; // No agregar al ranking si no cumple requisitos
       }
     }

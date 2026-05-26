@@ -5,6 +5,13 @@ import { calculateTankuPriceFromVariant } from '../../shared/utils/price.utils';
 import { calculateTankuPriceWithFormula } from '../../shared/utils/price-formula.utils';
 import type { Product } from '@prisma/client';
 import { PriceFormulaType } from '@prisma/client';
+import {
+  MIN_STOCK_THRESHOLD,
+  productMeetsStockThreshold,
+  stockEligibilityReason,
+  sumWarehouseStock,
+  variantMeetsStockThreshold,
+} from '../../shared/catalog/catalog-stock-policy';
 
 /**
  * Limpia HTML de una descripción, convirtiéndola a texto plano
@@ -65,9 +72,6 @@ function buildImageUrl(s3Path: string | null | undefined): string | null {
 }
 
 export class DropiSyncService {
-  // Stock mínimo requerido para que un producto aparezca en el ranking
-  private readonly MIN_STOCK_THRESHOLD = 30;
-
   /**
    * Calcular stock total de una variante sumando todos sus warehouseVariants
    */
@@ -83,16 +87,11 @@ export class DropiSyncService {
 
     if (!variant) return 0;
 
-    return variant.warehouseVariants?.reduce(
-      (sum, wv) => sum + (wv.stock || 0),
-      0
-    ) || 0;
+    return sumWarehouseStock(variant.warehouseVariants);
   }
 
-  /**
-   * Calcular stock total de un producto sumando todas sus variantes
-   */
-  private async calculateProductStock(productId: string): Promise<number> {
+  /** ¿Alguna variante del producto tiene stock >= MIN_STOCK_THRESHOLD? */
+  private async productHasSellableStock(productId: string): Promise<boolean> {
     const variants = await prisma.productVariant.findMany({
       where: { productId },
       include: {
@@ -101,14 +100,7 @@ export class DropiSyncService {
         },
       },
     });
-
-    return variants.reduce((total, variant) => {
-      const variantStock = variant.warehouseVariants?.reduce(
-        (sum, wv) => sum + (wv.stock || 0),
-        0
-      ) || 0;
-      return total + variantStock;
-    }, 0);
+    return productMeetsStockThreshold(variants);
   }
 
   /**
@@ -130,28 +122,37 @@ export class DropiSyncService {
 
     if (!variant) return;
 
-    // Actualizar estado según stock (el bloqueo NO afecta el estado active)
     const stock = await this.calculateVariantStock(variantId);
-    
-    if (stock <= 0) {
-      await prisma.productVariant.update({
-        where: { id: variantId },
-        data: { active: false, stock: 0 },
-      });
-      const lockNote = variant.product.lockedByAdmin ? ' (producto bloqueado, pero estado active se actualiza)' : '';
-      console.log(`[SYNC TO BACKEND]    ⚠️ Variante ${variantId} tiene stock 0, marcada como inactiva${lockNote}`);
-    } else {
+    const lockNote = variant.product.lockedByAdmin
+      ? ' (producto bloqueado, pero estado active se actualiza)'
+      : '';
+
+    if (variantMeetsStockThreshold(stock)) {
       await prisma.productVariant.update({
         where: { id: variantId },
         data: { active: true, stock },
       });
+    } else {
+      await prisma.productVariant.update({
+        where: { id: variantId },
+        data: { active: false, stock },
+      });
+      if (stock <= 0) {
+        console.log(
+          `[SYNC TO BACKEND]    ⚠️ Variante ${variantId} sin stock, marcada como inactiva${lockNote}`
+        );
+      } else {
+        console.log(
+          `[SYNC TO BACKEND]    ⚠️ Variante ${variantId} stock ${stock} < ${MIN_STOCK_THRESHOLD}, marcada como inactiva${lockNote}`
+        );
+      }
     }
   }
 
   /**
    * Actualizar estado del producto basándose en el estado de sus variantes
-   * Si todas las variantes están inactivas, el producto también debe estar inactivo
-   * Si al menos una variante está activa, el producto debe estar activo
+   * Inactivo si ninguna variante cumple stock >= MIN_STOCK_THRESHOLD (active en BD).
+   * Activo si al menos una variante está activa (tras updateVariantStockStatus).
    * ✅ OPCIÓN 1: El bloqueo NO protege el estado active, siempre actualizar según variantes
    */
   async updateProductStatusFromVariants(productId: string): Promise<void> {
@@ -229,7 +230,7 @@ export class DropiSyncService {
     if (!productCheck) return;
     if (!productCheck.inDropiCatalog) return;
 
-    const totalStock = await this.calculateProductStock(productId);
+    const hasSellableStock = await this.productHasSellableStock(productId);
     const product = await prisma.product.findUnique({
       where: { id: productId },
       select: {
@@ -248,8 +249,7 @@ export class DropiSyncService {
                           Array.isArray(product.images) && 
                           product.images.length > 0;
 
-    // Si el producto tiene stock menor al mínimo (30) o no cumple requisitos, eliminar del ranking
-    if (totalStock < this.MIN_STOCK_THRESHOLD || !hasValidTitle || !hasValidImages || !product.active) {
+    if (!hasSellableStock || !hasValidTitle || !hasValidImages || !product.active) {
       try {
         await (prisma as any).globalRanking.deleteMany({
           where: {
@@ -257,8 +257,8 @@ export class DropiSyncService {
             itemType: 'product',
           },
         });
-        const reason = totalStock < this.MIN_STOCK_THRESHOLD 
-          ? `stock insuficiente (${totalStock} < ${this.MIN_STOCK_THRESHOLD})`
+        const reason = !hasSellableStock
+          ? 'sin variante con stock suficiente para venta'
           : `no cumple requisitos (title: ${hasValidTitle}, images: ${hasValidImages}, active: ${product.active})`;
         console.log(`[SYNC TO BACKEND] ✅ Producto ${productId} eliminado del ranking (${reason})`);
       } catch (error) {
@@ -1160,18 +1160,23 @@ export class DropiSyncService {
           await this.updateProductStatusFromVariants(product.id);
 
           // 8. Actualizar estado del producto en el ranking según su stock total
-          const totalStock = await this.calculateProductStock(product.id);
-          
-          // Contar productos excluidos/incluidos por stock (mínimo 30 unidades)
-          if (totalStock < 30) {
+          const variantsForStock = await prisma.productVariant.findMany({
+            where: { productId: product.id },
+            include: { warehouseVariants: { select: { stock: true } } },
+          });
+          const meetsStock = productMeetsStockThreshold(variantsForStock);
+
+          if (!meetsStock) {
             productsExcludedNoStock++;
-            const reason = totalStock === 0 
-              ? 'sin stock'
-              : `stock insuficiente (${totalStock} < 30)`;
-            console.log(`[SYNC TO BACKEND] ⚠️ Producto ${product.id} (dropiId: ${dropiProduct.dropiId}) excluido del ranking por ${reason}`);
+            const reason = stockEligibilityReason(variantsForStock);
+            console.log(
+              `[SYNC TO BACKEND] ⚠️ Producto ${product.id} (dropiId: ${dropiProduct.dropiId}) excluido del ranking: ${reason}`
+            );
           } else {
             productsIncludedWithStock++;
-            console.log(`[SYNC TO BACKEND] ✅ Producto ${product.id} (dropiId: ${dropiProduct.dropiId}) incluido en ranking con stock: ${totalStock} (>= 30)`);
+            console.log(
+              `[SYNC TO BACKEND] ✅ Producto ${product.id} (dropiId: ${dropiProduct.dropiId}) elegible para ranking (≥1 variante con stock >= ${MIN_STOCK_THRESHOLD})`
+            );
           }
           
           await this.updateProductRankingStatus(product.id);

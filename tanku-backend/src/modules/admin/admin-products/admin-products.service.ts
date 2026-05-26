@@ -5,6 +5,12 @@ import { Prisma } from '@prisma/client';
 import { FeedService } from '../../feed/feed.service';
 import { calculateTankuPriceWithFormula, PriceFormulaValue } from '../../../shared/utils/price-formula.utils';
 import { PriceFormulaType } from '@prisma/client';
+import {
+  productMeetsStockThreshold,
+  stockEligibilityReason,
+  sumWarehouseStock,
+  variantMeetsStockThreshold,
+} from '../../../shared/catalog/catalog-stock-policy';
 
 export interface ProductFilters {
   search?: string;
@@ -514,17 +520,17 @@ export class AdminProductService {
           if (!isInRanking) return false;
           
           // Validar requisitos
-          const MIN_STOCK_THRESHOLD = 30;
           const hasValidTitle = product.title && 
                                product.title.trim() !== '' && 
                                product.title !== 'Sin nombre';
           const hasValidImages = product.images && 
                                 Array.isArray(product.images) && 
                                 product.images.length > 0;
-          const meetsRequirements = totalStock >= MIN_STOCK_THRESHOLD && 
-                                   hasValidTitle && 
-                                   hasValidImages && 
-                                   hasActiveVariants;
+          const meetsRequirements =
+            productMeetsStockThreshold(product.variants) &&
+            hasValidTitle &&
+            hasValidImages &&
+            hasActiveVariants;
           
           // Si está en ranking pero no cumple, eliminarlo
           if (!meetsRequirements) {
@@ -609,14 +615,10 @@ export class AdminProductService {
     }
 
     // Calcular stock total para validación
-    const MIN_STOCK_THRESHOLD = 30;
-    const totalStock = product.variants.reduce((total, variant) => {
-      const variantStock = variant.warehouseVariants?.reduce(
-        (sum, wv) => sum + (wv.stock || 0),
-        0
-      ) || 0;
-      return total + variantStock;
-    }, 0);
+    const totalStock = product.variants.reduce(
+      (total, variant) => total + sumWarehouseStock(variant.warehouseVariants),
+      0
+    );
 
     const hasValidTitle = product.title && 
                          product.title.trim() !== '' && 
@@ -624,10 +626,11 @@ export class AdminProductService {
     const hasValidImages = product.images && 
                           Array.isArray(product.images) && 
                           product.images.length > 0;
-    const meetsRequirements = totalStock >= MIN_STOCK_THRESHOLD && 
-                             hasValidTitle && 
-                             hasValidImages && 
-                             product.active;
+    const meetsRequirements =
+      productMeetsStockThreshold(product.variants) &&
+      hasValidTitle &&
+      hasValidImages &&
+      product.active;
 
     // Verificar si está en el ranking global
     const rankingEntry = await (prisma as any).globalRanking.findUnique({
@@ -739,7 +742,7 @@ export class AdminProductService {
    * 
    * Lógica:
    * - Si desactivo: desactiva TODAS las variantes y elimina del ranking global
-   * - Si activo: activa SOLO las variantes con stock > 0 y agrega al ranking si cumple requisitos
+   * - Si activo: activa variantes con stock >= 30; producto activo solo si hay al menos una
    */
   async toggleProductActive(id: string, active: boolean, adminUserId: string): Promise<void> {
     const product = await prisma.product.findUnique({
@@ -777,60 +780,41 @@ export class AdminProductService {
       }
     }
 
-    // Calcular stock total del producto
-    const totalStock = product.variants.reduce((total, variant) => {
-      const variantStock = variant.warehouseVariants?.reduce(
-        (sum, wv) => sum + (wv.stock || 0),
-        0
-      ) || 0;
-      return total + variantStock;
-    }, 0);
+    const variantStocks = product.variants.map((variant) => ({
+      variantId: variant.id,
+      stock: sumWarehouseStock(variant.warehouseVariants),
+    }));
 
-    // Calcular stock por variante
-    const variantStocks = product.variants.map((variant) => {
-      const totalStock = variant.warehouseVariants?.reduce(
-        (sum, wv) => sum + (wv.stock || 0),
-        0
-      ) || 0;
-      return {
-        variantId: variant.id,
-        stock: totalStock,
-      };
-    });
-
-    // Validar requisitos para ranking
-    const MIN_STOCK_THRESHOLD = 30; // Mismo umbral que usa dropi-sync
     const hasValidTitle = product.title && 
                          product.title.trim() !== '' && 
                          product.title !== 'Sin nombre';
     const hasValidImages = product.images && 
                           Array.isArray(product.images) && 
                           product.images.length > 0;
-    const meetsRankingRequirements = totalStock >= MIN_STOCK_THRESHOLD && 
-                                     hasValidTitle && 
-                                     hasValidImages;
+    const meetsRankingRequirements =
+      productMeetsStockThreshold(product.variants) &&
+      hasValidTitle &&
+      hasValidImages;
 
-    // Actualizar estado del producto y bloquear automáticamente
+    const variantsToActivate = variantStocks
+      .filter((vs) => variantMeetsStockThreshold(vs.stock))
+      .map((vs) => vs.variantId);
+    const variantsToDeactivate = variantStocks
+      .filter((vs) => !variantMeetsStockThreshold(vs.stock))
+      .map((vs) => vs.variantId);
+    const effectiveProductActive = active && variantsToActivate.length > 0;
+
     await prisma.product.update({
       where: { id },
       data: {
-        active,
-        lockedByAdmin: true, // Bloquear al cambiar estado manualmente
+        active: effectiveProductActive,
+        lockedByAdmin: true,
         lockedAt: new Date(),
         lockedBy: adminUserId,
       },
     });
 
-    // Actualizar estado de las variantes según la lógica
     if (active) {
-      // ACTIVAR: Solo activar variantes con stock >= 30 (mismo umbral que ranking)
-      const variantsToActivate = variantStocks
-        .filter((vs) => vs.stock >= MIN_STOCK_THRESHOLD)
-        .map((vs) => vs.variantId);
-
-      const variantsToDeactivate = variantStocks
-        .filter((vs) => vs.stock < MIN_STOCK_THRESHOLD)
-        .map((vs) => vs.variantId);
 
       // Activar variantes con stock
       if (variantsToActivate.length > 0) {
@@ -878,7 +862,9 @@ export class AdminProductService {
               itemType: 'product',
             },
           });
-          console.log(`[ADMIN PRODUCTS] Producto eliminado del ranking (no cumple requisitos: stock=${totalStock}, title=${hasValidTitle}, images=${hasValidImages})`);
+          console.log(
+            `[ADMIN PRODUCTS] Producto eliminado del ranking (no cumple requisitos: ${stockEligibilityReason(product.variants)}, title=${hasValidTitle}, images=${hasValidImages})`
+          );
         } catch (error: any) {
           console.warn(`[ADMIN PRODUCTS] Error eliminando producto del ranking:`, error?.message);
         }
@@ -909,7 +895,9 @@ export class AdminProductService {
       }
     }
 
-    console.log(`[ADMIN PRODUCTS] Producto ${id} marcado como ${active ? 'activo' : 'inactivo'} por admin ${adminUserId}`);
+    console.log(
+      `[ADMIN PRODUCTS] Producto ${id} marcado como ${effectiveProductActive ? 'activo' : 'inactivo'} por admin ${adminUserId}`
+    );
   }
 
   /**
@@ -1012,26 +1000,17 @@ export class AdminProductService {
       },
     });
 
-    // Verificar si está en ranking y cumple requisitos
-    const MIN_STOCK_THRESHOLD = 30;
-    const totalStock = updatedProduct.variants.reduce((total, variant) => {
-      const variantStock = variant.warehouseVariants?.reduce(
-        (sum, wv) => sum + (wv.stock || 0),
-        0
-      ) || 0;
-      return total + variantStock;
-    }, 0);
-
     const hasValidTitle = updatedProduct.title && 
                          updatedProduct.title.trim() !== '' && 
                          updatedProduct.title !== 'Sin nombre';
     const hasValidImages = updatedProduct.images && 
                           Array.isArray(updatedProduct.images) && 
                           updatedProduct.images.length > 0;
-    const meetsRequirements = totalStock >= MIN_STOCK_THRESHOLD && 
-                             hasValidTitle && 
-                             hasValidImages && 
-                             updatedProduct.active;
+    const meetsRequirements =
+      productMeetsStockThreshold(updatedProduct.variants) &&
+      hasValidTitle &&
+      hasValidImages &&
+      updatedProduct.active;
 
     const rankingEntry = await (prisma as any).globalRanking.findUnique({
       where: {
@@ -1705,7 +1684,6 @@ export class AdminProductService {
       throw new BadRequestError('Debe proporcionar al menos un ID de producto');
     }
 
-    const MIN_STOCK_THRESHOLD = 30;
     const feedService = new FeedService();
     const details: Array<{
       productId: string;
@@ -1773,31 +1751,29 @@ export class AdminProductService {
             Array.isArray(product.images) &&
             product.images.length > 0;
           const meetsRankingRequirements =
-            totalStock >= MIN_STOCK_THRESHOLD &&
+            productMeetsStockThreshold(product.variants) &&
             hasValidTitle &&
             hasValidImages;
 
-          // Actualizar estado del producto y bloquear automáticamente
+          const variantsToActivate = variantStocks
+            .filter((vs) => variantMeetsStockThreshold(vs.stock))
+            .map((vs) => vs.variantId);
+          const variantsToDeactivate = variantStocks
+            .filter((vs) => !variantMeetsStockThreshold(vs.stock))
+            .map((vs) => vs.variantId);
+          const effectiveProductActive = active && variantsToActivate.length > 0;
+
           await prisma.product.update({
             where: { id: productId },
             data: {
-              active,
+              active: effectiveProductActive,
               lockedByAdmin: true,
               lockedAt: new Date(),
               lockedBy: adminUserId,
             },
           });
 
-          // Actualizar estado de las variantes según la lógica
           if (active) {
-            // ACTIVAR: Solo activar variantes con stock >= 30
-            const variantsToActivate = variantStocks
-              .filter((vs) => vs.stock >= MIN_STOCK_THRESHOLD)
-              .map((vs) => vs.variantId);
-
-            const variantsToDeactivate = variantStocks
-              .filter((vs) => vs.stock < MIN_STOCK_THRESHOLD)
-              .map((vs) => vs.variantId);
 
             // Activar variantes con stock suficiente
             if (variantsToActivate.length > 0) {
@@ -1855,8 +1831,8 @@ export class AdminProductService {
                 // Ignorar si no existe
               }
               const reasons: string[] = [];
-              if (totalStock < MIN_STOCK_THRESHOLD) {
-                reasons.push(`stock insuficiente (${totalStock} < ${MIN_STOCK_THRESHOLD})`);
+              if (!productMeetsStockThreshold(product.variants)) {
+                reasons.push(stockEligibilityReason(product.variants));
               }
               if (!hasValidTitle) {
                 reasons.push('título inválido');
