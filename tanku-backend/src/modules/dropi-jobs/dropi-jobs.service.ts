@@ -6,6 +6,7 @@ import {
   StepRunStatus,
   createInitialSyncStockMetadata,
   computeOverallProgress,
+  SyncStockPipelineFollowUp,
 } from './dropi-job-step-metadata';
 import {
   getDropiJobRetentionPerType,
@@ -217,11 +218,27 @@ export class DropiJobsService {
     });
   }
 
-  async updateJobMetadata(jobId: string, metadata: Record<string, unknown>): Promise<void> {
+  /**
+   * Fusiona `patch` con la metadata existente (no reemplaza el objeto entero).
+   * Evita perder flags de encadenado (p. ej. chainSyncProduct) al guardar stats al finalizar.
+   */
+  async updateJobMetadata(jobId: string, patch: Record<string, unknown>): Promise<void> {
+    const job = await prisma.dropiJob.findUnique({
+      where: { id: jobId },
+      select: { metadata: true },
+    });
+
+    const existing =
+      job?.metadata != null &&
+      typeof job.metadata === 'object' &&
+      !Array.isArray(job.metadata)
+        ? { ...(job.metadata as Record<string, unknown>) }
+        : {};
+
     await prisma.dropiJob.update({
       where: { id: jobId },
       data: {
-        metadata: metadata as Prisma.InputJsonValue,
+        metadata: { ...existing, ...patch } as Prisma.InputJsonValue,
       },
     });
   }
@@ -334,6 +351,7 @@ export class DropiJobsService {
       );
       return {
         enqueued: false,
+        enrichJobId: activeEnrich.id,
         pendingCount,
         reason: `ENRICH ya activo: ${activeEnrich.id}`,
       };
@@ -408,6 +426,34 @@ export class DropiJobsService {
     );
 
     return { enqueued: true, syncJobId: syncJob.id };
+  }
+
+  async updateSyncStockPipelineFollowUp(
+    syncStockJobId: string,
+    patch: SyncStockPipelineFollowUp
+  ): Promise<void> {
+    const job = await prisma.dropiJob.findUnique({
+      where: { id: syncStockJobId },
+      select: { metadata: true },
+    });
+    if (!job?.metadata) return;
+
+    const metadata = job.metadata as unknown as SyncStockJobMetadata;
+    const prev = metadata.pipeline ?? {};
+
+    metadata.pipeline = {
+      enrich: patch.enrich ? { ...prev.enrich, ...patch.enrich } : prev.enrich,
+      syncProduct: patch.syncProduct
+        ? { ...prev.syncProduct, ...patch.syncProduct }
+        : prev.syncProduct,
+    };
+
+    await prisma.dropiJob.update({
+      where: { id: syncStockJobId },
+      data: {
+        metadata: metadata as unknown as Prisma.InputJsonValue,
+      },
+    });
   }
 
   async finalizeSyncStockMetadata(jobId: string, success: boolean): Promise<void> {

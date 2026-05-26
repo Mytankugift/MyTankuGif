@@ -76,11 +76,12 @@ export abstract class BaseWorker {
     await this.dropiJobsService.updateProgress(jobId, progress);
   }
 
+  /** Fusiona con metadata existente del job (ver DropiJobsService.updateJobMetadata). */
   protected async updateJobMetadata(
     jobId: string,
-    metadata: Record<string, unknown>
+    patch: Record<string, unknown>
   ): Promise<void> {
-    await this.dropiJobsService.updateJobMetadata(jobId, metadata);
+    await this.dropiJobsService.updateJobMetadata(jobId, patch);
   }
 
   /**

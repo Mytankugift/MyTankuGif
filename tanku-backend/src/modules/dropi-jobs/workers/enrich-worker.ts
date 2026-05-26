@@ -88,18 +88,30 @@ export class EnrichWorker extends BaseWorker {
         throw new Error('Job cancelado antes de finalizar');
       }
 
-      await this.updateJobMetadata(jobId, {
-        enriched,
-        errors: totalErrors,
-      });
       await this.updateProgress(jobId, 100);
 
       console.log(`[ENRICH WORKER] ✅ Enriquecimiento completado: ${enriched} productos enriquecidos, ${totalErrors} errores`);
+
+      const enrichJobRow = await this.dropiJobsService.getJob(jobId);
+      const parentSyncStockJobId = (
+        enrichJobRow?.metadata as { parentSyncStockJobId?: string } | null | undefined
+      )?.parentSyncStockJobId;
 
       const chainResult = await this.dropiJobsService.maybeEnqueueSyncProductAfterEnrich(
         jobId,
         enriched
       );
+
+      if (parentSyncStockJobId) {
+        await this.dropiJobsService.updateSyncStockPipelineFollowUp(parentSyncStockJobId, {
+          syncProduct: {
+            enqueued: chainResult.enqueued,
+            jobId: chainResult.syncJobId,
+            reason: chainResult.reason,
+          },
+        });
+      }
+
       if (chainResult.enqueued) {
         console.log(
           `[ENRICH WORKER] Pipeline: SYNC_PRODUCT encolado ${chainResult.syncJobId}`
@@ -107,6 +119,11 @@ export class EnrichWorker extends BaseWorker {
       } else if (chainResult.reason) {
         console.log(`[ENRICH WORKER] Pipeline SYNC_PRODUCT: ${chainResult.reason}`);
       }
+
+      await this.updateJobMetadata(jobId, {
+        enriched,
+        errors: totalErrors,
+      });
     } catch (error: any) {
       // Si el error es por cancelación, no lanzarlo como error fatal
       if (error?.message?.includes('cancelado')) {

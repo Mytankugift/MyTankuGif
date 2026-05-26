@@ -9,6 +9,8 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline'
+import { SyncStockPipelineFollowUp } from '@/components/workers/SyncStockPipelineFollowUp'
+import type { SyncStockPipelineFollowUp as PipelineData } from '@/lib/dropi/sync-stock-pipeline'
 
 const STEP_LABELS: Record<string, string> = {
   raw: '1. Favoritos Dropi',
@@ -56,12 +58,18 @@ export interface SyncStockStepState {
 export interface SyncStockJobMetadata {
   currentStep: string
   steps: Record<string, SyncStockStepState>
+  chainEnrichOnComplete?: boolean
+  pipeline?: PipelineData
 }
 
 interface Props {
   metadata: SyncStockJobMetadata | null | undefined
   jobStatus: string
   overallProgress: number
+  syncStockJobId?: string
+  onPipelineUpdate?: (pipeline: PipelineData | undefined) => void
+  /** Solo en detalle expandido del historial (evita duplicar en cards) */
+  showPipelineFollowUp?: boolean
   compact?: boolean
   /** Si no hay metadata en BD (job antiguo), barra simple con este % */
   fallbackProgress?: number
@@ -90,6 +98,9 @@ export function SyncStockJobProgress({
   metadata,
   jobStatus,
   overallProgress,
+  syncStockJobId,
+  onPipelineUpdate,
+  showPipelineFollowUp = false,
   compact = false,
   fallbackProgress,
 }: Props) {
@@ -237,9 +248,20 @@ export function SyncStockJobProgress({
         })}
       </div>
 
+      {showPipelineFollowUp ? (
+        <SyncStockPipelineFollowUp
+          pipeline={metadata.pipeline}
+          chainEnrichOnComplete={metadata.chainEnrichOnComplete}
+          syncStockJobStatus={jobStatus}
+          syncStockJobId={syncStockJobId}
+          onPipelineUpdate={onPipelineUpdate}
+          compact={compact}
+        />
+      ) : null}
+
       {jobStatus === 'DONE' && !compact && (
         <p className="text-xs text-indigo-700 font-medium">
-          Sincronización finalizada. Revisa cada paso para el detalle.
+          Sincronización de catálogo/stock finalizada. Revisa cada paso para el detalle.
         </p>
       )}
     </div>

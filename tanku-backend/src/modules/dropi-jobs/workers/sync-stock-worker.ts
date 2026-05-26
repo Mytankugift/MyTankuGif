@@ -325,6 +325,16 @@ export class SyncStockWorker extends BaseWorker {
 
       const chainResult =
         await this.dropiJobsService.maybeEnqueueEnrichAfterSyncStock(jobId);
+
+      await this.dropiJobsService.updateSyncStockPipelineFollowUp(jobId, {
+        enrich: {
+          enqueued: chainResult.enqueued,
+          jobId: chainResult.enrichJobId,
+          pendingCount: chainResult.pendingCount,
+          reason: chainResult.reason,
+        },
+      });
+
       if (chainResult.enqueued) {
         console.log(
           `[SYNC_STOCK WORKER] Pipeline: ENRICH encolado ${chainResult.enrichJobId} (${chainResult.pendingCount} pendiente(s))`

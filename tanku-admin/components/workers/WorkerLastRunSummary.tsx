@@ -14,6 +14,7 @@ import {
   SyncStockJobProgress,
   type SyncStockJobMetadata,
 } from '@/components/workers/SyncStockJobProgress'
+import { SyncStockPipelineFollowUp } from '@/components/workers/SyncStockPipelineFollowUp'
 import { computeJobDurationMs, formatDurationMs } from '@/lib/dropi/job-duration'
 import { getWorkerHighlightStats } from '@/lib/dropi/worker-result-stats'
 
@@ -36,6 +37,7 @@ interface Props {
   overallProgress: number
   getStatusLabel: (status: string) => string
   getStatusColor: (status: string) => string
+  onRefreshJob?: () => void
 }
 
 function StatusIcon({ status }: { status: string }) {
@@ -58,6 +60,7 @@ export function WorkerLastRunSummary({
   overallProgress,
   getStatusLabel,
   getStatusColor,
+  onRefreshJob,
 }: Props) {
   const [showStepDetail, setShowStepDetail] = useState(false)
 
@@ -168,6 +171,17 @@ export function WorkerLastRunSummary({
               </div>
             ))}
           </div>
+        )}
+
+        {isSyncStock && (
+          <SyncStockPipelineFollowUp
+            pipeline={syncStockMetadata?.pipeline}
+            chainEnrichOnComplete={syncStockMetadata?.chainEnrichOnComplete}
+            syncStockJobStatus={job.status}
+            syncStockJobId={job.id}
+            onPipelineUpdate={onRefreshJob ? () => onRefreshJob() : undefined}
+            compact
+          />
         )}
 
         {isSyncStock && syncStockMetadata?.steps && (

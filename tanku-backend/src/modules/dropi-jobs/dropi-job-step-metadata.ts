@@ -11,6 +11,24 @@ export interface SyncStockStepState {
   message?: string;
 }
 
+export interface SyncStockPipelineEnrichFollowUp {
+  enqueued: boolean;
+  jobId?: string;
+  pendingCount?: number;
+  reason?: string;
+}
+
+export interface SyncStockPipelineSyncProductFollowUp {
+  enqueued: boolean;
+  jobId?: string;
+  reason?: string;
+}
+
+export interface SyncStockPipelineFollowUp {
+  enrich?: SyncStockPipelineEnrichFollowUp;
+  syncProduct?: SyncStockPipelineSyncProductFollowUp;
+}
+
 export interface SyncStockJobMetadata {
   currentStep: SyncStockStepKey | 'done';
   steps: Record<SyncStockStepKey, SyncStockStepState>;
@@ -19,6 +37,8 @@ export interface SyncStockJobMetadata {
   /** Tras terminar: encolar ENRICH si hay pendientes (no bloquea el cron de sync-stock). */
   chainEnrichOnComplete?: boolean;
   source?: 'cron' | 'manual';
+  /** Resultado del encadenado ENRICH / SYNC_PRODUCT (jobs en paralelo). */
+  pipeline?: SyncStockPipelineFollowUp;
 }
 
 export function createInitialSyncStockMetadata(

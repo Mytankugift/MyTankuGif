@@ -466,6 +466,9 @@ export default function WorkerPage() {
               overallProgress={lastExecutionProgress}
               getStatusLabel={getStatusLabel}
               getStatusColor={getStatusColor}
+              onRefreshJob={
+                isSyncStock ? () => void loadJobStatus(lastExecutionJob.id) : undefined
+              }
             />
           )}
 
@@ -573,6 +576,9 @@ export default function WorkerPage() {
                                     metadata={job.metadata}
                                     jobStatus={job.status}
                                     overallProgress={historyProgress}
+                                    showPipelineFollowUp
+                                    syncStockJobId={job.id}
+                                    onPipelineUpdate={() => void loadJobStatus(job.id)}
                                     compact
                                   />
                                 </div>
