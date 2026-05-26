@@ -8,6 +8,7 @@ import {
   SyncStockJobProgress,
   type SyncStockJobMetadata,
 } from '@/components/workers/SyncStockJobProgress'
+import { WorkerLastRunSummary } from '@/components/workers/WorkerLastRunSummary'
 import {
   computeSyncStockOverallProgress,
   getSyncStockActiveStepLabel,
@@ -70,6 +71,7 @@ export default function WorkerPage() {
   >(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
   const [propagateProductFicha, setPropagateProductFicha] = useState(false)
+  const [chainEnrichOnComplete, setChainEnrichOnComplete] = useState(true)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const activeJobIdRef = useRef<string | null>(null)
 
@@ -198,8 +200,12 @@ export default function WorkerPage() {
     if (!process) return
     setExecuting(true)
     try {
-      const body =
-        isSyncStock && propagateProductFicha ? { propagateProductFicha: true } : {}
+      const body = isSyncStock
+        ? {
+            ...(propagateProductFicha ? { propagateProductFicha: true } : {}),
+            chainEnrichOnComplete,
+          }
+        : {}
       const response = await apiClient.post<{ jobId: string; status: string; type: string }>(
         process.endpoint,
         body
@@ -217,7 +223,7 @@ export default function WorkerPage() {
     } finally {
       setExecuting(false)
     }
-  }, [process, loadJobs, loadJobStatus, isSyncStock, propagateProductFicha])
+  }, [process, loadJobs, loadJobStatus, isSyncStock, propagateProductFicha, chainEnrichOnComplete])
 
   const cancelJob = useCallback(
     async (jobId: string) => {
@@ -339,10 +345,11 @@ export default function WorkerPage() {
     if (activeJob) {
       setExpandedHistory(false)
       setExpandedHistoryJobId(null)
-    } else {
-      setExpandedHistory(true)
+      return
     }
-  }, [historyReady, activeJob?.id])
+    const hasLastRun = jobs.length > 0
+    setExpandedHistory(!hasLastRun)
+  }, [historyReady, activeJob?.id, jobs.length])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -381,6 +388,15 @@ export default function WorkerPage() {
   }
 
   const historyLocked = !!activeJob
+  const lastExecutionJob = activeJob ? null : (jobs[0] ?? null)
+  const historyJobs = lastExecutionJob
+    ? jobs.filter((j) => j.id !== lastExecutionJob.id)
+    : jobs
+  const lastExecutionProgress = lastExecutionJob
+    ? isSyncStock
+      ? computeSyncStockOverallProgress(lastExecutionJob.metadata)
+      : lastExecutionJob.progress
+    : 0
 
   return (
     <AdminPageShell>
@@ -442,6 +458,17 @@ export default function WorkerPage() {
             </section>
           )}
 
+          {!loading && lastExecutionJob && (
+            <WorkerLastRunSummary
+              job={lastExecutionJob}
+              workerId={workerId}
+              isSyncStock={isSyncStock}
+              overallProgress={lastExecutionProgress}
+              getStatusLabel={getStatusLabel}
+              getStatusColor={getStatusColor}
+            />
+          )}
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <button
               type="button"
@@ -462,7 +489,9 @@ export default function WorkerPage() {
                 <p className="text-sm text-gray-500">
                   {historyLocked
                     ? 'Disponible cuando termine el proceso en curso'
-                    : `Últimas ${jobs.length} ejecuciones (máx. 10 por tipo en BD)`}
+                    : lastExecutionJob
+                      ? `${historyJobs.length} ejecuciones anteriores (máx. 10 por tipo en BD)`
+                      : `Últimas ${jobs.length} ejecuciones (máx. 10 por tipo en BD)`}
                 </p>
               </div>
               {expandedHistory ? (
@@ -479,11 +508,13 @@ export default function WorkerPage() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto" />
                     <p className="text-gray-500 mt-3 text-sm">Cargando historial...</p>
                   </div>
-                ) : jobs.length === 0 ? (
-                  <p className="text-gray-500 text-center py-12 text-sm">No hay historial</p>
+                ) : historyJobs.length === 0 ? (
+                  <p className="text-gray-500 text-center py-12 text-sm">
+                    {lastExecutionJob ? 'No hay ejecuciones anteriores' : 'No hay historial'}
+                  </p>
                 ) : (
                   <div className="divide-y divide-gray-200">
-                    {jobs.map((job) => {
+                    {historyJobs.map((job) => {
                       const historyProgress = isSyncStock
                         ? computeSyncStockOverallProgress(job.metadata)
                         : job.progress
@@ -599,19 +630,33 @@ export default function WorkerPage() {
                 según el catálogo Dropi.
               </p>
               {isSyncStock ? (
-                <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="mt-1 rounded border-gray-300"
-                    checked={propagateProductFicha}
-                    onChange={(e) => setPropagateProductFicha(e.target.checked)}
-                  />
-                  <span>
-                    <strong>Actualizar ficha en Tanku</strong> (descripción e imágenes desde
-                    enrich). Recomendado tras <strong>Enriquecer</strong>. El cron no usa esta
-                    opción.
-                  </span>
-                </label>
+                <div className="space-y-3">
+                  <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-1 rounded border-gray-300"
+                      checked={chainEnrichOnComplete}
+                      onChange={(e) => setChainEnrichOnComplete(e.target.checked)}
+                    />
+                    <span>
+                      <strong>Enriquecer y propagar automáticamente</strong> si hay productos
+                      nuevos sin ficha (en paralelo; no retrasa el próximo sync de stock). Si ya hay
+                      un enrich en curso, los nuevos se absorben en ese job.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-1 rounded border-gray-300"
+                      checked={propagateProductFicha}
+                      onChange={(e) => setPropagateProductFicha(e.target.checked)}
+                    />
+                    <span>
+                      <strong>Actualizar ficha en Tanku</strong> en el paso sync (sin API enrich;
+                      usa datos ya en dropi_products). El cron no usa esta opción.
+                    </span>
+                  </label>
+                </div>
               ) : null}
             </>
           ) : confirmAction ? (

@@ -76,6 +76,13 @@ export abstract class BaseWorker {
     await this.dropiJobsService.updateProgress(jobId, progress);
   }
 
+  protected async updateJobMetadata(
+    jobId: string,
+    metadata: Record<string, unknown>
+  ): Promise<void> {
+    await this.dropiJobsService.updateJobMetadata(jobId, metadata);
+  }
+
   /**
    * Verificar si el job fue cancelado
    */

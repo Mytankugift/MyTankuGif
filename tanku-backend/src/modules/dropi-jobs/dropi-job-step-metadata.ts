@@ -16,11 +16,16 @@ export interface SyncStockJobMetadata {
   steps: Record<SyncStockStepKey, SyncStockStepState>;
   /** Manual en admin: paso sync con skipExisting=false (descripción, imágenes, etc.). Cron siempre false. */
   propagateProductFicha?: boolean;
+  /** Tras terminar: encolar ENRICH si hay pendientes (no bloquea el cron de sync-stock). */
+  chainEnrichOnComplete?: boolean;
   source?: 'cron' | 'manual';
 }
 
 export function createInitialSyncStockMetadata(
-  options?: Pick<SyncStockJobMetadata, 'propagateProductFicha' | 'source'>
+  options?: Pick<
+    SyncStockJobMetadata,
+    'propagateProductFicha' | 'chainEnrichOnComplete' | 'source'
+  >
 ): SyncStockJobMetadata {
   const steps = {} as Record<SyncStockStepKey, SyncStockStepState>;
   for (const key of SYNC_STOCK_STEP_KEYS) {
@@ -30,6 +35,7 @@ export function createInitialSyncStockMetadata(
     currentStep: 'raw',
     steps,
     propagateProductFicha: options?.propagateProductFicha ?? false,
+    chainEnrichOnComplete: options?.chainEnrichOnComplete ?? true,
     source: options?.source ?? 'manual',
   };
 }

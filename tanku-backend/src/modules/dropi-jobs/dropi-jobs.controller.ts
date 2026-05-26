@@ -93,8 +93,10 @@ export class DropiJobsController {
   createSyncStockJob = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const propagateProductFicha = req.body?.propagateProductFicha === true;
+      const chainEnrichOnComplete = req.body?.chainEnrichOnComplete !== false;
       const job = await this.dropiJobsService.createSyncStockJob({
         propagateProductFicha,
+        chainEnrichOnComplete,
         source: 'manual',
       });
 

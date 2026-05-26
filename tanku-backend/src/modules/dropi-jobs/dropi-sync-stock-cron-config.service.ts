@@ -14,6 +14,8 @@ const DEFAULT_TIMEZONE = 'America/Bogota';
 
 export function describeCronExpression(expression: string): string {
   const presets: Record<string, string> = {
+    '*/10 * * * *': 'Cada 10 minutos',
+    '*/15 * * * *': 'Cada 15 minutos',
     '0 */6 * * *': 'Cada 6 horas (minuto 0)',
     '0 */4 * * *': 'Cada 4 horas (minuto 0)',
     '0 */12 * * *': 'Cada 12 horas (minuto 0)',

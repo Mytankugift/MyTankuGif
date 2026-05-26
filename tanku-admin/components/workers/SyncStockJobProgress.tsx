@@ -19,7 +19,6 @@ const STEP_LABELS: Record<string, string> = {
 
 const STAT_LABELS: Record<string, string> = {
   productosProcesados: 'Productos traídos de Dropi',
-  totalDropi: 'Total reportado por Dropi',
   paginas: 'Páginas procesadas',
   syncRunId: 'ID de corrida (sync run)',
   filasPurgadasCorridasAnteriores: 'Filas raw purgadas (corridas anteriores)',

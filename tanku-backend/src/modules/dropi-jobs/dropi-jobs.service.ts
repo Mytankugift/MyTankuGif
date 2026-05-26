@@ -12,6 +12,8 @@ import {
   DROPI_JOB_LIST_DEFAULT_LIMIT,
   DROPI_JOB_LIST_MAX_LIMIT,
 } from './dropi-job-retention';
+import { parseEnrichChainMetadata } from './dropi-job-chain-metadata';
+import { DropiEnrichService } from '../dropi-enrich/dropi-enrich.service';
 
 export class DropiJobsService {
   /**
@@ -82,6 +84,7 @@ export class DropiJobsService {
    */
   async createSyncStockJob(options?: {
     propagateProductFicha?: boolean;
+    chainEnrichOnComplete?: boolean;
     source?: 'cron' | 'manual';
   }): Promise<{ id: string; type: DropiJobType; status: DropiJobStatus }> {
     const job = await prisma.dropiJob.create({
@@ -214,9 +217,22 @@ export class DropiJobsService {
     });
   }
 
+  async updateJobMetadata(jobId: string, metadata: Record<string, unknown>): Promise<void> {
+    await prisma.dropiJob.update({
+      where: { id: jobId },
+      data: {
+        metadata: metadata as Prisma.InputJsonValue,
+      },
+    });
+  }
+
   async initSyncStockMetadata(
     jobId: string,
-    options?: { propagateProductFicha?: boolean; source?: 'cron' | 'manual' }
+    options?: {
+      propagateProductFicha?: boolean;
+      chainEnrichOnComplete?: boolean;
+      source?: 'cron' | 'manual';
+    }
   ): Promise<void> {
     const metadata = createInitialSyncStockMetadata(options);
     await prisma.dropiJob.update({
@@ -271,6 +287,127 @@ export class DropiJobsService {
         progress: overall,
       },
     });
+  }
+
+  async findActiveJob(
+    type: DropiJobType
+  ): Promise<{ id: string; status: DropiJobStatus } | null> {
+    return prisma.dropiJob.findFirst({
+      where: {
+        type,
+        status: { in: [DropiJobStatus.PENDING, DropiJobStatus.RUNNING] },
+      },
+      select: { id: true, status: true },
+    });
+  }
+
+  /**
+   * Tras SYNC_STOCK exitoso: encola ENRICH en paralelo si hay pendientes y no hay ENRICH activo.
+   * No bloquea el cron de sync-stock.
+   */
+  async maybeEnqueueEnrichAfterSyncStock(syncStockJobId: string): Promise<{
+    enqueued: boolean;
+    enrichJobId?: string;
+    pendingCount?: number;
+    reason?: string;
+  }> {
+    const job = await prisma.dropiJob.findUnique({
+      where: { id: syncStockJobId },
+      select: { metadata: true },
+    });
+    const meta = job?.metadata as SyncStockJobMetadata | null;
+
+    if (meta?.chainEnrichOnComplete === false) {
+      return { enqueued: false, reason: 'chainEnrichOnComplete desactivado' };
+    }
+
+    const enrichService = new DropiEnrichService();
+    const pendingCount = await enrichService.countPendingEnrich(false);
+    if (pendingCount === 0) {
+      return { enqueued: false, reason: 'sin productos pendientes de enrich' };
+    }
+
+    const activeEnrich = await this.findActiveJob(DropiJobType.ENRICH);
+    if (activeEnrich) {
+      console.log(
+        `[DROPI PIPELINE] ENRICH ya activo (${activeEnrich.id}, ${activeEnrich.status}); ${pendingCount} pendiente(s) se procesarán en ese job`
+      );
+      return {
+        enqueued: false,
+        pendingCount,
+        reason: `ENRICH ya activo: ${activeEnrich.id}`,
+      };
+    }
+
+    const enrichJob = await prisma.dropiJob.create({
+      data: {
+        type: DropiJobType.ENRICH,
+        status: DropiJobStatus.PENDING,
+        progress: 0,
+        attempts: 0,
+        metadata: {
+          chainSyncProduct: true,
+          parentSyncStockJobId: syncStockJobId,
+          source: meta?.source ?? 'chain',
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    console.log(
+      `[DROPI PIPELINE] ENRICH encolado ${enrichJob.id} tras SYNC_STOCK ${syncStockJobId} (${pendingCount} pendiente(s))`
+    );
+
+    return { enqueued: true, enrichJobId: enrichJob.id, pendingCount };
+  }
+
+  /**
+   * Tras ENRICH encadenado: encola SYNC_PRODUCT si hubo enriquecidos y no hay otro activo.
+   */
+  async maybeEnqueueSyncProductAfterEnrich(
+    enrichJobId: string,
+    enrichedCount: number
+  ): Promise<{ enqueued: boolean; syncJobId?: string; reason?: string }> {
+    const job = await prisma.dropiJob.findUnique({
+      where: { id: enrichJobId },
+      select: { metadata: true },
+    });
+    const meta = parseEnrichChainMetadata(job?.metadata);
+
+    if (!meta?.chainSyncProduct) {
+      return { enqueued: false, reason: 'job ENRICH no es encadenado' };
+    }
+
+    if (enrichedCount <= 0) {
+      return { enqueued: false, reason: 'ningún producto enriquecido en esta corrida' };
+    }
+
+    const activeSync = await this.findActiveJob(DropiJobType.SYNC_PRODUCT);
+    if (activeSync) {
+      console.log(
+        `[DROPI PIPELINE] SYNC_PRODUCT ya activo (${activeSync.id}); omitiendo encolado tras ENRICH ${enrichJobId}`
+      );
+      return { enqueued: false, reason: `SYNC_PRODUCT ya activo: ${activeSync.id}` };
+    }
+
+    const syncJob = await prisma.dropiJob.create({
+      data: {
+        type: DropiJobType.SYNC_PRODUCT,
+        status: DropiJobStatus.PENDING,
+        progress: 0,
+        attempts: 0,
+        metadata: {
+          chainedFromEnrichJobId: enrichJobId,
+          parentSyncStockJobId: meta.parentSyncStockJobId,
+          source: 'chain',
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    console.log(
+      `[DROPI PIPELINE] SYNC_PRODUCT encolado ${syncJob.id} tras ENRICH ${enrichJobId} (${enrichedCount} enriquecido(s))`
+    );
+
+    return { enqueued: true, syncJobId: syncJob.id };
   }
 
   async finalizeSyncStockMetadata(jobId: string, success: boolean): Promise<void> {

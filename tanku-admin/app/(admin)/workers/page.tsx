@@ -11,6 +11,13 @@ import {
   getSyncStockActiveStepLabel,
 } from '@/lib/dropi/sync-stock-progress'
 import { parseSyncStockMetadata } from '@/lib/dropi/parse-sync-stock-metadata'
+import { computeJobDurationMs, formatDurationMs } from '@/lib/dropi/job-duration'
+import {
+  getEnrichHighlightStats,
+  getSyncProductHighlightStats,
+  parseEnrichMetadata,
+  parseSyncProductMetadata,
+} from '@/lib/dropi/worker-result-stats'
 import { WORKER_PROCESSES } from '@/lib/admin/worker-processes'
 
 interface DropiJob {
@@ -221,19 +228,63 @@ export default function WorkersDashboard() {
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      {stats.lastRun?.finishedAt ? (
-                        <p className="text-xs text-gray-500">
-                          Última vez:{' '}
-                          {new Date(stats.lastRun.finishedAt).toLocaleString('es-ES', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                      ) : stats.lastRun?.status === 'FAILED' ? (
-                        <p className="text-xs text-red-600">Última ejecución fallida</p>
+                    <div className="mt-4 pt-4 border-t border-gray-100 space-y-1">
+                      {stats.lastRun ? (
+                        <>
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <span
+                              className={
+                                stats.lastRun.status === 'DONE'
+                                  ? 'text-green-700 font-medium'
+                                  : stats.lastRun.status === 'FAILED'
+                                    ? 'text-red-600 font-medium'
+                                    : 'text-gray-600'
+                              }
+                            >
+                              {getStatusLabel(stats.lastRun.status)}
+                              {stats.lastRun.status === 'DONE' ||
+                              stats.lastRun.status === 'FAILED'
+                                ? ` · ${getJobProgressPercent(stats.lastRun)}%`
+                                : null}
+                            </span>
+                            {(() => {
+                              const ms = computeJobDurationMs(stats.lastRun!)
+                              return ms !== null ? (
+                                <span className="text-gray-900 font-semibold tabular-nums shrink-0">
+                                  {formatDurationMs(ms)}
+                                </span>
+                              ) : null
+                            })()}
+                          </div>
+                          {(() => {
+                            const highlights =
+                              process.id === 'enrich'
+                                ? getEnrichHighlightStats(
+                                    parseEnrichMetadata(stats.lastRun!.metadata)
+                                  )
+                                : process.id === 'sync-to-backend'
+                                  ? getSyncProductHighlightStats(
+                                      parseSyncProductMetadata(stats.lastRun!.metadata)
+                                    )
+                                  : []
+                            if (highlights.length === 0) return null
+                            return (
+                              <p className="text-xs text-gray-600 truncate">
+                                {highlights.map((h) => `${h.label}: ${h.value}`).join(' · ')}
+                              </p>
+                            )
+                          })()}
+                          {stats.lastRun.finishedAt ? (
+                            <p className="text-xs text-gray-500">
+                              {new Date(stats.lastRun.finishedAt).toLocaleString('es-ES', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </p>
+                          ) : null}
+                        </>
                       ) : (
                         <p className="text-xs text-gray-400">Sin ejecuciones recientes</p>
                       )}

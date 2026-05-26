@@ -322,6 +322,17 @@ export class SyncStockWorker extends BaseWorker {
       });
 
       await this.dropiJobsService.finalizeSyncStockMetadata(jobId, true);
+
+      const chainResult =
+        await this.dropiJobsService.maybeEnqueueEnrichAfterSyncStock(jobId);
+      if (chainResult.enqueued) {
+        console.log(
+          `[SYNC_STOCK WORKER] Pipeline: ENRICH encolado ${chainResult.enrichJobId} (${chainResult.pendingCount} pendiente(s))`
+        );
+      } else if (chainResult.reason) {
+        console.log(`[SYNC_STOCK WORKER] Pipeline ENRICH: ${chainResult.reason}`);
+      }
+
       console.log(`[SYNC_STOCK WORKER] Completado. ${processed} productos revisados.`);
     } catch (error: any) {
       const step = await this.dropiJobsService.getJob(jobId);

@@ -14,12 +14,11 @@ import {
   ServerStackIcon,
 } from '@heroicons/react/24/outline'
 
+const DROPI_CRON_DEFAULT = '*/10 * * * *'
+
 const CRON_PRESETS = [
-  { value: '0 */4 * * *', label: 'Cada 4 horas' },
-  { value: '0 */6 * * *', label: 'Cada 6 horas' },
-  { value: '0 */12 * * *', label: 'Cada 12 horas' },
-  { value: '0 3 * * *', label: 'Diario 03:00' },
-  { value: '0 0 * * *', label: 'Diario 00:00' },
+  { value: '*/10 * * * *', label: 'Cada 10 minutos (recomendado)' },
+  { value: '*/15 * * * *', label: 'Cada 15 minutos' },
   { value: 'custom', label: 'Personalizada (editar expresión)' },
 ] as const
 
@@ -108,8 +107,8 @@ export default function CronSettingsPage() {
   const [savingDropi, setSavingDropi] = useState(false)
   const [sendingTest, setSendingTest] = useState(false)
   const [testUserId, setTestUserId] = useState('')
-  const [dropiPreset, setDropiPreset] = useState('0 */6 * * *')
-  const [dropiCronCustom, setDropiCronCustom] = useState('0 */6 * * *')
+  const [dropiPreset, setDropiPreset] = useState(DROPI_CRON_DEFAULT)
+  const [dropiCronCustom, setDropiCronCustom] = useState(DROPI_CRON_DEFAULT)
   const [dropiEnabled, setDropiEnabled] = useState(true)
   const [dropiTimezone, setDropiTimezone] = useState('America/Bogota')
 

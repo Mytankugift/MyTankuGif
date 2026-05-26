@@ -12,6 +12,52 @@ export class DropiEnrichService {
   }
 
   /**
+   * Productos del catálogo actual que aún necesitan enrich (misma lógica que enrichProducts).
+   */
+  async countPendingEnrich(force: boolean = false): Promise<number> {
+    const pending = await this.listProductsPendingEnrich(force);
+    return pending.length;
+  }
+
+  async listProductsPendingEnrich(force: boolean = false) {
+    const catalogDropiIds = await this.dropiRawService.getLatestCatalogDropiIds();
+    const dropiWhere: { privatedProduct: boolean; dropiId?: { in: number[] } } = {
+      privatedProduct: false,
+    };
+    if (catalogDropiIds.length > 0) {
+      dropiWhere.dropiId = { in: catalogDropiIds };
+    }
+
+    const allProducts = await prisma.dropiProduct.findMany({
+      where: dropiWhere,
+      orderBy: { createdAt: 'asc' },
+    });
+
+    let productsToEnrich = allProducts;
+
+    if (!force) {
+      productsToEnrich = allProducts.filter((p) => {
+        const hasDescription = p.description && p.descriptionSyncedAt;
+        const hasImages = p.images && Array.isArray(p.images) && p.images.length > 0;
+        return !(hasDescription && hasImages);
+      });
+    }
+
+    const RECENT_FAILURE_THRESHOLD = 1000 * 60 * 60;
+    productsToEnrich = productsToEnrich.filter((p) => {
+      if (!p.lastEnrichAttemptAt) return true;
+      const timeSinceAttempt = Date.now() - p.lastEnrichAttemptAt.getTime();
+      if (timeSinceAttempt >= RECENT_FAILURE_THRESHOLD) return true;
+      const hasDescription = p.description && p.descriptionSyncedAt;
+      const hasImages = p.images && Array.isArray(p.images) && p.images.length > 0;
+      if (hasDescription && hasImages) return true;
+      return false;
+    });
+
+    return productsToEnrich;
+  }
+
+  /**
    * Enriquecer productos con información detallada desde /products/v2/{id}
    * 
    * @param limit Máximo de productos a procesar (default: 1000)
@@ -50,40 +96,12 @@ export class DropiEnrichService {
 
       const allProducts = await prisma.dropiProduct.findMany({
         where: dropiWhere,
-        orderBy: {
-          createdAt: 'asc',
-        },
+        orderBy: { createdAt: 'asc' },
       });
 
-      // ✅ MEJORA 1: Filtrar PRIMERO los que necesitan enriquecimiento
-      // Validar que NO tenga description E images (ambos deben estar presentes para omitir)
-      let productsToEnrich = allProducts;
-      let alreadyComplete = 0;
-      
-      if (!force) {
-        const beforeFilter = allProducts.length;
-        productsToEnrich = allProducts.filter((p) => {
-          const hasDescription = p.description && p.descriptionSyncedAt;
-          const hasImages = p.images && Array.isArray(p.images) && p.images.length > 0;
-          // Solo omitir si tiene AMBOS (description e images)
-          return !(hasDescription && hasImages);
-        });
-        alreadyComplete = beforeFilter - productsToEnrich.length;
-      }
-
-      // Evitar reintentar tras 429: solo lastEnrichAttemptAt (normalize ya no lo pisa)
-      const RECENT_FAILURE_THRESHOLD = 1000 * 60 * 60; // 1 hora
-      const beforeRecentFilter = productsToEnrich.length;
-      productsToEnrich = productsToEnrich.filter((p) => {
-        if (!p.lastEnrichAttemptAt) return true;
-        const timeSinceAttempt = Date.now() - p.lastEnrichAttemptAt.getTime();
-        if (timeSinceAttempt >= RECENT_FAILURE_THRESHOLD) return true;
-        const hasDescription = p.description && p.descriptionSyncedAt;
-        const hasImages = p.images && Array.isArray(p.images) && p.images.length > 0;
-        if (hasDescription && hasImages) return true;
-        return false;
-      });
-      const skippedRecentFailures = beforeRecentFilter - productsToEnrich.length;
+      let productsToEnrich = await this.listProductsPendingEnrich(force);
+      const alreadyComplete = force ? 0 : allProducts.length - productsToEnrich.length;
+      const skippedRecentFailures = 0;
 
       // ✅ MEJORA 3: Aplicar prioridad a los productos pendientes
       if (priority === 'high_stock') {

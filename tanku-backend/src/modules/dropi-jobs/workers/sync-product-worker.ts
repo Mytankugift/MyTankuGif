@@ -26,6 +26,8 @@ export class SyncProductWorker extends BaseWorker {
     let hasMore = true;
     let totalProductsExcluded = 0;
     let totalProductsIncluded = 0;
+    let totalProductsCreated = 0;
+    let totalProductsUpdated = 0;
 
     try {
       // Verificar cancelación antes de empezar
@@ -56,6 +58,9 @@ export class SyncProductWorker extends BaseWorker {
 
         console.log(`[SYNC_PRODUCT WORKER] Batch sincronizado: ${result.products_created} creados, ${result.products_updated} actualizados`);
 
+        totalProductsCreated += result.products_created;
+        totalProductsUpdated += result.products_updated;
+
         // Acumular contadores de productos incluidos/excluidos
         if (result.products_excluded_no_stock !== undefined) {
           totalProductsExcluded += result.products_excluded_no_stock;
@@ -83,7 +88,15 @@ export class SyncProductWorker extends BaseWorker {
       }
 
       const totalProductsProcessed = totalProductsIncluded + totalProductsExcluded;
-      
+
+      await this.updateJobMetadata(jobId, {
+        productsCreated: totalProductsCreated,
+        productsUpdated: totalProductsUpdated,
+        productsIncludedWithStock: totalProductsIncluded,
+        productsExcludedNoStock: totalProductsExcluded,
+      });
+      await this.updateProgress(jobId, 100);
+
       console.log(`[SYNC_PRODUCT WORKER] Sincronización completada`);
       console.log(`[SYNC_PRODUCT WORKER] Total productos evaluados: ${totalProductsProcessed} (${totalProductsIncluded} incluidos + ${totalProductsExcluded} excluidos)`);
       console.log(`[SYNC_PRODUCT WORKER] ✅ Productos que QUEDARON en ranking (stock >= 30): ${totalProductsIncluded}`);

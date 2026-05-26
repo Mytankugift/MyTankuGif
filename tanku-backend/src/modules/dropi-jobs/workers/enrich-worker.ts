@@ -88,13 +88,25 @@ export class EnrichWorker extends BaseWorker {
         throw new Error('Job cancelado antes de finalizar');
       }
 
-      // ✅ AGREGADO: Actualizar progreso a 100% al finalizar
+      await this.updateJobMetadata(jobId, {
+        enriched,
+        errors: totalErrors,
+      });
       await this.updateProgress(jobId, 100);
 
       console.log(`[ENRICH WORKER] ✅ Enriquecimiento completado: ${enriched} productos enriquecidos, ${totalErrors} errores`);
 
-      // ❌ REMOVIDO: No crear job SYNC_PRODUCT automáticamente
-      // Cada proceso se activa manualmente desde tanku-admin
+      const chainResult = await this.dropiJobsService.maybeEnqueueSyncProductAfterEnrich(
+        jobId,
+        enriched
+      );
+      if (chainResult.enqueued) {
+        console.log(
+          `[ENRICH WORKER] Pipeline: SYNC_PRODUCT encolado ${chainResult.syncJobId}`
+        );
+      } else if (chainResult.reason) {
+        console.log(`[ENRICH WORKER] Pipeline SYNC_PRODUCT: ${chainResult.reason}`);
+      }
     } catch (error: any) {
       // Si el error es por cancelación, no lanzarlo como error fatal
       if (error?.message?.includes('cancelado')) {
