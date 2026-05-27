@@ -9,6 +9,7 @@ import {
   CubeIcon,
   FolderIcon,
   UserGroupIcon,
+  LifebuoyIcon,
   ArrowRightIcon,
   ChartBarIcon,
   ServerIcon,
@@ -75,6 +76,15 @@ export default function AdminHomePage() {
       icon: UserGroupIcon,
       color: 'bg-yellow-500',
       href: '/users',
+      status: 'active'
+    },
+    {
+      id: 'support-cases',
+      name: 'Postventa',
+      description: 'Solicitudes de soporte reportadas por clientes',
+      icon: LifebuoyIcon,
+      color: 'bg-teal-500',
+      href: '/support-cases',
       status: 'active'
     },
     {

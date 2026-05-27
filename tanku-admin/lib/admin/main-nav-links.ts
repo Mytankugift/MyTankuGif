@@ -4,5 +4,6 @@ export const ADMIN_MAIN_NAV_LINKS = [
   { href: '/products', label: 'Productos' },
   { href: '/categories', label: 'Categorías' },
   { href: '/users', label: 'Usuarios Admin' },
+  { href: '/support-cases', label: 'Postventa' },
   { href: '/settings', label: 'Configuración' },
 ] as const

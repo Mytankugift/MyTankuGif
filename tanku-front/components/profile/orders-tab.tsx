@@ -10,6 +10,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 import { NOTIFICATION_ROW_DIVIDER_STYLE } from '@/lib/notifications-display'
 import { isDateInRange } from '@/lib/utils/mis-tankus-period'
+import { OrderSupportSection } from '@/components/profile/order-support-section'
 
 /** Superficie alineada con el panel de notificaciones del nav */
 const ORDER_SURFACE_CLASS =
@@ -511,6 +512,8 @@ export function OrdersTab({ userId, initialOrderId, timeRange }: OrdersTabProps)
                   })}
                 </div>
               </div>
+
+              <OrderSupportSection order={selectedOrder} />
             </div>
           </div>
         </div>

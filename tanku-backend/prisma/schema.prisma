@@ -27,6 +27,7 @@ model User {
   messages                 Message[]
   notifications            Notification[]
   orders                   Order[]
+  supportCases             SupportCase[]
   personalInfo             PersonalInformation?
   posterComments           PosterComment[]
   posterReactions          PosterReaction[]
@@ -261,6 +262,7 @@ model Order {
   isGiftOrder      Boolean        @default(false) @map("is_gift_order")
   orderAddresses   OrderAddress[]
   items            OrderItem[]
+  supportCases     SupportCase[]
   user             User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   stalkerGift      StalkerGift?   @relation("OrderStalkerGift")
 
@@ -291,6 +293,7 @@ model OrderItem {
   order               Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product             Product        @relation(fields: [productId], references: [id])
   variant             ProductVariant @relation(fields: [variantId], references: [id])
+  supportCases        SupportCase[]
 
   @@index([dropiOrderId])
   @@map("order_items")
@@ -913,6 +916,76 @@ enum MessageStatus {
 enum StoryType {
   NORMAL
   WISHLIST
+}
+
+// ============================================
+// POSTVENTA / SOPORTE (MVP)
+// ============================================
+
+enum SupportCaseType {
+  NOT_RECEIVED
+  DAMAGED
+  DELAY
+  WRONG_ITEM
+  OTHER
+}
+
+enum SupportCaseStatus {
+  OPEN
+  IN_REVIEW
+  WAITING_USER
+  RESOLVED
+  CLOSED
+}
+
+enum SupportCaseEventKind {
+  CREATED
+  STATUS_CHANGED
+  PUBLIC_MESSAGE
+  INTERNAL_NOTE
+  DROPI_REFRESH
+}
+
+enum SupportCaseActorType {
+  USER
+  ADMIN
+  SYSTEM
+}
+
+model SupportCase {
+  id          String            @id @default(cuid())
+  userId      String            @map("user_id")
+  orderId     String            @map("order_id")
+  orderItemId String?           @map("order_item_id")
+  caseType    SupportCaseType   @map("case_type")
+  status      SupportCaseStatus @default(OPEN)
+  description String
+  snapshot    Json
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order       Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem   OrderItem?        @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  events      SupportCaseEvent[]
+
+  @@index([userId, status])
+  @@index([orderId])
+  @@index([status, createdAt])
+  @@map("support_cases")
+}
+
+model SupportCaseEvent {
+  id            String               @id @default(cuid())
+  supportCaseId String               @map("support_case_id")
+  kind          SupportCaseEventKind
+  payload       Json?
+  actorType     SupportCaseActorType @map("actor_type")
+  actorId       String?              @map("actor_id")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  supportCase   SupportCase          @relation(fields: [supportCaseId], references: [id], onDelete: Cascade)
+
+  @@index([supportCaseId, createdAt])
+  @@map("support_case_events")
 }
 
 // ============================================

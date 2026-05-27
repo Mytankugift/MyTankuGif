@@ -364,6 +364,14 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/admin/price-formulas`, adminPriceFormulasRo
 import systemAdminRoutes from './modules/system-admin/system-admin.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/admin/system`, systemAdminRoutes);
 
+// Support cases (postventa)
+import supportCasesRoutes from './modules/support-cases/support-cases.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/support-cases`, supportCasesRoutes);
+
+// Admin support cases
+import adminSupportCasesRoutes from './modules/admin/admin-support-cases/admin-support-cases.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/admin/support-cases`, adminSupportCasesRoutes);
+
 /**
  * Manejo de errores 404
  */

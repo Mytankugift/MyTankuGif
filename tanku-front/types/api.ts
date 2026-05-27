@@ -226,6 +226,77 @@ export interface OrderDTO {
   updatedAt: string
 }
 
+export type SupportCaseType =
+  | 'NOT_RECEIVED'
+  | 'DAMAGED'
+  | 'DELAY'
+  | 'WRONG_ITEM'
+  | 'OTHER'
+
+export type SupportCaseStatus =
+  | 'OPEN'
+  | 'IN_REVIEW'
+  | 'WAITING_USER'
+  | 'RESOLVED'
+  | 'CLOSED'
+
+export type SupportCaseSnapshotDTO = {
+  orderId: string
+  reportedAt: string
+  paymentStatus: string
+  paymentMethod: string | null
+  address: {
+    firstName: string
+    lastName: string
+    city: string
+    state: string
+    phone: string
+  } | null
+  items: Array<{
+    id: string
+    productId: string
+    productTitle: string
+    variantTitle: string
+    quantity: number
+    dropiOrderId: number | null
+    dropiStatus: string | null
+  }>
+  focusedOrderItemId?: string | null
+}
+
+export type SupportCaseEventDTO = {
+  id: string
+  kind: string
+  payload: Record<string, unknown> | null
+  actorType: string
+  actorId: string | null
+  createdAt: string
+}
+
+export type SupportCaseDTO = {
+  id: string
+  userId: string
+  orderId: string
+  orderItemId: string | null
+  caseType: SupportCaseType
+  status: SupportCaseStatus
+  description: string
+  snapshot: SupportCaseSnapshotDTO
+  createdAt: string
+  updatedAt: string
+}
+
+export type SupportCaseDetailDTO = SupportCaseDTO & {
+  events: SupportCaseEventDTO[]
+}
+
+export type CreateSupportCaseDTO = {
+  orderId: string
+  orderItemId?: string | null
+  caseType: SupportCaseType
+  description: string
+}
+
 // Address
 export interface AddressDTO {
   id: string

@@ -76,6 +76,11 @@ export const API_ENDPOINTS = {
       DELETE_IMAGE: (id: string) => `${API_BASE}/api/v1/admin/categories/${id}/image`,
       SET_DEFAULT_FORMULA: (id: string) => `${API_BASE}/api/v1/admin/categories/${id}/default-formula`,
     },
+    SUPPORT_CASES: {
+      LIST: `${API_BASE}/api/v1/admin/support-cases`,
+      BY_ID: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}`,
+      UPDATE_STATUS: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}/status`,
+    },
     SYSTEM: {
       PROXY_STATUS: `${API_BASE}/api/v1/admin/system/proxy/status`,
       CRON_STATUS: `${API_BASE}/api/v1/admin/system/cron/status`,

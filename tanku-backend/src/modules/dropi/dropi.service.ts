@@ -92,9 +92,9 @@ export class DropiService {
     }
 
     const startTime = Date.now();
+    // Alineado con proxy_read_timeout del nginx dropi-proxy (180s)
+    const timeoutMs = 180_000;
     try {
-      // ✅ Agregar timeout para peticiones a Dropi (60 segundos)
-      const timeoutMs = 60000;
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
           reject(new Error(`Timeout después de ${timeoutMs}ms`));
@@ -135,7 +135,9 @@ export class DropiService {
       // ✅ SOLO log de errores (siempre)
       console.error(`[DROPI] Error después de ${duration}ms: ${method} ${url} - ${error.message || error}`);
       if (error.message?.includes('Timeout')) {
-        throw new BadRequestError(`La petición a Dropi tardó más de 60 segundos. URL: ${url}`);
+        throw new BadRequestError(
+          `La petición a Dropi tardó más de ${timeoutMs / 1000} segundos. URL: ${url}`
+        );
       }
       throw error;
     }

@@ -46,6 +46,12 @@ export const API_ENDPOINTS = {
     VALIDATE_RECIPIENT: '/api/v1/gifts/validate-recipient',
     ORDERS: '/api/v1/gifts/orders',
   },
+  // Support cases (postventa)
+  SUPPORT_CASES: {
+    LIST: '/api/v1/support-cases',
+    CREATE: '/api/v1/support-cases',
+    BY_ID: (id: string) => `/api/v1/support-cases/${id}`,
+  },
   // Orders
   ORDERS: {
     CREATE: '/api/v1/orders',

@@ -64,6 +64,14 @@ export function buildAdminNavPath(pathname: string | null): NavSegment[] | null 
     return [{ label: 'Usuarios Admin', href: '/users' }]
   }
 
+  if (pathname === '/support-cases' || pathname.startsWith('/support-cases/')) {
+    const segments: NavSegment[] = [{ label: 'Postventa', href: '/support-cases' }]
+    if (pathname.startsWith('/support-cases/') && pathname !== '/support-cases') {
+      segments.push({ label: 'Detalle de caso' })
+    }
+    return segments
+  }
+
   if (pathname === '/settings' || pathname.startsWith('/settings/')) {
     const segments: NavSegment[] = [{ label: 'Configuración', href: '/settings' }]
     const sub = SETTINGS_PAGES[pathname]
@@ -114,6 +122,12 @@ export function buildAdminNavDescription(pathname: string | null): string | null
 
   if (pathname === '/users' || pathname.startsWith('/users/')) {
     return 'Gestiona los usuarios administradores del sistema'
+  }
+
+  if (pathname === '/support-cases' || pathname.startsWith('/support-cases/')) {
+    return pathname === '/support-cases'
+      ? 'Solicitudes de postventa reportadas por usuarios'
+      : 'Detalle y trazabilidad del caso de soporte'
   }
 
   const settingsSub = SETTINGS_PAGES[pathname]
