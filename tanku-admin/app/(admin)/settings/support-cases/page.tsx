@@ -9,7 +9,6 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { extractApiErrorMessage } from '@/lib/api/errors'
 import { showNotification } from '@/components/notifications'
-import { LifebuoyIcon } from '@heroicons/react/24/outline'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -36,7 +35,7 @@ export default function SupportCasesSettingsPage() {
         setUpdatedAt(res.data.data.updatedAt)
       }
     } catch (err) {
-      showNotification(extractApiErrorMessage(err, 'No se pudo cargar la configuración'), 'error')
+      showNotification(extractApiErrorMessage(err) || 'No se pudo cargar la configuración', 'error')
     } finally {
       setLoading(false)
     }
@@ -66,7 +65,7 @@ export default function SupportCasesSettingsPage() {
         showNotification('Configuración de postventa guardada', 'success')
       }
     } catch (err) {
-      showNotification(extractApiErrorMessage(err, 'Error al guardar'), 'error')
+      showNotification(extractApiErrorMessage(err) || 'Error al guardar', 'error')
     } finally {
       setSaving(false)
     }
@@ -84,8 +83,7 @@ export default function SupportCasesSettingsPage() {
     <AdminSettingsLayout>
       <AdminCollapsibleCard
         title="Postventa / Soporte"
-        description="Correo al que se notifica cuando un usuario reporta un problema desde la app."
-        icon={LifebuoyIcon}
+        summary="Correo al que se notifica cuando un usuario reporta un problema desde la app."
         defaultOpen
       >
         <AdminFormSection title="Notificaciones por email">
