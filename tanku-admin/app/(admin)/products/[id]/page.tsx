@@ -12,7 +12,12 @@ import {
   PhotoIcon,
   CheckCircleIcon,
   XCircleIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline'
+import {
+  dropiProductDashboardUrl,
+  resolveDropiIdFromProduct,
+} from '@/lib/admin/dropi-dashboard'
 import Link from 'next/link'
 import { AdminPageShell } from '@/components/admin/AdminPageShell'
 import { DetailNavActions } from '@/components/admin/DetailNavActions'
@@ -749,6 +754,10 @@ export default function ProductDetailPage() {
       </AdminPageShell>
     )
   }
+
+  const dropiCatalogId = resolveDropiIdFromProduct(product.dropiId, product.handle)
+  const dropiCatalogUrl =
+    dropiCatalogId != null ? dropiProductDashboardUrl(dropiCatalogId, product.handle) : null
 
   return (
     <AdminPageShell>
@@ -1517,6 +1526,21 @@ export default function ProductDetailPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Información Adicional</h2>
               <div className="space-y-3 text-sm">
+                {dropiCatalogUrl && dropiCatalogId != null ? (
+                  <div>
+                    <span className="text-gray-500">Dropi:</span>
+                    <p className="mt-1 font-mono text-xs text-gray-600">ID {dropiCatalogId}</p>
+                    <a
+                      href={dropiCatalogUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-[#0092c6] bg-[#0092c6]/10 px-3 py-1.5 text-xs font-medium text-[#007bb5] hover:bg-[#0092c6]/20"
+                    >
+                      <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 shrink-0" />
+                      Ver producto en Dropi
+                    </a>
+                  </div>
+                ) : null}
                 <div>
                   <span className="text-gray-500">Creado:</span>
                   <p className="text-gray-900">

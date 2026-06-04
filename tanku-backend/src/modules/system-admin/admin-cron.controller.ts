@@ -20,8 +20,13 @@ import {
   enqueueDropiSyncStockJob,
   rescheduleDropiSyncStockCron,
 } from '../dropi-jobs/dropi-sync-stock.cron';
+import {
+  SUPPORT_CASE_EVIDENCE_RETENTION_JOB_KEY,
+} from '../support-cases/support-case-evidence-retention.service';
+import { runSupportCaseEvidenceRetention } from '../support-cases/support-case-evidence-retention.cron';
 
 const CRON_EXPRESSION = '0 0 * * *';
+const SUPPORT_EVIDENCE_CRON_EXPRESSION = '0 4 * * *';
 
 const dropiCronConfigService = new DropiSyncStockCronConfigService();
 
@@ -34,6 +39,9 @@ export class AdminCronController {
       const stateService = new CronJobStateService();
       const state = await stateService.getByKey(EVENT_REMINDERS_JOB_KEY);
       const dropiCronState = await stateService.getByKey(DROPI_SYNC_STOCK_CRON_JOB_KEY);
+      const supportEvidenceState = await stateService.getByKey(
+        SUPPORT_CASE_EVIDENCE_RETENTION_JOB_KEY
+      );
       const dropiConfig = await dropiCronConfigService.getConfig();
       const latestSyncStockJob = await prisma.dropiJob.findFirst({
         where: { type: DropiJobType.SYNC_STOCK },
@@ -76,6 +84,21 @@ export class AdminCronController {
             lastError: state?.lastError ?? null,
             metadata: state?.metadata ?? null,
             updatedAt: state?.updatedAt?.toISOString() ?? null,
+          },
+          supportCaseEvidenceRetention: {
+            jobKey: SUPPORT_CASE_EVIDENCE_RETENTION_JOB_KEY,
+            cronExpression: SUPPORT_EVIDENCE_CRON_EXPRESSION,
+            cronDescription:
+              'Diario a las 04:00 (America/Bogota por defecto); elimina evidencias de postventa con más de 90 días',
+            retentionDaysEnv: process.env.SUPPORT_EVIDENCE_RETENTION_DAYS?.trim() || null,
+            retentionDaysDefault: 90,
+            scheduledInProcess: APP_CONSTANTS.ENABLE_CRON_JOBS,
+            lastStartedAt: supportEvidenceState?.lastStartedAt?.toISOString() ?? null,
+            lastCompletedAt: supportEvidenceState?.lastCompletedAt?.toISOString() ?? null,
+            lastStatus: supportEvidenceState?.lastStatus ?? null,
+            lastError: supportEvidenceState?.lastError ?? null,
+            metadata: supportEvidenceState?.metadata ?? null,
+            updatedAt: supportEvidenceState?.updatedAt?.toISOString() ?? null,
           },
           dropiSyncStock: {
             jobKey: DROPI_SYNC_STOCK_CRON_JOB_KEY,
@@ -161,6 +184,28 @@ export class AdminCronController {
           message: result.skipped
             ? result.reason
             : `Job SYNC_STOCK encolado (${result.jobId}). Los workers deben estar en ejecución.`,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/v1/admin/system/cron/support-case-evidence-retention/run
+   */
+  runSupportCaseEvidenceRetention = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const result = await runSupportCaseEvidenceRetention('manual');
+      res.status(200).json({
+        success: true,
+        data: {
+          ...result,
+          message: `Retención ejecutada: ${result.totalDeleted} evidencia(s) eliminada(s), ${result.totalErrors} error(es).`,
         },
       });
     } catch (error) {

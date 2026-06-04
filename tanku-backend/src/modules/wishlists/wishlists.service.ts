@@ -7,6 +7,7 @@ import { isProductBlockedForMinor, viewerCannotSeeAdultCatalog } from '../../sha
 import { getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
 import { FeedService } from '../feed/feed.service';
 import * as crypto from 'crypto';
+import { allocateEntityRef } from '../../shared/utils/entity-ref';
 
 export class WishListsService {
   private feedService: FeedService;
@@ -115,6 +116,7 @@ export class WishListsService {
   private mapWishListToDTO(wishList: WishList & { items: (WishListItem & { product: { id: string; title: string; handle: string; images: string[] } })[] }): WishListDTO {
     return {
       id: wishList.id,
+      ref: wishList.ref ?? null,
       userId: wishList.userId,
       name: wishList.name,
       public: wishList.public,
@@ -238,6 +240,7 @@ export class WishListsService {
   private mapWishListToDTOComplete(wishList: WishList & { items: any[] }): WishListDTO {
     return {
       id: wishList.id,
+      ref: wishList.ref ?? null,
       userId: wishList.userId,
       name: wishList.name,
       public: wishList.public,
@@ -255,8 +258,11 @@ export class WishListsService {
       throw new BadRequestError('El nombre de la wish list es requerido');
     }
 
-    const wishList = await prisma.wishList.create({
+    const wishList = await prisma.$transaction(async (tx) => {
+      const ref = await allocateEntityRef(tx, 'WLS');
+      return tx.wishList.create({
       data: {
+        ref,
         userId,
         name: name.trim(),
         public: isPublic,
@@ -284,6 +290,7 @@ export class WishListsService {
           },
         },
       },
+    });
     });
 
     return this.mapWishListToDTO(wishList);

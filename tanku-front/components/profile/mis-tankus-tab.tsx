@@ -16,7 +16,10 @@ export type MisTankusFilter = 'all' | 'compras' | 'regalos'
 
 interface MisTankusTabProps {
   userId: string
-  initialOrderId?: string | null
+  /** Notificación / deep link: ?case= */
+  initialOpenCaseId?: string | null
+  /** Tras checkout: ?orderId= (sin ?case) */
+  checkoutOrderId?: string | null
 }
 
 const FILTERS: { id: MisTankusFilter; label: string }[] = [
@@ -105,7 +108,11 @@ function MisTankusPeriodMobileSheet({
   )
 }
 
-export function MisTankusTab({ userId, initialOrderId }: MisTankusTabProps) {
+export function MisTankusTab({
+  userId,
+  initialOpenCaseId = null,
+  checkoutOrderId = null,
+}: MisTankusTabProps) {
   const [filter, setFilter] = useState<MisTankusFilter>('all')
   const [periodValue, setPeriodValue] = useState<string>('30d')
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false)
@@ -126,6 +133,12 @@ export function MisTankusTab({ userId, initialOrderId }: MisTankusTabProps) {
     () => getMisTankusPeriodRange(periodValue, new Date()),
     [periodValue]
   )
+
+  useEffect(() => {
+    if (initialOpenCaseId) {
+      setFilter((f) => (f === 'regalos' ? 'all' : f))
+    }
+  }, [initialOpenCaseId])
 
   return (
     <div className="space-y-4">
@@ -189,7 +202,12 @@ export function MisTankusTab({ userId, initialOrderId }: MisTankusTabProps) {
           {filter === 'all' && (
             <h3 className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Compras</h3>
           )}
-          <OrdersTab userId={userId} initialOrderId={initialOrderId} timeRange={timeRange} />
+          <OrdersTab
+            userId={userId}
+            initialOpenCaseId={initialOpenCaseId}
+            checkoutOrderId={checkoutOrderId}
+            timeRange={timeRange}
+          />
         </div>
       )}
 

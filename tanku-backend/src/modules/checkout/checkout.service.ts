@@ -649,7 +649,8 @@ export class CheckoutService {
     // El webhook actualizará el paymentStatus cuando se confirme el pago
     if (input.paymentMethod === 'epayco') {
       return {
-        orderId: order.id, // ✅ Usar orderId en lugar de cartId
+        orderId: order.id,
+        orderRef: order.ref ?? null,
         total: order.total,
         subtotal: order.subtotal,
         shippingTotal: order.shippingTotal,

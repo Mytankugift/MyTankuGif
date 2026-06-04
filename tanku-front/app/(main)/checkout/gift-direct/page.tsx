@@ -398,7 +398,7 @@ function GiftDirectCheckoutContent() {
 
       const epaycoOptions = {
         amount: orderData.total,
-        name: `Regalo Tanku ${orderData.orderId.slice(0, 8)}`,
+        name: `Regalo Tanku ${orderData.orderRef ?? orderData.orderId?.slice(0, 8) ?? ''}`,
         description: `Regalo Tanku - ${productInfo?.product?.title || 'Producto'}`,
         currency: 'cop',
         country: 'co',

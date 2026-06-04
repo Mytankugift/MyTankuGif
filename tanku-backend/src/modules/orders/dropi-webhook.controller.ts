@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/database';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  dropiOrderSyncService,
+  hasDropiHistoryInStoredData,
+} from './dropi-order-sync.service';
 
 // Interfaz basada en el ejemplo oficial de Dropi
 interface DropiWebhook {
@@ -169,12 +173,30 @@ export class DropiWebhookController {
         });
       }
 
-      // Idempotencia: solo actualizar si el estado cambió
+      const dropiOrderIdNum = Number(dropiOrderId);
+
+      // Idempotencia: si el estado no cambió, solo re-sincronizar si aún no hay historial en BD
       if (orderItem.dropiStatus === status) {
+        if (
+          !hasDropiHistoryInStoredData(orderItem.dropiWebhookData) &&
+          orderItem.dropiOrderId
+        ) {
+          console.log(
+            `📦 [DROPI-WEBHOOK] Estado sin cambio; encolando sync por historial faltante`
+          );
+          res.status(200).json({
+            success: true,
+            message: 'Estado ya actualizado; sincronización de historial encolada',
+          });
+          dropiOrderSyncService.scheduleSyncOrderItem(orderItem.id, orderItem.dropiOrderId, {
+            source: 'webhook_backfill',
+          });
+          return;
+        }
         console.log(`✅ [DROPI-WEBHOOK] Estado ya actualizado: ${status} (idempotencia)`);
-        return res.status(200).json({ 
-          success: true, 
-          message: 'Estado ya actualizado' 
+        return res.status(200).json({
+          success: true,
+          message: 'Estado ya actualizado',
         });
       }
 
@@ -303,8 +325,8 @@ export class DropiWebhookController {
         }
       }
 
-      // Responder 200 OK (según ejemplo oficial de Dropi)
-      res.status(200).json({ 
+      // Responder 200 OK antes de consultar myorders (evita reintentos de Dropi)
+      res.status(200).json({
         success: true,
         message: 'Estado actualizado',
         dropiOrderId,
@@ -312,6 +334,18 @@ export class DropiWebhookController {
         oldStatus,
         newStatus: status,
       });
+
+      if (orderItem.dropiOrderId) {
+        dropiOrderSyncService.scheduleSyncOrderItem(orderItem.id, orderItem.dropiOrderId, {
+          source: 'webhook',
+          guideUrl,
+        });
+      } else if (dropiOrderIdNum) {
+        dropiOrderSyncService.scheduleSyncOrderItem(orderItem.id, dropiOrderIdNum, {
+          source: 'webhook',
+          guideUrl,
+        });
+      }
 
     } catch (error: any) {
       console.error(`❌ [DROPI-WEBHOOK] Error:`, error?.message);

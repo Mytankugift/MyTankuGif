@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
     LIST: '/api/v1/support-cases',
     CREATE: '/api/v1/support-cases',
     BY_ID: (id: string) => `/api/v1/support-cases/${id}`,
+    REPLY: (id: string) => `/api/v1/support-cases/${id}/reply`,
   },
   // Orders
   ORDERS: {
@@ -60,6 +61,7 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string) => `/api/v1/orders/${id}`,
     BY_TRANSACTION_ID: (transactionId: string) => `/api/v1/orders/transaction/${transactionId}`,
     DELETE: (id: string) => `/api/v1/orders/${id}`,
+    DROPI_STATUS_BY_ITEM: (itemId: string) => `/api/v1/orders/item/${itemId}/dropi-status`,
   },
   // Checkout
   CHECKOUT: {

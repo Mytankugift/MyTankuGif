@@ -14,8 +14,13 @@ import {
 } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import { NOTIFICATION_ROW_DIVIDER_STYLE } from '@/lib/notifications-display'
+import { ProfileTabletOverlayModal } from '@/components/profile/profile-tablet-overlay-modal'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 import { isDateInRange } from '@/lib/utils/mis-tankus-period'
+import { displayOrderRef } from '@/lib/utils/entity-ref-display'
+import { dropiStatusChipClass, formatDropiStatus } from '@/lib/dropi-status'
+import { OrderItemDropiShippingModal } from '@/components/profile/order-item-dropi-shipping-modal'
+import { OrderItemDropiShippingActions } from '@/components/profile/order-item-dropi-shipping-actions'
 
 /** Superficie alineada con compras; `ring` = stroke verde (recibido) o azul Tanku (enviado). */
 const GIFT_SURFACE_CLASS =
@@ -23,6 +28,7 @@ const GIFT_SURFACE_CLASS =
 
 interface GiftOrder {
   id: string
+  ref?: string | null
   status: string
   paymentStatus: string
   paymentMethod: string | null
@@ -56,6 +62,7 @@ interface GiftOrder {
     finalPrice?: number
     dropiStatus?: string | null
     dropiOrderId?: number | null
+    dropiWebhookData?: unknown
   }>
   address: {
     city: string
@@ -126,39 +133,6 @@ function getStatusColor(status: string) {
   }
 }
 
-function getDropiStatusColor(status: string | null | undefined) {
-  if (!status) return 'bg-gray-900/20 text-gray-400 border-gray-400/30'
-  const statusUpper = status.toUpperCase()
-  switch (statusUpper) {
-    case 'PENDING':
-      return 'bg-yellow-900/20 text-yellow-400 border-yellow-400/30'
-    case 'PROCESSING':
-      return 'bg-blue-900/20 text-blue-400 border-blue-400/30'
-    case 'SHIPPED':
-      return 'bg-purple-900/20 text-purple-400 border-purple-400/30'
-    case 'DELIVERED':
-      return 'bg-green-900/20 text-green-400 border-green-400/30'
-    case 'CANCELLED':
-    case 'REJECTED':
-      return 'bg-red-900/20 text-red-400 border-red-400/30'
-    default:
-      return 'bg-gray-900/20 text-gray-400 border-gray-400/30'
-  }
-}
-
-function formatDropiStatus(status: string | null | undefined) {
-  if (!status) return 'Sin estado'
-  const statusMap: Record<string, string> = {
-    PENDING: 'Pendiente',
-    PROCESSING: 'En proceso',
-    SHIPPED: 'Enviado',
-    DELIVERED: 'Entregado',
-    CANCELLED: 'Cancelado',
-    REJECTED: 'Rechazado',
-  }
-  return statusMap[status.toUpperCase()] || status
-}
-
 function GiftPurchaseCard({
   gift,
   direction,
@@ -174,7 +148,6 @@ function GiftPurchaseCard({
   formatPrice: (n: number) => string
   formatStatus: (s: string) => string
 }) {
-  const shortId = gift.id.slice(-8).toUpperCase()
   const accentRing = getGiftAccentRing(direction)
   const counterparty =
     gift.otherUser &&
@@ -207,7 +180,7 @@ function GiftPurchaseCard({
             <span className="block text-[9px] font-medium uppercase tracking-wide text-gray-500">
               N.º regalo
             </span>
-            <span className="font-mono text-sm text-[#66DEDB]">#{shortId}</span>
+            <span className="font-mono text-sm text-[#66DEDB]">{displayOrderRef(gift)}</span>
           </div>
           <div className="min-w-0">
             <span className="block text-[9px] font-medium uppercase tracking-wide text-gray-500">
@@ -293,7 +266,7 @@ function GiftPurchaseCard({
                     {item.dropiStatus && (
                       <div className="mt-2">
                         <span
-                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getDropiStatusColor(item.dropiStatus)}`}
+                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${dropiStatusChipClass(item.dropiStatus)}`}
                         >
                           Envío: {formatDropiStatus(item.dropiStatus)}
                         </span>
@@ -316,6 +289,7 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
   const [loading, setLoading] = useState(true)
   const [selectedGift, setSelectedGift] = useState<GiftWithDirection | null>(null)
   const [showGiftDetails, setShowGiftDetails] = useState(false)
+  const [selectedItemForWebhook, setSelectedItemForWebhook] = useState<string | null>(null)
 
   const mergedGifts = useMemo((): GiftWithDirection[] => {
     const sent: GiftWithDirection[] = sentGifts.map((g) => ({ ...g, direction: 'sent' as const }))
@@ -406,6 +380,7 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
   const closeGiftDetails = () => {
     setSelectedGift(null)
     setShowGiftDetails(false)
+    setSelectedItemForWebhook(null)
   }
 
   const isSender = selectedGift?.direction === 'sent'
@@ -460,14 +435,16 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
       )}
 
       {showGiftDetails && selectedGift && (
-        <div
-          className="fixed inset-0 z-[1000020] flex bg-black/55 backdrop-blur-[2px] max-md:flex-col max-md:pt-[max(3.25rem,calc(env(safe-area-inset-top,0px)+2.5rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:items-center md:justify-center md:p-4"
-          onClick={closeGiftDetails}
+        <ProfileTabletOverlayModal
+          open
+          onClose={closeGiftDetails}
+          titleId="gift-details-title"
+          mobileLayout="dialog"
+          mobileBackdrop="blur"
+          maxWidthClass="max-w-lg"
+          panelHeightClass="h-auto max-md:max-h-[min(46rem,93dvh)] md:max-h-[min(44rem,90vh)]"
+          panelClassName={`flex min-h-0 flex-col ${getGiftAccentRing(selectedGift.direction)}`}
         >
-          <div
-            className={`flex max-md:h-full max-md:min-h-0 w-full max-w-2xl flex-col overflow-hidden md:max-h-[90vh] md:rounded-xl ${GIFT_SURFACE_CLASS} ${getGiftAccentRing(selectedGift.direction)}`}
-            onClick={(e) => e.stopPropagation()}
-          >
             <div
               className="flex shrink-0 items-center justify-between border-b bg-[#171B21] px-4 py-3"
               style={NOTIFICATION_ROW_DIVIDER_STYLE}
@@ -476,9 +453,9 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
                 <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
                   {selectedGift.direction === 'sent' ? 'Regalo enviado' : 'Regalo recibido'}
                 </p>
-                <h3 className="text-base font-semibold text-white">
+                <h3 id="gift-details-title" className="text-base font-semibold text-white">
                   Orden{' '}
-                  <span className="text-[#66DEDB]">#{selectedGift.id.slice(-8).toUpperCase()}</span>
+                  <span className="text-[#66DEDB]">{displayOrderRef(selectedGift)}</span>
                 </h3>
               </div>
               <button
@@ -610,12 +587,17 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
                             {item.dropiStatus && (
                               <div className="mt-2">
                                 <span
-                                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getDropiStatusColor(item.dropiStatus)}`}
+                                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${dropiStatusChipClass(item.dropiStatus)}`}
                                 >
                                   Envío: {formatDropiStatus(item.dropiStatus)}
                                 </span>
                               </div>
                             )}
+                            <OrderItemDropiShippingActions
+                              item={item}
+                              onViewShipping={() => setSelectedItemForWebhook(item.id)}
+                              className="mt-1.5"
+                            />
                           </div>
                         </div>
                       </div>
@@ -624,9 +606,26 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+        </ProfileTabletOverlayModal>
       )}
+
+      {selectedGift && selectedItemForWebhook ? (
+        <OrderItemDropiShippingModal
+          open
+          onClose={() => setSelectedItemForWebhook(null)}
+          orderItemId={selectedItemForWebhook}
+          productTitle={
+            selectedGift.items.find((i) => i.id === selectedItemForWebhook)?.product.title ??
+            'Producto'
+          }
+          tankuDropiStatus={
+            selectedGift.items.find((i) => i.id === selectedItemForWebhook)?.dropiStatus
+          }
+          dropiWebhookData={
+            selectedGift.items.find((i) => i.id === selectedItemForWebhook)?.dropiWebhookData
+          }
+        />
+      ) : null}
     </div>
   )
 }

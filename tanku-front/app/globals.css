@@ -3,6 +3,20 @@
 @tailwind utilities;
 
 @layer components {
+  /** Publicación / historia: ancho fijo en desktop (las utilidades en lib/ no siempre entraban al build). */
+  .tanku-vertical-modal-panel {
+    width: min(22rem, calc(100vw - 1.5rem));
+    max-width: 22rem;
+    max-height: min(52rem, 93dvh);
+    flex-shrink: 0;
+  }
+  @media (min-width: 768px) {
+    .tanku-vertical-modal-panel {
+      width: 24rem;
+      max-width: 24rem;
+    }
+  }
+
   /* iOS Safari: menos de 16px al enfocar provoca zoom; 1rem en móvil, 0.875rem desde md */
   .tanku-pill-search-input {
     background-color: var(--tanku-search-bar-fill);

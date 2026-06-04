@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { OrdersService, CreateOrderInput } from './orders.service';
 import { DropiOrdersService } from './dropi-orders.service';
+import {
+  dropiOrderSyncService,
+  storedDataToDropiStatusResponse,
+} from './dropi-order-sync.service';
 import { prisma } from '../../config/database';
 import { successResponse, errorResponse, ErrorCode } from '../../shared/response';
 import { BadRequestError } from '../../shared/errors/AppError';
@@ -277,13 +281,22 @@ export class OrdersController {
         throw new BadRequestError('itemId es requerido');
       }
 
-      console.log(`📋 [ORDERS] Obteniendo estado de Dropi para item: ${itemId}`);
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        throw new BadRequestError('Usuario no autenticado');
+      }
 
-      // Obtener el item de la orden
+      const forceRefresh = req.query.refresh === 'true';
+      console.log(
+        `📋 [ORDERS] Estado Dropi item=${itemId} refresh=${forceRefresh}`
+      );
+
       const item = await prisma.orderItem.findUnique({
         where: { id: itemId },
         select: {
           dropiOrderId: true,
+          dropiWebhookData: true,
+          order: { select: { userId: true } },
         },
       });
 
@@ -291,8 +304,25 @@ export class OrdersController {
         throw new BadRequestError('Este item no tiene un ID de Dropi asociado');
       }
 
-      // Consultar estado en Dropi
-      const dropiStatus = await this.dropiOrdersService.getDropiOrderStatus(item.dropiOrderId);
+      if (item.order.userId !== userId) {
+        throw new BadRequestError('No tienes permiso para ver este envío');
+      }
+
+      if (!forceRefresh) {
+        const cached = storedDataToDropiStatusResponse(
+          item.dropiWebhookData,
+          item.dropiOrderId
+        );
+        if (cached) {
+          return res.status(200).json(successResponse(cached));
+        }
+      }
+
+      const dropiStatus = await dropiOrderSyncService.syncOrderItem(
+        itemId,
+        item.dropiOrderId,
+        { source: 'user_refresh' }
+      );
 
       res.status(200).json(successResponse(dropiStatus));
     } catch (error: any) {

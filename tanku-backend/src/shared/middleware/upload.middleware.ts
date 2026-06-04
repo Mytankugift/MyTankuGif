@@ -43,3 +43,36 @@ export const uploadBanner = upload.single('banner');
  * Middleware para upload de múltiples archivos (posts, stories)
  */
 export const uploadFiles = upload.array('files', 10); // Máximo 10 archivos
+
+const supportEvidenceFilter = (
+  req: any,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
+  const allowedMimes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'application/pdf',
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+  ];
+  if (allowedMimes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Solo se permiten imágenes, PDF o video (MP4, WebM, MOV)'));
+  }
+};
+
+const uploadSupportEvidenceMulter = multer({
+  storage,
+  fileFilter: supportEvidenceFilter,
+  limits: {
+    fileSize: 25 * 1024 * 1024, // 25 MB (videos); imágenes/PDF se validan en servicio
+    files: 3,
+  },
+});
+
+/** Evidencias de postventa: campo `files`, máx. 3 */
+export const uploadSupportEvidence = uploadSupportEvidenceMulter.array('files', 3);

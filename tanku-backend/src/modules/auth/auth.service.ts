@@ -7,6 +7,7 @@ import { JwtPayload } from '../../shared/types';
 import { UserPublicDTO, AuthResponseDTO } from '../../shared/dto/auth.dto';
 import type { User, UserProfile } from '@prisma/client';
 import { ConsentService } from '../consent/consent.service';
+import { allocateEntityRef } from '../../shared/utils/entity-ref';
 
 export interface RegisterInput {
   email: string;
@@ -46,6 +47,7 @@ export class AuthService {
     }
     return {
       id: user.id,
+      ref: user.ref ?? null,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -77,15 +79,18 @@ export class AuthService {
     // Hash de la contraseña
     const hashedPassword = await bcrypt.hash(input.password, env.BCRYPT_ROUNDS);
 
-    // Crear usuario
-    const user = await prisma.user.create({
-      data: {
-        email: input.email,
-        password: hashedPassword,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        phone: input.phone,
-      },
+    const user = await prisma.$transaction(async (tx) => {
+      const ref = await allocateEntityRef(tx, 'USR');
+      return tx.user.create({
+        data: {
+          ref,
+          email: input.email,
+          password: hashedPassword,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          phone: input.phone,
+        },
+      });
     });
 
     // Crear perfil e información personal

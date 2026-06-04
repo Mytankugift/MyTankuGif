@@ -8,6 +8,7 @@ datasource db {
 
 model User {
   id                       String                    @id @default(cuid())
+  ref                      String?                   @unique @map("ref")
   email                    String                    @unique
   password                 String?
   firstName                String?                   @map("first_name")
@@ -243,6 +244,7 @@ model CartItem {
 
 model Order {
   id               String         @id @default(cuid())
+  ref              String?        @unique @map("ref")
   userId           String?        @map("user_id")
   deletedUserEmail String?        @map("deleted_user_email")
   status           OrderStatus    @default(PENDING)
@@ -339,6 +341,7 @@ model Address {
 
 model WishList {
   id              String                  @id @default(cuid())
+  ref             String?                 @unique @map("ref")
   userId          String                  @map("user_id")
   name            String
   public          Boolean                 @default(false)
@@ -415,6 +418,7 @@ model ProductLike {
 
 model StalkerGift {
   id                   String            @id @default(cuid())
+  ref                  String?           @unique @map("ref")
   orderId              String?           @unique @map("order_id")
   paymentStatus        String            @default("pending") @map("payment_status")
   paymentMethod        String            @default("epayco") @map("payment_method")
@@ -533,6 +537,7 @@ model DropiRawProduct {
 
 model Poster {
   id            String           @id @default(cuid())
+  ref           String?          @unique @map("ref")
   customerId    String           @map("customer_id")
   title         String?
   description   String?
@@ -927,7 +932,7 @@ enum SupportCaseType {
   DAMAGED
   DELAY
   WRONG_ITEM
-  OTHER
+  INCOMPLETE
 }
 
 enum SupportCaseStatus {
@@ -940,8 +945,10 @@ enum SupportCaseStatus {
 
 enum SupportCaseEventKind {
   CREATED
+  CASE_ASSIGNED
   STATUS_CHANGED
   PUBLIC_MESSAGE
+  USER_MESSAGE
   INTERNAL_NOTE
   DROPI_REFRESH
 }
@@ -953,25 +960,47 @@ enum SupportCaseActorType {
 }
 
 model SupportCase {
-  id          String            @id @default(cuid())
-  userId      String            @map("user_id")
-  orderId     String            @map("order_id")
-  orderItemId String?           @map("order_item_id")
-  caseType    SupportCaseType   @map("case_type")
-  status      SupportCaseStatus @default(OPEN)
-  description String
-  snapshot    Json
-  createdAt   DateTime          @default(now()) @map("created_at")
-  updatedAt   DateTime          @updatedAt @map("updated_at")
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  order       Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderItem   OrderItem?        @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
-  events      SupportCaseEvent[]
+  id                   String            @id @default(cuid())
+  ref                  String?           @unique @map("ref")
+  userId               String            @map("user_id")
+  orderId              String            @map("order_id")
+  orderItemId          String?           @map("order_item_id")
+  caseType             SupportCaseType   @map("case_type")
+  status               SupportCaseStatus @default(OPEN)
+  description          String
+  snapshot             Json
+  assignedAdminUserId  String?           @map("assigned_admin_user_id")
+  assignedAt           DateTime?         @map("assigned_at")
+  evidencePurgedAt              DateTime? @map("evidence_purged_at")
+  evidencePurgedRetentionDays   Int?      @map("evidence_purged_retention_days")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order                Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem            OrderItem?        @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  assignedAdminUser    AdminUser?        @relation(fields: [assignedAdminUserId], references: [id], onDelete: SetNull)
+  events               SupportCaseEvent[]
+  attachments          SupportCaseAttachment[]
 
   @@index([userId, status])
   @@index([orderId])
   @@index([status, createdAt])
+  @@index([assignedAdminUserId, status])
   @@map("support_cases")
+}
+
+model SupportCaseAttachment {
+  id            String      @id @default(cuid())
+  supportCaseId String      @map("support_case_id")
+  fileName      String      @map("file_name")
+  mimeType      String      @map("mime_type")
+  size          Int
+  url           String
+  createdAt     DateTime    @default(now()) @map("created_at")
+  supportCase   SupportCase @relation(fields: [supportCaseId], references: [id], onDelete: Cascade)
+
+  @@index([supportCaseId])
+  @@map("support_case_attachments")
 }
 
 model SupportCaseEvent {
@@ -1003,8 +1032,9 @@ model AdminUser {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  lockedProducts   Product[]  @relation("ProductLocker")
-  lockedCategories Category[] @relation("CategoryLocker")
+  lockedProducts       Product[]     @relation("ProductLocker")
+  lockedCategories     Category[]    @relation("CategoryLocker")
+  assignedSupportCases SupportCase[]
 
   @@map("admin_users")
 }
@@ -1037,6 +1067,7 @@ enum EventKind {
 
 model Event {
   id          String      @id @default(cuid())
+  ref         String?     @unique @map("ref")
   userId      String      @map("user_id")
   title       String
   description String?
@@ -1068,6 +1099,17 @@ model CronJobState {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@map("cron_job_states")
+}
+
+/// Contadores para referencias legibles (ORD-2026-0001842, RCL-…, USR-…)
+model EntityRefSequence {
+  entityType String   @map("entity_type")
+  year       Int      @default(0)
+  lastValue  Int      @default(0) @map("last_value")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@id([entityType, year])
+  @@map("entity_ref_sequences")
 }
 
 model PriceFormula {

@@ -3,7 +3,7 @@ export type SupportCaseType =
   | 'DAMAGED'
   | 'DELAY'
   | 'WRONG_ITEM'
-  | 'OTHER'
+  | 'INCOMPLETE'
 
 export type SupportCaseStatus =
   | 'OPEN'
@@ -14,13 +14,31 @@ export type SupportCaseStatus =
 
 export type SupportCaseEventKind =
   | 'CREATED'
+  | 'CASE_ASSIGNED'
   | 'STATUS_CHANGED'
   | 'PUBLIC_MESSAGE'
+  | 'USER_MESSAGE'
   | 'INTERNAL_NOTE'
   | 'DROPI_REFRESH'
 
+export type SupportCaseAssignedAdmin = {
+  id: string
+  email: string
+  firstName: string | null
+  lastName: string | null
+}
+
+export type SupportCaseLinkedOrderItem = {
+  id: string
+  dropiOrderId: number | null
+  dropiStatus: string | null
+  shippingGuide: string | null
+  shippingCompany: string | null
+}
+
 export type SupportCaseSnapshot = {
   orderId: string
+  orderRef?: string | null
   reportedAt: string
   paymentStatus: string
   paymentMethod: string | null
@@ -39,8 +57,10 @@ export type SupportCaseSnapshot = {
     quantity: number
     dropiOrderId: number | null
     dropiStatus: string | null
+    productImageUrl?: string | null
   }>
   focusedOrderItemId?: string | null
+  contactPhone?: string | null
 }
 
 export type SupportCaseEvent = {
@@ -54,22 +74,70 @@ export type SupportCaseEvent = {
 
 export type SupportCaseListItem = {
   id: string
+  ref: string | null
   userId: string
   orderId: string
+  orderRef: string | null
   orderItemId: string | null
   caseType: SupportCaseType
   status: SupportCaseStatus
   description: string
   snapshot: SupportCaseSnapshot
+  assignedAdminUserId: string | null
+  assignedAt: string | null
   createdAt: string
   updatedAt: string
   userEmail: string
   userFirstName: string | null
   userLastName: string | null
+  assignedAdmin: SupportCaseAssignedAdmin | null
+}
+
+export type SupportCaseAttachment = {
+  id: string
+  fileName: string
+  mimeType: string
+  size: number
+  url: string
+  createdAt: string
+}
+
+export type SupportCaseEvidenceNotice = {
+  purged: true
+  retentionDays: number
+  purgedAt: string
+}
+
+export type SupportCaseDropiOrderItem = {
+  orderItemId: string
+  productTitle: string
+  variantTitle: string
+  dropiOrderId: number
+  dropiStatus: string | null
+  productImageUrl?: string | null
+  dropiSupplierId?: number | null
+  dropiSupplierName?: string | null
+  shippingCompany?: string | null
+  shippingGuide?: string | null
+}
+
+export type SupportCaseDropiPreview = {
+  orderItemId: string
+  dropiOrderId: number
+  preview: Record<string, unknown>
+  dropiSupplierId?: number | null
 }
 
 export type SupportCaseDetail = SupportCaseListItem & {
   events: SupportCaseEvent[]
+  attachments: SupportCaseAttachment[]
+  evidenceNotice: SupportCaseEvidenceNotice | null
+  linkedOrderItem: SupportCaseLinkedOrderItem | null
+  dropiOrderItems: SupportCaseDropiOrderItem[]
+}
+
+export function supportCaseHasPublicReply(events: SupportCaseEvent[]): boolean {
+  return events.some((e) => e.kind === 'PUBLIC_MESSAGE')
 }
 
 export const CASE_TYPE_LABELS: Record<SupportCaseType, string> = {
@@ -77,11 +145,17 @@ export const CASE_TYPE_LABELS: Record<SupportCaseType, string> = {
   DAMAGED: 'Dañado',
   DELAY: 'Demora',
   WRONG_ITEM: 'Producto incorrecto',
-  OTHER: 'Otro',
+  INCOMPLETE: 'Incompleto',
+}
+
+export function assignedAdminDisplayName(admin: SupportCaseAssignedAdmin | null): string {
+  if (!admin) return ''
+  const name = [admin.firstName, admin.lastName].filter(Boolean).join(' ').trim()
+  return name || admin.email
 }
 
 export const CASE_STATUS_LABELS: Record<SupportCaseStatus, string> = {
-  OPEN: 'Abierto',
+  OPEN: 'Pendiente',
   IN_REVIEW: 'En revisión',
   WAITING_USER: 'Esperando usuario',
   RESOLVED: 'Resuelto',
@@ -96,6 +170,19 @@ export const KANBAN_STATUSES: SupportCaseStatus[] = [
   'CLOSED',
 ]
 
+/** Flujo visual en detalle ERP (sin «Esperando usuario»). */
+export const FLOW_STATUSES: SupportCaseStatus[] = [
+  'OPEN',
+  'IN_REVIEW',
+  'RESOLVED',
+  'CLOSED',
+]
+
+export function statusForFlowDisplay(status: SupportCaseStatus): SupportCaseStatus {
+  if (status === 'WAITING_USER') return 'IN_REVIEW'
+  return status
+}
+
 export type StatusTransition = {
   next: SupportCaseStatus
   label: string
@@ -106,17 +193,11 @@ export type StatusTransition = {
 export function getNextStatusTransitions(current: SupportCaseStatus): StatusTransition[] {
   switch (current) {
     case 'OPEN':
-      return [{ next: 'IN_REVIEW', label: 'Pasar a en revisión', variant: 'primary' }]
+      return []
     case 'IN_REVIEW':
-      return [
-        { next: 'WAITING_USER', label: 'Esperar respuesta del usuario', variant: 'secondary' },
-        { next: 'RESOLVED', label: 'Marcar como resuelto', variant: 'primary' },
-      ]
+      return [{ next: 'RESOLVED', label: 'Marcar como resuelto', variant: 'primary' }]
     case 'WAITING_USER':
-      return [
-        { next: 'IN_REVIEW', label: 'Retomar revisión', variant: 'secondary' },
-        { next: 'RESOLVED', label: 'Marcar como resuelto', variant: 'primary' },
-      ]
+      return [{ next: 'RESOLVED', label: 'Marcar como resuelto', variant: 'primary' }]
     case 'RESOLVED':
       return [{ next: 'CLOSED', label: 'Cerrar caso', variant: 'primary' }]
     case 'CLOSED':

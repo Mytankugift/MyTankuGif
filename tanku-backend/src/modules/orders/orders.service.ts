@@ -3,6 +3,7 @@ import { NotFoundError, BadRequestError } from '../../shared/errors/AppError';
 import { FeedService } from '../feed/feed.service';
 import { env } from '../../config/env';
 import type { Prisma } from '@prisma/client';
+import { allocateEntityRef, isEntityRef } from '../../shared/utils/entity-ref';
 
 export interface CreateOrderInput {
   userId: string;
@@ -37,6 +38,7 @@ export interface CreateOrderInput {
 
 export interface StalkerGiftInfo {
   id: string;
+  ref: string | null;
   senderId: string;
   receiverId: string | null;
   senderAlias: string;
@@ -45,6 +47,7 @@ export interface StalkerGiftInfo {
 
 export interface OrderResponse {
   id: string;
+  ref: string | null;
   userId: string;
   email: string;
   status: string;
@@ -165,9 +168,11 @@ export class OrdersService {
       ? 'not_paid' 
       : 'awaiting';
 
-    // Crear orden primero (sin dirección)
-    const order = await prisma.order.create({
+    const order = await prisma.$transaction(async (tx) => {
+      const ref = await allocateEntityRef(tx, 'ORD');
+      return tx.order.create({
       data: {
+        ref,
         email: input.email,
         paymentMethod: input.paymentMethod,
         paymentStatus: initialPaymentStatus,
@@ -228,6 +233,7 @@ export class OrdersService {
           },
         },
       } as any,
+    });
     });
 
     // Para regalos, la dirección debe estar asociada al destinatario, no al remitente
@@ -489,8 +495,8 @@ export class OrdersService {
    * Obtener orden por ID
    */
   async getOrderById(orderId: string, userId?: string): Promise<OrderResponse> {
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
+    const order = await prisma.order.findFirst({
+      where: isEntityRef(orderId) ? { ref: orderId } : { id: orderId },
       include: {
         stalkerGift: {
           select: {
@@ -857,6 +863,7 @@ export class OrdersService {
     const stalkerGiftInfo = order.stalkerGift
       ? {
           id: order.stalkerGift.id,
+          ref: order.stalkerGift.ref ?? null,
           senderId: order.stalkerGift.senderId,
           receiverId: order.stalkerGift.receiverId,
           senderAlias: order.stalkerGift.senderAlias,
@@ -866,6 +873,7 @@ export class OrdersService {
 
     return {
       id: order.id,
+      ref: order.ref ?? null,
       userId: order.userId,
       email: order.email,
       status: order.status,

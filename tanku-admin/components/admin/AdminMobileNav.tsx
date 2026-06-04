@@ -13,6 +13,7 @@ import { ADMIN_MAIN_NAV_LINKS } from '@/lib/admin/main-nav-links'
 import type { NavSegment } from '@/lib/admin/nav-segments'
 import { DetailNavActions } from '@/components/admin/DetailNavActions'
 import { WorkerNavActions } from '@/components/workers/WorkerNavActions'
+import { SupportCaseNavMobileMenuActions } from '@/components/support-cases/SupportCaseNavActions'
 import { ProxyStatusNav } from '@/components/admin/ProxyStatusNav'
 import { hideDetailActionsInMobileMenu } from '@/lib/admin/detail-routes'
 
@@ -53,14 +54,14 @@ export function AdminMobileNav({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="lg:hidden p-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+        className="xl:hidden p-2 text-gray-700 hover:bg-gray-100 rounded-lg"
         aria-label="Abrir menú"
       >
         <Bars3Icon className="w-6 h-6" />
       </button>
 
       {open ? (
-        <div className="lg:hidden fixed inset-0 z-50">
+        <div className="xl:hidden fixed inset-0 z-50">
           <button
             type="button"
             className="absolute inset-0 bg-black/40"
@@ -124,6 +125,8 @@ export function AdminMobileNav({
                   </div>
                 </div>
               ) : null}
+
+              <SupportCaseNavMobileMenuActions />
 
               {showDetailActionsInMenu ? (
                 <div className="pt-4 mt-2 border-t border-gray-100 space-y-3 px-1">

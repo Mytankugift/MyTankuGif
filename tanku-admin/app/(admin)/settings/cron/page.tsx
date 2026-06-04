@@ -12,6 +12,7 @@ import {
   PlayIcon,
   BellAlertIcon,
   ServerStackIcon,
+  LifebuoyIcon,
 } from '@heroicons/react/24/outline'
 
 const DROPI_CRON_DEFAULT = '*/10 * * * *'
@@ -69,10 +70,26 @@ interface EventRemindersStatus {
   updatedAt: string | null
 }
 
+interface SupportCaseEvidenceRetentionStatus {
+  jobKey: string
+  cronExpression: string
+  cronDescription: string
+  retentionDaysEnv: string | null
+  retentionDaysDefault: number
+  scheduledInProcess: boolean
+  lastStartedAt: string | null
+  lastCompletedAt: string | null
+  lastStatus: string | null
+  lastError: string | null
+  metadata: unknown
+  updatedAt: string | null
+}
+
 interface CronStatusPayload {
   enableCronJobsEnv: boolean
   serverClock: ServerClock
   eventReminders: EventRemindersStatus
+  supportCaseEvidenceRetention: SupportCaseEvidenceRetentionStatus
   dropiSyncStock: DropiSyncStockStatus
 }
 
@@ -100,9 +117,12 @@ export default function CronSettingsPage() {
   const [enableCronJobsEnv, setEnableCronJobsEnv] = useState(false)
   const [serverClock, setServerClock] = useState<ServerClock | null>(null)
   const [eventJob, setEventJob] = useState<EventRemindersStatus | null>(null)
+  const [supportEvidenceJob, setSupportEvidenceJob] =
+    useState<SupportCaseEvidenceRetentionStatus | null>(null)
   const [dropiStatus, setDropiStatus] = useState<DropiSyncStockStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [runningReminders, setRunningReminders] = useState(false)
+  const [runningSupportEvidence, setRunningSupportEvidence] = useState(false)
   const [runningDropi, setRunningDropi] = useState(false)
   const [savingDropi, setSavingDropi] = useState(false)
   const [sendingTest, setSendingTest] = useState(false)
@@ -138,6 +158,7 @@ export default function CronSettingsPage() {
         setEnableCronJobsEnv(data.enableCronJobsEnv)
         setServerClock(data.serverClock)
         setEventJob(data.eventReminders)
+        setSupportEvidenceJob(data.supportCaseEvidenceRetention)
         applyDropiFromStatus(data.dropiSyncStock)
       }
     } catch (err: unknown) {
@@ -204,6 +225,29 @@ export default function CronSettingsPage() {
       showNotification(msg || 'Error al encolar sincronización Dropi', 'error')
     } finally {
       setRunningDropi(false)
+    }
+  }
+
+  const handleRunSupportEvidenceRetention = async () => {
+    try {
+      setRunningSupportEvidence(true)
+      const res = await apiClient.post<{
+        success: boolean
+        data: { message: string; totalDeleted: number }
+      }>(API_ENDPOINTS.ADMIN.SYSTEM.CRON_RUN_SUPPORT_EVIDENCE_RETENTION)
+      if (res.data.success) {
+        showNotification(res.data.data.message, 'success')
+        await loadStatus()
+      }
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error
+              ?.message
+          : undefined
+      showNotification(msg || 'Error al ejecutar retención de evidencias', 'error')
+    } finally {
+      setRunningSupportEvidence(false)
     }
   }
 
@@ -586,6 +630,79 @@ export default function CronSettingsPage() {
           >
             <PlayIcon className="w-4 h-4" />
             {runningReminders ? 'Ejecutando…' : 'Ejecutar recordatorios ahora'}
+          </button>
+        </div>
+      </AdminCollapsibleCard>
+
+      <AdminCollapsibleCard
+        title="Cron — retención evidencias postventa"
+        summary={supportEvidenceJob?.cronExpression ?? 'Diario 04:00'}
+        defaultOpen={false}
+      >
+        <p className="text-sm text-gray-600 mb-4 flex items-center gap-2">
+          <LifebuoyIcon className="w-5 h-5 text-teal-600 shrink-0" />
+          Elimina archivos de evidencia en S3 y sus registros cuando tienen más de{' '}
+          {supportEvidenceJob?.retentionDaysEnv ??
+            String(supportEvidenceJob?.retentionDaysDefault ?? 90)}{' '}
+          días. No borra el caso ni la descripción del reporte.
+        </p>
+
+        {supportEvidenceJob ? (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-6">
+            <div>
+              <dt className="text-gray-500">Programado</dt>
+              <dd className="text-gray-900">
+                {supportEvidenceJob.scheduledInProcess ? 'Sí' : 'No'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Último estado</dt>
+              <dd className="font-mono text-gray-900">
+                {supportEvidenceJob.lastStatus ?? '—'}
+              </dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-gray-500">Descripción</dt>
+              <dd className="text-gray-700">{supportEvidenceJob.cronDescription}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Último inicio</dt>
+              <dd>{formatIso(supportEvidenceJob.lastStartedAt)}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Último fin</dt>
+              <dd>{formatIso(supportEvidenceJob.lastCompletedAt)}</dd>
+            </div>
+            {supportEvidenceJob.metadata &&
+            typeof supportEvidenceJob.metadata === 'object' &&
+            supportEvidenceJob.metadata !== null &&
+            'totalDeleted' in supportEvidenceJob.metadata ? (
+              <div className="sm:col-span-2 text-xs text-gray-600">
+                Última ejecución:{' '}
+                {String(
+                  (supportEvidenceJob.metadata as { totalDeleted?: number }).totalDeleted ?? 0
+                )}{' '}
+                eliminados
+              </div>
+            ) : null}
+            {supportEvidenceJob.lastError ? (
+              <div className="sm:col-span-2">
+                <dt className="text-red-600">Último error</dt>
+                <dd className="text-red-800 whitespace-pre-wrap">{supportEvidenceJob.lastError}</dd>
+              </div>
+            ) : null}
+          </dl>
+        ) : null}
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => void handleRunSupportEvidenceRetention()}
+            disabled={runningSupportEvidence}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
+          >
+            <PlayIcon className="w-4 h-4" />
+            {runningSupportEvidence ? 'Ejecutando…' : 'Ejecutar retención ahora'}
           </button>
         </div>
       </AdminCollapsibleCard>

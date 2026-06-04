@@ -40,6 +40,7 @@ export type WishListItemDTO = {
 
 export type WishListDTO = {
   id: string;
+  ref: string | null;
   userId: string;
   name: string;
   public: boolean;

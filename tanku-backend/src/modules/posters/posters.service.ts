@@ -6,6 +6,7 @@ import { FeedService } from '../feed/feed.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
 import type { Poster, PosterComment, PosterReaction, User, UserProfile } from '@prisma/client';
+import { allocateEntityRef } from '../../shared/utils/entity-ref';
 
 export class PostersService {
   private s3Service: S3Service;
@@ -67,6 +68,7 @@ export class PostersService {
 
     return {
       id: poster.id,
+      ref: poster.ref ?? null,
       imageUrl: poster.imageUrl,
       videoUrl: poster.videoUrl,
       description: poster.description,
@@ -453,8 +455,11 @@ export class PostersService {
       throw new BadRequestError('Se requiere al menos una imagen o video');
     }
 
-    const poster = await prisma.poster.create({
+    const poster = await prisma.$transaction(async (tx) => {
+      const ref = await allocateEntityRef(tx, 'PST');
+      return tx.poster.create({
       data: {
+        ref,
         customerId: data.userId,
         title: data.title || null,
         description: data.description || null,
@@ -483,6 +488,7 @@ export class PostersService {
           },
         },
       },
+    });
     });
 
     const posterDTO = this.mapPosterToDTO(poster);

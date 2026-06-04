@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { StalkerGiftDTO } from '@/types/api'
+import { displayGiftRef } from '@/lib/utils/entity-ref-display'
 import { CheckCircleIcon, XCircleIcon, ClockIcon, ShareIcon } from '@heroicons/react/24/outline'
 
 function StalkerGiftSuccessContent() {
@@ -261,7 +262,7 @@ function StalkerGiftSuccessContent() {
             
             {stalkerGift && (
               <p className="text-sm text-gray-400 mb-6">
-                ID del regalo: <span className="font-mono text-[#66DEDB]">{stalkerGift.id.slice(0, 8)}</span>
+                Regalo: <span className="font-mono text-[#66DEDB]">{displayGiftRef(stalkerGift)}</span>
               </p>
             )}
 

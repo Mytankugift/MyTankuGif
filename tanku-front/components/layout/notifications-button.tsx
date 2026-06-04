@@ -11,6 +11,11 @@ import {
   getNotificationTargetUserId,
   NOTIFICATION_ROW_DIVIDER_STYLE,
 } from '@/lib/notifications-display'
+import { navigateFromNotification, isSupportCaseNotification } from '@/lib/notification-routing'
+import {
+  NotificationIcon,
+  notificationRowClassName,
+} from '@/components/notifications/notification-icon'
 
 interface NotificationsButtonProps {
   // ✅ Props opcionales desde feedInit para evitar llamadas duplicadas
@@ -70,28 +75,22 @@ export function NotificationsButton({
 
   const handleNotificationClick = (n: any) => {
     const data = (n.data || {}) as Record<string, any>
-    const loweredType = (n.type || '').toLowerCase()
-    const loweredTitle = (n.title || '').toLowerCase()
-    const loweredMessage = (n.message || '').toLowerCase()
-    const isAcceptedRequest =
-      loweredType.includes('friend_accepted') ||
-      loweredType.includes('accepted') ||
-      (loweredTitle.includes('solicitud') && loweredTitle.includes('acept')) ||
-      (loweredMessage.includes('solicitud') && loweredMessage.includes('acept'))
+    const targetUserId = getNotificationTargetUserId(n)
+    const username =
+      (targetUserId ? resolvedUsernames[targetUserId] : null) ||
+      data.friendUsername ||
+      data.fromUsername ||
+      data.username ||
+      data.actorUsername ||
+      data.senderUsername ||
+      null
 
-    if (isAcceptedRequest || loweredType === 'friend_request') {
-      const targetUserId = getNotificationTargetUserId(n)
-      const username =
-        (targetUserId ? resolvedUsernames[targetUserId] : null) ||
-        data.friendUsername ||
-        data.fromUsername ||
-        data.username ||
-        data.actorUsername ||
-        data.senderUsername ||
-        null
+    const navigated = navigateFromNotification(router, n, {
+      username,
+      onBeforeNavigate: () => setIsOpen(false),
+    })
+    if (!navigated) {
       setIsOpen(false)
-      router.push(username ? `/profile/${username}` : '/profile')
-      return
     }
   }
 
@@ -230,17 +229,6 @@ export function NotificationsButton({
               <ul>
                 {latestItems.map((n) => {
                   const data = (n.data || {}) as Record<string, any>
-                  const loweredType = (n.type || '').toLowerCase()
-                  const loweredTitle = (n.title || '').toLowerCase()
-                  const loweredMessage = (n.message || '').toLowerCase()
-                  const isAcceptedRequest =
-                    loweredType.includes('accepted') ||
-                    (loweredTitle.includes('solicitud') && loweredTitle.includes('acept')) ||
-                    (loweredMessage.includes('solicitud') && loweredMessage.includes('acept'))
-                  const isEventNotification =
-                    loweredType.includes('event') ||
-                    loweredTitle.includes('evento') ||
-                    loweredMessage.includes('evento')
                   const resolvedUserId = getNotificationTargetUserId(n)
                   const avatarCandidate =
                     (resolvedUserId ? resolvedAvatars[resolvedUserId] : null) ||
@@ -256,11 +244,12 @@ export function NotificationsButton({
                   const avatar = typeof avatarCandidate === 'string' ? avatarCandidate : null
                   const username =
                     data.username || data.actorUsername || data.senderUsername || data.userName || null
+                  const isSupport = isSupportCaseNotification(n)
 
                   return (
                     <li
                       key={n.id}
-                      className="border-b px-4 py-3 transition-colors hover:bg-white/[0.03]"
+                      className={`${notificationRowClassName(n)} px-4`}
                       style={NOTIFICATION_ROW_DIVIDER_STYLE}
                       onClick={(e) => {
                         e.stopPropagation()
@@ -269,53 +258,40 @@ export function NotificationsButton({
                     >
                       <div className="flex items-center gap-3">
                         <div className="relative flex-shrink-0">
-                          {isAcceptedRequest ? (
-                            <div className="relative h-12 w-12 overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700">
-                              {avatar ? (
-                                <Image
-                                  src={avatar}
-                                  alt={username || n.title}
-                                  width={48}
-                                  height={48}
-                                  className="h-full w-full object-cover"
-                                  unoptimized={avatar.startsWith('http')}
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-gray-300">
-                                  {(username?.[0] || n.title?.[0] || 'U').toUpperCase()}
-                                </div>
-                              )}
-                            </div>
-                          ) : isEventNotification ? (
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#66DEDB]/60 bg-[#66DEDB]/10 text-[#73FFA2]">
-                              <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 3v2m8-2v2M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
-                              </svg>
-                            </div>
-                          ) : (
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#66DEDB]/60 bg-[#66DEDB]/10 text-xl">
-                              <Image
-                                src="/icons_tanku/tanku_nav_notificaciones_verde.svg"
-                                alt=""
-                                width={22}
-                                height={22}
-                                className="h-[22px] w-[22px] object-contain"
-                                unoptimized
-                              />
-                            </div>
-                          )}
+                          <NotificationIcon
+                            notification={n}
+                            avatar={avatar}
+                            username={username}
+                            size="lg"
+                          />
                           {!n.isRead && (
-                            <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#171B21] bg-[#66DEDB]" />
+                            <div
+                              className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#171B21] ${
+                                isSupport ? 'bg-amber-400' : 'bg-[#66DEDB]'
+                              }`}
+                            />
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="mb-1 flex items-center justify-between gap-2">
-                            <div className="truncate text-sm font-semibold leading-none text-white">
+                            <div
+                              className={`truncate text-sm font-semibold leading-none ${
+                                isSupport ? 'text-amber-100' : 'text-white'
+                              }`}
+                            >
                               {n.title}
                             </div>
-                            <span className="ml-2 flex-shrink-0 text-sm text-gray-300">{formatNotificationTimeShort(n.createdAt)}</span>
+                            <span className="ml-2 flex-shrink-0 text-sm text-gray-300">
+                              {formatNotificationTimeShort(n.createdAt)}
+                            </span>
                           </div>
-                          <div className="truncate text-sm text-gray-400">{n.message}</div>
+                          <div
+                            className={`truncate text-sm ${
+                              isSupport ? 'text-amber-200/80' : 'text-gray-400'
+                            }`}
+                          >
+                            {n.message}
+                          </div>
                         </div>
                       </div>
                     </li>

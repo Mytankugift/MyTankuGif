@@ -282,6 +282,7 @@ export class UsersController {
         postalCode: req.body.postalCode,
         country: req.body.country || 'CO',
         isDefaultShipping: req.body.isDefaultShipping,
+        isGiftAddress: req.body.isGiftAddress,
         metadata: req.body.metadata,
       };
 
@@ -322,6 +323,7 @@ export class UsersController {
         postalCode: req.body.postalCode,
         country: req.body.country,
         isDefaultShipping: req.body.isDefaultShipping,
+        isGiftAddress: req.body.isGiftAddress,
         metadata: req.body.metadata,
       };
 

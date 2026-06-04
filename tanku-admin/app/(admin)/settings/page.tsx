@@ -6,6 +6,7 @@ import {
   CalculatorIcon,
   ClockIcon,
   EnvelopeIcon,
+  LifebuoyIcon,
 } from '@heroicons/react/24/outline'
 
 export default function SettingsPage() {
@@ -33,6 +34,13 @@ export default function SettingsPage() {
       description: 'Sync stock Dropi (programación), recordatorios de eventos y notificaciones',
       icon: ClockIcon,
       href: '/settings/cron',
+    },
+    {
+      id: 'support-cases',
+      name: 'Postventa / Soporte',
+      description: 'Correo de notificación cuando un usuario reporta un problema',
+      icon: LifebuoyIcon,
+      href: '/settings/support-cases',
     },
     {
       id: 'email-test',

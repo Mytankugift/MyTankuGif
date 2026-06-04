@@ -471,6 +471,7 @@ export class UsersService {
 
     const userDTO: UserPublicDTO = {
       id: user.id,
+      ref: user.ref ?? null,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -515,6 +516,13 @@ export class UsersService {
       await prisma.address.updateMany({
         where: { userId },
         data: { isDefaultShipping: false },
+      });
+    }
+
+    if (addressData.isGiftAddress) {
+      await prisma.address.updateMany({
+        where: { userId },
+        data: { isGiftAddress: false },
       });
     }
 
@@ -563,6 +571,16 @@ export class UsersService {
           id: { not: addressId },
         },
         data: { isDefaultShipping: false },
+      });
+    }
+
+    if (addressData.isGiftAddress) {
+      await prisma.address.updateMany({
+        where: {
+          userId,
+          id: { not: addressId },
+        },
+        data: { isGiftAddress: false },
       });
     }
 
@@ -651,6 +669,7 @@ export class UsersService {
 
     return {
       id: updatedUser.id,
+      ref: updatedUser.ref ?? null,
       email: updatedUser.email,
       firstName: updatedUser.firstName,
       lastName: updatedUser.lastName,

@@ -12,6 +12,7 @@ import {
   XMarkIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline'
+import { TankuDialogOverlay } from '@/components/ui/tanku-dialog-overlay'
 
 interface GroupMember {
   id: string
@@ -405,8 +406,12 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
 
       {/* Grupos recomendados */}
       {showRecommendedGroups && recommendedGroups.length > 0 && (
-        <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-transparent p-4" onClick={handleCloseRecommendedGroups}>
-          <div className={`w-full max-w-sm p-3.5 sm:p-4 ${tankuModalSurfaceClass}`} onClick={(e) => e.stopPropagation()}>
+        <TankuDialogOverlay
+          open
+          onClose={handleCloseRecommendedGroups}
+          panelClassName={`max-w-sm overflow-hidden p-3.5 sm:p-4 ${tankuModalSurfaceClass}`}
+        >
+          <div className="w-full">
             <div className="mb-3 flex items-center justify-between">
               <h4 className="text-sm font-semibold text-[#66DEDB]">Sugerencias de red</h4>
               <button
@@ -432,7 +437,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
               ))}
             </div>
           </div>
-        </div>
+        </TankuDialogOverlay>
       )}
 
       {/* Lista de grupos */}
@@ -547,8 +552,9 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
 
       {/* Modal crear/editar grupo */}
       {(showCreateModal || showEditModal) && (
-        <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-transparent p-3 sm:p-4" onClick={(e) => {
-          if (e.target === e.currentTarget) {
+        <TankuDialogOverlay
+          open
+          onClose={() => {
             setShowCreateModal(false)
             setShowEditModal(false)
             setEditingGroup(null)
@@ -556,9 +562,10 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
             setSelectedFriends([])
             setFriendsSearchQuery('')
             setError(null)
-          }
-        }}>
-          <div className={`w-full max-w-md overflow-hidden p-4 sm:p-5 ${tankuModalSurfaceClass}`}>
+          }}
+          panelClassName={`max-w-md overflow-hidden p-4 sm:p-5 ${tankuModalSurfaceClass}`}
+        >
+          <div className="w-full">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-lg sm:text-xl font-bold text-[#66DEDB]">
                 {editingGroup ? 'Editar red' : 'Crear nueva red'}
@@ -707,24 +714,23 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
               </div>
             </div>
           </div>
-        </div>
+        </TankuDialogOverlay>
       )}
 
       {/* Modal agregar miembros */}
       {showAddMembersModal && selectedGroup && (
-        <div
-          className="fixed inset-0 z-[1000000] flex items-center justify-center bg-transparent p-3 sm:p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowAddMembersModal(false)
-              setSelectedGroup(null)
-              setSelectedFriends([])
-              setAddMembersSearchQuery('')
-              setError(null)
-            }
+        <TankuDialogOverlay
+          open
+          onClose={() => {
+            setShowAddMembersModal(false)
+            setSelectedGroup(null)
+            setSelectedFriends([])
+            setAddMembersSearchQuery('')
+            setError(null)
           }}
+          panelClassName={`max-w-md overflow-hidden p-4 sm:p-5 ${tankuModalSurfaceClass}`}
         >
-          <div className={`w-full max-w-md p-4 sm:p-5 ${tankuModalSurfaceClass}`}>
+          <div className="w-full">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-base sm:text-lg font-bold text-[#66DEDB]">
                 Agregar Miembros a {selectedGroup.name}
@@ -836,21 +842,20 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
               </div>
             </div>
           </div>
-        </div>
+        </TankuDialogOverlay>
       )}
 
       {/* Modal gestionar miembros (clave para mobile) */}
       {showManageMembersModal && selectedGroup && (
-        <div
-          className="fixed inset-0 z-[1000000] flex items-center justify-center bg-transparent p-3 sm:p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowManageMembersModal(false)
-              setSelectedGroup(null)
-            }
+        <TankuDialogOverlay
+          open
+          onClose={() => {
+            setShowManageMembersModal(false)
+            setSelectedGroup(null)
           }}
+          panelClassName={`max-w-md overflow-hidden p-4 sm:p-5 ${tankuModalSurfaceClass}`}
         >
-          <div className={`w-full max-w-md p-4 sm:p-5 ${tankuModalSurfaceClass}`}>
+          <div className="w-full">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-base sm:text-lg font-bold text-[#66DEDB]">
                 Miembros de {selectedGroup.name}
@@ -910,20 +915,21 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
               )}
             </div>
           </div>
-        </div>
+        </TankuDialogOverlay>
       )}
 
       {/* Modal confirmar eliminar red */}
       {groupPendingDelete && (
-        <div
-          className="fixed inset-0 z-[1000001] flex items-center justify-center bg-transparent p-3 sm:p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !isDeletingGroup) {
-              setGroupPendingDelete(null)
-            }
+        <TankuDialogOverlay
+          open
+          onClose={() => {
+            if (!isDeletingGroup) setGroupPendingDelete(null)
           }}
+          dismissible={!isDeletingGroup}
+          zIndexClass="z-[1000001]"
+          panelClassName={`max-w-md overflow-hidden p-4 sm:p-5 ${tankuModalSurfaceClass}`}
         >
-          <div className={`w-full max-w-md p-4 sm:p-5 ${tankuModalSurfaceClass}`} onClick={(e) => e.stopPropagation()}>
+          <div className="w-full">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-base sm:text-lg font-bold text-[#66DEDB]">Eliminar red</h3>
               <button
@@ -969,7 +975,7 @@ export function RedTankuTab({ userId }: RedTankuTabProps) {
               </button>
             </div>
           </div>
-        </div>
+        </TankuDialogOverlay>
       )}
     </div>
   )

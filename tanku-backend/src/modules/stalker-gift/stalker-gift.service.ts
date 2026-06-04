@@ -13,6 +13,7 @@ import {
   isProductBlockedForMinor,
 } from '../../shared/catalog/catalog-age-policy';
 import { assertGiftProductAllowedForRecipient, getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
+import { allocateEntityRef, isEntityRef } from '../../shared/utils/entity-ref';
 import crypto from 'crypto';
 import { env } from '../../config/env';
 import { ChatService } from '../chat/chat.service';
@@ -174,9 +175,11 @@ export class StalkerGiftService {
       throw new BadRequestError('Debes especificar un receptor (interno o externo)');
     }
 
-    // Crear StalkerGift
-    const stalkerGift = await prisma.stalkerGift.create({
+    const stalkerGift = await prisma.$transaction(async (tx) => {
+      const ref = await allocateEntityRef(tx, 'GFT');
+      return tx.stalkerGift.create({
       data: {
+        ref,
         senderId: data.senderId,
         receiverId: data.receiverId || null,
         externalReceiverData: data.externalReceiverData || Prisma.JsonNull,
@@ -201,6 +204,7 @@ export class StalkerGiftService {
           },
         },
       },
+    });
     });
 
     return stalkerGift as StalkerGiftWithRelations;
@@ -267,8 +271,8 @@ export class StalkerGiftService {
    * Obtener StalkerGift por ID (con validación de acceso)
    */
   async getStalkerGiftById(stalkerGiftId: string, userId: string): Promise<StalkerGiftWithRelations> {
-    const stalkerGift = await prisma.stalkerGift.findUnique({
-      where: { id: stalkerGiftId },
+    const stalkerGift = await prisma.stalkerGift.findFirst({
+      where: isEntityRef(stalkerGiftId) ? { ref: stalkerGiftId } : { id: stalkerGiftId },
       include: {
         product: true,
         variant: true,

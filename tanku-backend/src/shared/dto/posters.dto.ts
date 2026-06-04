@@ -14,6 +14,7 @@ export type PosterAuthorDTO = {
 
 export type PosterDTO = {
   id: string;
+  ref: string | null;
   imageUrl: string;
   videoUrl: string | null;
   description: string | null;

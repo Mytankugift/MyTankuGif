@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { BadRequestError } from '../../shared/errors/AppError';
 import { AuthResponseDTO } from '../../shared/dto/auth.dto';
 import type { User, UserProfile } from '@prisma/client';
+import { allocateEntityRef } from '../../shared/utils/entity-ref';
 
 export interface GoogleUserInfo {
   email: string;
@@ -105,17 +106,21 @@ export class GoogleAuthService {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      user = await prisma.user.create({
-        data: {
-          email,
-          password: null, // Sin contraseña para usuarios OAuth
-          firstName,
-          lastName,
-          emailVerified: true, // Google ya verificó el email
-        },
-        include: {
-          profile: true,
-        },
+      user = await prisma.$transaction(async (tx) => {
+        const ref = await allocateEntityRef(tx, 'USR');
+        return tx.user.create({
+          data: {
+            ref,
+            email,
+            password: null,
+            firstName,
+            lastName,
+            emailVerified: true,
+          },
+          include: {
+            profile: true,
+          },
+        });
       });
 
       // Crear perfil e información personal

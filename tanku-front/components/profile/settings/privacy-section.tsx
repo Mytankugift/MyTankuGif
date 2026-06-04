@@ -246,7 +246,7 @@ export function PrivacySection({ onUpdate, design = 'default' }: PrivacySectionP
   }
 
   const shellClass = isSettings
-    ? 'space-y-3 rounded-[25px] border border-[#73FFA2]/40 bg-[#0a0a0a] p-3 sm:p-4'
+    ? 'space-y-3 rounded-lg border border-[#414141]/90 bg-black/20 p-3 sm:p-4'
     : 'space-y-4 rounded-lg border-2 border-[#73FFA2] bg-transparent p-4 transition-colors hover:border-[#66DEDB]'
   return (
     <div className={shellClass}>
@@ -279,7 +279,7 @@ export function PrivacySection({ onUpdate, design = 'default' }: PrivacySectionP
           <p className="text-gray-400">Cargando configuración...</p>
         </div>
       ) : (
-        <div className={isSettings ? 'rounded-[25px] bg-[#141414] p-0 sm:px-2' : 'contents'}>
+        <div className={isSettings ? 'rounded-lg bg-black/20 p-0 sm:px-2' : 'contents'}>
           {/* Perfil público */}
           {isSettings ? (
             <RowWithIcon

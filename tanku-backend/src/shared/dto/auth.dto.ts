@@ -10,6 +10,7 @@ export type SocialLink = {
 
 export type UserPublicDTO = {
   id: string;
+  ref: string | null;
   email: string;
   firstName: string | null;
   lastName: string | null;

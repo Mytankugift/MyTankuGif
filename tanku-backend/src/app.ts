@@ -447,6 +447,10 @@ async function startServer() {
         initializeEventsRemindersCron();
         const { initializeDropiSyncStockCron } = require('./modules/dropi-jobs/dropi-sync-stock.cron');
         void initializeDropiSyncStockCron();
+        const {
+          initializeSupportCaseEvidenceRetentionCron,
+        } = require('./modules/support-cases/support-case-evidence-retention.cron');
+        initializeSupportCaseEvidenceRetentionCron();
       } else {
         console.log('[APP] ENABLE_CRON_JOBS=false — crons no programados');
       }

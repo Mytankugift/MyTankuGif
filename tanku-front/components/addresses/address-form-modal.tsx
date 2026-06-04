@@ -276,8 +276,12 @@ export function AddressFormModal({
         postalCode: formData.postalCode,
         country: formData.country,
         isDefaultShipping: formData.isDefaultShipping,
-        isGiftAddress: Boolean(formData.isGiftAddress),
         metadata: formData.alias ? { alias: formData.alias } : undefined,
+      }
+
+      // Con "dirección principal para regalos" en privacidad, solo cuenta la predeterminada
+      if (!useMainAddressForGiftsFromProfile) {
+        submitData.isGiftAddress = Boolean(formData.isGiftAddress)
       }
 
       await onSubmit(submitData)
@@ -292,10 +296,19 @@ export function AddressFormModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
+      <button
+        type="button"
+        className="absolute inset-0 touch-manipulation bg-black/10 backdrop-blur-[6px]"
+        onClick={onClose}
+        aria-label="Cerrar"
+      />
       <div
-        className="flex w-full max-w-[520px] flex-col overflow-hidden rounded-[25px] border border-white/[0.1] shadow-[0_8px_40px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/[0.06] [width:88%] [max-height:min(640px,85dvh)] [min-height:min(520px,78dvh)]"
+        className="relative z-10 flex w-full max-w-[520px] flex-col overflow-hidden rounded-[25px] border border-white/[0.1] shadow-[0_8px_40px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/[0.06] [width:88%] [max-height:min(640px,85dvh)] [min-height:min(520px,78dvh)]"
         style={CHECKOUT_TANKU_PAGE_BG}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4">
@@ -558,28 +571,38 @@ export function AddressFormModal({
             </button>
           </div>
 
-          {/* Dirección de regalos */}
-          <div className="flex items-center justify-between gap-3 py-2">
-            <div className="min-w-0">
-              <label className="text-sm font-medium text-white">Usar para recibir regalos</label>
-              <p className="text-xs text-gray-400">Nadie más tendrá acceso a estos datos</p>
+          {/* Dirección de regalos (solo si no usa la principal en privacidad) */}
+          {useMainAddressForGiftsFromProfile ? (
+            <div className="rounded-xl border border-[#73FFA2]/30 bg-[#73FFA2]/5 px-3 py-2.5">
+              <p className="text-sm font-medium text-white">Regalos</p>
+              <p className="mt-1 text-xs text-gray-400 leading-snug">
+                Tienes activado &quot;Usar dirección principal para regalos&quot; en privacidad. Los regalos se envían
+                solo a tu dirección por defecto. Marca esta como predeterminada o cambia la opción en Privacidad.
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={() =>
-                setFormData((prev) => ({ ...prev, isGiftAddress: !prev.isGiftAddress }))
-              }
-              className={`relative h-6 w-12 shrink-0 rounded-full transition-colors ${
-                formData.isGiftAddress ? 'bg-[#73FFA2]' : 'bg-gray-600'
-              }`}
-            >
-              <div
-                className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform ${
-                  formData.isGiftAddress ? 'translate-x-6' : 'translate-x-0'
+          ) : (
+            <div className="flex items-center justify-between gap-3 py-2">
+              <div className="min-w-0">
+                <label className="text-sm font-medium text-white">Usar para recibir regalos</label>
+                <p className="text-xs text-gray-400">Nadie más tendrá acceso a estos datos</p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData((prev) => ({ ...prev, isGiftAddress: !prev.isGiftAddress }))
+                }
+                className={`relative h-6 w-12 shrink-0 rounded-full transition-colors ${
+                  formData.isGiftAddress ? 'bg-[#73FFA2]' : 'bg-gray-600'
                 }`}
-              />
-            </button>
-          </div>
+              >
+                <div
+                  className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform ${
+                    formData.isGiftAddress ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
         </form>
         </div>
 

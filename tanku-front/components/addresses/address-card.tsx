@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { AddressDTO } from '@/types/api'
+import { showsGiftAddressBadge } from '@/lib/addresses/gift-address-display'
 import { Button } from '@/components/ui/button'
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 
@@ -52,7 +53,7 @@ export function AddressCard({
                 Por defecto
               </span>
             )}
-            {(address.isGiftAddress || (useMainAddressForGifts && address.isDefaultShipping)) && (
+            {showsGiftAddressBadge(address, useMainAddressForGifts) && (
               <span className="text-xs bg-[#73FFA2]/20 text-[#73FFA2] px-2 py-1 rounded">
                 Dirección de regalos
               </span>

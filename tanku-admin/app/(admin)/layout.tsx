@@ -10,6 +10,10 @@ import { AdminMobileNav } from '@/components/admin/AdminMobileNav'
 import { DetailNavActions } from '@/components/admin/DetailNavActions'
 import { ProxyStatusNav } from '@/components/admin/ProxyStatusNav'
 import { WorkerNavActions } from '@/components/workers/WorkerNavActions'
+import {
+  SupportCaseNavBackLink,
+  SupportCaseNavViewToggle,
+} from '@/components/support-cases/SupportCaseNavActions'
 import { buildAdminNavDescription, buildAdminNavPath } from '@/lib/admin/nav-segments'
 import { useAdminDetailNavStore } from '@/lib/stores/admin-detail-nav-store'
 import { AdminConfirmModal } from '@/components/admin/AdminConfirmModal'
@@ -29,15 +33,39 @@ export default function AdminLayout({
   const staticNavDescription = buildAdminNavDescription(pathname)
   const detailTitle = useAdminDetailNavStore((s) => s.title)
   const detailSubtitle = useAdminDetailNavStore((s) => s.subtitle)
+  const caseCode = useAdminDetailNavStore((s) => s.caseCode)
+  const statusBadge = useAdminDetailNavStore((s) => s.statusBadge)
+  const patchDetailNav = useAdminDetailNavStore((s) => s.patchDetailNav)
+
+  const isSupportCases = pathname?.startsWith('/support-cases') ?? false
 
   const displayNavPath =
-    navPath && detailTitle
+    navPath && detailTitle && !isSupportCases
       ? navPath.map((seg, i) =>
           i === navPath.length - 1 && !seg.href ? { ...seg, label: detailTitle } : seg
         )
       : navPath
 
-  const navDescription = detailSubtitle ?? staticNavDescription
+  const supportCaseTypeLabel = isSupportCases && caseCode ? detailSubtitle : null
+
+  const mobileNavPath =
+    displayNavPath && isSupportCases && caseCode
+      ? [
+          ...displayNavPath,
+          {
+            label: statusBadge ? `${caseCode} · ${statusBadge.label}` : caseCode,
+          },
+        ]
+      : displayNavPath
+
+  const navDescription =
+    isSupportCases && caseCode ? null : detailSubtitle ?? staticNavDescription
+
+  useEffect(() => {
+    if (!pathname?.startsWith('/support-cases')) {
+      patchDetailNav({ caseCode: null, statusBadge: null })
+    }
+  }, [pathname, patchDetailNav])
 
   useEffect(() => {
     if (!hasHydrated) return
@@ -83,7 +111,8 @@ export default function AdminLayout({
                 <>
                   <div className="hidden lg:block h-6 w-px bg-gray-300 shrink-0" />
                   <div className="hidden lg:flex flex-col min-w-0 max-w-md xl:max-w-xl">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 truncate">
+                    <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-gray-900">
+                      <SupportCaseNavBackLink />
                       {displayNavPath.map((segment, index) => (
                         <span key={index} className="flex items-center gap-2 shrink-0">
                           {index > 0 && <span className="text-gray-400">|</span>}
@@ -96,6 +125,28 @@ export default function AdminLayout({
                           )}
                         </span>
                       ))}
+                      {isSupportCases && caseCode ? (
+                        <span className="flex shrink-0 items-start gap-2 min-w-0">
+                          <span className="text-gray-400 pt-0.5">|</span>
+                          <span className="flex min-w-0 flex-col gap-0.5">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className="truncate font-mono text-teal-700">{caseCode}</span>
+                              {statusBadge ? (
+                                <span
+                                  className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusBadge.className}`}
+                                >
+                                  {statusBadge.label}
+                                </span>
+                              ) : null}
+                            </span>
+                            {supportCaseTypeLabel ? (
+                              <span className="truncate text-xs font-normal text-gray-500">
+                                {supportCaseTypeLabel}
+                              </span>
+                            ) : null}
+                          </span>
+                        </span>
+                      ) : null}
                     </div>
                     {navDescription && (
                       <span className="text-xs text-gray-500 truncate">{navDescription}</span>
@@ -107,6 +158,7 @@ export default function AdminLayout({
 
             <div className="flex items-center gap-2 lg:gap-3 xl:gap-4 flex-shrink-0">
               <div className="hidden lg:flex items-center gap-3 xl:gap-4">
+                <SupportCaseNavViewToggle />
                 <ProxyStatusNav />
                 <DetailNavActions placement="nav" />
                 <WorkerNavActions />
@@ -114,7 +166,7 @@ export default function AdminLayout({
               <AdminMobileNav
                 userEmail={user?.email}
                 userRole={user?.role}
-                navPath={displayNavPath}
+                navPath={mobileNavPath}
                 navDescription={navDescription}
                 onLogout={requestLogout}
               />
@@ -145,10 +197,11 @@ export default function AdminLayout({
 
           {displayNavPath && (
             <div className="lg:hidden pb-2 border-t border-gray-100 pt-2">
-              <div className="text-xs font-semibold text-gray-900 leading-snug">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-900 leading-snug">
+                <SupportCaseNavBackLink />
                 {displayNavPath.map((segment, index) => (
-                  <span key={index}>
-                    {index > 0 && <span className="text-gray-400 mx-1">|</span>}
+                  <span key={index} className="flex items-center gap-1">
+                    {index > 0 && <span className="text-gray-400">|</span>}
                     {segment.href ? (
                       <Link href={segment.href} className="text-blue-600">
                         {segment.label}
@@ -158,6 +211,28 @@ export default function AdminLayout({
                     )}
                   </span>
                 ))}
+                {isSupportCases && caseCode ? (
+                  <span className="flex w-full min-w-0 items-start gap-1.5 basis-full sm:basis-auto">
+                    <span className="text-gray-400">|</span>
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-mono text-teal-700">{caseCode}</span>
+                        {statusBadge ? (
+                          <span
+                            className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${statusBadge.className}`}
+                          >
+                            {statusBadge.label}
+                          </span>
+                        ) : null}
+                      </span>
+                      {supportCaseTypeLabel ? (
+                        <span className="text-[11px] font-normal text-gray-500">
+                          {supportCaseTypeLabel}
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                ) : null}
               </div>
               {navDescription && (
                 <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">{navDescription}</p>
@@ -167,7 +242,11 @@ export default function AdminLayout({
         </div>
       </nav>
 
-      <main className="flex-1 min-h-0 overflow-y-auto">{children}</main>
+      <main
+        className={`flex-1 min-h-0 ${isSupportCases ? 'overflow-hidden' : 'overflow-y-auto'}`}
+      >
+        {children}
+      </main>
       <NotificationContainer />
 
       <AdminConfirmModal

@@ -222,6 +222,7 @@ export class GiftController {
         
         return {
           id: order.id,
+          ref: order.ref ?? null,
           status: order.status,
           paymentStatus: order.paymentStatus,
           paymentMethod: order.paymentMethod,
@@ -271,6 +272,7 @@ export class GiftController {
             } : {}),
             dropiStatus: item.dropiStatus,
             dropiOrderId: item.dropiOrderId,
+            dropiWebhookData: item.dropiWebhookData,
           })),
           address: order.orderAddresses && order.orderAddresses.length > 0
             ? {

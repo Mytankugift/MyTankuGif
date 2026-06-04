@@ -30,6 +30,7 @@ export const createAddressSchema = z.object({
     postalCode: z.string().min(1, 'El código postal es requerido'),
     country: z.string().default('CO'),
     isDefaultShipping: z.boolean().default(false),
+    isGiftAddress: z.boolean().default(false),
   }),
 });
 
@@ -48,6 +49,7 @@ export const updateAddressSchema = z.object({
     postalCode: z.string().optional(),
     country: z.string().optional(),
     isDefaultShipping: z.boolean().optional(),
+    isGiftAddress: z.boolean().optional(),
   }),
 });
 

@@ -31,7 +31,7 @@ router.get('/', authenticate, ordersController.getOrders);
  * Obtener estado de Dropi para un item específico
  * IMPORTANTE: Esta ruta debe ir ANTES de /:orderId/dropi-status para evitar conflictos
  */
-router.get('/item/:itemId/dropi-status', ordersController.getDropiStatusByItem);
+router.get('/item/:itemId/dropi-status', authenticate, ordersController.getDropiStatusByItem);
 
 /**
  * GET /store/order/:orderId/dropi-status

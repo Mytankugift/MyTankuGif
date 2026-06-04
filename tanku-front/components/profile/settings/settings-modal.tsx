@@ -12,6 +12,11 @@ import { AddressesSection } from './addresses-section'
 import { SettingsProfileSidebar, SettingsModalLogoutButton } from './settings-profile-sidebar'
 import { useProfileNavigation } from '@/lib/context/profile-navigation-context'
 import { clsx } from 'clsx'
+import { NOTIFICATION_ROW_DIVIDER_STYLE } from '@/lib/notifications-display'
+import {
+  tankuProfileOverlayBackdropClass,
+  tankuProfileOverlayPanelClass,
+} from '@/lib/tanku-modal-panel'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -65,7 +70,10 @@ export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: Setting
       {/* Clic en el aire: cerrar; solo el panel recibe clics (en móvil a pantalla completa casi no hay «aire») */}
       <button
         type="button"
-        className="pointer-events-auto absolute inset-0 z-0 cursor-default md:bg-black/60"
+        className={clsx(
+          'pointer-events-auto absolute inset-0 z-0 cursor-default touch-manipulation',
+          tankuProfileOverlayBackdropClass,
+        )}
         onClick={onClose}
         aria-label="Cerrar configuración"
       />
@@ -73,7 +81,7 @@ export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: Setting
       <div
         className={clsx(
           'pointer-events-auto relative z-10 flex w-full min-h-0 max-w-4xl flex-1 flex-col overflow-hidden',
-          'border border-[#73FFA2]/50 bg-[#121212]',
+          tankuProfileOverlayPanelClass,
           'min-h-[16rem]',
           /* Móvil: ocupa todo el hueco bajo safe areas y sobre el nav inferior */
           'max-md:max-h-none max-md:min-h-0 max-md:flex-1 max-md:rounded-none max-md:border-x-0 max-md:border-t-0 max-md:shadow-none',
@@ -86,7 +94,10 @@ export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: Setting
         aria-labelledby="settings-modal-title"
       >
         {/* Header: móvil = volver (cierra modal, vuelve al perfil); escritorio = X */}
-        <div className="flex h-11 shrink-0 items-center justify-between border-b border-white/10 px-2 sm:h-12 sm:px-4">
+        <div
+          className="flex h-11 shrink-0 items-center justify-between border-b border-[#414141] bg-[#171B21] px-2 sm:h-12 sm:px-4"
+          style={NOTIFICATION_ROW_DIVIDER_STYLE}
+        >
           <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-3">
             <button
               type="button"
@@ -113,7 +124,7 @@ export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: Setting
 
         {/* Tabs */}
         <div className="h-11 shrink-0 px-2 pt-1.5 sm:h-12 sm:px-3 sm:pt-2">
-          <div className="flex h-9 min-h-0 max-h-9 w-full items-stretch gap-0.5 overflow-x-auto rounded-[25px] border border-[#73FFA2]/50 bg-[#0d0d0d] p-0.5 scrollbar-hide sm:max-h-10">
+          <div className="flex h-9 min-h-0 max-h-9 w-full items-stretch gap-0.5 overflow-x-auto rounded-[25px] border border-[#414141] bg-black/20 p-0.5 scrollbar-hide sm:max-h-10">
             {tabMeta.map(({ key, label, Icon }) => {
               const isActive = activeTab === key
               return (
@@ -162,7 +173,7 @@ export function SettingsModal({ isOpen, onClose, onUpdate, initialTab }: Setting
               )}
             >
               {activeTab === 'PERFIL' && (
-                <div className="space-y-3 sm:space-y-4">
+                <div className="w-full space-y-3 sm:space-y-4">
                   <PersonalInfoSection onUpdate={onUpdate} design="settings" />
                   <SocialLinksSection onUpdate={onUpdate} design="settings" />
                   <div className="md:hidden">

@@ -44,9 +44,10 @@ function mapProvinceToDropiFormat(province: string): string {
 
 /**
  * Obtener dropi_id desde el SKU de la variante
- * Soporta dos formatos:
- * 1. DP-{dropi_id}-{sku_original} (formato nuevo)
- * 2. {sku_original}-DP-{dropi_id} (formato actual en BD)
+ * Soporta tres formatos:
+ * 1. DP-{dropi_id}-{sku_original} (variantes / producto con SKU en Dropi)
+ * 2. {sku_original}-DP-{dropi_id} (normalize con SKU original)
+ * 3. DP-{dropi_id} (producto SIMPLE sin SKU original en Dropi)
  */
 function extractDropiIdFromSku(sku: string): number | null {
   if (!sku || typeof sku !== 'string') {
@@ -56,13 +57,19 @@ function extractDropiIdFromSku(sku: string): number | null {
   // Formato 1: DP-{dropi_id}-{sku_original}
   let match = sku.match(/^DP-(\d+)-/);
   if (match) {
-    return parseInt(match[1]);
+    return parseInt(match[1], 10);
   }
 
   // Formato 2: {sku_original}-DP-{dropi_id}
   match = sku.match(/-DP-(\d+)$/);
   if (match) {
-    return parseInt(match[1]);
+    return parseInt(match[1], 10);
+  }
+
+  // Formato 3: DP-{dropi_id}
+  match = sku.match(/^DP-(\d+)$/);
+  if (match) {
+    return parseInt(match[1], 10);
   }
 
   return null;
@@ -401,6 +408,10 @@ export class DropiOrdersService {
               },
             });
             console.log(`✅ [DROPI-ORDER] OrderItem ${orderItemId} actualizado con Dropi Order ID`);
+            const { dropiOrderSyncService } = await import('./dropi-order-sync.service');
+            dropiOrderSyncService.scheduleSyncOrderItem(orderItemId, dropiOrderId, {
+              source: 'order_created',
+            });
           } else {
             console.warn(`⚠️ [DROPI-ORDER] No se encontró orderItemId para actualizar`);
           }

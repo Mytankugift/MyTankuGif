@@ -79,6 +79,18 @@ export const API_ENDPOINTS = {
     SUPPORT_CASES: {
       LIST: `${API_BASE}/api/v1/admin/support-cases`,
       BY_ID: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}`,
+      TAKE: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}/take`,
+      START_REVIEW: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}/start-review`,
+      WAIT_FOR_USER: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}/wait-for-user`,
+      MESSAGES: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}/messages`,
+      NOTES: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}/notes`,
+      RESOLVE: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}/resolve`,
+      CLOSE: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}/close`,
+      DROPI_PREVIEW: (id: string, orderItemId?: string) =>
+        orderItemId
+          ? `${API_BASE}/api/v1/admin/support-cases/${id}/dropi-preview?orderItemId=${encodeURIComponent(orderItemId)}`
+          : `${API_BASE}/api/v1/admin/support-cases/${id}/dropi-preview`,
+      DROPI_REFRESH: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}/dropi-refresh`,
       UPDATE_STATUS: (id: string) => `${API_BASE}/api/v1/admin/support-cases/${id}/status`,
     },
     SYSTEM: {
@@ -87,9 +99,11 @@ export const API_ENDPOINTS = {
       CRON_DROPI_SYNC_STOCK_CONFIG: `${API_BASE}/api/v1/admin/system/cron/dropi-sync-stock/config`,
       CRON_DROPI_SYNC_STOCK_RUN: `${API_BASE}/api/v1/admin/system/cron/dropi-sync-stock/run`,
       CRON_RUN_EVENT_REMINDERS: `${API_BASE}/api/v1/admin/system/cron/event-reminders/run`,
+      CRON_RUN_SUPPORT_EVIDENCE_RETENTION: `${API_BASE}/api/v1/admin/system/cron/support-case-evidence-retention/run`,
       NOTIFICATIONS_TEST: `${API_BASE}/api/v1/admin/system/notifications/test`,
       EMAIL_GIFT_PREVIEW: `${API_BASE}/api/v1/admin/system/email/gift-preview`,
       EMAIL_GIFT_PREVIEW_RENDER: `${API_BASE}/api/v1/admin/system/email/gift-preview/render`,
+      SUPPORT_CASES_CONFIG: `${API_BASE}/api/v1/admin/system/support-cases/config`,
     },
   },
 } as const

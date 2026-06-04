@@ -17,6 +17,10 @@ import {
   ChatBubbleLeftIcon,
 } from '@heroicons/react/24/outline'
 import Image from 'next/image'
+import { displayOrderRef } from '@/lib/utils/entity-ref-display'
+import { dropiStatusChipClass, formatDropiStatus } from '@/lib/dropi-status'
+import { OrderItemDropiShippingModal } from '@/components/profile/order-item-dropi-shipping-modal'
+import { OrderItemDropiShippingActions } from '@/components/profile/order-item-dropi-shipping-actions'
 import {
   STALKERGIFT_ORDER_ROW_POINTER,
   STALKERGIFT_SHELL_RECEIVER_BASE,
@@ -215,40 +219,6 @@ export function StalkerGiftOrdersTab({
     }).format(amount)
   }
 
-  /** Dropi / envío — mismos chips que OrdersTab (solo lectura si no hay webhook). */
-  const getShipStatusColor = (status: string | null | undefined) => {
-    if (!status) return 'bg-gray-900/30 text-gray-400 border-gray-500/30'
-    const statusUpper = status.toUpperCase()
-    switch (statusUpper) {
-      case 'PENDING':
-        return 'bg-yellow-900/20 text-yellow-400 border-yellow-400/30'
-      case 'PROCESSING':
-        return 'bg-blue-900/20 text-blue-400 border-blue-400/30'
-      case 'SHIPPED':
-        return 'bg-purple-900/20 text-purple-400 border-purple-400/30'
-      case 'DELIVERED':
-        return 'bg-green-900/20 text-green-400 border-green-400/30'
-      case 'CANCELLED':
-      case 'REJECTED':
-        return 'bg-red-900/20 text-red-400 border-red-400/30'
-      default:
-        return 'bg-gray-900/20 text-gray-400 border-gray-400/30'
-    }
-  }
-
-  const formatShipStatus = (status: string | null | undefined) => {
-    if (!status) return 'Sin actualizar'
-    const statusMap: Record<string, string> = {
-      PENDING: 'Pendiente',
-      PROCESSING: 'En proceso',
-      SHIPPED: 'Enviado',
-      DELIVERED: 'Entregado',
-      CANCELLED: 'Cancelado',
-      REJECTED: 'Rechazado',
-    }
-    return statusMap[status.toUpperCase()] || status
-  }
-
   const formatOrderStatusFriendly = (status: string) => {
     const s = status.toLowerCase()
     const map: Record<string, string> = {
@@ -415,7 +385,7 @@ export function StalkerGiftOrdersTab({
                       </p>
                     ) : null}
                     <p className="mt-1 text-[11px] text-gray-500 sm:text-xs">
-                      Orden #{order.id.slice(0, 8)} · {formatDate(order.createdAt)}
+                      Orden {displayOrderRef(order)} · {formatDate(order.createdAt)}
                     </p>
                     {!userIsSender ? (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -426,9 +396,9 @@ export function StalkerGiftOrdersTab({
                         </span>
                         {dropiChip ? (
                           <span
-                            className={`inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${getShipStatusColor(dropiChip)}`}
+                            className={`inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${dropiStatusChipClass(dropiChip)}`}
                           >
-                            Dropi: {formatShipStatus(dropiChip)}
+                            Dropi: {formatDropiStatus(dropiChip)}
                           </span>
                         ) : (
                           <span className="inline-flex items-center rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[10px] text-gray-500">
@@ -559,9 +529,9 @@ export function StalkerGiftOrdersTab({
                       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-white/[0.06] pt-2">
                         <span className="text-gray-400">Envío Dropi</span>
                         <span
-                          className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${getShipStatusColor(selectedOrder.items[0].dropiStatus)}`}
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${dropiStatusChipClass(selectedOrder.items[0].dropiStatus)}`}
                         >
-                          {formatShipStatus(selectedOrder.items[0].dropiStatus)}
+                          {formatDropiStatus(selectedOrder.items[0].dropiStatus)}
                         </span>
                       </div>
                     )}
@@ -640,6 +610,20 @@ export function StalkerGiftOrdersTab({
                             {formatPrice(item.finalPrice * item.quantity)}
                           </p>
                         )}
+                        {item.dropiStatus ? (
+                          <div className="mt-2">
+                            <span
+                              className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${dropiStatusChipClass(item.dropiStatus)}`}
+                            >
+                              Envío: {formatDropiStatus(item.dropiStatus)}
+                            </span>
+                          </div>
+                        ) : null}
+                        <OrderItemDropiShippingActions
+                          item={item}
+                          onViewShipping={() => setSelectedItemForWebhook(item.id)}
+                          className="mt-1.5"
+                        />
                       </div>
                     </div>
                   ))}
@@ -669,6 +653,24 @@ export function StalkerGiftOrdersTab({
           </div>
         </div>
       )}
+
+      {selectedOrder && selectedItemForWebhook ? (
+        <OrderItemDropiShippingModal
+          open
+          onClose={() => setSelectedItemForWebhook(null)}
+          orderItemId={selectedItemForWebhook}
+          productTitle={
+            selectedOrder.items.find((i) => i.id === selectedItemForWebhook)?.product.title ??
+            'Producto'
+          }
+          tankuDropiStatus={
+            selectedOrder.items.find((i) => i.id === selectedItemForWebhook)?.dropiStatus
+          }
+          dropiWebhookData={
+            selectedOrder.items.find((i) => i.id === selectedItemForWebhook)?.dropiWebhookData
+          }
+        />
+      ) : null}
     </div>
   )
 }

@@ -65,6 +65,20 @@ export function AddressesSection({ onUpdate, design = 'default' }: AddressesSect
     }
   }
 
+  const syncGiftProfileAfterAddressSave = async (data: CreateAddressDTO | UpdateAddressDTO) => {
+    if (!data.isGiftAddress) return
+    try {
+      const useMain = Boolean(data.isDefaultShipping && data.isGiftAddress)
+      await apiClient.put(API_ENDPOINTS.USERS.PROFILE.UPDATE, {
+        allowGiftShipping: true,
+        useMainAddressForGifts: useMain,
+      })
+      setUseMainAddressForGifts(useMain)
+    } catch (error) {
+      console.error('Error sincronizando perfil de regalos:', error)
+    }
+  }
+
   const handleFormSubmit = async (data: CreateAddressDTO | UpdateAddressDTO) => {
     try {
       if (editingAddress) {
@@ -72,6 +86,8 @@ export function AddressesSection({ onUpdate, design = 'default' }: AddressesSect
       } else {
         await createAddress(data as CreateAddressDTO)
       }
+      await syncGiftProfileAfterAddressSave(data)
+      await fetchAddresses()
       setIsFormModalOpen(false)
       setEditingAddress(null)
       if (onUpdate) {
@@ -84,7 +100,7 @@ export function AddressesSection({ onUpdate, design = 'default' }: AddressesSect
   }
 
   const shellClass = isSettings
-    ? 'space-y-3 rounded-xl border border-[#73FFA2]/40 bg-[#0a0a0a] p-3 sm:p-4'
+    ? 'space-y-3 rounded-lg border border-[#414141]/90 bg-black/20 p-3 sm:p-4'
     : 'space-y-4 rounded-lg border-2 border-[#73FFA2] bg-transparent p-4 transition-colors hover:border-[#66DEDB]'
 
   return (
@@ -101,7 +117,7 @@ export function AddressesSection({ onUpdate, design = 'default' }: AddressesSect
         <button
           type="button"
           onClick={handleCreateAddress}
-          className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] px-3 py-2 text-sm font-medium text-gray-900 transition-all hover:from-[#73FFA2] hover:to-[#66DEDB] sm:px-4"
+          className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[#66DEDB] to-[#73FFA2] px-4 py-2 text-sm font-semibold text-gray-900 shadow-[inset_0_2px_6px_rgba(0,0,0,0.2)] transition-all hover:from-[#73FFA2] hover:to-[#66DEDB] sm:px-5"
         >
           <PlusIcon className="w-5 h-5" />
           Agregar Dirección
@@ -119,7 +135,7 @@ export function AddressesSection({ onUpdate, design = 'default' }: AddressesSect
           <p className="text-sm mt-2">Haz clic en "Agregar Dirección" para agregar una nueva</p>
         </div>
       ) : isSettings ? (
-        <div className="rounded-xl bg-[#141414] p-2 sm:p-3">
+        <div className="rounded-lg border border-[#414141]/60 bg-black/20 p-2 sm:p-3">
           <AddressSelector
             addresses={addresses}
             selectedAddressId={selectedAddressId}
@@ -127,6 +143,7 @@ export function AddressesSection({ onUpdate, design = 'default' }: AddressesSect
             onEdit={handleEditAddress}
             onDelete={handleDeleteAddress}
             useMainAddressForGifts={useMainAddressForGifts}
+            selectable={false}
           />
         </div>
       ) : (
@@ -137,6 +154,7 @@ export function AddressesSection({ onUpdate, design = 'default' }: AddressesSect
           onEdit={handleEditAddress}
           onDelete={handleDeleteAddress}
           useMainAddressForGifts={useMainAddressForGifts}
+          selectable={false}
         />
       )}
 

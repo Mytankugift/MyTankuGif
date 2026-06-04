@@ -42,6 +42,7 @@ export type OrderAddressDTO = {
 
 export type StalkerGiftInfoDTO = {
   id: string;
+  ref: string | null;
   senderId: string;
   receiverId: string | null;
   senderAlias: string;
@@ -50,6 +51,7 @@ export type StalkerGiftInfoDTO = {
 
 export type OrderDTO = {
   id: string;
+  ref: string | null;
   userId: string;
   email: string;
   status: string;

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { AddressDTO } from '@/types/api'
+import { showsGiftAddressBadge } from '@/lib/addresses/gift-address-display'
 import { PencilIcon, TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 
 interface AddressSelectorProps {
@@ -15,6 +16,8 @@ interface AddressSelectorProps {
   useMainAddressForGifts?: boolean // Si el usuario usa su dirección principal para regalos
   /** Superficies translúcidas alineadas con checkout Tanku (gift-direct / carrito) */
   variant?: 'default' | 'tanku'
+  /** En configuración / gestión: sin radio ni selección (solo editar / eliminar). */
+  selectable?: boolean
 }
 
 export function AddressSelector({
@@ -26,6 +29,7 @@ export function AddressSelector({
   onDelete,
   useMainAddressForGifts = false,
   variant = 'default',
+  selectable = true,
 }: AddressSelectorProps) {
   const isTanku = variant === 'tanku'
   const [mounted, setMounted] = useState(false)
@@ -138,28 +142,31 @@ export function AddressSelector({
           <div
             key={address.id}
             className={`
-            flex cursor-pointer items-start gap-2 rounded-xl border p-3 transition-colors
+            flex items-start gap-2 rounded-xl border p-3 transition-colors
+            ${selectable ? 'cursor-pointer' : ''}
             ${
               isTanku
-                ? selectedAddressId === address.id
+                ? selectable && selectedAddressId === address.id
                   ? 'border-[#66DEDB] bg-[#66DEDB]/10 ring-1 ring-inset ring-[#66DEDB]/15 backdrop-blur-sm'
                   : 'border-white/[0.08] bg-white/[0.04] ring-1 ring-inset ring-white/[0.04] backdrop-blur-sm hover:border-[#66DEDB]/30'
-                : selectedAddressId === address.id
+                : selectable && selectedAddressId === address.id
                   ? 'border-[#66DEDB] bg-[#66DEDB]/5'
                   : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
             }
           `}
-            onClick={() => onSelectAddress(address)}
+            onClick={selectable ? () => onSelectAddress(address) : undefined}
           >
-            <input
-              type="radio"
-              name="address"
-              value={address.id}
-              checked={selectedAddressId === address.id}
-              onChange={() => onSelectAddress(address)}
-              onClick={(e) => e.stopPropagation()}
-              className="mt-0.5 w-3.5 h-3.5 text-[#66DEDB] focus:ring-[#66DEDB] focus:ring-1"
-            />
+            {selectable ? (
+              <input
+                type="radio"
+                name="address"
+                value={address.id}
+                checked={selectedAddressId === address.id}
+                onChange={() => onSelectAddress(address)}
+                onClick={(e) => e.stopPropagation()}
+                className="mt-0.5 w-3.5 h-3.5 text-[#66DEDB] focus:ring-[#66DEDB] focus:ring-1"
+              />
+            ) : null}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                 <p className="text-sm font-medium text-white truncate">{getAddressAlias(address)}</p>
@@ -168,7 +175,7 @@ export function AddressSelector({
                     Por defecto
                   </span>
                 )}
-                {(address.isGiftAddress || (useMainAddressForGifts && address.isDefaultShipping)) && (
+                {showsGiftAddressBadge(address, useMainAddressForGifts) && (
                   <span className="text-xs bg-[#73FFA2]/20 text-[#73FFA2] px-1.5 py-0.5 rounded flex-shrink-0">
                     Dirección de regalos
                   </span>

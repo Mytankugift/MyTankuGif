@@ -119,6 +119,7 @@ export class CheckoutController {
       const orderWithDropi = order as any;
       const orderResponse = {
         id: order.id,
+        ref: order.ref ?? null,
         email: order.email,
         status: order.status,
         payment_status: order.paymentStatus,
@@ -291,14 +292,16 @@ export class CheckoutController {
           senderId: userId,
           email,
           paymentMethod: payment_method,
-        })) as { orderId?: string; total?: number };
+        })) as { orderId?: string; orderRef?: string | null; total?: number };
 
         if (!result.orderId) {
           throw new BadRequestError('No se pudo crear la orden de regalo directa');
         }
         identifier = result.orderId;
         amount = result.total ?? 0;
-        description = `Regalo Tanku — ${result.orderId.slice(0, 8)}`;
+        description = result.orderRef
+          ? `Regalo Tanku — ${result.orderRef}`
+          : `Regalo Tanku — ${result.orderId.slice(0, 8)}`;
         responseUrl = `${frontendBase}/checkout/success`;
       } else {
         const {

@@ -14,17 +14,29 @@ export interface DetailNavAction {
   onClick: () => void
 }
 
+export interface DetailNavStatusBadge {
+  label: string
+  className: string
+}
+
 interface AdminDetailNavState {
   title: string | null
   subtitle: string | null
+  /** Código visible del caso en breadcrumb (ej. #Y9LOS50F). */
+  caseCode: string | null
+  statusBadge: DetailNavStatusBadge | null
   actions: DetailNavAction[]
   setDetailNav: (payload: {
-    title: string
+    title?: string | null
     subtitle?: string | null
+    caseCode?: string | null
+    statusBadge?: DetailNavStatusBadge | null
     actions?: DetailNavAction[]
   }) => void
   patchDetailNav: (
-    patch: Partial<Pick<AdminDetailNavState, 'title' | 'subtitle' | 'actions'>>
+    patch: Partial<
+      Pick<AdminDetailNavState, 'title' | 'subtitle' | 'caseCode' | 'statusBadge' | 'actions'>
+    >
   ) => void
   clearDetailNav: () => void
 }
@@ -32,9 +44,18 @@ interface AdminDetailNavState {
 export const useAdminDetailNavStore = create<AdminDetailNavState>((set) => ({
   title: null,
   subtitle: null,
+  caseCode: null,
+  statusBadge: null,
   actions: [],
-  setDetailNav: ({ title, subtitle = null, actions = [] }) =>
-    set({ title, subtitle, actions }),
+  setDetailNav: (payload) =>
+    set((prev) => ({
+      title: payload.title !== undefined ? payload.title : prev.title,
+      subtitle: payload.subtitle !== undefined ? payload.subtitle : prev.subtitle,
+      caseCode: payload.caseCode !== undefined ? payload.caseCode : prev.caseCode,
+      statusBadge: payload.statusBadge !== undefined ? payload.statusBadge : prev.statusBadge,
+      actions: payload.actions !== undefined ? payload.actions : prev.actions,
+    })),
   patchDetailNav: (patch) => set(patch),
-  clearDetailNav: () => set({ title: null, subtitle: null, actions: [] }),
+  clearDetailNav: () =>
+    set({ title: null, subtitle: null, caseCode: null, statusBadge: null, actions: [] }),
 }))

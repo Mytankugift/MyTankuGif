@@ -33,7 +33,6 @@ function ProfileContent() {
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsModalTab | null>(null)
 
   // No redirigir - mostrar el perfil completo aquí
-  const [orderId, setOrderId] = useState<string | null>(null)
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [isUploadingBanner, setIsUploadingBanner] = useState(false)
@@ -63,13 +62,15 @@ function ProfileContent() {
   ]
 
   // Cargar contador de amigos
-  // Leer orderId desde la URL
+  const openCaseId =
+    searchParams.get('case') ?? searchParams.get('supportCaseId')
+  const checkoutOrderId = openCaseId ? null : searchParams.get('orderId')
+
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const urlParams = new URLSearchParams(window.location.search)
-    const orderIdParam = urlParams.get('orderId')
-    setOrderId(orderIdParam)
-  }, [])
+    if (openCaseId || checkoutOrderId) {
+      setActiveTab('MIS TANKUS')
+    }
+  }, [openCaseId, checkoutOrderId, setActiveTab])
 
   useEffect(() => {
     const s = searchParams.get('settings')
@@ -579,7 +580,11 @@ function ProfileContent() {
             
             {activeTab === 'MIS TANKUS' && user?.id && (
               <div className="w-full">
-                <MisTankusTab userId={user.id} initialOrderId={orderId} />
+                <MisTankusTab
+                  userId={user.id}
+                  initialOpenCaseId={openCaseId}
+                  checkoutOrderId={checkoutOrderId}
+                />
               </div>
             )}
             

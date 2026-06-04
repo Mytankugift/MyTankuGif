@@ -6,6 +6,7 @@
 // Auth
 export interface User {
   id: string
+  ref?: string | null
   email: string
   firstName: string | null
   lastName: string | null
@@ -175,6 +176,7 @@ export interface StalkerGiftInfoDTO {
 
 export interface OrderDTO {
   id: string
+  ref?: string | null
   userId: string // ID del usuario que recibió la orden (receiver en StalkerGift)
   email: string
   status: string
@@ -231,7 +233,7 @@ export type SupportCaseType =
   | 'DAMAGED'
   | 'DELAY'
   | 'WRONG_ITEM'
-  | 'OTHER'
+  | 'INCOMPLETE'
 
 export type SupportCaseStatus =
   | 'OPEN'
@@ -242,6 +244,7 @@ export type SupportCaseStatus =
 
 export type SupportCaseSnapshotDTO = {
   orderId: string
+  orderRef?: string | null
   reportedAt: string
   paymentStatus: string
   paymentMethod: string | null
@@ -260,8 +263,10 @@ export type SupportCaseSnapshotDTO = {
     quantity: number
     dropiOrderId: number | null
     dropiStatus: string | null
+    productImageUrl?: string | null
   }>
   focusedOrderItemId?: string | null
+  contactPhone?: string | null
 }
 
 export type SupportCaseEventDTO = {
@@ -275,8 +280,10 @@ export type SupportCaseEventDTO = {
 
 export type SupportCaseDTO = {
   id: string
+  ref?: string | null
   userId: string
   orderId: string
+  orderRef?: string | null
   orderItemId: string | null
   caseType: SupportCaseType
   status: SupportCaseStatus
@@ -286,8 +293,25 @@ export type SupportCaseDTO = {
   updatedAt: string
 }
 
+export type SupportCaseAttachmentDTO = {
+  id: string
+  fileName: string
+  mimeType: string
+  size: number
+  url: string
+  createdAt: string
+}
+
+export type SupportCaseEvidenceNoticeDTO = {
+  purged: true
+  retentionDays: number
+  purgedAt: string
+}
+
 export type SupportCaseDetailDTO = SupportCaseDTO & {
   events: SupportCaseEventDTO[]
+  attachments: SupportCaseAttachmentDTO[]
+  evidenceNotice?: SupportCaseEvidenceNoticeDTO | null
 }
 
 export type CreateSupportCaseDTO = {
@@ -295,6 +319,7 @@ export type CreateSupportCaseDTO = {
   orderItemId?: string | null
   caseType: SupportCaseType
   description: string
+  contactPhone: string
 }
 
 // Address
@@ -412,6 +437,7 @@ export interface WishListDTO {
 // StalkerGift
 export interface StalkerGiftDTO {
   id: string
+  ref?: string | null
   senderId: string
   receiverId: string | null
   externalReceiverData: {

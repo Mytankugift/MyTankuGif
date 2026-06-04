@@ -35,6 +35,7 @@ export type UpdateEventDTO = {
 
 export type EventDTO = {
   id: string;
+  ref: string | null;
   userId: string;
   title: string;
   description: string | null;

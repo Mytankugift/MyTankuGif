@@ -12,6 +12,7 @@ import type { OrderDTO, StalkerGiftDTO } from '@/types/api'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { STALKERGIFT_BTN_SECONDARY_INLINE } from '@/components/stalkergift/stalkergift-inline-button-styles'
 import { canOpenStalkerGiftChat, stalkerGiftChatPending } from '@/components/stalkergift/stalkergift-chat-policy'
+import { displayGiftRef, displayOrderRef } from '@/lib/utils/entity-ref-display'
 
 interface StalkerGiftDetailModalProps {
   isOpen: boolean
@@ -179,7 +180,7 @@ export function StalkerGiftDetailModal({
     : 'border-[#73FFA2]/35 ring-1 ring-[#73FFA2]/14'
 
   const cp = counterpartyName(gift, role)
-  const refShort = `#${gift.id.replace(/-/g, '').slice(0, 9).toUpperCase()}`
+  const refShort = displayGiftRef(gift)
 
   return (
     <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/50 p-4">
@@ -279,7 +280,7 @@ export function StalkerGiftDetailModal({
                 <div className="space-y-2 rounded-lg bg-black/25 p-3 text-sm ring-1 ring-white/[0.06]">
                   <div className="flex justify-between gap-3">
                     <span className="text-gray-400">Orden</span>
-                    <span className="break-all font-mono text-xs text-white">{linkedOrder.id.slice(0, 12)}…</span>
+                    <span className="break-all font-mono text-xs text-white">{displayOrderRef(linkedOrder)}</span>
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-gray-400">Estado</span>

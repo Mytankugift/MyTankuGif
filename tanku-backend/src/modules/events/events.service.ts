@@ -11,6 +11,7 @@
  */
 
 import { prisma } from "../../config/database";
+import { allocateEntityRef } from "../../shared/utils/entity-ref";
 
 import {
   NotFoundError,
@@ -76,6 +77,7 @@ export class EventsService {
   private mapEventToDTO(event: any): EventDTO {
     return {
       id: event.id,
+      ref: event.ref ?? null,
 
       userId: event.userId,
 
@@ -277,8 +279,11 @@ export class EventsService {
 
     const eventDate = this.parseEventDateInput(data.eventDate);
 
-    const event = await prisma.event.create({
+    const event = await prisma.$transaction(async (tx) => {
+      const ref = await allocateEntityRef(tx, "EVT");
+      return tx.event.create({
       data: {
+        ref,
         userId,
 
         title: data.title,
@@ -297,6 +302,7 @@ export class EventsService {
 
         isActive: true,
       },
+    });
     });
 
     return this.mapEventToDTO(event);

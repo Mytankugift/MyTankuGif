@@ -1,16 +1,22 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { OrderDTO } from '@/types/api'
-import { XMarkIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
-import { useAuthStore } from '@/lib/stores/auth-store'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 import { NOTIFICATION_ROW_DIVIDER_STYLE } from '@/lib/notifications-display'
 import { isDateInRange } from '@/lib/utils/mis-tankus-period'
 import { OrderSupportSection } from '@/components/profile/order-support-section'
+import { OrderItemDropiShippingModal } from '@/components/profile/order-item-dropi-shipping-modal'
+import { OrderItemDropiShippingActions } from '@/components/profile/order-item-dropi-shipping-actions'
+import { ProfileTabletOverlayModal } from '@/components/profile/profile-tablet-overlay-modal'
+import { displayOrderRef } from '@/lib/utils/entity-ref-display'
+import { dropiStatusChipClass, formatDropiStatus } from '@/lib/dropi-status'
+import { clearProfileDeepLinkParams } from '@/lib/support-case-navigation'
+import type { SupportCaseDetailDTO } from '@/types/api'
 
 /** Superficie alineada con el panel de notificaciones del nav */
 const ORDER_SURFACE_CLASS =
@@ -18,7 +24,10 @@ const ORDER_SURFACE_CLASS =
 
 interface OrdersTabProps {
   userId?: string
-  initialOrderId?: string | null
+  /** Deep link postventa: ?case= */
+  initialOpenCaseId?: string | null
+  /** Tras checkout: ?orderId= (solo si no hay ?case) */
+  checkoutOrderId?: string | null
   /** Filtra pedidos por `createdAt` dentro del rango (inclusive). */
   timeRange?: { start: Date; end: Date }
 }
@@ -60,39 +69,6 @@ function formatPaymentSummary(order: OrderDTO): string {
   return ps.replace(/_/g, ' ')
 }
 
-function getShipStatusColor(status: string | null | undefined) {
-  if (!status) return 'bg-gray-900/30 text-gray-400 border-gray-500/30'
-  const statusUpper = status.toUpperCase()
-  switch (statusUpper) {
-    case 'PENDING':
-      return 'bg-yellow-900/20 text-yellow-400 border-yellow-400/30'
-    case 'PROCESSING':
-      return 'bg-blue-900/20 text-blue-400 border-blue-400/30'
-    case 'SHIPPED':
-      return 'bg-purple-900/20 text-purple-400 border-purple-400/30'
-    case 'DELIVERED':
-      return 'bg-green-900/20 text-green-400 border-green-400/30'
-    case 'CANCELLED':
-    case 'REJECTED':
-      return 'bg-red-900/20 text-red-400 border-red-400/30'
-    default:
-      return 'bg-gray-900/20 text-gray-400 border-gray-400/30'
-  }
-}
-
-function formatShipStatus(status: string | null | undefined) {
-  if (!status) return 'Sin actualizar'
-  const statusMap: Record<string, string> = {
-    PENDING: 'Pendiente',
-    PROCESSING: 'En proceso',
-    SHIPPED: 'Enviado',
-    DELIVERED: 'Entregado',
-    CANCELLED: 'Cancelado',
-    REJECTED: 'Rechazado',
-  }
-  return statusMap[status.toUpperCase()] || status
-}
-
 function OrderPurchaseCard({
   order,
   onViewDetails,
@@ -104,8 +80,6 @@ function OrderPurchaseCard({
   formatDate: (s: string) => string
   formatPrice: (n: number) => string
 }) {
-  const shortId = order.id.slice(-8).toUpperCase()
-
   return (
     <div className={`overflow-hidden ${ORDER_SURFACE_CLASS}`}>
       <div
@@ -123,7 +97,7 @@ function OrderPurchaseCard({
             <span className="block text-[9px] font-medium uppercase tracking-wide text-gray-500">
               N.º pedido
             </span>
-            <span className="font-mono text-sm text-[#66DEDB]">#{shortId}</span>
+            <span className="font-mono text-sm text-[#66DEDB]">{displayOrderRef(order)}</span>
           </div>
         </div>
         <button
@@ -179,9 +153,9 @@ function OrderPurchaseCard({
                     </div>
                     <div className="mt-2">
                       <span
-                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getShipStatusColor(item.dropiStatus)}`}
+                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${dropiStatusChipClass(item.dropiStatus)}`}
                       >
-                        Envío: {formatShipStatus(item.dropiStatus)}
+                        Envío: {formatDropiStatus(item.dropiStatus)}
                       </span>
                     </div>
                   </div>
@@ -195,13 +169,60 @@ function OrderPurchaseCard({
   )
 }
 
-export function OrdersTab({ userId, initialOrderId, timeRange }: OrdersTabProps) {
-  const { user } = useAuthStore()
+export function OrdersTab({
+  userId,
+  initialOpenCaseId = null,
+  checkoutOrderId = null,
+  timeRange,
+}: OrdersTabProps) {
   const [orders, setOrders] = useState<OrderDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<OrderDTO | null>(null)
   const [showOrderDetails, setShowOrderDetails] = useState(false)
   const [selectedItemForWebhook, setSelectedItemForWebhook] = useState<string | null>(null)
+  const [deepLinkSupportCaseId, setDeepLinkSupportCaseId] = useState<string | null>(null)
+
+  const checkoutDeepLinkHandledRef = React.useRef<string | null>(null)
+  const supportCaseDeepLinkHandledRef = React.useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!initialOpenCaseId) supportCaseDeepLinkHandledRef.current = null
+  }, [initialOpenCaseId])
+
+  useEffect(() => {
+    if (!checkoutOrderId) checkoutDeepLinkHandledRef.current = null
+  }, [checkoutOrderId])
+
+  const handleSupportDeepLinkConsumed = useCallback(() => {
+    setDeepLinkSupportCaseId(null)
+    clearProfileDeepLinkParams()
+  }, [])
+
+  const openOrderById = useCallback(
+    async (orderIdToView: string) => {
+      const existing = orders.find((o) => o.id === orderIdToView)
+      if (existing) {
+        setSelectedOrder(existing)
+        setShowOrderDetails(true)
+        return
+      }
+
+      const orderResponse = await apiClient.get<OrderDTO>(
+        API_ENDPOINTS.ORDERS.BY_ID(orderIdToView)
+      )
+      if (orderResponse.success && orderResponse.data) {
+        setSelectedOrder(orderResponse.data)
+        setShowOrderDetails(true)
+        setOrders((prev) => {
+          if (!prev.find((o) => o.id === orderResponse.data!.id)) {
+            return [orderResponse.data!, ...prev]
+          }
+          return prev
+        })
+      }
+    },
+    [orders]
+  )
 
   const loadOrders = async () => {
     try {
@@ -236,37 +257,47 @@ export function OrdersTab({ userId, initialOrderId, timeRange }: OrdersTabProps)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
+  // Deep link postventa (?case=): una sola vez por id de caso
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const urlParams = new URLSearchParams(window.location.search)
-    const orderIdToView = initialOrderId || urlParams.get('orderId')
+    if (!initialOpenCaseId) return
+    if (supportCaseDeepLinkHandledRef.current === initialOpenCaseId) return
 
-    if (orderIdToView && orders.length > 0) {
-      const orderToView = orders.find((o) => o.id === orderIdToView)
-      if (orderToView) {
-        setSelectedOrder(orderToView)
-        setShowOrderDetails(true)
-      } else {
-        apiClient
-          .get<OrderDTO>(API_ENDPOINTS.ORDERS.BY_ID(orderIdToView))
-          .then((orderResponse) => {
-            if (orderResponse.success && orderResponse.data) {
-              setSelectedOrder(orderResponse.data)
-              setShowOrderDetails(true)
-              setOrders((prev) => {
-                if (!prev.find((o) => o.id === orderResponse.data!.id)) {
-                  return [orderResponse.data!, ...prev]
-                }
-                return prev
-              })
-            }
-          })
-          .catch((error) => {
-            console.error('Error al cargar orden específica:', error)
-          })
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const caseResponse = await apiClient.get<SupportCaseDetailDTO>(
+          API_ENDPOINTS.SUPPORT_CASES.BY_ID(initialOpenCaseId)
+        )
+        if (cancelled || !caseResponse.success || !caseResponse.data) return
+
+        supportCaseDeepLinkHandledRef.current = initialOpenCaseId
+        await openOrderById(caseResponse.data.orderId)
+        if (cancelled) return
+
+        setDeepLinkSupportCaseId(initialOpenCaseId)
+        clearProfileDeepLinkParams()
+      } catch (error) {
+        console.error('Error al abrir caso de soporte desde notificación:', error)
       }
+    })()
+
+    return () => {
+      cancelled = true
     }
-  }, [orders, initialOrderId])
+  }, [initialOpenCaseId, openOrderById])
+
+  // Tras checkout (?orderId= sin ?case): abrir pedido una vez y limpiar URL
+  useEffect(() => {
+    if (!checkoutOrderId || initialOpenCaseId) return
+    if (loading) return
+    if (checkoutDeepLinkHandledRef.current === checkoutOrderId) return
+
+    checkoutDeepLinkHandledRef.current = checkoutOrderId
+    void openOrderById(checkoutOrderId).finally(() => {
+      clearProfileDeepLinkParams()
+    })
+  }, [checkoutOrderId, initialOpenCaseId, loading, openOrderById])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -362,20 +393,22 @@ export function OrdersTab({ userId, initialOrderId, timeRange }: OrdersTabProps)
       )}
 
       {showOrderDetails && selectedOrder && (
-        <div
-          className="fixed inset-0 z-[1000020] flex bg-black/55 backdrop-blur-[2px] max-md:flex-col max-md:pt-[max(3.25rem,calc(env(safe-area-inset-top,0px)+2.5rem))] max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:items-center md:justify-center md:p-4"
-          onClick={closeOrderDetails}
+        <ProfileTabletOverlayModal
+          open
+          onClose={closeOrderDetails}
+          titleId="order-details-title"
+          mobileLayout="dialog"
+          mobileBackdrop="blur"
+          maxWidthClass="max-w-lg"
+          panelHeightClass="h-auto max-md:max-h-[min(46rem,93dvh)] md:max-h-[min(44rem,90vh)]"
+          panelClassName="flex flex-col min-h-0"
         >
-          <div
-            className={`flex max-md:h-full max-md:min-h-0 w-full max-w-2xl flex-col overflow-hidden md:max-h-[90vh] md:rounded-xl ${ORDER_SURFACE_CLASS}`}
-            onClick={(e) => e.stopPropagation()}
-          >
             <div
               className="flex shrink-0 items-center justify-between border-b px-4 py-3 bg-[#171B21]"
               style={NOTIFICATION_ROW_DIVIDER_STYLE}
             >
-              <h3 className="text-base font-semibold text-white">
-                Pedido <span className="text-[#66DEDB]">#{selectedOrder.id.slice(-8).toUpperCase()}</span>
+              <h3 id="order-details-title" className="text-base font-semibold text-white">
+                Pedido <span className="text-[#66DEDB]">{displayOrderRef(selectedOrder)}</span>
               </h3>
               <button
                 type="button"
@@ -387,8 +420,9 @@ export function OrdersTab({ userId, initialOrderId, timeRange }: OrdersTabProps)
               </button>
             </div>
 
-            <div className="custom-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="custom-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pt-4 pb-3">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <div className="rounded-lg border border-[#414141]/90 bg-black/20 p-3">
                   <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
                     Información del pedido
@@ -489,22 +523,16 @@ export function OrdersTab({ userId, initialOrderId, timeRange }: OrdersTabProps)
                             </div>
                             <div className="mt-2">
                               <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getShipStatusColor(item.dropiStatus)}`}
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${dropiStatusChipClass(item.dropiStatus)}`}
                               >
-                                Envío: {formatShipStatus(item.dropiStatus)}
+                                Envío: {formatDropiStatus(item.dropiStatus)}
                               </span>
                             </div>
-                            {(item.dropiOrderId || item.dropiWebhookData) && (
-                              <button
-                                type="button"
-                                onClick={() => handleViewWebhookData(item.id)}
-                                className="mt-1.5 inline-flex items-center gap-1 text-left text-xs font-medium text-[#73FFA2] hover:text-[#66DEDB]"
-                                title="Ver detalle de envío"
-                              >
-                                <InformationCircleIcon className="h-3.5 w-3.5 shrink-0" />
-                                Ver estado de envío
-                              </button>
-                            )}
+                            <OrderItemDropiShippingActions
+                              item={item}
+                              onViewShipping={() => handleViewWebhookData(item.id)}
+                              className="mt-1.5"
+                            />
                           </div>
                         </div>
                       </div>
@@ -513,102 +541,35 @@ export function OrdersTab({ userId, initialOrderId, timeRange }: OrdersTabProps)
                 </div>
               </div>
 
-              <OrderSupportSection order={selectedOrder} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showOrderDetails && selectedOrder && selectedItemForWebhook && (
-        <div
-          className="fixed inset-0 z-[1000030] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px] max-md:p-3"
-          onClick={closeWebhookModal}
-        >
-          <div
-            className={`flex max-h-[min(520px,85vh)] w-full max-w-md flex-col overflow-hidden rounded-xl ${ORDER_SURFACE_CLASS}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="flex shrink-0 items-start justify-between gap-2 border-b bg-[#171B21] px-4 py-3"
-              style={NOTIFICATION_ROW_DIVIDER_STYLE}
-            >
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Envío</p>
-                <h3 className="text-sm font-semibold leading-snug text-white">
-                  {selectedOrder.items.find((i) => i.id === selectedItemForWebhook)?.product.title ||
-                    'Producto'}
-                </h3>
               </div>
-              <button
-                type="button"
-                onClick={closeWebhookModal}
-                className="shrink-0 rounded-lg p-1 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
-                aria-label="Cerrar"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
+
+              <OrderSupportSection
+                order={selectedOrder}
+                variant="footer"
+                initialOpenSupportCaseId={deepLinkSupportCaseId}
+                onSupportDeepLinkConsumed={handleSupportDeepLinkConsumed}
+              />
             </div>
-            <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
-              {(() => {
-                const item = selectedOrder.items.find((i) => i.id === selectedItemForWebhook)
-                if (!item) return null
-
-                const webhookData = item.dropiWebhookData
-                const hasData = webhookData && Object.keys(webhookData).length > 0
-
-                return (
-                  <div className="space-y-3">
-                    <div className="rounded-lg border border-[#414141]/90 bg-black/20 p-3">
-                      <div className="text-xs text-gray-400">
-                        <span className="text-gray-500">Estado actual</span>
-                        <span
-                          className={`ml-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${getShipStatusColor(item.dropiStatus)}`}
-                        >
-                          {formatShipStatus(item.dropiStatus)}
-                        </span>
-                      </div>
-
-                      {webhookData?.shipping_guide &&
-                        webhookData?.shipping_company &&
-                        webhookData?.sticker && (
-                          <div className="mt-3 text-xs">
-                            <span className="text-gray-500">Guía:</span>
-                            <a
-                              href={`${process.env.NEXT_PUBLIC_DROPI_API_URL || 'https://api.dropi.co'}/guias/${webhookData.shipping_company.toLowerCase()}/${webhookData.sticker}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-1.5 text-[#73FFA2] underline decoration-[#73FFA2]/40 underline-offset-2 hover:text-[#66DEDB]"
-                            >
-                              Abrir guía de envío
-                            </a>
-                          </div>
-                        )}
-                    </div>
-
-                    {(process.env.NEXT_PUBLIC_ENABLE_DROPI_WEBHOOK_DEBUG === 'true' ||
-                      user?.email?.includes('test')) && (
-                      <div className="rounded-lg border border-[#414141]/90 bg-black/20 p-3">
-                        <h4 className="mb-2 text-[10px] font-medium uppercase tracking-wide text-gray-500">
-                          Debug webhook
-                        </h4>
-                        {hasData ? (
-                          <div className="max-h-40 overflow-x-auto overflow-y-auto rounded-md bg-black/40 p-2">
-                            <pre className="whitespace-pre-wrap break-words text-[10px] text-gray-400">
-                              {JSON.stringify(webhookData, null, 2)}
-                            </pre>
-                          </div>
-                        ) : (
-                          <p className="text-center text-xs text-gray-500">Sin datos todavía.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
-            </div>
-          </div>
-        </div>
+        </ProfileTabletOverlayModal>
       )}
+
+      {selectedOrder && selectedItemForWebhook ? (
+        <OrderItemDropiShippingModal
+          open
+          onClose={closeWebhookModal}
+          orderItemId={selectedItemForWebhook}
+          productTitle={
+            selectedOrder.items.find((i) => i.id === selectedItemForWebhook)?.product.title ??
+            'Producto'
+          }
+          tankuDropiStatus={
+            selectedOrder.items.find((i) => i.id === selectedItemForWebhook)?.dropiStatus
+          }
+          dropiWebhookData={
+            selectedOrder.items.find((i) => i.id === selectedItemForWebhook)?.dropiWebhookData
+          }
+        />
+      ) : null}
     </div>
   )
 }

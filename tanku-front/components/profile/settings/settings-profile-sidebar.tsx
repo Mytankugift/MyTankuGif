@@ -25,7 +25,7 @@ export function SettingsModalLogoutButton({ className }: { className?: string })
           logout()
           router.push('/')
         }}
-        className="w-full rounded-lg border border-red-500/50 bg-transparent py-2.5 text-center text-sm font-medium text-red-400 transition hover:bg-red-500/10"
+        className="w-full rounded-full border border-red-500/50 bg-transparent py-2.5 text-center text-sm font-semibold text-red-400 shadow-[inset_0_2px_6px_rgba(0,0,0,0.15)] transition hover:bg-red-500/10"
       >
         Cerrar sesión
       </button>
@@ -84,7 +84,7 @@ export function SettingsProfileSidebar({ onViewMisTankus }: SettingsProfileSideb
 
   return (
     <aside
-      className="flex w-full max-w-full shrink-0 flex-col overflow-visible rounded-lg border border-[#73FFA2]/50 bg-[#161616] p-2.5 max-md:pb-0 md:max-h-full md:min-h-0 md:max-w-[200px] md:shrink-0 md:overflow-hidden md:h-full"
+      className="flex w-full max-w-full shrink-0 flex-col overflow-visible rounded-lg border border-[#414141]/90 bg-black/20 p-2.5 max-md:pb-0 md:max-h-full md:min-h-0 md:max-w-[200px] md:shrink-0 md:overflow-hidden md:h-full"
     >
       <div className="relative mx-auto mb-2 w-[72px] shrink-0 sm:w-[80px]">
         <div className="relative h-[72px] w-[72px] overflow-hidden rounded-full border-2 border-[#73FFA2]/40 bg-[#1E1E1E] sm:h-[80px] sm:w-[80px]">
