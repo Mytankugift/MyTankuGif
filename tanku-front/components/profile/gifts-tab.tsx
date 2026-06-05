@@ -251,6 +251,53 @@ function getPaymentStatusIcon(paymentStatus: string) {
   return getStatusIcon(paymentStatus)
 }
 
+function giftItemHasShippingTracking(item: {
+  dropiStatus?: string | null
+  dropiOrderId?: number | null
+}) {
+  return Boolean(item.dropiOrderId || item.dropiStatus)
+}
+
+function GiftItemShippingStatusChip({ status }: { status: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${dropiStatusChipClass(status)}`}
+    >
+      Estado: {formatDropiStatus(status)}
+    </span>
+  )
+}
+
+function GiftItemShippingDetail({
+  item,
+  onViewHistory,
+}: {
+  item: GiftOrder['items'][number]
+  onViewHistory: () => void
+}) {
+  if (!giftItemHasShippingTracking(item)) return null
+
+  return (
+    <div className="mt-2">
+      <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-500">
+        Estado del envío
+      </p>
+      {item.dropiStatus ? (
+        <GiftItemShippingStatusChip status={item.dropiStatus} />
+      ) : (
+        <span className="text-[11px] text-gray-500">Sin actualizar aún</span>
+      )}
+      <OrderItemDropiShippingActions
+        item={item}
+        onViewShipping={onViewHistory}
+        linkLabel="Ver historial"
+        title="Ver historial del envío"
+        className="mt-1.5"
+      />
+    </div>
+  )
+}
+
 function GiftPurchaseCard({
   gift,
   direction,
@@ -388,13 +435,9 @@ function GiftPurchaseCard({
                         </span>
                       )}
                     </div>
-                    {direction === 'sent' && item.dropiStatus ? (
+                    {item.dropiStatus ? (
                       <div className="mt-2">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${dropiStatusChipClass(item.dropiStatus)}`}
-                        >
-                          Estado: {formatDropiStatus(item.dropiStatus)}
-                        </span>
+                        <GiftItemShippingStatusChip status={item.dropiStatus} />
                       </div>
                     ) : null}
                   </div>
@@ -730,24 +773,10 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
                                 {formatPrice(item.finalPrice * item.quantity)}
                               </div>
                             )}
-                            {isSender && item.dropiStatus ? (
-                              <div className="mt-2">
-                                <span
-                                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${dropiStatusChipClass(item.dropiStatus)}`}
-                                >
-                                  Estado: {formatDropiStatus(item.dropiStatus)}
-                                </span>
-                              </div>
-                            ) : null}
-                            {isSender ? (
-                              <OrderItemDropiShippingActions
-                                item={item}
-                                onViewShipping={() => setSelectedItemForHistory(item.id)}
-                                linkLabel="Ver historial"
-                                title="Ver historial del producto"
-                                className="mt-1.5"
-                              />
-                            ) : null}
+                            <GiftItemShippingDetail
+                              item={item}
+                              onViewHistory={() => setSelectedItemForHistory(item.id)}
+                            />
                           </div>
                         </div>
                       </div>

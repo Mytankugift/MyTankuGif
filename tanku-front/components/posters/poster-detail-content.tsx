@@ -567,9 +567,14 @@ export function PosterDetailContent({
       ? 'md:border-l md:border-white/[0.08]'
       : 'lg:border-l lg:border-white/[0.08]'
     : innerRule(`border-t lg:border-t-0 lg:border-l ${postPageDivider}`)
+  const isVideoPost = Boolean(poster.videoUrl)
   const mediaMinHeightClass = embeddedInModal
-    ? 'max-md:min-h-[220px] max-md:max-h-[50vh] md:min-h-0 md:flex-1'
-    : 'min-h-[58dvh] lg:min-h-0 lg:flex-1'
+    ? isVideoPost
+      ? 'max-md:min-h-0 max-md:max-h-none md:min-h-0 md:flex-1'
+      : 'max-md:min-h-[220px] max-md:max-h-[50vh] md:min-h-0 md:flex-1'
+    : isVideoPost
+      ? 'min-h-0 max-md:max-h-none lg:min-h-0 lg:flex-1'
+      : 'min-h-[58dvh] lg:min-h-0 lg:flex-1'
   /** Desktop página: imagen centrada en el espacio libre; descripción anclada abajo */
   const pageViewMediaWrapperClass = isPageView
     ? embeddedInModal
@@ -591,24 +596,19 @@ export function PosterDetailContent({
 
   const posterMedia = (
     <>
-      {poster.videoUrl ? (
+      {isVideoPost ? (
         <video
-          src={poster.videoUrl}
+          src={poster.videoUrl!}
           controls
-          onLoadedMetadata={(e) => {
-            const el = e.currentTarget
-            if (!el.videoWidth || !el.videoHeight) return
-            if (el.videoWidth > el.videoHeight) setMediaOrientation('landscape')
-            else if (el.videoHeight > el.videoWidth) setMediaOrientation('portrait')
-            else setMediaOrientation('square')
-          }}
-          className={`max-h-full max-w-full ${
-            usePageLikeMobile
-              ? mediaOrientation === 'portrait'
-                ? 'h-full w-auto object-contain'
-                : 'w-full h-auto object-contain'
-              : 'h-full w-full object-contain'
-          }`}
+          playsInline
+          preload="metadata"
+          className={
+            embeddedInModal
+              ? 'block w-full max-w-full object-contain max-md:max-h-[min(42dvh,calc(100vw-1.5rem))] md:max-h-full md:max-w-full md:h-full md:w-full'
+              : usePageLikeMobile
+                ? 'block w-full max-w-full object-contain max-h-[min(58dvh,calc(100vw-2rem))] lg:max-h-full lg:h-full lg:w-full'
+                : 'h-full w-full max-h-full max-w-full object-contain'
+          }
         />
       ) : (
         <Image
@@ -833,7 +833,9 @@ export function PosterDetailContent({
         {isPageView ? (
           <div className={`flex min-h-0 flex-col ${leftColClass} ${postPageBg} ${embeddedInModal ? '' : 'lg:h-full'}`}>
             <div
-              className={`relative flex ${mediaMinHeightClass} max-md:flex-none items-center justify-center overflow-hidden px-2 pt-2 ${pageViewMediaWrapperClass}`}
+              className={`relative flex ${mediaMinHeightClass} max-md:flex-none items-center justify-center px-2 pt-2 ${pageViewMediaWrapperClass} ${
+                isVideoPost ? 'max-md:overflow-visible max-md:pb-2' : 'overflow-hidden'
+              }`}
             >
               {posterMedia}
             </div>
@@ -854,7 +856,9 @@ export function PosterDetailContent({
           </div>
         ) : (
           <div
-            className={`relative flex min-h-[58dvh] items-center justify-center lg:h-full lg:min-h-0 lg:w-3/5 ${postPageBg}`}
+            className={`relative flex items-center justify-center lg:h-full lg:min-h-0 lg:w-3/5 ${postPageBg} ${
+              isVideoPost ? 'min-h-0 overflow-visible pb-2' : 'min-h-[58dvh] overflow-hidden'
+            }`}
           >
             {posterMedia}
           </div>

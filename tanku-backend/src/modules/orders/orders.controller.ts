@@ -296,7 +296,15 @@ export class OrdersController {
         select: {
           dropiOrderId: true,
           dropiWebhookData: true,
-          order: { select: { userId: true } },
+          order: {
+            select: {
+              userId: true,
+              isGiftOrder: true,
+              giftRecipientId: true,
+              isStalkerGift: true,
+              stalkerGift: { select: { senderId: true, receiverId: true } },
+            },
+          },
         },
       });
 
@@ -304,7 +312,21 @@ export class OrdersController {
         throw new BadRequestError('Este item no tiene un ID de Dropi asociado');
       }
 
-      if (item.order.userId !== userId) {
+      const order = item.order;
+      const isGiftRecipient =
+        order.isGiftOrder && order.giftRecipientId != null && order.giftRecipientId === userId;
+      const stalkerGift = order.stalkerGift;
+      const isStalkerGiftParticipant =
+        order.isStalkerGift &&
+        stalkerGift != null &&
+        (stalkerGift.senderId === userId ||
+          order.userId === userId ||
+          stalkerGift.receiverId === userId);
+
+      const canViewShipping =
+        order.userId === userId || isGiftRecipient || isStalkerGiftParticipant;
+
+      if (!canViewShipping) {
         throw new BadRequestError('No tienes permiso para ver este envío');
       }
 
