@@ -66,5 +66,5 @@ export function storyMediaDurationMs(
 
 export function getStoryViewerPrefersMuted(): boolean {
   if (typeof window === 'undefined') return true
-  return window.matchMedia('(max-width: 767px)').matches
+  return false
 }
