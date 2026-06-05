@@ -101,10 +101,10 @@ export default function FeedPage() {
     // Tablet/desktop: hueco acorde al header fijo (eslogán + strip historias + buscador + categorías).
     // Valores más altos en reposo para que las cards no queden bajo el chrome al abrir el feed.
     if (minimalMode) {
-      return w < 1024 ? '132px' : '140px'
+      return w < 1024 ? '132px' : '160px'
     }
     if (compactMid) {
-      return w < 1024 ? '212px' : '224px'
+      return w < 1024 ? '212px' : '244px'
     }
     return w < 1024 ? '300px' : '312px'
   })()
@@ -186,7 +186,15 @@ export default function FeedPage() {
    */
   const scrollAreaPaddingTop = useMemo(() => {
     if (activeCategoryFilter) {
-      return 'max(70px, calc(env(safe-area-inset-top) + 3.25rem))'
+      // Móvil: pastilla flotante bajo el nav
+      if (viewportWidth < 768) {
+        return 'max(70px, calc(env(safe-area-inset-top) + 3.25rem))'
+      }
+      // Desktop: sin strip de historias → menos hueco que el nav completo
+      if (viewportWidth >= 1024) {
+        return `calc(${contentPaddingTop} - 4.5rem)`
+      }
+      return contentPaddingTop
     }
     // Móvil: mismo orden de magnitud que tanku-mobile-vista (hueco bajo FeedNav + historias sticky)
     if (viewportWidth < 768) {

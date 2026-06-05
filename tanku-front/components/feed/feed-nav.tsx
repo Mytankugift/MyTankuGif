@@ -10,10 +10,7 @@ import { NotificationsButton } from '@/components/layout/notifications-button'
 import { MessagesDropdown } from '@/components/layout/messages-dropdown'
 import { useChat } from '@/lib/hooks/use-chat'
 import { FeedStoriesStrip } from '@/components/feed/feed-stories-strip'
-import {
-  FeedCategoryActivePill,
-  type FeedCategoryActivePillCategory,
-} from '@/components/feed/feed-category-active-pill'
+import type { FeedCategoryActivePillCategory } from '@/components/feed/feed-category-active-pill'
 import { FEED_RESET_FILTERS_EVENT } from '@/lib/constants/feed-events'
 import type { FeedNavScrollState } from '@/lib/hooks/use-feed-scroll-nav'
 import { clsx } from 'clsx'
@@ -265,21 +262,14 @@ export function FeedNav({
             </div>
 
             {/* Historias + Explorar, o pastilla (solo tablet/desktop; en móvil va en el scroll del feed) */}
-            {showStoriesStripInFixedNav && (
+            {showStoriesStripInFixedNav && !activeCategoryFilter && (
               <div className="hidden w-full md:block">
-                {activeCategoryFilter ? (
-                  <FeedCategoryActivePill
-                    category={activeCategoryFilter}
-                    onClear={() => onClearCategoryFilter?.()}
-                  />
-                ) : (
-                  <FeedStoriesStrip
-                    showStoriesStrip={showStoriesStrip}
-                    stories={propStories}
-                    feedExplorarActivated={feedExplorarActivated}
-                    onExplorarActivated={onFeedExplorarActivated}
-                  />
-                )}
+                <FeedStoriesStrip
+                  showStoriesStrip={showStoriesStrip}
+                  stories={propStories}
+                  feedExplorarActivated={feedExplorarActivated}
+                  onExplorarActivated={onFeedExplorarActivated}
+                />
               </div>
             )}
           </div>

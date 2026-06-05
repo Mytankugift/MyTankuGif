@@ -1,10 +1,6 @@
 /**
- * Colores base de categorías (slider + selector). Misma secuencia en ambos sitios.
- *
- * Confirmación de opacidades:
- * - Lado izquierdo (imagen / avatar): **35 %**
- * - Lado derecho (nombre): **20 %**
- * - Borde: 1 px, mismo RGB con **26 %** (trazo mínimo, alineado al tono del fill; selección sigue usando #73FFA2)
+ * Estilos neutros de categorías (slider, selector, pastilla).
+ * Los iconos subidos ya traen color; el chip solo aporta fondo/borde discretos.
  */
 export const CATEGORY_PALETTE_RGB = [
   [139, 92, 246],
@@ -15,37 +11,30 @@ export const CATEGORY_PALETTE_RGB = [
   [99, 102, 241],
 ] as const
 
-const OPACITY_LEFT = 0.35
-const OPACITY_RIGHT = 0.2
-/** Pastilla activa flotante (móvil): más opaco para leer sobre el contenido del feed */
-const OPACITY_LEFT_COMPACT_PILL = 0.78
-const OPACITY_RIGHT_COMPACT_PILL = 0.7
-/** Borde fino, mismo tono; ~entre 20 % y 35 % para que se note poco */
-const OPACITY_BORDER = 0.26
+const NEUTRAL_FILL_LEFT = 'rgba(255, 255, 255, 0.06)'
+const NEUTRAL_FILL_RIGHT = 'rgba(255, 255, 255, 0.04)'
+const NEUTRAL_BORDER = 'rgba(255, 255, 255, 0.14)'
+const NEUTRAL_FILL_LEFT_COMPACT = 'rgba(25, 30, 35, 0.96)'
+const NEUTRAL_FILL_RIGHT_COMPACT = 'rgba(25, 30, 35, 0.9)'
 
-export function categoryFillLeft(index: number): string {
-  const [r, g, b] = CATEGORY_PALETTE_RGB[index % CATEGORY_PALETTE_RGB.length]
-  return `rgba(${r}, ${g}, ${b}, ${OPACITY_LEFT})`
+export function categoryFillLeft(_index: number): string {
+  return NEUTRAL_FILL_LEFT
 }
 
-export function categoryFillRight(index: number): string {
-  const [r, g, b] = CATEGORY_PALETTE_RGB[index % CATEGORY_PALETTE_RGB.length]
-  return `rgba(${r}, ${g}, ${b}, ${OPACITY_RIGHT})`
+export function categoryFillRight(_index: number): string {
+  return NEUTRAL_FILL_RIGHT
 }
 
-export function categoryFillLeftCompact(index: number): string {
-  const [r, g, b] = CATEGORY_PALETTE_RGB[index % CATEGORY_PALETTE_RGB.length]
-  return `rgba(${r}, ${g}, ${b}, ${OPACITY_LEFT_COMPACT_PILL})`
+export function categoryFillLeftCompact(_index: number): string {
+  return NEUTRAL_FILL_LEFT_COMPACT
 }
 
-export function categoryFillRightCompact(index: number): string {
-  const [r, g, b] = CATEGORY_PALETTE_RGB[index % CATEGORY_PALETTE_RGB.length]
-  return `rgba(${r}, ${g}, ${b}, ${OPACITY_RIGHT_COMPACT_PILL})`
+export function categoryFillRightCompact(_index: number): string {
+  return NEUTRAL_FILL_RIGHT_COMPACT
 }
 
-export function categoryBorder(index: number): string {
-  const [r, g, b] = CATEGORY_PALETTE_RGB[index % CATEGORY_PALETTE_RGB.length]
-  return `rgba(${r}, ${g}, ${b}, ${OPACITY_BORDER})`
+export function categoryBorder(_index: number): string {
+  return NEUTRAL_BORDER
 }
 
 /** Altura común: botón Categorías, flechas y chips del carrusel */

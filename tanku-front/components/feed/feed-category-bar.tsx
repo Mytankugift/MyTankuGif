@@ -137,23 +137,30 @@ export function FeedCategoryBar({
               data-category-id="all"
               onClick={() => handleCategoryChange(null)}
               className={clsx(
-                'flex shrink-0 snap-start items-center justify-center rounded-xl border px-3 transition-colors duration-200 sm:px-4',
-                CATEGORY_SLIDER_ROW_H,
-                'min-w-[80px] sm:min-w-[100px]',
-                selectedCategoryId === null
-                  ? 'border-[#73FFA2] bg-gradient-to-r from-[#73FFA2] to-[#66DEDB]'
-                  : 'border-transparent bg-gray-700/50 hover:bg-gray-700/85'
+                'group flex shrink-0 snap-start cursor-pointer items-stretch',
+                CATEGORY_SLIDER_ROW_H
               )}
             >
-              <span
+              <div
                 className={clsx(
-                  'text-center text-xs font-semibold leading-tight sm:text-sm',
-                  selectedCategoryId === null ? 'text-black' : 'text-white'
+                  'flex w-full min-w-0 items-center justify-center overflow-hidden rounded-full border px-4 transition-colors duration-200 sm:px-5',
+                  CATEGORY_SLIDER_ROW_H,
+                  'min-w-[80px] sm:min-w-[100px]',
+                  selectedCategoryId === null
+                    ? 'border-[#73FFA2] bg-white/[0.08]'
+                    : 'border-white/15 bg-white/[0.06] hover:bg-white/10'
                 )}
-                style={{ fontFamily: 'Poppins, sans-serif' }}
               >
-                Todas
-              </span>
+                <span
+                  className={clsx(
+                    'text-center text-xs font-semibold leading-tight sm:text-sm',
+                    selectedCategoryId === null ? 'text-[#73FFA2]' : 'text-white'
+                  )}
+                  style={{ fontFamily: 'Poppins, sans-serif' }}
+                >
+                  Todas
+                </span>
+              </div>
             </button>
 
             {categories.map((c, index) => {

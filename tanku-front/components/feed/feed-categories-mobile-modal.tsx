@@ -35,11 +35,6 @@ function paletteIndex(cat: FeedCategoryLite, salt: number) {
   return h % CATEGORY_PALETTE_RGB.length
 }
 
-function featuredGradient(slot: number) {
-  const [r, g, b] = CATEGORY_PALETTE_RGB[slot % CATEGORY_PALETTE_RGB.length]
-  const [r2, g2, b2] = CATEGORY_PALETTE_RGB[(slot + 2) % CATEGORY_PALETTE_RGB.length]
-  return `linear-gradient(145deg, rgba(${r},${g},${b},0.92) 0%, rgba(${r2},${g2},${b2},0.75) 100%)`
-}
 
 export function FeedCategoriesMobileModal({
   open,
@@ -184,8 +179,7 @@ export function FeedCategoriesMobileModal({
               <button
                 key={`feat-${cat.id}-${i}`}
                 type="button"
-                className="flex min-h-[56px] items-center justify-center rounded-2xl px-2.5 text-center text-xs font-semibold text-white shadow-inner ring-1 ring-white/15 transition hover:brightness-110 active:scale-[0.98] md:min-h-[72px] md:px-3 md:text-sm"
-                style={{ background: featuredGradient(i) }}
+                className="flex min-h-[56px] items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] px-2.5 text-center text-xs font-semibold text-white transition hover:bg-white/10 active:scale-[0.98] md:min-h-[72px] md:px-3 md:text-sm"
                 onClick={() => {
                   onPickCategory(String(cat.id))
                   onClose()

@@ -153,10 +153,10 @@ export function CategorySelector({
           <button
             type="button"
             onClick={onPickAll}
-            className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors sm:text-xs ${
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors sm:text-xs ${
               selectedCategoryId === null
-                ? 'border-[#73FFA2]/45 bg-[#73FFA2]/12 text-[#73FFA2]'
-                : 'border-white/10 bg-white/[0.06] text-white/55 hover:border-white/20 hover:bg-white/10 hover:text-white/85'
+                ? 'border-[#73FFA2]/45 bg-white/[0.08] text-[#73FFA2]'
+                : 'border-white/15 bg-white/[0.06] text-white/55 hover:border-white/20 hover:bg-white/10 hover:text-white/85'
             }`}
             style={{ fontFamily: 'Poppins, sans-serif' }}
           >
