@@ -116,7 +116,7 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
         className={clsx(
           'relative z-10 flex w-full max-w-6xl flex-col overflow-hidden',
           tankuOrderModalPanelClass,
-          'max-md:max-h-[calc(100dvh-1rem-env(safe-area-inset-bottom,0px))]',
+          'max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-bottom,0px))]',
           'md:h-[580px] md:max-h-[580px]',
           'lg:h-[680px] lg:max-h-[680px]',
         )}
@@ -125,9 +125,10 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
       >
         <div
           className={clsx(
-            'flex min-h-0 flex-1 flex-col',
-            'max-md:max-h-[calc(100dvh-1rem-env(safe-area-inset-bottom,0px))] max-md:overflow-y-auto max-md:overflow-x-hidden max-md:custom-scrollbar',
-            'md:h-full md:overflow-hidden',
+            'custom-scrollbar flex min-h-0 flex-1 flex-col pr-0.5',
+            'max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-bottom,0px))]',
+            'max-md:touch-pan-y max-md:overflow-x-hidden max-md:overflow-y-auto max-md:overscroll-y-contain max-md:[-webkit-overflow-scrolling:touch]',
+            'md:h-full md:overflow-hidden md:pr-0',
           )}
           style={{
             paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))',

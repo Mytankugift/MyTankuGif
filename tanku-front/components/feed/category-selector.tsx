@@ -1,10 +1,19 @@
 'use client'
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { clsx } from 'clsx'
 import Image from 'next/image'
 import { createPortal } from 'react-dom'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
-import { categoryBorder, categoryFillLeft, categoryFillRight } from '@/components/feed/category-palette'
+import {
+  CATEGORY_ICON_COL_CLASS,
+  CATEGORY_ICON_IMAGE_CLASS,
+  CATEGORY_ICON_SHELL_CLASS,
+  CATEGORY_CHIP_IDLE_CLASS,
+  CATEGORY_CHIP_SELECTED_CLASS,
+  CATEGORY_CHIP_TEXT_IDLE_CLASS,
+  CATEGORY_CHIP_TEXT_SELECTED_CLASS,
+} from '@/components/feed/category-palette'
 
 export function CategorySelector({
   categories,
@@ -148,62 +157,54 @@ export function CategorySelector({
           padding: '12px',
         }}
       >
-        {/* Fila superior: Todas (sutil) + filtrar — alineado con el botón Categorías */}
-        <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2 border-b border-white/10 pb-2">
+        {/* Fila superior: Todas + buscar categoría (mismo estilo que modal móvil) */}
+        <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2 border-b border-white/[0.06] pb-2">
           <button
             type="button"
             onClick={onPickAll}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors sm:text-xs ${
+            className={clsx(
+              'shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors sm:text-xs',
               selectedCategoryId === null
-                ? 'border-[#73FFA2]/45 bg-white/[0.08] text-[#73FFA2]'
-                : 'border-white/15 bg-white/[0.06] text-white/55 hover:border-white/20 hover:bg-white/10 hover:text-white/85'
-            }`}
+                ? CATEGORY_CHIP_SELECTED_CLASS
+                : CATEGORY_CHIP_IDLE_CLASS,
+              selectedCategoryId === null
+                ? CATEGORY_CHIP_TEXT_SELECTED_CLASS
+                : CATEGORY_CHIP_TEXT_IDLE_CLASS
+            )}
             style={{ fontFamily: 'Poppins, sans-serif' }}
           >
             Todas
           </button>
-          <div className="flex min-w-[min(100%,12rem)] flex-1 items-center gap-1.5 sm:min-w-[200px]">
-            <div className="pointer-events-none shrink-0 text-white/35">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 41 42"
-                fill="none"
-              >
-                <path
-                  d="M26.8334 8.76545L30.1099 22.6447L20.9442 31.156L8.1482 27.8382L4.84774 14.0188L14.8779 5.75197L26.8334 8.76545Z"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                />
-                <line
-                  y1="-1.5"
-                  x2="20.427"
-                  y2="-1.5"
-                  transform="matrix(0.709973 0.704229 -0.70423 0.709971 24.3841 27.5551)"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                />
-              </svg>
-            </div>
+          <label className="relative flex min-w-[min(100%,12rem)] flex-1 items-center rounded-full bg-[#262626] px-3 py-1.5 ring-1 ring-white/[0.06] focus-within:ring-[#73FFA2]/35 sm:min-w-[200px]">
+            <svg
+              className="mr-1.5 h-4 w-4 shrink-0 text-white/45"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3-3" strokeLinecap="round" />
+            </svg>
             <input
               type="search"
               inputMode="search"
               enterKeyHint="search"
               autoComplete="off"
               autoCorrect="off"
-              placeholder="Filtrar…"
+              placeholder="Buscar categoría..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="tanku-pill-search-input min-h-0 min-w-0 flex-1 rounded-full border border-white/10 py-1.5 pl-2 pr-2 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-[#66DEDB]/40 md:text-[11px]"
+              className="tanku-input-text-ios min-h-0 min-w-0 flex-1 bg-transparent text-white placeholder:text-white/40 outline-none md:text-[11px]"
               style={{ fontFamily: 'Poppins, sans-serif' }}
             />
             {searchQuery ? (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="shrink-0 rounded-full p-1 text-white/45 transition-colors hover:bg-white/10 hover:text-white"
-                aria-label="Limpiar filtro"
+                className="ml-1 shrink-0 rounded-full p-1 text-white/45 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="Limpiar búsqueda"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -211,7 +212,7 @@ export function CategorySelector({
                 </svg>
               </button>
             ) : null}
-          </div>
+          </label>
         </div>
 
         <div
@@ -232,26 +233,21 @@ export function CategorySelector({
                 className="group flex w-full min-w-0 cursor-pointer justify-stretch text-left"
               >
                 <div
-                  className="flex min-h-[30px] w-full items-stretch overflow-hidden rounded-full border transition-colors duration-200 sm:min-h-[32px]"
-                  style={{
-                    borderWidth: 1,
-                    borderStyle: 'solid',
-                    borderColor: isSelected ? '#73FFA2' : categoryBorder(stableIndex),
-                  }}
+                  className={clsx(
+                    'flex min-h-[30px] w-full items-stretch overflow-hidden rounded-full border transition-colors duration-200 sm:min-h-[32px]',
+                    isSelected ? CATEGORY_CHIP_SELECTED_CLASS : CATEGORY_CHIP_IDLE_CLASS
+                  )}
                 >
-                  <div
-                    className="flex w-[26px] shrink-0 items-center justify-center self-stretch sm:w-8"
-                    style={{ backgroundColor: categoryFillLeft(stableIndex) }}
-                  >
+                  <div className={CATEGORY_ICON_COL_CLASS}>
                     {hasImage && category.image ? (
-                      <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded-full sm:h-5 sm:w-5">
+                      <div className={CATEGORY_ICON_SHELL_CLASS}>
                         <Image
                           src={category.image}
                           alt={category.name}
-                          fill
-                          sizes="20px"
+                          width={28}
+                          height={28}
                           unoptimized={isRemoteImageSrc(category.image)}
-                          className="object-cover"
+                          className={CATEGORY_ICON_IMAGE_CLASS}
                           onError={(e) => {
                             e.currentTarget.style.display = 'none'
                           }}
@@ -259,14 +255,12 @@ export function CategorySelector({
                       </div>
                     ) : null}
                   </div>
-                  <div
-                    className="flex min-h-full min-w-0 flex-1 items-center self-stretch px-1.5 py-0 sm:px-2"
-                    style={{ backgroundColor: categoryFillRight(stableIndex) }}
-                  >
+                  <div className="flex min-h-full min-w-[4.75rem] flex-1 items-center self-stretch px-2.5 py-0 sm:min-w-[5.5rem] sm:px-3">
                     <span
-                      className={`line-clamp-2 text-[10px] font-semibold leading-snug sm:text-[11px] ${
-                        isSelected ? 'text-[#73FFA2]' : 'text-white'
-                      }`}
+                      className={clsx(
+                        'line-clamp-2 text-[10px] font-semibold leading-snug sm:text-[11px]',
+                        isSelected ? CATEGORY_CHIP_TEXT_SELECTED_CLASS : CATEGORY_CHIP_TEXT_IDLE_CLASS
+                      )}
                       style={{ fontFamily: 'Poppins, sans-serif' }}
                     >
                       {category.name}

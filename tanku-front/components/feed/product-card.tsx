@@ -129,7 +129,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     e.stopPropagation()
     
     if (!isAuthenticated) {
-      setIsModalOpen(true) // Abrir modal para que se autentique
+      openProductModal()
       return
     }
 
@@ -215,6 +215,14 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(hover: none) and (pointer: coarse)').matches
 
+  const openProductModal = useCallback(() => {
+    if (onOpenModal) {
+      onOpenModal(product)
+    } else {
+      setIsModalOpen(true)
+    }
+  }, [onOpenModal, product])
+
   const handleCardClick = useCallback(
     (e: React.MouseEvent) => {
       const down = pointerDownRef.current
@@ -229,12 +237,9 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
         return
       }
 
-      setIsModalOpen(true)
-      if (onOpenModal) {
-        onOpenModal(product)
-      }
+      openProductModal()
     },
-    [onOpenModal, product]
+    [openProductModal]
   )
 
   const handleAddToCart = async (e: React.MouseEvent) => {
@@ -259,7 +264,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
       
       // Si tiene múltiples variantes, abrir el modal para que el usuario elija
       if (variants.length > 1) {
-        setIsModalOpen(true)
+        openProductModal()
       } else if (variants.length === 1) {
         // Si solo tiene una variante, agregar directamente al carrito
         await addItem(variants[0].id, 1)
@@ -271,7 +276,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     } catch (error) {
       logger.error('Error agregando al carrito:', error)
       // Si falla, abrir el modal como fallback
-      setIsModalOpen(true)
+      openProductModal()
     } finally {
       setIsAddingToCart(false)
     }
@@ -281,7 +286,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     e.stopPropagation()
     
     if (!isAuthenticated) {
-      setIsModalOpen(true)
+      openProductModal()
       return
     }
 
@@ -304,7 +309,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
       
       // Si tiene múltiples variantes, abrir el modal de producto para que el usuario elija
       if (variants.length > 1) {
-        setIsModalOpen(true)
+        openProductModal()
         return
       } 
       
@@ -324,7 +329,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     } catch (error) {
       logger.error('Error verificando producto para wishlist:', error)
       // Si falla, abrir el modal de producto como fallback
-      setIsModalOpen(true)
+      openProductModal()
     }
   }
 
@@ -539,8 +544,8 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
         </h3>
       </div>
 
-      {/* Modal de Producto */}
-      {productForModal && (
+      {/* Modal de Producto (solo cuando la card controla su propio estado) */}
+      {!onOpenModal && productForModal && (
         <ProductModal
           product={productForModal}
           isOpen={isModalOpen}

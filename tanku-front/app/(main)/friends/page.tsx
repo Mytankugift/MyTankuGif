@@ -5,6 +5,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, type ReactNode } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { clsx } from 'clsx'
 import {
   UserGroupIcon,
@@ -67,6 +68,10 @@ type FriendGroupMap = Record<string, Array<{ id: string; name: string }>>
 
 type FriendsMainTab = 'friends' | 'requests' | 'suggestions'
 
+function isFriendsMainTab(value: string | null): value is FriendsMainTab {
+  return value === 'friends' || value === 'requests' || value === 'suggestions'
+}
+
 /** Vista previa lateral: solo lo más reciente; “ver todas” abre la pestaña */
 const PREVIEW_REQUESTS = 3
 const SIDEBAR_SUGGESTIONS_MAX = 8
@@ -115,6 +120,7 @@ const FRIENDS_SORT_OPTIONS = [
 ] satisfies TankuCustomSelectOption[]
 
 export default function FriendsPage() {
+  const searchParams = useSearchParams()
   const {
     friends,
     requests,
@@ -177,6 +183,13 @@ export default function FriendsPage() {
   const [friendsVisibleCount, setFriendsVisibleCount] = useState(FRIENDS_PAGE_INITIAL)
 
   const [mainTab, setMainTab] = useState<FriendsMainTab>('friends')
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (isFriendsMainTab(tab)) {
+      setMainTab(tab)
+    }
+  }, [searchParams])
 
   const [friendsSort, setFriendsSort] = useState<'recent' | 'alphabetical'>('recent')
   const [friendsView, setFriendsView] = useState<FriendsViewMode>('grid')

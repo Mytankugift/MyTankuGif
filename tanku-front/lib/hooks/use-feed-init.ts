@@ -6,10 +6,18 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { useCartStore } from '@/lib/stores/cart-store'
 import { useFeedInitContext } from '@/lib/context/feed-init-context'
 import type { FeedItem, FeedResponse } from '@/lib/types/feed.types'
+import { mapCategoryFromApi } from '@/lib/feed/category-tree'
 
 interface FeedInitResponse {
   feed: FeedResponse
-  categories: Array<{ id: string; name: string; handle: string; imageUrl: string | null }>
+  categories: Array<{
+    id: string
+    name: string
+    handle: string
+    imageUrl: string | null
+    parentId?: string | null
+    parent_id?: string | null
+  }>
   cart: any | null
   stories: any[]
   conversations: any[]
@@ -26,7 +34,9 @@ export function useFeedInit() {
   const { token, isAuthenticated } = useAuthStore()
   const { markComplete } = useFeedInitContext()
   const [feedItems, setFeedItems] = useState<FeedItem[]>([])
-  const [categories, setCategories] = useState<Array<{ id: string; name: string; image: string | null }>>([])
+  const [categories, setCategories] = useState<
+    Array<{ id: string; name: string; image: string | null; parentId: string | null }>
+  >([])
   const [cart, setCart] = useState<any | null>(null)
   const [stories, setStories] = useState<any[]>([])
   const [conversations, setConversations] = useState<any[]>([])
@@ -119,11 +129,7 @@ export function useFeedInit() {
 
         // Procesar categorías
         if (Array.isArray(response.data.categories)) {
-          setCategories(response.data.categories.map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            image: c.imageUrl || null,
-          })))
+          setCategories(response.data.categories.map((c) => mapCategoryFromApi(c)))
         }
 
         // Procesar otros datos

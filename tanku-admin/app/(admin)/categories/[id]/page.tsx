@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
@@ -87,7 +87,7 @@ export default function CategoryDetailPage() {
   const [showBlockConfirmModal, setShowBlockConfirmModal] = useState(false)
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false)
   const [showDropiIdErrorModal, setShowDropiIdErrorModal] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [imageDragOver, setImageDragOver] = useState(false)
 
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated) return
@@ -296,9 +296,11 @@ export default function CategoryDetailPage() {
     }
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const uploadImageFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      showNotification('Solo se permiten archivos de imagen', 'error')
+      return
+    }
 
     try {
       setActionLoading(true)
@@ -326,10 +328,30 @@ export default function CategoryDetailPage() {
       )
     } finally {
       setActionLoading(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
     }
+  }
+
+  const handleImageDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!actionLoading) setImageDragOver(true)
+  }
+
+  const handleImageDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setImageDragOver(false)
+  }
+
+  const handleImageDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setImageDragOver(false)
+    if (actionLoading) return
+
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+    await uploadImageFile(file)
   }
 
   const handleCreateSubcategory = async () => {
@@ -648,45 +670,54 @@ export default function CategoryDetailPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Imagen</h2>
               <div className="flex flex-col items-center gap-4">
-                <div className="w-32 h-32 flex-shrink-0 rounded-lg bg-gray-100 overflow-hidden">
+                <div
+                  onDragOver={handleImageDragOver}
+                  onDragEnter={handleImageDragOver}
+                  onDragLeave={handleImageDragLeave}
+                  onDrop={handleImageDrop}
+                  className={`relative w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden border-2 border-dashed transition-colors ${
+                    imageDragOver
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-300 bg-gray-100 hover:border-blue-400'
+                  } ${actionLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                >
                   {category.imageUrl ? (
                     <img
                       src={category.imageUrl}
                       alt={category.name}
-                      className="w-full h-full object-cover"
+                      draggable={false}
+                      className="w-full h-full object-cover select-none pointer-events-none"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <PhotoIcon className="w-12 h-12 text-gray-400" />
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-2 text-center">
+                      <PhotoIcon className="w-10 h-10 text-gray-400" />
+                      <p className="text-[10px] leading-tight text-gray-500">
+                        Arrastra una imagen aquí
+                      </p>
+                    </div>
+                  )}
+                  {imageDragOver && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-blue-500/20">
+                      <p className="text-xs font-medium text-blue-700 px-2 text-center">
+                        Suelta para {category.imageUrl ? 'reemplazar' : 'subir'}
+                      </p>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
+                <p className="text-xs text-gray-500 text-center">
+                  Arrastra y suelta una imagen en el recuadro para subirla
+                </p>
+
+                {category.imageUrl && (
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleImageDelete}
                     disabled={actionLoading}
-                    className="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {category.imageUrl ? 'Cambiar imagen' : 'Subir imagen'}
+                    Eliminar imagen
                   </button>
-                  {category.imageUrl && (
-                    <button
-                      onClick={handleImageDelete}
-                      disabled={actionLoading}
-                      className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Eliminar imagen
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
             </div>
           </div>

@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { mapCategoryFromApi } from '@/lib/feed/category-tree'
 
-type CategoryItem = { id: string; name: string; image?: string | null }
+type CategoryItem = { id: string; name: string; image?: string | null; parentId: string | null }
 
 // Cache por contexto: anónimo vs JWT (el backend filtra +18 según edad del usuario)
 const categoriesCache: Record<string, CategoryItem[]> = {}
@@ -59,15 +60,17 @@ export function useCategories() {
     categoriesLoadingPromise[key] = (async () => {
       try {
         const response = await apiClient.get<
-          Array<{ id: string; name: string; handle: string; imageUrl?: string | null }>
+          Array<{
+            id: string
+            name: string
+            handle: string
+            imageUrl?: string | null
+            parentId?: string | null
+          }>
         >(API_ENDPOINTS.CATEGORIES.LIST)
 
         if (response.success && Array.isArray(response.data)) {
-          const mappedCategories = response.data.map((cat) => ({
-            id: cat.id,
-            name: cat.name,
-            image: cat.imageUrl || null,
-          }))
+          const mappedCategories = response.data.map((cat) => mapCategoryFromApi(cat))
           categoriesCache[key] = mappedCategories
           return mappedCategories
         }

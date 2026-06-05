@@ -5,10 +5,11 @@ import Image from 'next/image'
 import { clsx } from 'clsx'
 import { getGoogleOAuthUrl } from '@/lib/auth/google-oauth'
 import { FeedCategoryBar } from '@/components/feed/feed-category-bar'
+import { FeedCategoriesMobileModal } from '@/components/feed/feed-categories-mobile-modal'
 import type { FeedNavScrollState } from '@/lib/hooks/use-feed-scroll-nav'
 
 interface LandingNavProps {
-  categories?: { id: string | number; name: string; image?: string | null }[]
+  categories?: { id: string | number; name: string; image?: string | null; parentId?: string | null }[]
   selectedCategoryId?: string | null
   onCategoryChange?: (categoryId: string | null) => void
   searchQuery?: string
@@ -29,6 +30,7 @@ export const LandingNav = forwardRef<HTMLDivElement, LandingNavProps>(function L
   ref
 ) {
   const { compactMid } = feedNavScroll
+  const [categoriesModalOpen, setCategoriesModalOpen] = useState(false)
   const [rotatingTextIndex, setRotatingTextIndex] = useState(0)
   const [textOpacity, setTextOpacity] = useState(1)
 
@@ -228,8 +230,17 @@ export const LandingNav = forwardRef<HTMLDivElement, LandingNavProps>(function L
           selectedCategoryId={selectedCategoryId}
           onCategoryChange={onCategoryChange}
           feedNavScroll={feedNavScroll}
+          onOpenCategoriesModal={() => setCategoriesModalOpen(true)}
         />
       )}
+
+      <FeedCategoriesMobileModal
+        open={categoriesModalOpen}
+        onClose={() => setCategoriesModalOpen(false)}
+        categories={categories}
+        selectedCategoryId={selectedCategoryId}
+        onPickCategory={onCategoryChange}
+      />
     </div>
   )
 })

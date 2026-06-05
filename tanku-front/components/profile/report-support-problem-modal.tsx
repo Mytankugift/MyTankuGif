@@ -7,9 +7,10 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { NOTIFICATION_ROW_DIVIDER_STYLE } from '@/lib/notifications-display'
 import {
-  categoryBorder,
-  categoryFillLeft,
-  categoryFillRight,
+  CATEGORY_CHIP_IDLE_CLASS,
+  CATEGORY_CHIP_SELECTED_CLASS,
+  CATEGORY_CHIP_TEXT_IDLE_CLASS,
+  CATEGORY_CHIP_TEXT_SELECTED_CLASS,
 } from '@/components/feed/category-palette'
 import { ProfileTabletOverlayModal } from '@/components/profile/profile-tablet-overlay-modal'
 import { ColombiaPhoneInput } from '@/components/ui/colombia-phone-input'
@@ -290,17 +291,12 @@ export function ReportSupportProblemModal({
                   className="group flex w-full min-w-0 cursor-pointer justify-stretch text-left transition active:scale-[0.98]"
                 >
                   <div
-                    className="flex min-h-[40px] w-full items-stretch overflow-hidden rounded-full border shadow-sm transition-colors duration-200 sm:min-h-[44px]"
-                    style={{
-                      borderWidth: 1,
-                      borderStyle: 'solid',
-                      borderColor: selected ? '#73FFA2' : categoryBorder(index),
-                    }}
+                    className={clsx(
+                      'flex min-h-[40px] w-full items-stretch overflow-hidden rounded-full border transition-colors duration-200 sm:min-h-[44px]',
+                      selected ? CATEGORY_CHIP_SELECTED_CLASS : CATEGORY_CHIP_IDLE_CLASS
+                    )}
                   >
-                    <div
-                      className="flex w-8 shrink-0 items-center justify-center self-stretch sm:w-9"
-                      style={{ backgroundColor: categoryFillLeft(index) }}
-                    >
+                    <div className="flex w-8 shrink-0 items-center justify-center self-stretch sm:w-9">
                       <Icon
                         className={clsx(
                           'h-4 w-4 shrink-0 sm:h-5 sm:w-5',
@@ -309,14 +305,11 @@ export function ReportSupportProblemModal({
                         aria-hidden
                       />
                     </div>
-                    <div
-                      className="flex min-h-full min-w-0 flex-1 items-center self-stretch px-1.5 py-1 sm:px-2 sm:py-1.5"
-                      style={{ backgroundColor: categoryFillRight(index) }}
-                    >
+                    <div className="flex min-h-full min-w-0 flex-1 items-center self-stretch px-1.5 py-1 sm:px-2 sm:py-1.5">
                       <span
                         className={clsx(
                           'line-clamp-2 w-full text-[10px] font-semibold leading-snug sm:text-[11px]',
-                          selected ? 'text-[#73FFA2]' : 'text-white'
+                          selected ? CATEGORY_CHIP_TEXT_SELECTED_CLASS : CATEGORY_CHIP_TEXT_IDLE_CLASS
                         )}
                         style={{ fontFamily: 'Poppins, sans-serif' }}
                       >

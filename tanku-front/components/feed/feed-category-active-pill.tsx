@@ -3,6 +3,12 @@
 import React from 'react'
 import Image from 'next/image'
 import { clsx } from 'clsx'
+import {
+  CATEGORY_ICON_IMAGE_CLASS,
+  CATEGORY_ICON_SHELL_CLASS,
+  CATEGORY_CHIP_SELECTED_SOLID_CLASS,
+  CATEGORY_CHIP_TEXT_SELECTED_CLASS,
+} from '@/components/feed/category-palette'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
 export interface FeedCategoryActivePillCategory {
@@ -24,27 +30,28 @@ export function FeedCategoryActivePill({ category, onClear, className, compact =
     <div className={clsx('flex w-full justify-start', compact ? 'pl-0 pr-0' : 'pl-0.5 pr-2', className)}>
       <div
         className={clsx(
-          'flex min-w-0 shrink-0 items-stretch overflow-hidden rounded-full border border-white/15 bg-[#191E23] shadow-md',
-          compact
-            ? 'max-w-[min(168px,calc(100vw-3.5rem))]'
-            : 'max-w-[min(220px,calc(100vw-5rem))]'
+          'flex w-max max-w-full shrink-0 items-stretch overflow-hidden rounded-full border',
+          CATEGORY_CHIP_SELECTED_SOLID_CLASS,
+          compact && 'max-w-[calc(100vw-1.5rem)]'
         )}
       >
         <div
           className={clsx(
-            'flex shrink-0 items-center justify-center border-r border-white/10 bg-white/[0.06]',
-            compact ? 'w-7' : 'w-9'
+            'flex shrink-0 items-center justify-center px-1',
+            compact ? 'w-9' : 'w-11',
           )}
         >
           {category.image ? (
-            <Image
-              src={category.image}
-              alt=""
-              width={compact ? 18 : 22}
-              height={compact ? 18 : 22}
-              className={clsx('rounded-full object-cover', compact ? 'h-4 w-4' : 'h-5 w-5')}
-              unoptimized={isRemoteImageSrc(category.image)}
-            />
+            <span className={clsx(CATEGORY_ICON_SHELL_CLASS, compact && 'h-6 w-6 rounded-[6px] p-0.5 sm:h-6 sm:w-6')}>
+              <Image
+                src={category.image}
+                alt=""
+                width={compact ? 22 : 28}
+                height={compact ? 22 : 28}
+                className={CATEGORY_ICON_IMAGE_CLASS}
+                unoptimized={isRemoteImageSrc(category.image)}
+              />
+            </span>
           ) : (
             <span className={clsx('text-[#66DEDB]', compact ? 'text-xs' : 'text-sm')} aria-hidden>
               ◆
@@ -53,13 +60,14 @@ export function FeedCategoryActivePill({ category, onClear, className, compact =
         </div>
         <div
           className={clsx(
-            'flex min-w-0 flex-1 items-center gap-0.5 bg-white/[0.04] py-1 pl-1.5 pr-0.5',
-            compact ? 'max-w-[118px]' : 'max-w-[160px] gap-1 py-1.5 pl-2 pr-1 sm:max-w-[180px]'
+            'flex min-w-0 items-center gap-0.5 py-1 pl-2 pr-0.5',
+            compact ? 'pr-1' : 'gap-1 py-1.5 pl-2.5 pr-1'
           )}
         >
           <span
             className={clsx(
-              'min-w-0 flex-1 truncate font-semibold text-white',
+              'whitespace-nowrap font-semibold',
+              CATEGORY_CHIP_TEXT_SELECTED_CLASS,
               compact ? 'text-[11px] leading-tight' : 'text-xs sm:text-[13px]'
             )}
             style={{ fontFamily: 'Poppins, sans-serif' }}

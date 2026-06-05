@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { useStories, type StoryDTO } from '@/lib/hooks/use-stories'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { StoryViewer } from './story-viewer'
@@ -14,6 +15,8 @@ interface StoriesCarouselProps {
   explorarActivated?: boolean
   /** Feed: al hacer scroll se oculta la franja (y en móvil también el chip «Tu historia» + publicar). */
   showStoriesStrip?: boolean
+  /** Desktop feed nav: redirige a sugerencias en /friends en lugar de abrir historias */
+  friendsSuggestionsHref?: string
 }
 
 /**
@@ -29,7 +32,9 @@ export function StoriesCarousel({
   stories: customStories,
   explorarActivated,
   showStoriesStrip = true,
+  friendsSuggestionsHref,
 }: StoriesCarouselProps) {
+  const router = useRouter()
   const { feedStories, fetchFeedStories, isLoading } = useStories()
   const { user } = useAuthStore()
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
@@ -98,6 +103,12 @@ export function StoriesCarousel({
     setIsViewerOpen(true)
   }
 
+  const handleDesktopRedirect = useCallback(() => {
+    if (friendsSuggestionsHref) {
+      router.push(friendsSuggestionsHref)
+    }
+  }, [friendsSuggestionsHref, router])
+
   const handleCloseViewer = () => {
     setIsViewerOpen(false)
     setSelectedUserId(null)
@@ -112,7 +123,8 @@ export function StoriesCarousel({
     userId: string,
     author: StoryDTO['author'] | undefined,
     hasNewStories: boolean,
-    label: string
+    label: string,
+    redirectOnClick?: () => void
   ) => {
     const avatar = author?.avatar || '/default-avatar.png'
     const isCurrentUser = userId === user?.id
@@ -123,7 +135,7 @@ export function StoriesCarousel({
       <button
         key={`${userId}-avatar`}
         type="button"
-        onClick={() => handleStoryClick(userId)}
+        onClick={() => (redirectOnClick ? redirectOnClick() : handleStoryClick(userId))}
         className="flex shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5"
       >
         <div className="relative">
@@ -318,7 +330,8 @@ export function StoriesCarousel({
             userId,
             author,
             hasNewStories,
-            userId === user?.id ? 'Tu historia' : author?.firstName || 'Usuario'
+            userId === user?.id ? 'Tu historia' : author?.firstName || 'Usuario',
+            friendsSuggestionsHref ? handleDesktopRedirect : undefined
           )
         )}
       </div>

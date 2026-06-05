@@ -9,7 +9,7 @@ import { CartButton } from '@/components/layout/cart-button'
 import { NotificationsButton } from '@/components/layout/notifications-button'
 import { MessagesDropdown } from '@/components/layout/messages-dropdown'
 import { useChat } from '@/lib/hooks/use-chat'
-import { FeedStoriesStrip } from '@/components/feed/feed-stories-strip'
+import { FeedStoriesStrip, FRIENDS_SUGGESTIONS_HREF } from '@/components/feed/feed-stories-strip'
 import type { FeedCategoryActivePillCategory } from '@/components/feed/feed-category-active-pill'
 import { FEED_RESET_FILTERS_EVENT } from '@/lib/constants/feed-events'
 import type { FeedNavScrollState } from '@/lib/hooks/use-feed-scroll-nav'
@@ -269,6 +269,7 @@ export function FeedNav({
                   stories={propStories}
                   feedExplorarActivated={feedExplorarActivated}
                   onExplorarActivated={onFeedExplorarActivated}
+                  friendsSuggestionsHref={FRIENDS_SUGGESTIONS_HREF}
                 />
               </div>
             )}

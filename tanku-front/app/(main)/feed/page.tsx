@@ -10,14 +10,17 @@ import { FeedCategoryActivePill } from '@/components/feed/feed-category-active-p
 import { FeedGrid } from '@/components/feed/feed-grid'
 import { FeedInfiniteScroll } from '@/components/feed/feed-infinite-scroll'
 import { PosterDetailModal } from '@/components/posters/poster-detail-modal'
+import { ProductModal } from '@/components/products/product-modal'
 import { FeedSkeleton } from '@/components/feed/feed-skeleton'
 import { useFeed } from '@/lib/hooks/use-feed'
 import { useFeedInit } from '@/lib/hooks/use-feed-init'
+import { useCategories } from '@/lib/hooks/use-categories'
 import { useInfiniteScroll } from '@/lib/hooks/use-infinite-scroll'
 import { useFeedScrollNav } from '@/lib/hooks/use-feed-scroll-nav'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { logger } from '@/lib/utils/logger'
 import { FEED_RESET_FILTERS_EVENT } from '@/lib/constants/feed-events'
+import type { FeedItemDTO } from '@/types/api'
 import './feed-grid.css'
 
 export default function FeedPage() {
@@ -39,6 +42,8 @@ export default function FeedPage() {
   }, [])
   const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<FeedItemDTO | null>(null)
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false)
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1024
   )
@@ -170,13 +175,14 @@ export default function FeedPage() {
   // Datos finales a usar
   const items = useInitData ? feedInit.items : feedItems
   const isLoading = useInitData ? feedInit.isLoading : feedLoading
-  const categories = feedInit.categories || []
+  const { categories: categoriesFromApi } = useCategories()
+  const categories = categoriesFromApi.length > 0 ? categoriesFromApi : feedInit.categories
 
   const activeCategoryFilter = useMemo(() => {
     if (!selectedCategoryId) return null
     const c = categories.find((x) => String(x.id) === String(selectedCategoryId))
     if (!c) return null
-    return { id: c.id, name: c.name, image: c.image ?? null }
+    return { id: c.id, name: c.name, image: c.image ?? null, parentId: c.parentId ?? null }
   }, [categories, selectedCategoryId])
 
   /**
@@ -286,6 +292,7 @@ export default function FeedPage() {
             selectedCategoryId={selectedCategoryId}
             onCategoryChange={setSelectedCategoryId}
             feedNavScroll={feedNavScroll}
+            onOpenCategoriesModal={() => setCategoriesModalOpen(true)}
           />
         </div>
         </div>
@@ -294,12 +301,12 @@ export default function FeedPage() {
       {/* Pastilla categoría: flotante en móvil (no baja con el scroll) */}
       {activeCategoryFilter && (
         <div
-          className="pointer-events-none fixed left-3 z-[42] md:hidden"
+          className="pointer-events-none fixed left-3 right-3 z-[42] max-w-[calc(100vw-1.5rem)] md:hidden"
           style={{
             top: 'max(calc(env(safe-area-inset-top) + 5.75rem), 6.25rem)',
           }}
         >
-          <div className="pointer-events-auto rounded-full shadow-[0_8px_28px_rgba(0,0,0,0.55)] ring-1 ring-black/30">
+          <div className="pointer-events-auto w-max max-w-full rounded-full bg-[#262626] shadow-[0_8px_28px_rgba(0,0,0,0.55)] ring-1 ring-[#73FFA2]/40">
             <FeedCategoryActivePill
               category={activeCategoryFilter}
               compact
@@ -349,6 +356,22 @@ export default function FeedPage() {
                 setSelectedPosterId(poster.id)
                 setIsPosterModalOpen(true)
               }}
+              onProductClick={(product) => {
+                if (!product.handle) return
+                setSelectedProduct({
+                  id: product.id,
+                  type: 'product',
+                  title: product.title ?? '',
+                  imageUrl: product.imageUrl ?? '',
+                  price: product.price,
+                  category: product.category,
+                  createdAt: product.createdAt ?? new Date().toISOString(),
+                  handle: product.handle,
+                  likesCount: product.likesCount,
+                  isLiked: product.isLiked,
+                } as FeedItemDTO)
+                setIsProductModalOpen(true)
+              }}
             />
             <FeedInfiniteScroll
               hasMore={currentHasMore && !!currentNextCursorToken}
@@ -379,10 +402,20 @@ export default function FeedPage() {
         }}
       />
 
+      <ProductModal
+        isOpen={isProductModalOpen}
+        product={selectedProduct}
+        onClose={() => {
+          setIsProductModalOpen(false)
+          setSelectedProduct(null)
+        }}
+      />
+
       <FeedCategoriesMobileModal
         open={categoriesModalOpen}
         onClose={() => setCategoriesModalOpen(false)}
         categories={categories}
+        selectedCategoryId={selectedCategoryId}
         onPickCategory={(categoryId) => setSelectedCategoryId(categoryId)}
       />
     </div>
