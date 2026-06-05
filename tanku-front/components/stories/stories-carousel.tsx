@@ -1,10 +1,10 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
 import { useStories, type StoryDTO } from '@/lib/hooks/use-stories'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { prefetchWishlistStoryProducts } from '@/lib/stories/wishlist-story-product'
 import { StoryViewer } from './story-viewer'
 import { CreateStoryModal } from './create-story-modal'
 
@@ -15,8 +15,6 @@ interface StoriesCarouselProps {
   explorarActivated?: boolean
   /** Feed: al hacer scroll se oculta la franja (y en móvil también el chip «Tu historia» + publicar). */
   showStoriesStrip?: boolean
-  /** Desktop feed nav: redirige a sugerencias en /friends en lugar de abrir historias */
-  friendsSuggestionsHref?: string
 }
 
 /**
@@ -32,9 +30,7 @@ export function StoriesCarousel({
   stories: customStories,
   explorarActivated,
   showStoriesStrip = true,
-  friendsSuggestionsHref,
 }: StoriesCarouselProps) {
-  const router = useRouter()
   const { feedStories, fetchFeedStories, isLoading } = useStories()
   const { user } = useAuthStore()
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
@@ -98,16 +94,21 @@ export function StoriesCarousel({
     }
   }, [fetchFeedStories, hasPrefetchedStories])
 
+  /** Precargar productos de historias wishlist visibles en el carrusel */
+  useEffect(() => {
+    if (storiesToUse.length > 0) {
+      prefetchWishlistStoryProducts(storiesToUse)
+    }
+  }, [storiesToUse])
+
   const handleStoryClick = (userId: string) => {
+    const userStories = storiesToUse.filter((s) => s.userId === userId)
+    if (userStories.length > 0) {
+      prefetchWishlistStoryProducts(userStories)
+    }
     setSelectedUserId(userId)
     setIsViewerOpen(true)
   }
-
-  const handleDesktopRedirect = useCallback(() => {
-    if (friendsSuggestionsHref) {
-      router.push(friendsSuggestionsHref)
-    }
-  }, [friendsSuggestionsHref, router])
 
   const handleCloseViewer = () => {
     setIsViewerOpen(false)
@@ -124,7 +125,6 @@ export function StoriesCarousel({
     author: StoryDTO['author'] | undefined,
     hasNewStories: boolean,
     label: string,
-    redirectOnClick?: () => void
   ) => {
     const avatar = author?.avatar || '/default-avatar.png'
     const isCurrentUser = userId === user?.id
@@ -135,7 +135,7 @@ export function StoriesCarousel({
       <button
         key={`${userId}-avatar`}
         type="button"
-        onClick={() => (redirectOnClick ? redirectOnClick() : handleStoryClick(userId))}
+        onClick={() => handleStoryClick(userId)}
         className="flex shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5"
       >
         <div className="relative">
@@ -308,6 +308,7 @@ export function StoriesCarousel({
             isOpen={isViewerOpen}
             onClose={handleCloseViewer}
             onStoryDeleted={() => fetchFeedStories()}
+            seedStories={storiesToUse}
           />
         )}
       </>
@@ -331,7 +332,6 @@ export function StoriesCarousel({
             author,
             hasNewStories,
             userId === user?.id ? 'Tu historia' : author?.firstName || 'Usuario',
-            friendsSuggestionsHref ? handleDesktopRedirect : undefined
           )
         )}
       </div>
@@ -343,6 +343,7 @@ export function StoriesCarousel({
           isOpen={isViewerOpen}
           onClose={handleCloseViewer}
           onStoryDeleted={() => fetchFeedStories()}
+          seedStories={storiesToUse}
         />
       )}
 

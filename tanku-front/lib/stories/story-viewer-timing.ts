@@ -64,6 +64,21 @@ export function storyMediaDurationMs(
   return Math.min(Math.max(raw, STORY_VIDEO_MIN_MS), STORY_VIDEO_MAX_MS)
 }
 
+/** Agrupa historias del feed por usuario (caché del visor) */
+export function groupPlayableStoriesByUser(stories: StoryDTO[]): Map<string, StoryDTO[]> {
+  const map = new Map<string, StoryDTO[]>()
+  for (const story of filterPlayableStories(stories)) {
+    const uid = story.userId
+    const list = map.get(uid) ?? []
+    if (!list.some((s) => s.id === story.id)) list.push(story)
+    map.set(uid, list)
+  }
+  for (const [uid, list] of map) {
+    map.set(uid, sortStoriesForPlayback(list))
+  }
+  return map
+}
+
 export function getStoryViewerPrefersMuted(): boolean {
   if (typeof window === 'undefined') return true
   return false

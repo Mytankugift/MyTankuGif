@@ -1,37 +1,57 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useStories, type StoryDTO } from '@/lib/hooks/use-stories'
-import { apiClient } from '@/lib/api/client'
-import { API_ENDPOINTS } from '@/lib/api/endpoints'
-import { useAuthStore } from '@/lib/stores/auth-store'
-import { fetchProductByHandle } from '@/lib/hooks/use-product'
-import { isAgeRestrictedApiError, type ApiErrorWithCode } from '@/lib/api/error-codes'
+import type { StoryDTO } from '@/lib/hooks/use-stories'
+import {
+  getCachedWishlistStoryProduct,
+  resolveWishlistStoryProduct,
+  type WishlistStoryProduct,
+} from '@/lib/stories/wishlist-story-product'
 import { getProfileUrl } from '@/lib/utils/profile-url'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 
 interface WishlistStoryCardProps {
   story: StoryDTO
   onClose: () => void
+  /** El visor de historias espera esto antes de iniciar la barra de progreso */
+  onMediaReady?: () => void
 }
 
-export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
+export function WishlistStoryCard({ story, onClose, onMediaReady }: WishlistStoryCardProps) {
   const router = useRouter()
   const { user } = useAuthStore()
-  const [product, setProduct] = useState<any>(null)
+  const [product, setProduct] = useState<WishlistStoryProduct | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedVariant, setSelectedVariant] = useState<string | null>(story.variantId || null)
   const [imageError, setImageError] = useState(false)
+  const mediaReadySentRef = useRef(false)
+
+  const notifyMediaReady = useCallback(() => {
+    if (mediaReadySentRef.current) return
+    mediaReadySentRef.current = true
+    onMediaReady?.()
+  }, [onMediaReady])
 
   useEffect(() => {
-    if (story.productId) {
-      loadProduct()
-    } else {
-      setIsLoading(false)
-    }
-  }, [story.productId, story.productHandle])
+    mediaReadySentRef.current = false
+    setImageError(false)
+    setIsLoading(true)
+    setProduct(null)
+  }, [story.id])
+
+  const applyProduct = useCallback(
+    (loaded: WishlistStoryProduct) => {
+      setProduct(loaded)
+      if (story.variantId) {
+        setSelectedVariant(story.variantId)
+      } else if (loaded.variants && loaded.variants.length > 0) {
+        setSelectedVariant(loaded.variants[0].id)
+      }
+    },
+    [story.variantId]
+  )
 
   const loadProduct = async () => {
     if (!story.productId) {
@@ -39,80 +59,51 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
       return
     }
 
+    const cached = getCachedWishlistStoryProduct(story.id)
+    if (cached) {
+      applyProduct(cached)
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
     try {
-      // Si tenemos el handle, usarlo directamente
-      if (story.productHandle) {
-        const fullProduct = await fetchProductByHandle(story.productHandle)
-        if (fullProduct) {
-          setProduct(fullProduct)
-          if (story.variantId) {
-            setSelectedVariant(story.variantId)
-          } else if (fullProduct.variants && fullProduct.variants.length > 0) {
-            setSelectedVariant(fullProduct.variants[0].id)
-          }
-          setIsLoading(false)
-          return
-        }
-      }
-
-      // Intentar obtener el producto por ID
-      try {
-        const response = await apiClient.get<any>(`/api/v1/products/${story.productId}`)
-        if (response.success && response.data) {
-          const foundProduct = response.data
-          if (foundProduct.handle) {
-            const fullProduct = await fetchProductByHandle(foundProduct.handle)
-            if (fullProduct) {
-              setProduct(fullProduct)
-              if (story.variantId) {
-                setSelectedVariant(story.variantId)
-              } else if (fullProduct.variants && fullProduct.variants.length > 0) {
-                setSelectedVariant(fullProduct.variants[0].id)
-              }
-              setIsLoading(false)
-              return
-            }
-          }
-        }
-      } catch (error) {
-        console.log('No se pudo obtener producto completo, usando información de la story')
-      }
-
-      // Fallback: usar información de la story
-      const storyImage = story.files[0]?.fileUrl
-      if (storyImage) {
-        setProduct({
-          id: story.productId,
-          title: story.title || story.description?.replace(' agregado a tu wishlist', '') || 'Producto',
-          images: [storyImage],
-          variants: story.variantId
-            ? [
-                {
-                  id: story.variantId,
-                  price: 0,
-                  title: 'Variante',
-                },
-              ]
-            : [],
-        })
-        setSelectedVariant(story.variantId || null)
+      const loaded = await resolveWishlistStoryProduct(story)
+      if (loaded) {
+        applyProduct(loaded)
       }
     } catch (error) {
-      if (isAgeRestrictedApiError(error) && (error as ApiErrorWithCode).teaser) {
-        const teaser = (error as ApiErrorWithCode).teaser!
-        setProduct(teaser)
-        if (story.variantId) {
-          setSelectedVariant(story.variantId)
-        } else if (teaser.variants?.length) {
-          setSelectedVariant(teaser.variants[0].id)
-        }
-      } else {
-        console.error('Error cargando producto:', error)
-      }
+      console.error('Error cargando producto:', error)
     } finally {
       setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (story.productId) {
+      void loadProduct()
+    } else {
+      setIsLoading(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recargar al cambiar story/producto
+  }, [story.id, story.productId, story.productHandle])
+
+  const productImage =
+    product?.images && product.images.length > 0 ? product.images[0] : story.files[0]?.fileUrl
+
+  /** Sin imagen que cargar → listo en cuanto hay datos del producto */
+  useEffect(() => {
+    if (isLoading || !product) return
+    if (!productImage || imageError) {
+      notifyMediaReady()
+    }
+  }, [isLoading, product, productImage, imageError, notifyMediaReady])
+
+  useEffect(() => {
+    if (!isLoading && !product && story.productId) {
+      notifyMediaReady()
+    }
+  }, [isLoading, product, story.productId, notifyMediaReady])
 
   const handleRegalarTanku = () => {
     if (!selectedVariant || !story.wishlistId) return
@@ -153,12 +144,13 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
   if (isLoading || !product) {
     return (
       <div className="relative w-full max-w-sm h-full max-h-[600px] flex items-center justify-center bg-[#2C3137] rounded-[25px]">
-        <div className="text-white">Cargando producto...</div>
+        <div className="text-white">
+          {isLoading ? 'Cargando producto...' : 'No se pudo cargar el producto'}
+        </div>
       </div>
     )
   }
 
-  const productImage = product?.images && product.images.length > 0 ? product.images[0] : story.files[0]?.fileUrl
   const variant = product?.variants?.find((v: any) => v.id === selectedVariant)
   const price = variant?.price || variant?.tankuPrice || product?.price || 0
   const productTitle = product?.title || story.title || story.description?.replace(' agregado a tu wishlist', '') || 'Producto'
@@ -204,9 +196,11 @@ export function WishlistStoryCard({ story, onClose }: WishlistStoryCardProps) {
               unoptimized={
                 isRemoteImageSrc(productImage) || productImage?.includes('.gif') === true
               }
+              onLoad={() => notifyMediaReady()}
               onError={() => {
                 console.warn('[WishlistStoryCard] Error cargando imagen:', productImage)
                 setImageError(true)
+                notifyMediaReady()
               }}
             />
           ) : (

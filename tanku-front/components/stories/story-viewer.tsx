@@ -11,12 +11,14 @@ import { WishlistStoryCard } from './wishlist-story-card'
 import {
   filterPlayableStories,
   getStoryPrimaryFile,
+  groupPlayableStoriesByUser,
   isStoryVideoFileType,
   isWishlistStoryItem,
   sortStoriesForPlayback,
   storyMediaDurationMs,
   getStoryViewerPrefersMuted,
 } from '@/lib/stories/story-viewer-timing'
+import { prefetchWishlistStoryProduct } from '@/lib/stories/wishlist-story-product'
 
 interface StoryViewerProps {
   userId: string
@@ -24,6 +26,17 @@ interface StoryViewerProps {
   isOpen: boolean
   onClose: () => void
   onStoryDeleted?: () => void
+  /** Historias ya cargadas en el feed — caché instantánea al abrir */
+  seedStories?: StoryDTO[]
+}
+
+function mergeIntoCache(cache: Map<string, StoryDTO[]>, stories: StoryDTO[]) {
+  for (const [uid, list] of groupPlayableStoriesByUser(stories)) {
+    const existing = cache.get(uid) ?? []
+    const byId = new Map(existing.map((s) => [s.id, s]))
+    for (const s of list) byId.set(s.id, s)
+    cache.set(uid, sortStoriesForPlayback([...byId.values()]))
+  }
 }
 
 export function StoryViewer({
@@ -32,6 +45,7 @@ export function StoryViewer({
   isOpen,
   onClose,
   onStoryDeleted,
+  seedStories,
 }: StoryViewerProps) {
   const { user } = useAuthStore()
   const prefersMuted = getStoryViewerPrefersMuted()
@@ -39,14 +53,17 @@ export function StoryViewer({
   const [stories, setStories] = useState<StoryDTO[]>([])
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
-  const [mediaDurationMs, setMediaDurationMs] = useState(5000)
-  const [durationReady, setDurationReady] = useState(false)
-  const [progressPercent, setProgressPercent] = useState(0)
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [mediaReady, setMediaReady] = useState(false)
+  const [videoDurationMs, setVideoDurationMs] = useState<number | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const pendingLastStoryRef = useRef(false)
   const loadGenerationRef = useRef(0)
   const emptySkipCountRef = useRef(0)
+  const storiesCacheRef = useRef<Map<string, StoryDTO[]>>(new Map())
+  const activeProgressRef = useRef<HTMLDivElement | null>(null)
+  const playbackSessionRef = useRef(0)
+  const advancingRef = useRef(false)
+  const nextStoryRef = useRef<(manual?: boolean) => void>(() => {})
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -66,6 +83,12 @@ export function StoryViewer({
   }, [currentUserId])
 
   useEffect(() => {
+    if (seedStories?.length) {
+      mergeIntoCache(storiesCacheRef.current, seedStories)
+    }
+  }, [seedStories])
+
+  useEffect(() => {
     if (!menuOpen) return
     const close = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -80,11 +103,16 @@ export function StoryViewer({
     if (isOpen) {
       setCurrentUserId(userId)
       setCurrentStoryIndex(0)
-      setProgressPercent(0)
-      setStories([])
-      setIsLoading(true)
       pendingLastStoryRef.current = false
       emptySkipCountRef.current = 0
+      const cached = storiesCacheRef.current.get(userId)
+      if (cached?.length) {
+        setStories(cached)
+        setIsLoading(false)
+      } else {
+        setStories([])
+        setIsLoading(true)
+      }
     }
   }, [isOpen, userId])
 
@@ -93,58 +121,97 @@ export function StoryViewer({
     userQueueRef.current = userQueue
   }, [userQueue])
 
-  const loadStories = useCallback(async () => {
-    if (!currentUserId) return
-    const targetUserId = currentUserId
-    const generation = ++loadGenerationRef.current
-    setIsLoading(true)
-    try {
-      const response = await apiClient.get<StoryDTO[]>(
-        API_ENDPOINTS.STORIES.BY_USER(targetUserId)
-      )
-      if (generation !== loadGenerationRef.current) return
+  const fetchUserStories = useCallback(
+    async (targetUserId: string, options?: { background?: boolean }) => {
+      if (!targetUserId) return
+      const background = options?.background ?? false
+      const generation = ++loadGenerationRef.current
 
-      const playable = sortStoriesForPlayback(
-        filterPlayableStories(response.success && response.data ? response.data : [])
-      )
-
-      if (playable.length === 0) {
-        const queue = userQueueRef.current
-        const idx = queue.indexOf(targetUserId)
-        if (idx >= 0 && idx < queue.length - 1) {
-          emptySkipCountRef.current += 1
-          if (emptySkipCountRef.current <= queue.length) {
-            setStories([])
-            setCurrentUserId(queue[idx + 1]!)
-            return
-          }
+      if (!background) {
+        const cached = storiesCacheRef.current.get(targetUserId)
+        if (cached?.length && targetUserId === currentUserIdRef.current) {
+          setStories(cached)
+          setIsLoading(false)
+        } else if (!cached?.length) {
+          setIsLoading(true)
         }
-        setStories([])
-        onClose()
-        return
       }
 
-      setStories(playable)
-      emptySkipCountRef.current = 0
-      if (!pendingLastStoryRef.current) {
-        setCurrentStoryIndex(0)
+      try {
+        const response = await apiClient.get<StoryDTO[]>(
+          API_ENDPOINTS.STORIES.BY_USER(targetUserId)
+        )
+        if (generation !== loadGenerationRef.current) return
+
+        const playable = sortStoriesForPlayback(
+          filterPlayableStories(response.success && response.data ? response.data : [])
+        )
+
+        if (playable.length === 0) {
+          storiesCacheRef.current.delete(targetUserId)
+          if (targetUserId !== currentUserIdRef.current) return
+
+          const queue = userQueueRef.current
+          const idx = queue.indexOf(targetUserId)
+          if (idx >= 0 && idx < queue.length - 1) {
+            emptySkipCountRef.current += 1
+            if (emptySkipCountRef.current <= queue.length) {
+              setStories([])
+              setCurrentUserId(queue[idx + 1]!)
+              return
+            }
+          }
+          setStories([])
+          onClose()
+          return
+        }
+
+        storiesCacheRef.current.set(targetUserId, playable)
+        emptySkipCountRef.current = 0
+
+        if (targetUserId === currentUserIdRef.current) {
+          setStories(playable)
+          setCurrentStoryIndex((prev) =>
+            pendingLastStoryRef.current
+              ? prev
+              : Math.min(prev, Math.max(0, playable.length - 1))
+          )
+        }
+      } catch (error) {
+        if (generation !== loadGenerationRef.current) return
+        console.error('Error cargando stories:', error)
+        if (targetUserId === currentUserIdRef.current) {
+          setStories([])
+        }
+      } finally {
+        if (
+          generation === loadGenerationRef.current &&
+          !background &&
+          targetUserId === currentUserIdRef.current
+        ) {
+          setIsLoading(false)
+        }
       }
-    } catch (error) {
-      if (generation !== loadGenerationRef.current) return
-      console.error('Error cargando stories:', error)
-      setStories([])
-    } finally {
-      if (generation === loadGenerationRef.current) {
-        setIsLoading(false)
-      }
-    }
-  }, [currentUserId, onClose])
+    },
+    [onClose]
+  )
 
   useEffect(() => {
     if (isOpen && currentUserId) {
-      void loadStories()
+      void fetchUserStories(currentUserId)
     }
-  }, [isOpen, currentUserId, loadStories])
+  }, [isOpen, currentUserId, fetchUserStories])
+
+  useEffect(() => {
+    if (!isOpen || !currentUserId) return
+    const idx = userQueue.indexOf(currentUserId)
+    const neighbors = [userQueue[idx + 1], userQueue[idx - 1]].filter(Boolean) as string[]
+    for (const neighborId of neighbors) {
+      if (!storiesCacheRef.current.get(neighborId)?.length) {
+        void fetchUserStories(neighborId, { background: true })
+      }
+    }
+  }, [isOpen, currentUserId, userQueue, fetchUserStories])
 
   useEffect(() => {
     if (pendingLastStoryRef.current && stories.length > 0 && !isLoading) {
@@ -165,186 +232,241 @@ export function StoryViewer({
     !isWishlistStory &&
     isStoryVideoFileType(currentFile.fileType)
 
+  const mediaDurationMs = useMemo(() => {
+    if (!currentStory) return 5000
+    if (isWishlistStory) return storyMediaDurationMs('image', null)
+    if (!currentFile) return 5000
+    if (isVideoStory && videoDurationMs != null) return videoDurationMs
+    return storyMediaDurationMs(currentFile.fileType, currentFile.duration)
+  }, [currentStory, currentFile, isWishlistStory, isVideoStory, videoDurationMs])
+
+  const durationReady = useMemo(() => {
+    if (!currentStory) return false
+    if (isWishlistStory) return true
+    if (!currentFile) return false
+    if (!isVideoStory) return true
+    if (currentFile.duration != null && currentFile.duration > 0) return true
+    return videoDurationMs != null
+  }, [currentStory, currentFile, isWishlistStory, isVideoStory, videoDurationMs])
+
   const queueIndex = userQueue.indexOf(currentUserId)
   const canGoPrev = currentStoryIndex > 0 || queueIndex > 0
+
+  useEffect(() => {
+    setMediaReady(false)
+    setVideoDurationMs(null)
+    advancingRef.current = false
+    if (activeProgressRef.current) {
+      activeProgressRef.current.style.transform = 'scaleX(0)'
+    }
+  }, [currentStory?.id, currentFile?.fileUrl])
+
+  const stopPlayback = useCallback(() => {
+    playbackSessionRef.current += 1
+  }, [])
+
+  const safeAdvance = useCallback(() => {
+    if (advancingRef.current) return
+    advancingRef.current = true
+    stopPlayback()
+    nextStoryRef.current()
+    window.setTimeout(() => {
+      advancingRef.current = false
+    }, 100)
+  }, [stopPlayback])
 
   const goToNextUser = useCallback(() => {
     const idx = userQueue.indexOf(currentUserIdRef.current)
     if (idx >= 0 && idx < userQueue.length - 1) {
-      setProgressPercent(0)
-      setStories([])
-      setIsLoading(true)
-      setCurrentUserId(userQueue[idx + 1]!)
-      setCurrentStoryIndex(0)
+      const nextId = userQueue[idx + 1]!
+      const cached = storiesCacheRef.current.get(nextId)
+      stopPlayback()
       pendingLastStoryRef.current = false
+      setCurrentUserId(nextId)
+      setCurrentStoryIndex(0)
+      if (cached?.length) {
+        setStories(cached)
+        setIsLoading(false)
+      } else {
+        setStories([])
+        setIsLoading(true)
+      }
       return true
     }
     onClose()
     return false
-  }, [userQueue, onClose])
+  }, [userQueue, onClose, stopPlayback])
 
   const goToPrevUser = useCallback(() => {
     const idx = userQueue.indexOf(currentUserIdRef.current)
     if (idx > 0) {
+      const prevId = userQueue[idx - 1]!
+      const cached = storiesCacheRef.current.get(prevId)
+      stopPlayback()
       pendingLastStoryRef.current = true
-      setProgressPercent(0)
-      setStories([])
-      setIsLoading(true)
-      setCurrentUserId(userQueue[idx - 1]!)
+      setCurrentUserId(prevId)
       setCurrentStoryIndex(0)
+      if (cached?.length) {
+        setStories(cached)
+        setIsLoading(false)
+      } else {
+        setStories([])
+        setIsLoading(true)
+      }
       return true
     }
     return false
-  }, [userQueue])
+  }, [userQueue, stopPlayback])
 
-  const lastAdvanceAtRef = useRef(0)
+  const nextStory = useCallback(
+    (manual = false) => {
+      if (manual) {
+        stopPlayback()
+      }
+      const idx = currentStoryIndexRef.current
+      const list = storiesRef.current
+      if (idx < list.length - 1) {
+        setCurrentStoryIndex(idx + 1)
+      } else {
+        goToNextUser()
+      }
+    },
+    [goToNextUser, stopPlayback]
+  )
 
-  const nextStory = useCallback(() => {
-    const now = Date.now()
-    if (now - lastAdvanceAtRef.current < 400) return
-    lastAdvanceAtRef.current = now
-
-    setProgressPercent(0)
-    const idx = currentStoryIndexRef.current
-    const list = storiesRef.current
-    if (idx < list.length - 1) {
-      setCurrentStoryIndex(idx + 1)
-    } else {
-      goToNextUser()
-    }
-  }, [goToNextUser])
+  useEffect(() => {
+    nextStoryRef.current = nextStory
+  }, [nextStory])
 
   const prevStory = useCallback(() => {
-    setProgressPercent(0)
+    stopPlayback()
     const idx = currentStoryIndexRef.current
     if (idx > 0) {
       setCurrentStoryIndex(idx - 1)
     } else {
       goToPrevUser()
     }
-  }, [goToPrevUser])
-
-  const nextStoryRef = useRef(nextStory)
-  useEffect(() => {
-    nextStoryRef.current = nextStory
-  }, [nextStory])
-
-  useEffect(() => {
-    setProgressPercent(0)
-    if (!isOpen || !currentStory) {
-      setDurationReady(false)
-      return
-    }
-
-    if (isWishlistStory) {
-      setMediaDurationMs(storyMediaDurationMs('image', null))
-      setDurationReady(true)
-      return
-    }
-
-    if (!currentFile) {
-      setDurationReady(false)
-      return
-    }
-
-    if (!isVideoStory) {
-      setMediaDurationMs(storyMediaDurationMs(currentFile.fileType, currentFile.duration))
-      setDurationReady(true)
-      return
-    }
-
-    if (currentFile.duration && currentFile.duration > 0) {
-      setMediaDurationMs(
-        storyMediaDurationMs(currentFile.fileType, currentFile.duration)
-      )
-      setDurationReady(true)
-      return
-    }
-
-    setDurationReady(false)
-  }, [
-    isOpen,
-    currentStory?.id,
-    currentFile?.id,
-    currentFile?.fileUrl,
-    isWishlistStory,
-    isVideoStory,
-  ])
+  }, [goToPrevUser, stopPlayback])
 
   const handleVideoLoadedMetadata = useCallback(() => {
     const video = videoRef.current
     if (!video || !currentFile) return
-    setMediaDurationMs(
+    setVideoDurationMs(
       storyMediaDurationMs(currentFile.fileType, currentFile.duration, video.duration)
     )
-    setDurationReady(true)
     video.muted = prefersMuted
-    if (!prefersMuted) {
-      video.volume = 1
-    }
+    if (!prefersMuted) video.volume = 1
     void video.play().catch(() => {})
   }, [currentFile, prefersMuted])
 
+  const handleVideoCanPlay = useCallback(() => {
+    setMediaReady(true)
+  }, [])
+
+  const handleWishlistMediaReady = useCallback(() => {
+    setMediaReady(true)
+  }, [])
+
+  /** Progreso sincronizado: rAF + transform (sin CSS animation ni doble avance) */
   useEffect(() => {
-    const video = videoRef.current
-    if (!video || !isVideoStory) return
+    if (!isOpen || !currentStory || !durationReady || !mediaReady) return
 
-    const onTimeUpdate = () => {
-      if (!video.duration || !Number.isFinite(video.duration)) return
-      setProgressPercent(Math.min((video.currentTime / video.duration) * 100, 100))
+    const session = ++playbackSessionRef.current
+    const storyId = currentStory.id
+
+    const setProgress = (ratio: number) => {
+      if (session !== playbackSessionRef.current) return
+      const el = activeProgressRef.current
+      if (el) el.style.transform = `scaleX(${Math.min(Math.max(ratio, 0), 1)})`
     }
 
-    const onEnded = () => {
-      nextStoryRef.current()
+    if (isVideoStory) {
+      const video = videoRef.current
+      if (!video) return
+
+      let rafId = 0
+      const tick = () => {
+        if (session !== playbackSessionRef.current) return
+        if (storiesRef.current[currentStoryIndexRef.current]?.id !== storyId) return
+
+        const dur = video.duration
+        if (dur && Number.isFinite(dur) && dur > 0) {
+          setProgress(video.currentTime / dur)
+        }
+
+        if (video.ended) {
+          setProgress(1)
+          safeAdvance()
+          return
+        }
+
+        rafId = requestAnimationFrame(tick)
+      }
+
+      rafId = requestAnimationFrame(tick)
+
+      return () => {
+        cancelAnimationFrame(rafId)
+      }
     }
 
-    video.addEventListener('timeupdate', onTimeUpdate)
-    video.addEventListener('ended', onEnded)
-    return () => {
-      video.removeEventListener('timeupdate', onTimeUpdate)
-      video.removeEventListener('ended', onEnded)
-    }
-  }, [isVideoStory, currentStory?.id, currentFile?.fileUrl])
+    const duration = mediaDurationMs
+    const start = performance.now()
+    let rafId = 0
 
-  /** Timer solo para imagen / wishlist — los videos avanzan con `ended` */
+    const tick = (now: number) => {
+      if (session !== playbackSessionRef.current) return
+      if (storiesRef.current[currentStoryIndexRef.current]?.id !== storyId) return
+
+      const ratio = (now - start) / duration
+      setProgress(ratio)
+
+      if (ratio >= 1) {
+        setProgress(1)
+        safeAdvance()
+        return
+      }
+
+      rafId = requestAnimationFrame(tick)
+    }
+
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [
+    isOpen,
+    currentStory?.id,
+    durationReady,
+    mediaReady,
+    mediaDurationMs,
+    isVideoStory,
+    safeAdvance,
+  ])
+
+  /** Precargar la siguiente historia (media + producto wishlist) */
   useEffect(() => {
-    if (!isOpen || !currentStory || stories.length === 0 || !durationReady || isVideoStory) {
+    const next = stories[currentStoryIndex + 1]
+    if (!next || typeof window === 'undefined') return
+
+    if (isWishlistStoryItem(next)) {
+      prefetchWishlistStoryProduct(next)
       return
     }
 
-    setProgressPercent(0)
-    const duration = mediaDurationMs
-    const startTime = Date.now()
+    const file = getStoryPrimaryFile(next)
+    if (!file?.fileUrl || isStoryVideoFileType(file.fileType)) return
+    const img = new window.Image()
+    img.src = file.fileUrl
+  }, [currentStoryIndex, stories])
 
-    const animate = () => {
-      const elapsed = Date.now() - startTime
-      const progress = Math.min((elapsed / duration) * 100, 100)
-      setProgressPercent(progress)
-
-      if (progress < 100) {
-        timeoutRef.current = setTimeout(animate, 16)
-      } else {
-        nextStoryRef.current()
+  /** Precargar productos wishlist del usuario actual al abrir su sesión */
+  useEffect(() => {
+    if (!isOpen || stories.length === 0) return
+    for (const story of stories) {
+      if (isWishlistStoryItem(story)) {
+        prefetchWishlistStoryProduct(story)
       }
     }
-
-    timeoutRef.current = setTimeout(animate, 16)
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
-    }
-  }, [
-    isOpen,
-    currentStoryIndex,
-    currentStory?.id,
-    stories.length,
-    durationReady,
-    mediaDurationMs,
-    currentUserId,
-    isVideoStory,
-  ])
+  }, [isOpen, stories])
 
   const isViewingOwnStories = Boolean(user?.id && user.id === currentUserId)
 
@@ -359,6 +481,7 @@ export function StoryViewer({
       const i = currentStoryIndex
       const next = stories.filter((s) => s.id !== currentStory.id)
       setStories(next)
+      storiesCacheRef.current.set(currentUserId, next)
       onStoryDeleted?.()
       if (next.length === 0) {
         goToNextUser()
@@ -376,7 +499,7 @@ export function StoryViewer({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
-        nextStory()
+        nextStory(true)
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         prevStory()
@@ -392,16 +515,18 @@ export function StoryViewer({
   if (!isOpen) return null
 
   const viewerZ = 'z-[1000001]'
+  const showShell = stories.length > 0 && currentStory && (isWishlistStory || currentFile)
+  const showInitialLoad = isLoading && !showShell
 
   const modalContent = (
     <>
-      {isLoading ? (
+      {showInitialLoad ? (
         <div
           className={`fixed inset-0 ${viewerZ} flex min-h-[100dvh] items-center justify-center bg-black/90`}
         >
           <div className="text-white">Cargando historias...</div>
         </div>
-      ) : !currentStory || (!isWishlistStory && !currentFile) ? (
+      ) : !showShell ? (
         <div
           className={`fixed inset-0 ${viewerZ} flex min-h-[100dvh] items-center justify-center bg-black/90`}
         >
@@ -437,17 +562,15 @@ export function StoryViewer({
                 key={story.id}
                 className="h-0.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/25"
               >
-                <div
-                  className="h-full bg-gradient-to-r from-[#73FFA2] to-[#66DEDB] transition-[width] duration-75 ease-linear"
-                  style={{
-                    width:
-                      index < currentStoryIndex
-                        ? '100%'
-                        : index === currentStoryIndex
-                          ? `${progressPercent}%`
-                          : '0%',
-                  }}
-                />
+                {index < currentStoryIndex ? (
+                  <div className="h-full w-full bg-gradient-to-r from-[#73FFA2] to-[#66DEDB]" />
+                ) : index === currentStoryIndex ? (
+                  <div
+                    ref={activeProgressRef}
+                    className="h-full w-full origin-left bg-gradient-to-r from-[#73FFA2] to-[#66DEDB]"
+                    style={{ transform: 'scaleX(0)' }}
+                  />
+                ) : null}
               </div>
             ))}
           </div>
@@ -554,19 +677,32 @@ export function StoryViewer({
               className="relative flex h-[100dvh] w-[100vw] max-h-[100dvh] max-w-full items-center justify-center md:h-[100vh] md:max-h-none"
               onClick={(e) => e.stopPropagation()}
             >
+              {isLoading && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#73FFA2] border-t-transparent" />
+                </div>
+              )}
               {isWishlistStory ? (
                 <div className="flex h-full max-h-[100dvh] w-full max-w-full items-center justify-center p-4 md:max-h-[600px] md:max-w-[380px]">
-                  <WishlistStoryCard story={currentStory} onClose={onClose} />
+                  <WishlistStoryCard
+                    story={currentStory}
+                    onClose={onClose}
+                    onMediaReady={handleWishlistMediaReady}
+                  />
                 </div>
               ) : (
                 <div className="relative flex h-full max-h-[100dvh] w-full max-w-[100vw] items-center justify-center md:max-h-[90vh] md:max-w-[90vw]">
                   {!isVideoStory && currentFile ? (
                     <Image
+                      key={`${currentStory.id}-${currentFile.id}`}
                       src={currentFile.fileUrl}
                       alt={currentStory.title}
                       fill
+                      priority
                       className="object-contain"
                       unoptimized
+                      onLoad={() => setMediaReady(true)}
+                      onError={() => setMediaReady(true)}
                     />
                   ) : currentFile ? (
                     <video
@@ -576,8 +712,10 @@ export function StoryViewer({
                       autoPlay
                       playsInline
                       muted={prefersMuted}
+                      preload="auto"
                       className="max-h-[100dvh] max-w-[100vw] object-contain md:max-h-[90vh] md:max-w-[90vw]"
                       onLoadedMetadata={handleVideoLoadedMetadata}
+                      onCanPlay={handleVideoCanPlay}
                     />
                   ) : null}
                 </div>
@@ -587,7 +725,7 @@ export function StoryViewer({
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                nextStory()
+                nextStory(true)
               }}
               className="absolute right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
               aria-label="Siguiente historia"

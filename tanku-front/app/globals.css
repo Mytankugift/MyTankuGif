@@ -478,6 +478,22 @@ html, body {
   animation: tanku-modal-to-top 0.38s cubic-bezier(0.4, 0, 1, 0.58) forwards;
 }
 
+/** Barra de progreso del visor de historias (GPU, sin saltos por width) */
+@keyframes tanku-story-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.tanku-story-progress-bar {
+  transform-origin: left center;
+  will-change: transform;
+  animation: tanku-story-progress linear forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-tanku-modal-from-top {
     animation: none;
@@ -491,4 +507,8 @@ html, body {
     transform: translateY(-100%);
   }
 
+  .tanku-story-progress-bar {
+    animation: none;
+    transform: scaleX(1);
+  }
 }
