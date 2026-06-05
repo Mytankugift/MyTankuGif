@@ -8,6 +8,48 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { OrderDTO } from '@/types/api'
 
+const PAID_STATUSES = new Set(['paid', 'captured'])
+const PENDING_PAYMENT_STATUSES = new Set(['awaiting', 'pending', 'not_paid'])
+const FAILED_PAYMENT_STATUSES = new Set(['cancelled', 'failed', 'declined'])
+
+function isNumericEpaycoRef(value: string): boolean {
+  return /^\d+$/.test(value.trim())
+}
+
+function applyOrderResult(
+  order: OrderDTO,
+  setters: {
+    setOrderId: (v: string) => void
+    setOrderRef: (v: string | null) => void
+    setPaymentStatus: (v: 'success' | 'pending' | 'failed') => void
+    setErrorMessage: (v: string | null) => void
+    setIsLoading: (v: boolean) => void
+  }
+): 'paid' | 'pending' | 'failed' {
+  setters.setOrderId(order.id)
+  setters.setOrderRef(order.ref ?? null)
+
+  if (PAID_STATUSES.has(order.paymentStatus)) {
+    setters.setPaymentStatus('success')
+    setters.setErrorMessage(null)
+    setters.setIsLoading(false)
+    return 'paid'
+  }
+
+  if (FAILED_PAYMENT_STATUSES.has(order.paymentStatus)) {
+    setters.setPaymentStatus('failed')
+    setters.setErrorMessage('El pago no fue confirmado. Revisa tu método de pago o intenta de nuevo.')
+    setters.setIsLoading(false)
+    return 'failed'
+  }
+
+  if (PENDING_PAYMENT_STATUSES.has(order.paymentStatus)) {
+    return 'pending'
+  }
+
+  return 'pending'
+}
+
 function CheckoutSuccessContent() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
@@ -15,19 +57,19 @@ function CheckoutSuccessContent() {
   const [refPayco, setRefPayco] = useState<string | null>(null)
   const [cartId, setCartId] = useState<string | null>(null)
   const [orderId, setOrderId] = useState<string | null>(null)
+  const [orderRef, setOrderRef] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    // Obtener parámetros de la URL directamente desde window.location para evitar problemas de prerenderizado
     if (typeof window === 'undefined') return
-    
+
     const urlParams = new URLSearchParams(window.location.search)
     const refPaycoParam = urlParams.get('ref_payco')
     const cartIdParam = urlParams.get('cartId')
     const orderIdParam = urlParams.get('orderId')
+    const orderRefParam = urlParams.get('orderRef')
 
-    // Si viene solo con orderId (contra entrega), redirigir a perfil
-    if (orderIdParam && !refPaycoParam) {
+    if (orderIdParam && !refPaycoParam && !orderRefParam && !cartIdParam) {
       router.push(`/profile?tab=MIS_TANKUS&orderId=${orderIdParam}`)
       return
     }
@@ -35,216 +77,216 @@ function CheckoutSuccessContent() {
     setRefPayco(refPaycoParam)
     setCartId(cartIdParam)
 
-    if (refPaycoParam) {
-      // Consultar el estado de la transacción usando ref_payco (ePayco)
-      verifyPaymentStatus(refPaycoParam, cartIdParam)
-    } else if (cartIdParam) {
-      // Si no hay ref_payco, verificar por cartId
-      checkOrderStatus(cartIdParam)
-    } else {
-      // Si no hay parámetros de Epayco, redirigir al perfil
-      router.push('/profile?tab=MIS_TANKUS')
+    const setters = {
+      setOrderId,
+      setOrderRef,
+      setPaymentStatus,
+      setErrorMessage,
+      setIsLoading,
     }
+
+    const tankuOrderKey = orderRefParam || orderIdParam
+
+    if (tankuOrderKey) {
+      void pollOrderByKey(tankuOrderKey, setters)
+      return
+    }
+
+    if (cartIdParam) {
+      void pollOrderByCartId(cartIdParam, setters)
+      return
+    }
+
+    if (refPaycoParam && isNumericEpaycoRef(refPaycoParam)) {
+      void verifyViaEpaycoApi(refPaycoParam, setters)
+      return
+    }
+
+    if (refPaycoParam) {
+      setPaymentStatus('pending')
+      setErrorMessage(
+        'Tu pago está siendo confirmado. Revisa Mis pedidos en unos momentos.'
+      )
+      setIsLoading(false)
+      return
+    }
+
+    router.push('/profile?tab=MIS_TANKUS')
   }, [router])
 
-  const verifyPaymentStatus = async (refPayco: string, cartId: string | null) => {
+  const pollOrderByKey = async (
+    orderKey: string,
+    setters: Parameters<typeof applyOrderResult>[1],
+    retryCount = 0
+  ) => {
     try {
-      console.log('[CHECKOUT-SUCCESS] Verificando pago con ref_payco:', refPayco)
-      
-      // PASO 1: Verificar primero que el pago de Epayco fue exitoso
-      console.log('[CHECKOUT-SUCCESS] PASO 1: Verificando estado del pago en Epayco...')
-      const response = await fetch(
-        `https://secure.epayco.co/validation/v1/reference/${refPayco}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      )
+      const orderResponse = await apiClient.get<OrderDTO>(API_ENDPOINTS.ORDERS.BY_ID(orderKey))
 
-      if (!response.ok) {
-        throw new Error('Error al consultar el estado del pago en ePayco')
-      }
-
-      const data = await response.json()
-      console.log('[CHECKOUT-SUCCESS] Datos de ePayco:', data)
-
-      // Extraer transaction_id de la respuesta de ePayco
-      const transactionId = data.data?.x_transaction_id || data.x_transaction_id
-      const epaycoResponse = data.data?.x_response || data.x_response
-      
-      // Verificar que el pago de Epayco fue exitoso
-      const isEpaycoSuccess = epaycoResponse === 'Aceptada' || epaycoResponse === 'Aprobada' || epaycoResponse === '1'
-      
-      if (!isEpaycoSuccess) {
-        // El pago de Epayco NO fue exitoso
-        if (epaycoResponse === 'Pendiente' || epaycoResponse === '2') {
+      if (orderResponse.success && orderResponse.data) {
+        const result = applyOrderResult(orderResponse.data as OrderDTO, setters)
+        if (result === 'pending' && retryCount < 15) {
           setPaymentStatus('pending')
-          setErrorMessage('El pago está pendiente de confirmación en Epayco')
-        } else if (epaycoResponse === 'Rechazada' || epaycoResponse === 'Rechazado' || epaycoResponse === 'Fallida' || epaycoResponse === '3' || epaycoResponse === '4') {
-          setPaymentStatus('failed')
-          setErrorMessage(data.data?.x_response_reason_text || data.x_response_reason_text || 'El pago fue rechazado en Epayco')
-        } else {
-          setPaymentStatus('failed')
-          setErrorMessage(data.data?.x_response_reason_text || data.x_response_reason_text || `El pago no fue exitoso en Epayco. Estado: ${epaycoResponse}`)
+          setErrorMessage('Confirmando tu pago…')
+          setTimeout(() => pollOrderByKey(orderKey, setters, retryCount + 1), 2000)
+        } else if (result === 'pending') {
+          setPaymentStatus('pending')
+          setErrorMessage(
+            'El pago puede estar en proceso. Revisa Mis pedidos en unos minutos.'
+          )
+          setIsLoading(false)
         }
-        setIsLoading(false)
         return
       }
-      
-      // ✅ PASO 1 COMPLETADO: El pago de Epayco fue exitoso
-      console.log('[CHECKOUT-SUCCESS] ✅ PASO 1 COMPLETADO: Pago de Epayco exitoso')
-      
-      // PASO 2: Verificar que la orden existe y que Dropi fue exitoso
-      console.log('[CHECKOUT-SUCCESS] PASO 2: Verificando orden y estado de Dropi...')
-      
-      const verifyDropiStatus = async (txId: string, retryCount = 0): Promise<void> => {
-        try {
-          const orderResponse = await apiClient.get<OrderDTO>(API_ENDPOINTS.ORDERS.BY_TRANSACTION_ID(txId))
-          
-          if (orderResponse.success && orderResponse.data) {
-            const order = orderResponse.data as OrderDTO
-            console.log('[CHECKOUT-SUCCESS] Orden encontrada:', order.id)
-            setOrderId(order.id)
-            
-            // Verificar que Dropi fue exitoso
-            const metadata = order.metadata || {}
-            const dropiOrderIds = metadata.dropi_order_ids || []
-            
-            if (dropiOrderIds.length > 0) {
-              // ✅ PASO 2 COMPLETADO: Dropi también fue exitoso
-              console.log('[CHECKOUT-SUCCESS] ✅ PASO 2 COMPLETADO: Dropi exitoso, dropiOrderIds:', dropiOrderIds)
-              setPaymentStatus('success')
-              setErrorMessage(null)
-              setIsLoading(false)
-            } else {
-              // Pago de Epayco exitoso pero Dropi pendiente
-              console.log('[CHECKOUT-SUCCESS] ⏳ Dropi pendiente, reintentando... (intento', retryCount + 1, ')')
-              setPaymentStatus('pending')
-              setErrorMessage('El pago fue exitoso en Epayco. La orden está siendo procesada en Dropi...')
-              
-              // Reintentar después de 3 segundos (máximo 10 intentos)
-              if (retryCount < 10) {
-                setTimeout(() => {
-                  verifyDropiStatus(txId, retryCount + 1)
-                }, 3000)
-              } else {
-                setErrorMessage('El pago fue exitoso en Epayco, pero la orden en Dropi está tardando más de lo esperado. Por favor, verifica más tarde.')
-                setIsLoading(false)
-              }
-            }
-          } else {
-            // Orden aún no creada, esperar un poco
-            if (retryCount < 10) {
-              console.log('[CHECKOUT-SUCCESS] ⏳ Orden aún no creada, esperando webhook... (intento', retryCount + 1, ')')
-              setPaymentStatus('pending')
-              setErrorMessage('El pago fue exitoso en Epayco. La orden está siendo procesada...')
-              
-              setTimeout(() => {
-                verifyDropiStatus(txId, retryCount + 1)
-              }, 3000)
-            } else {
-              setErrorMessage('El pago fue exitoso en Epayco, pero la orden está tardando en crearse. Por favor, verifica más tarde.')
-              setIsLoading(false)
-            }
-          }
-        } catch (orderError: any) {
-          console.log('[CHECKOUT-SUCCESS] Error buscando orden:', orderError?.message)
-          
-          if (retryCount < 10) {
-            setTimeout(() => {
-              verifyDropiStatus(txId, retryCount + 1)
-            }, 3000)
-          } else {
-            setErrorMessage('El pago fue exitoso en Epayco, pero no se pudo verificar la orden. Por favor, verifica más tarde.')
-            setIsLoading(false)
-          }
-        }
-      }
-      
-      // Iniciar verificación de Dropi
-      if (transactionId) {
-        await verifyDropiStatus(transactionId)
-      } else {
-        // Si no hay transactionId, intentar con refPayco como fallback
-        console.warn('[CHECKOUT-SUCCESS] No se encontró x_transaction_id, usando ref_payco como fallback')
-        await verifyDropiStatus(refPayco)
-      }
-      
-    } catch (error) {
-      console.error('[CHECKOUT-SUCCESS] Error verificando pago:', error)
+    } catch {
+      // reintentar
+    }
+
+    if (retryCount < 15) {
       setPaymentStatus('pending')
-      setErrorMessage('No se pudo verificar el estado del pago. Por favor, verifica más tarde.')
+      setErrorMessage('Confirmando tu pago…')
+      setTimeout(() => pollOrderByKey(orderKey, setters, retryCount + 1), 2000)
+    } else {
+      setPaymentStatus('pending')
+      setErrorMessage('No pudimos confirmar el pago aún. Revisa Mis pedidos.')
       setIsLoading(false)
     }
   }
 
-
-  const checkOrderStatus = async (cartIdToCheck: string) => {
+  const pollOrderByCartId = async (
+    cartIdToCheck: string,
+    setters: Parameters<typeof applyOrderResult>[1],
+    retryCount = 0
+  ) => {
     try {
-      console.log('[CHECKOUT-SUCCESS] Verificando orden por cartId:', cartIdToCheck)
-      
-      // Intentar buscar la orden que tenga este cartId en su metadata
-      // Primero, intentar obtener todas las órdenes del usuario y buscar por cartId
-      const response = await apiClient.get<{ orders: OrderDTO[]; total: number; hasMore: boolean } | OrderDTO[]>(API_ENDPOINTS.ORDERS.LIST)
-      
-      if (response.success && response.data) {
-        const orders = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data as { orders: OrderDTO[] }).orders || []
-        
-        // Buscar orden que tenga el cartId en metadata o que coincida
-        const order = orders.find((o: any) => {
-          return o.metadata?.cartId === cartIdToCheck || 
-                 o.cartId === cartIdToCheck ||
-                 o.id === cartIdToCheck
+      const listResponse = await apiClient.get<
+        { orders: OrderDTO[]; total: number; hasMore: boolean } | OrderDTO[]
+      >(API_ENDPOINTS.ORDERS.LIST)
+
+      if (listResponse.success && listResponse.data) {
+        const orders = Array.isArray(listResponse.data)
+          ? listResponse.data
+          : listResponse.data.orders || []
+
+        const order = orders.find((o: OrderDTO) => {
+          const meta = o.metadata as Record<string, unknown> | undefined
+          return meta?.cartId === cartIdToCheck || o.id === cartIdToCheck
         })
 
         if (order) {
-          setOrderId(order.id)
-          if (order.paymentStatus === 'paid') {
-            setPaymentStatus('success')
-          } else if (order.paymentStatus === 'pending') {
+          const result = applyOrderResult(order, setters)
+          if (result === 'pending' && retryCount < 15) {
             setPaymentStatus('pending')
-          } else {
-            setPaymentStatus('failed')
+            setErrorMessage('Confirmando tu pago…')
+            setTimeout(() => pollOrderByCartId(cartIdToCheck, setters, retryCount + 1), 2000)
+          } else if (result === 'pending') {
+            setPaymentStatus('pending')
+            setErrorMessage('El pago puede estar en proceso. Revisa Mis pedidos.')
+            setIsLoading(false)
           }
           return
         }
       }
+    } catch {
+      // reintentar
+    }
 
-      // Si no encontramos la orden, puede estar pendiente (el webhook aún no procesó)
-      // O puede que el cartId sea en realidad un orderId
-      try {
-        const orderResponse = await apiClient.get<OrderDTO>(API_ENDPOINTS.ORDERS.BY_ID(cartIdToCheck))
-        if (orderResponse.success && orderResponse.data) {
-          const order = orderResponse.data as OrderDTO
-          setOrderId(order.id)
-          if (order.paymentStatus === 'paid') {
-            setPaymentStatus('success')
-          } else if (order.paymentStatus === 'pending') {
-            setPaymentStatus('pending')
-          } else {
-            setPaymentStatus('failed')
-          }
-          return
-        }
-      } catch (orderError) {
-        console.log('[CHECKOUT-SUCCESS] No se encontró orden con ese ID')
-      }
-
-      // Si no encontramos la orden, puede estar pendiente
+    if (retryCount < 15) {
       setPaymentStatus('pending')
-      setErrorMessage('La orden está siendo procesada. Te notificaremos cuando esté lista.')
-    } catch (error: any) {
-      console.error('[CHECKOUT-SUCCESS] Error verificando orden:', error)
+      setErrorMessage('Procesando tu pedido…')
+      setTimeout(() => pollOrderByCartId(cartIdToCheck, setters, retryCount + 1), 2000)
+    } else {
       setPaymentStatus('pending')
-      setErrorMessage('No se pudo verificar el estado de la orden. Por favor, verifica más tarde.')
-    } finally {
+      setErrorMessage('Tu pedido está tardando en confirmarse. Revisa Mis pedidos.')
       setIsLoading(false)
     }
   }
+
+  const verifyViaEpaycoApi = async (
+    epaycoRef: string,
+    setters: Parameters<typeof applyOrderResult>[1]
+  ) => {
+    try {
+      const response = await fetch(
+        `https://secure.epayco.co/validation/v1/reference/${epaycoRef}`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+      )
+
+      if (!response.ok) {
+        throw new Error('Error al consultar ePayco')
+      }
+
+      const data = await response.json()
+      const transactionId = data.data?.x_transaction_id || data.x_transaction_id
+      const epaycoResponse = data.data?.x_response || data.x_response
+      const isSuccess =
+        epaycoResponse === 'Aceptada' ||
+        epaycoResponse === 'Aprobada' ||
+        epaycoResponse === '1'
+
+      if (!isSuccess) {
+        setPaymentStatus('failed')
+        setErrorMessage(
+          data.data?.x_response_reason_text ||
+            data.x_response_reason_text ||
+            'El pago no fue exitoso en ePayco'
+        )
+        setIsLoading(false)
+        return
+      }
+
+      if (transactionId) {
+        await pollOrderByTransactionId(String(transactionId), setters)
+      } else {
+        setPaymentStatus('success')
+        setErrorMessage(null)
+        setIsLoading(false)
+      }
+    } catch {
+      setPaymentStatus('pending')
+      setErrorMessage('No se pudo verificar el pago. Revisa Mis pedidos.')
+      setIsLoading(false)
+    }
+  }
+
+  const pollOrderByTransactionId = async (
+    transactionId: string,
+    setters: Parameters<typeof applyOrderResult>[1],
+    retryCount = 0
+  ) => {
+    try {
+      const orderResponse = await apiClient.get<OrderDTO>(
+        API_ENDPOINTS.ORDERS.BY_TRANSACTION_ID(transactionId)
+      )
+
+      if (orderResponse.success && orderResponse.data) {
+        const result = applyOrderResult(orderResponse.data as OrderDTO, setters)
+        if (result === 'pending' && retryCount < 10) {
+          setTimeout(() => pollOrderByTransactionId(transactionId, setters, retryCount + 1), 3000)
+        } else if (result === 'pending') {
+          setPaymentStatus('success')
+          setErrorMessage(null)
+          setIsLoading(false)
+        }
+        return
+      }
+    } catch {
+      // reintentar
+    }
+
+    if (retryCount < 10) {
+      setTimeout(() => pollOrderByTransactionId(transactionId, setters, retryCount + 1), 3000)
+    } else {
+      setPaymentStatus('success')
+      setErrorMessage(null)
+      setIsLoading(false)
+    }
+  }
+
+  const orderProfileQuery = orderRef
+    ? `orderId=${encodeURIComponent(orderRef)}`
+    : orderId
+      ? `orderId=${encodeURIComponent(orderId)}`
+      : ''
 
   if (isLoading) {
     return (
@@ -278,24 +320,26 @@ function CheckoutSuccessContent() {
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-[#66DEDB] mb-2">
-              ¡Orden creada exitosamente!
+              ¡Pago aprobado!
             </h1>
             <p className="text-gray-300 mb-6">
-              Tu pago ha sido procesado correctamente. Tu orden está siendo procesada.
+              Tu pago fue confirmado correctamente. Estamos preparando tu pedido.
             </p>
-            {refPayco && (
+            {orderRef && (
               <p className="text-sm text-gray-400 mb-2">
-                Referencia de pago: <span className="font-mono text-[#66DEDB]">{refPayco}</span>
+                Pedido:{' '}
+                <span className="font-mono text-[#66DEDB]">{orderRef}</span>
               </p>
             )}
-            {orderId && (
-              <p className="text-sm text-gray-400 mb-6">
-                ID de orden: <span className="font-mono text-[#66DEDB]">{orderId}</span>
+            {refPayco && isNumericEpaycoRef(refPayco) && (
+              <p className="text-sm text-gray-400 mb-2">
+                Referencia ePayco:{' '}
+                <span className="font-mono text-[#66DEDB]">{refPayco}</span>
               </p>
             )}
-            <div className="flex gap-4 justify-center">
-              {orderId && (
-                <Link href={`/profile?tab=MIS_TANKUS&orderId=${orderId}`}>
+            <div className="flex gap-4 justify-center flex-wrap">
+              {orderProfileQuery && (
+                <Link href={`/profile?tab=MIS_TANKUS&${orderProfileQuery}`}>
                   <Button className="bg-[#66DEDB] hover:bg-[#5accc9] text-black">
                     Ver mi pedido
                   </Button>
@@ -330,23 +374,16 @@ function CheckoutSuccessContent() {
                 />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-yellow-400 mb-2">
-              Pago pendiente
-            </h1>
+            <h1 className="text-3xl font-bold text-yellow-400 mb-2">Confirmando pago</h1>
             <p className="text-gray-300 mb-6">
               {errorMessage || 'Tu pago está siendo procesado. Te notificaremos cuando se confirme.'}
             </p>
-            {refPayco && (
+            {orderRef && (
               <p className="text-sm text-gray-400 mb-2">
-                Referencia de pago: <span className="font-mono text-[#66DEDB]">{refPayco}</span>
+                Pedido: <span className="font-mono text-[#66DEDB]">{orderRef}</span>
               </p>
             )}
-            {cartId && (
-              <p className="text-sm text-gray-400 mb-6">
-                ID de carrito: <span className="font-mono text-[#66DEDB]">{cartId}</span>
-              </p>
-            )}
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-4 justify-center flex-wrap">
               <Link href="/profile?tab=MIS_TANKUS">
                 <Button className="bg-[#66DEDB] hover:bg-[#5accc9] text-black">
                   Ver mis pedidos
@@ -376,18 +413,11 @@ function CheckoutSuccessContent() {
                 />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-red-400 mb-2">
-              Pago no procesado
-            </h1>
+            <h1 className="text-3xl font-bold text-red-400 mb-2">Pago no procesado</h1>
             <p className="text-gray-300 mb-6">
               {errorMessage || 'Hubo un problema al procesar tu pago. Por favor, intenta nuevamente.'}
             </p>
-            {refPayco && (
-              <p className="text-sm text-gray-400 mb-2">
-                Referencia de pago: <span className="font-mono text-gray-500">{refPayco}</span>
-              </p>
-            )}
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-4 justify-center flex-wrap">
               <Link href="/checkout">
                 <Button className="bg-[#66DEDB] hover:bg-[#5accc9] text-black">
                   Intentar nuevamente
@@ -420,4 +450,3 @@ export default function CheckoutSuccessPage() {
     </Suspense>
   )
 }
-

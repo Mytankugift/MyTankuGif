@@ -11,6 +11,20 @@ function buildEpaycoWebhookUrl(identifier: string): string {
   return `${webhookBaseUrl}/api/v1/webhook/epayco/${identifier}`;
 }
 
+/** URL de retorno post-pago con params Tanku (ePayco Smart añade ref_payco aparte). */
+function buildCheckoutSuccessUrl(
+  frontendBase: string,
+  params: Record<string, string | null | undefined>
+): string {
+  const url = new URL(`${frontendBase.replace(/\/$/, '')}/checkout/success`);
+  for (const [key, value] of Object.entries(params)) {
+    if (value) {
+      url.searchParams.set(key, value);
+    }
+  }
+  return url.toString();
+}
+
 export class CheckoutController {
   private checkoutService: CheckoutService;
   private epaycoApifyService: EpaycoApifyService;
@@ -274,7 +288,7 @@ export class CheckoutController {
         identifier = prepared.cartId;
         amount = prepared.total;
         description = `Pedido Tanku — ${identifier.slice(0, 8)}`;
-        responseUrl = `${frontendBase}/checkout/success`;
+        responseUrl = buildCheckoutSuccessUrl(frontendBase, { cartId: identifier });
       } else if (flow === 'gift_direct') {
         const { variant_id, quantity, recipient_id, email, payment_method } = body;
         if (!variant_id || !recipient_id || !email || !payment_method) {
@@ -302,7 +316,10 @@ export class CheckoutController {
         description = result.orderRef
           ? `Regalo Tanku — ${result.orderRef}`
           : `Regalo Tanku — ${result.orderId.slice(0, 8)}`;
-        responseUrl = `${frontendBase}/checkout/success`;
+        responseUrl = buildCheckoutSuccessUrl(frontendBase, {
+          orderRef: result.orderRef ?? undefined,
+          orderId: result.orderId,
+        });
       } else {
         const {
           receiverId,
