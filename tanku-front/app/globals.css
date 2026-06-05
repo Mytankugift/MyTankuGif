@@ -162,6 +162,27 @@ html, body {
     background: rgba(102, 222, 219, 0.8);
   }
 
+  /** Modales (publicación, producto): thumb verde Tanku + pista oscura */
+  .tanku-modal-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(115, 255, 162, 0.55) rgba(31, 41, 55, 0.35);
+  }
+  .tanku-modal-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .tanku-modal-scrollbar::-webkit-scrollbar-track {
+    background: rgba(31, 41, 55, 0.35);
+    border-radius: 10px;
+  }
+  .tanku-modal-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(115, 255, 162, 0.45);
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+  .tanku-modal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(115, 255, 162, 0.65);
+  }
+
   /* StalkerGift modal scrollbar — mismo patrón que variant-selector pero naranja Tanku (#FE9600) */
   .stalkergift-modal-scrollbar {
     scrollbar-width: thin;

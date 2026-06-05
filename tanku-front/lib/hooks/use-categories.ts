@@ -4,13 +4,11 @@ import { useState, useEffect } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import { mapCategoryFromApi } from '@/lib/feed/category-tree'
-
-type CategoryItem = { id: string; name: string; image?: string | null; parentId: string | null }
+import { mapCategoryFromApi, type FeedCategoryItem } from '@/lib/feed/category-tree'
 
 // Cache por contexto: anónimo vs JWT (el backend filtra +18 según edad del usuario)
-const categoriesCache: Record<string, CategoryItem[]> = {}
-const categoriesLoadingPromise: Record<string, Promise<CategoryItem[]> | null> = {}
+const categoriesCache: Record<string, FeedCategoryItem[]> = {}
+const categoriesLoadingPromise: Record<string, Promise<FeedCategoryItem[]> | null> = {}
 
 function cacheKeyForToken(token: string | null): string {
   if (!token) return 'anon'
@@ -23,7 +21,7 @@ export function useCategories() {
   const token = useAuthStore((s) => s.token)
   const key = cacheKeyForToken(token)
 
-  const [categories, setCategories] = useState<CategoryItem[]>(() => categoriesCache[key] || [])
+  const [categories, setCategories] = useState<FeedCategoryItem[]>(() => categoriesCache[key] || [])
   const [isLoading, setIsLoading] = useState(!categoriesCache[key])
   /** Se incrementa al llamar clearCategoriesCache() para forzar refetch en clientes montados */
   const [invalidateSeq, setInvalidateSeq] = useState(0)

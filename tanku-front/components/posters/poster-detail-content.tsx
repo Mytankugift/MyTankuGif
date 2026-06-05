@@ -644,7 +644,15 @@ export function PosterDetailContent({
   )
 
   return (
-    <div className={`${isPageView ? 'flex h-full min-h-0 flex-col' : 'flex flex-col'} ${isPageView ? '' : 'h-full'}`}>
+    <div
+      className={
+        isPageView
+          ? embeddedInModal
+            ? 'flex min-h-0 flex-col max-md:h-auto md:h-full'
+            : 'flex h-full min-h-0 flex-col'
+          : 'flex h-full flex-col'
+      }
+    >
       {/* Header - Solo en pageView */}
       {isPageView && (
         <div className={`flex-shrink-0 ${postPageBg}`}>
@@ -928,7 +936,7 @@ export function PosterDetailContent({
           {/* Comments - scroll interno; formulario anclado abajo en columna derecha */}
           <div
             ref={commentsListRef}
-            className={`min-h-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain custom-scrollbar pr-0.5 [-webkit-overflow-scrolling:touch] md:pb-0 pb-24 ${
+            className={`tanku-modal-scrollbar min-h-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch] md:pb-0 pb-24 ${
               isPageView && !embeddedInModal ? 'lg:flex lg:flex-col' : ''
             }`}
           >
@@ -1188,7 +1196,7 @@ export function PosterDetailContent({
                   <div className="w-9" />
                 </div>
 
-                <div className="custom-scrollbar min-h-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
+                <div className="tanku-modal-scrollbar min-h-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
                   <div className="space-y-4 p-4">
                     {poster.comments && poster.comments.length > 0 ? (
                       <>

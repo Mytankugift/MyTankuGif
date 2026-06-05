@@ -84,9 +84,10 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
 
         <div
           className={clsx(
-            'flex min-h-0 flex-1 flex-col',
-            'max-md:max-h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px)-3.25rem)] max-md:overflow-y-auto max-md:overflow-x-hidden max-md:custom-scrollbar',
-            'md:min-h-0 md:flex-1 md:overflow-y-auto md:overflow-x-hidden md:custom-scrollbar',
+            'tanku-modal-scrollbar flex min-h-0 flex-1 flex-col pr-0.5',
+            'max-md:max-h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px)-3.25rem)]',
+            'max-md:touch-pan-y max-md:overflow-x-hidden max-md:overflow-y-auto max-md:overscroll-y-contain max-md:[-webkit-overflow-scrolling:touch]',
+            'md:min-h-0 md:flex-1 md:touch-pan-y md:overflow-x-hidden md:overflow-y-auto md:overscroll-y-contain',
           )}
           style={{
             paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))',

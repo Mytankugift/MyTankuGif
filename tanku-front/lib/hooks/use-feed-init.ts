@@ -6,7 +6,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { useCartStore } from '@/lib/stores/cart-store'
 import { useFeedInitContext } from '@/lib/context/feed-init-context'
 import type { FeedItem, FeedResponse } from '@/lib/types/feed.types'
-import { mapCategoryFromApi } from '@/lib/feed/category-tree'
+import { mapCategoryFromApi, type FeedCategoryItem } from '@/lib/feed/category-tree'
 
 interface FeedInitResponse {
   feed: FeedResponse
@@ -34,9 +34,7 @@ export function useFeedInit() {
   const { token, isAuthenticated } = useAuthStore()
   const { markComplete } = useFeedInitContext()
   const [feedItems, setFeedItems] = useState<FeedItem[]>([])
-  const [categories, setCategories] = useState<
-    Array<{ id: string; name: string; image: string | null; parentId: string | null }>
-  >([])
+  const [categories, setCategories] = useState<FeedCategoryItem[]>([])
   const [cart, setCart] = useState<any | null>(null)
   const [stories, setStories] = useState<any[]>([])
   const [conversations, setConversations] = useState<any[]>([])

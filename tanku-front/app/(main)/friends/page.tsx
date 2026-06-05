@@ -4,7 +4,7 @@
 
 'use client'
 
-import { useState, useEffect, useMemo, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, Suspense, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { clsx } from 'clsx'
 import {
@@ -120,6 +120,23 @@ const FRIENDS_SORT_OPTIONS = [
 ] satisfies TankuCustomSelectOption[]
 
 export default function FriendsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          className="flex min-h-screen flex-1 flex-col items-center justify-center px-4 py-24"
+          style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
+        >
+          <div className="text-center text-gray-400">Cargando...</div>
+        </div>
+      }
+    >
+      <FriendsPageContent />
+    </Suspense>
+  )
+}
+
+function FriendsPageContent() {
   const searchParams = useSearchParams()
   const {
     friends,

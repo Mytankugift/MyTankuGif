@@ -86,6 +86,15 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
     return () => setMounted(false)
   }, [])
 
+  useEffect(() => {
+    if (!isOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [isOpen])
+
   const handleClose = () => {
     onClose()
   }
@@ -125,7 +134,7 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
       >
         <div
           className={clsx(
-            'custom-scrollbar flex min-h-0 flex-1 flex-col pr-0.5',
+            'tanku-modal-scrollbar flex min-h-0 flex-1 flex-col pr-0.5',
             'max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-bottom,0px))]',
             'max-md:touch-pan-y max-md:overflow-x-hidden max-md:overflow-y-auto max-md:overscroll-y-contain max-md:[-webkit-overflow-scrolling:touch]',
             'md:h-full md:overflow-hidden md:pr-0',
