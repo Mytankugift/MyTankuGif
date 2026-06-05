@@ -335,6 +335,16 @@ export function ProductDetailContent({
   const showAgeGate = Boolean(
     fullProduct && productError && isAgeRestrictedApiError(productError)
   )
+  const isFeedModal = !isPageView
+
+  const thumbnailButtonClass = (index: number, compact = false) =>
+    `flex-shrink-0 rounded-lg overflow-hidden border-2 bg-[#171B21] transition-all ${
+      compact ? 'h-10 w-10 md:h-14 md:w-14' : 'h-12 w-12 sm:h-16 sm:w-16 md:h-14 md:w-14'
+    } ${
+      currentImageIndex === index
+        ? 'border-[#66DEDB] ring-2 ring-[#66DEDB] ring-offset-2 ring-offset-[#171B21]'
+        : 'border-gray-600 hover:border-gray-500'
+    }`
 
   return (
     <div className="relative bg-[#171B21]">
@@ -379,22 +389,25 @@ export function ProductDetailContent({
         </div>
       )}
 
-      <div className="pt-2 pb-6 px-6">
-        <div className="flex flex-col md:flex-row gap-6 mb-6">
+      <div className={isFeedModal ? 'px-4 pb-4 pt-1 md:px-6 md:pb-6 md:pt-2' : 'px-6 pb-6 pt-2'}>
+        <div className={`flex flex-col md:flex-row ${isFeedModal ? 'mb-4 gap-4 md:mb-6 md:gap-6' : 'mb-6 gap-6'}`}>
           {/* Galería de imágenes */}
-          <div className="flex min-w-0 gap-4 md:w-1/2">
-          {/* Miniaturas a la izquierda — en desktop un poco más anchas; overflow-x-hidden evita barra horizontal */}
-          <div className="flex w-12 flex-shrink-0 flex-col gap-2 overflow-y-auto overflow-x-hidden max-h-[400px] custom-scrollbar sm:w-16 md:w-20 md:min-w-[5rem] md:items-center">
+          <div className={`flex min-w-0 md:w-1/2 ${isFeedModal ? 'gap-2.5 md:gap-4' : 'gap-4'}`}>
+          {/* Miniaturas a la izquierda — en modal móvil columna más baja con scroll */}
+          <div
+            className={`tanku-modal-scrollbar custom-scrollbar flex flex-shrink-0 flex-col gap-1.5 overflow-x-hidden overflow-y-auto ${
+              isFeedModal
+                ? 'max-h-[5.5rem] w-10 md:max-h-[400px] md:w-20 md:min-w-[5rem] md:items-center md:gap-2'
+                : 'max-h-[400px] w-12 sm:w-16 md:w-20 md:min-w-[5rem] md:items-center md:gap-2'
+            }`}
+          >
             {allImages.length > 1 ? (
               allImages.map((img, index) => (
                 <button
                   key={index}
+                  type="button"
                   onClick={() => setCurrentImageIndex(index)}
-                  className={`flex-shrink-0 h-12 w-12 sm:h-16 sm:w-16 md:h-14 md:w-14 rounded-lg overflow-hidden border-2 bg-[#171B21] transition-all ${
-                    currentImageIndex === index
-                      ? 'border-[#66DEDB] ring-2 ring-[#66DEDB] ring-offset-2 ring-offset-[#171B21]'
-                      : 'border-gray-600 hover:border-gray-500'
-                  }`}
+                  className={thumbnailButtonClass(index, isFeedModal)}
                 >
                   <Image
                     src={img}
@@ -408,19 +421,29 @@ export function ProductDetailContent({
               ))
             ) : (
               <div
-                className="h-12 w-12 sm:h-16 sm:w-16 md:h-14 md:w-14"
+                className={
+                  isFeedModal
+                    ? 'h-10 w-10 md:h-14 md:w-14'
+                    : 'h-12 w-12 sm:h-16 sm:w-16 md:h-14 md:w-14'
+                }
                 aria-hidden
               />
             )}
           </div>
 
-          {/* Imagen principal - más pequeña */}
+          {/* Imagen principal */}
           {allImages.length > 0 && (
-            <div className="relative min-w-0 flex-1 max-w-sm">
+            <div
+              className={`relative min-w-0 flex-1 ${
+                isFeedModal ? 'mx-auto w-full max-w-[12rem] md:mx-0 md:max-w-sm' : 'max-w-sm'
+              }`}
+            >
               <div
-                className={`relative aspect-square overflow-hidden rounded-lg bg-[#171B21] group ${
-                  isPageView ? 'cursor-pointer' : 'cursor-default'
-                }`}
+                className={`relative overflow-hidden rounded-lg bg-[#171B21] group ${
+                  isFeedModal
+                    ? 'aspect-square max-md:mx-auto max-md:h-[12rem] max-md:w-[12rem] max-md:max-w-full'
+                    : 'aspect-square'
+                } ${isPageView ? 'cursor-pointer' : 'cursor-default'}`}
                 onClick={isPageView ? () => setIsImageLightboxOpen(true) : undefined}
               >
                 <Image
@@ -436,11 +459,11 @@ export function ProductDetailContent({
         </div>
 
           {/* Información del producto */}
-          <div className="md:w-1/2 space-y-5">
+          <div className={`md:w-1/2 ${isFeedModal ? 'space-y-4 md:space-y-5' : 'space-y-5'}`}>
           {/* Precio con iconos de wishlist y compartir */}
           <div className="flex items-center justify-between">
             <span 
-              className="text-3xl font-semibold"
+              className={`font-semibold ${isFeedModal ? 'text-2xl md:text-3xl' : 'text-3xl'}`}
               style={{ color: '#3B9BC3' }}
             >
               {formatPrice(finalPrice)}
