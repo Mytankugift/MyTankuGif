@@ -6,7 +6,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import Image from 'next/image'
 
-/** Por encima de PosterDetailModal / ProductModal (10050), por debajo del nav móvil global */
+/** Por encima de modales de post/producto (1000003), por debajo del nav móvil global cuando el modal no está abierto */
 const MENTION_SUGGESTIONS_Z = 100_600
 
 interface User {

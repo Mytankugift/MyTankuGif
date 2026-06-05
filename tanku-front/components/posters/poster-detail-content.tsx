@@ -675,7 +675,9 @@ export function PosterDetailContent({
             <button
               type="button"
               onClick={() => (onModalClose ? onModalClose() : router.back())}
-              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/10 ${embeddedInModal ? 'hidden md:flex' : ''}`}
+              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/10 ${
+                embeddedInModal ? 'order-last md:order-none' : ''
+              }`}
               aria-label={onModalClose ? 'Cerrar' : 'Volver'}
             >
               {onModalClose ? (

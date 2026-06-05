@@ -10,8 +10,8 @@ import {
   tankuOrderModalPanelClass,
 } from '@/lib/ui/tanku-modal-surface'
 
-/** Por encima del bottom nav en móvil */
-const POSTER_MODAL_Z = 10050
+/** Por encima del bottom nav móvil (999999), alineado con ProductModal */
+const POSTER_MODAL_Z = 1000003
 
 interface PosterDetailModalProps {
   isOpen: boolean
@@ -108,22 +108,25 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
 
   if (!isOpen || !posterId || !mounted) return null
 
-  /** Espacio para MobileBottomNav solo en móvil cuando el modal no ocupa pantalla completa */
+  /** Overlay full-screen: panel y blur por encima del bottom nav en móvil */
   const modal = (
     <div
-      className="fixed inset-0 isolate flex items-center justify-center p-2 sm:px-4 sm:pt-4 md:p-4 max-md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+      className="pointer-events-none fixed inset-0 isolate flex items-center justify-center p-2 sm:px-4 sm:pt-4 md:p-4 max-md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
       style={{ zIndex: POSTER_MODAL_Z }}
       role="presentation"
     >
       <div
-        className={clsx('absolute inset-0', tankuOrderModalBackdropClass)}
+        className={clsx(
+          'pointer-events-auto absolute inset-0 cursor-default touch-manipulation',
+          tankuOrderModalBackdropClass,
+        )}
         aria-hidden
         onClick={handleClose}
       />
 
       <div
         className={clsx(
-          'relative z-10 flex w-full max-w-6xl flex-col overflow-hidden',
+          'pointer-events-auto relative z-10 flex w-full max-w-6xl flex-col overflow-hidden',
           tankuOrderModalPanelClass,
           'max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-bottom,0px))]',
           'md:h-[580px] md:max-h-[580px]',
