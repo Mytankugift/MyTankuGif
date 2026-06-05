@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import type { StoryDTO } from '@/lib/hooks/use-stories'
+import { useAuthStore } from '@/lib/stores/auth-store'
 import {
   getCachedWishlistStoryProduct,
   resolveWishlistStoryProduct,
