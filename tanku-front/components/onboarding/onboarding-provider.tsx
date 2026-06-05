@@ -16,6 +16,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [showModal, setShowModal] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
 
+  const requiresDataPolicyAcceptance =
+    (user as { requiresDataPolicyAcceptance?: boolean } | null)?.requiresDataPolicyAcceptance === true
+
   useEffect(() => {
     const verifyOnboarding = async () => {
       // Validación más estricta: verificar que el usuario esté realmente autenticado
@@ -26,20 +29,26 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         return
       }
 
+      // El consentimiento de datos personales tiene prioridad sobre el onboarding
+      if (requiresDataPolicyAcceptance) {
+        setShowModal(false)
+        setIsChecking(false)
+        return
+      }
+
       // ✅ Esperar un delay para que feedInit tenga oportunidad de cargar primero
       // Esto evita llamadas duplicadas a /api/v1/users/me/onboarding-data
       const checkDelay = setTimeout(async () => {
         try {
-          // ✅ Verificar si feedInit ya terminó y tiene datos de onboarding
-          const feedInitComplete = typeof window !== 'undefined' 
-            ? sessionStorage.getItem('feedInit_complete') === 'true'
-            : false
-          
-          // ✅ Si feedInit ya terminó, verificar si tiene datos de onboarding
-          // (feedInit ahora incluye onboardingData, pero no podemos accederlo desde aquí)
-          // Por ahora, hacer fetch normal pero con menos prioridad
-          
-          // ✅ Si no hay datos de feedInit, hacer fetch normal
+          const currentBeforeCheck = useAuthStore.getState()
+          if (
+            currentBeforeCheck.user &&
+            (currentBeforeCheck.user as { requiresDataPolicyAcceptance?: boolean }).requiresDataPolicyAcceptance === true
+          ) {
+            setShowModal(false)
+            return
+          }
+
           const isCompleted = await checkIsCompleted()
           
           // Mostrar modal solo si el onboarding no está completado
@@ -49,7 +58,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
             setTimeout(() => {
               // Verificar nuevamente antes de mostrar (por si el estado cambió durante el timeout)
               const currentState = useAuthStore.getState()
-              if (currentState.isAuthenticated && currentState.user?.id) {
+              const stillNeedsConsent =
+                (currentState.user as { requiresDataPolicyAcceptance?: boolean } | null)
+                  ?.requiresDataPolicyAcceptance === true
+              if (currentState.isAuthenticated && currentState.user?.id && !stillNeedsConsent) {
                 setShowModal(true)
               } else {
                 setShowModal(false)
@@ -80,14 +92,14 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }
 
     verifyOnboarding()
-  }, [isAuthenticated, user?.id, checkIsCompleted]) // Cambiar user a user?.id para evitar re-renders innecesarios
+  }, [isAuthenticated, user?.id, checkIsCompleted, requiresDataPolicyAcceptance])
 
-  // Asegurarse de que el modal se oculte si el usuario se desautentica
+  // Asegurarse de que el modal se oculte si el usuario se desautentica o falta consentimiento
   useEffect(() => {
-    if (!isAuthenticated || !user || !user.id) {
+    if (!isAuthenticated || !user || !user.id || requiresDataPolicyAcceptance) {
       setShowModal(false)
     }
-  }, [isAuthenticated, user?.id])
+  }, [isAuthenticated, user?.id, requiresDataPolicyAcceptance])
 
   const handleComplete = () => {
     setShowModal(false)

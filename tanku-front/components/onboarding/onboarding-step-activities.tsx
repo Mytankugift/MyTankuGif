@@ -38,7 +38,7 @@ export function OnboardingStepActivities({
           className={clsx('text-base', compact && 'max-md:text-sm max-md:leading-snug')}
           style={{ color: '#66DEDB', fontFamily: 'Poppins, sans-serif' }}
         >
-          Queremos mostrarte contenido que vaya contigo y conectarte con personas con las que puedas compartir
+          Queremos mostrarte contenido que vaya contigo.
         </p>
       </div>
 

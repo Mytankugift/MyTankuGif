@@ -469,8 +469,8 @@ export function OnboardingModal({
               Paso {displayStepIndex}/{displayStepTotal}
             </span>
           </div>
-          {/* Flujo parcial (preferencias): siempre cerrar; flujo completo: solo si ya completó obligatorios */}
-          {onlySteps?.length || isOnboardingComplete() ? (
+          {/* Flujo parcial (preferencias): cerrar; flujo inicial: sin X */}
+          {onlySteps?.length ? (
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-800 rounded"
@@ -479,7 +479,7 @@ export function OnboardingModal({
               <XMarkIcon className="w-5 h-5" />
             </button>
           ) : (
-            <div className="w-5 h-5" /> // Espaciador para mantener el layout
+            <div className="w-5 h-5" />
           )}
         </div>
 
@@ -503,21 +503,14 @@ export function OnboardingModal({
           </div>
         </div>
 
-        {/* Contenido */}
+        {/* Contenido — scroll interno; el footer queda fijo fuera de esta zona */}
         <div
           className={clsx(
-            'custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-y-visible px-3 pb-4 sm:px-4 sm:pb-6 md:overflow-y-auto',
-            isPreferencesOnly &&
-              'max-md:px-2.5 max-md:pb-3 max-md:min-h-[min(42dvh,360px)] max-md:max-h-[min(56dvh,520px)] md:min-h-[min(50dvh,460px)] md:max-h-[min(64dvh,560px)]'
-          )}
-          style={
+            'custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 pb-4 sm:px-4 sm:pb-6',
             isPreferencesOnly
-              ? undefined
-              : {
-                  minHeight: '320px',
-                  maxHeight: '520px',
-                }
-          }
+              ? 'max-md:px-2.5 max-md:pb-3 max-md:min-h-[min(42dvh,360px)] max-md:max-h-[min(56dvh,520px)] md:min-h-[min(50dvh,460px)] md:max-h-[min(64dvh,560px)]'
+              : 'md:min-h-[320px] md:max-h-[520px]'
+          )}
         >
           {currentStep === 0 && (
             <OnboardingStepUsername

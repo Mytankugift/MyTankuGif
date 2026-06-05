@@ -39,7 +39,7 @@ export function DataPolicyConsentModal({ isOpen }: DataPolicyConsentModalProps) 
 
   return (
     <div 
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      className="fixed inset-0 z-[2000010] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 max-md:px-3 max-md:py-[max(1rem,env(safe-area-inset-top))] max-md:pb-[max(1rem,env(safe-area-inset-bottom))]"
       style={{ pointerEvents: 'all' }}
       onContextMenu={(e) => e.preventDefault()}
       onKeyDown={(e) => {
@@ -50,7 +50,7 @@ export function DataPolicyConsentModal({ isOpen }: DataPolicyConsentModalProps) 
       }}
     >
       <div 
-        className="bg-[#1E1E1E] border-2 border-[#73FFA2] rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl"
+        className="bg-[#1E1E1E] border-2 border-[#73FFA2] rounded-2xl p-6 max-w-lg w-full shadow-2xl max-h-[min(90dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem))] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 
