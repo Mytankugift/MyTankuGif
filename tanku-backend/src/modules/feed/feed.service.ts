@@ -13,6 +13,8 @@ import {
   productMeetsStockThreshold,
   stockEligibilityReason,
 } from '../../shared/catalog/catalog-stock-policy';
+import { resolveVisiblePosterAuthorIds } from '../feed-global-accounts/resolve-visible-poster-authors';
+import { getGlobalAccountsCacheVersion } from '../feed-global-accounts/global-feed-accounts-cache';
 
 /**
  * Feed Service
@@ -64,6 +66,7 @@ export class FeedService {
     search?: string;
     /** true = viewer no puede ver +18 (anónimo o menor) */
     restricted?: boolean;
+    globalAccountsVersion?: number;
   } | null = null;
   private readonly PUBLIC_FEED_CACHE_TTL = 60000; // 60 segundos
 
@@ -577,6 +580,7 @@ export class FeedService {
             email: poster.customer.email,
             firstName: poster.customer.firstName,
             lastName: poster.customer.lastName,
+            username: poster.customer.username || null,
             avatar: poster.customer.profile?.avatar || null,
           } : undefined,
         });
@@ -1196,145 +1200,30 @@ export class FeedService {
       isActive: true,
     };
 
-    // Si hay userId, filtrar por amigos + propio y excluir bloqueados
-    if (userId) {
-      try {
-        // ✅ PARALELIZAR: Obtener amigos y bloqueados en paralelo (3 queries → 1 Promise.all)
-        const [friends, blockedUserIds, blockedByUserIds] = await Promise.all([
-          // Obtener lista de amigos aceptados (bidireccional)
-          prisma.friend.findMany({
-            where: {
-              OR: [
-                { userId, status: 'accepted' },
-                { friendId: userId, status: 'accepted' }
-              ]
-            },
-            select: {
-              userId: true,
-              friendId: true,
-            }
-          }),
-          // Obtener IDs de usuarios bloqueados (que el usuario bloqueó)
-          prisma.friend.findMany({
-            where: {
-              userId,
-              status: 'blocked',
-            },
-            select: {
-              friendId: true,
-            },
-          }),
-          // Obtener IDs de usuarios que bloquearon al usuario actual
-          prisma.friend.findMany({
-            where: {
-              friendId: userId,
-              status: 'blocked',
-            },
-            select: {
-              userId: true,
-            },
-          })
-        ]);
+    const authorIds = await resolveVisiblePosterAuthorIds(userId);
+    if (authorIds.size === 0) {
+      return [];
+    }
 
-        // Extraer IDs de amigos (bidireccional) + incluir el usuario mismo
-        const friendIds = new Set<string>([userId]); // Incluir el usuario mismo
-        friends.forEach(f => {
-          if (f.userId === userId) friendIds.add(f.friendId);
-          if (f.friendId === userId) friendIds.add(f.userId);
-        });
+    const authorIdList = Array.from(authorIds);
 
-        // Combinar todos los IDs bloqueados (bidireccional)
-        const allBlockedIds = new Set<string>([
-          ...blockedUserIds.map(b => b.friendId),
-          ...blockedByUserIds.map(b => b.userId),
-        ]);
-
-        // Excluir usuarios bloqueados de los friendIds
-        allBlockedIds.forEach(blockedId => {
-          friendIds.delete(blockedId);
-        });
-
-        // Si hay cursor, combinar con filtro de amigos (sin bloqueados)
-        if (cursor?.lastPostCreatedAt) {
-          where.AND = [
-            {
-              customerId: { in: Array.from(friendIds) },
-            },
-            {
-              OR: [
-                {
-                  createdAt: {
-                    lt: new Date(cursor.lastPostCreatedAt),
-                  },
-                },
-                {
-                  AND: [
-                    {
-                      createdAt: new Date(cursor.lastPostCreatedAt),
-                    },
-                    {
-                      id: {
-                        not: cursor.lastPostId,
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          ];
-        } else {
-          // Sin cursor, solo filtrar por amigos (sin bloqueados)
-          where.customerId = { in: Array.from(friendIds) };
-        }
-      } catch (friendsError: any) {
-        // Si hay error obteniendo amigos, continuar sin filtro (fallback)
-        console.warn(`⚠️ [FEED-SERVICE] Error obteniendo amigos para filtrar posters:`, friendsError?.message);
-        // Si hay cursor, aplicarlo normalmente
-        if (cursor?.lastPostCreatedAt) {
-          where.OR = [
-            {
-              createdAt: {
-                lt: new Date(cursor.lastPostCreatedAt),
-              },
-            },
+    if (cursor?.lastPostCreatedAt) {
+      where.AND = [
+        { customerId: { in: authorIdList } },
+        {
+          OR: [
+            { createdAt: { lt: new Date(cursor.lastPostCreatedAt) } },
             {
               AND: [
-                {
-                  createdAt: new Date(cursor.lastPostCreatedAt),
-                },
-                {
-                  id: {
-                    not: cursor.lastPostId,
-                  },
-                },
+                { createdAt: new Date(cursor.lastPostCreatedAt) },
+                { id: { not: cursor.lastPostId } },
               ],
             },
-          ];
-        }
-      }
+          ],
+        },
+      ];
     } else {
-      // Sin userId, aplicar cursor normalmente si existe
-      if (cursor?.lastPostCreatedAt) {
-        where.OR = [
-          {
-            createdAt: {
-              lt: new Date(cursor.lastPostCreatedAt),
-            },
-          },
-          {
-            AND: [
-              {
-                createdAt: new Date(cursor.lastPostCreatedAt),
-              },
-              {
-                id: {
-                  not: cursor.lastPostId,
-                },
-              },
-            ],
-          },
-        ];
-      }
+      where.customerId = { in: authorIdList };
     }
 
     // Obtener posts ordenados por fecha
@@ -1655,6 +1544,7 @@ export class FeedService {
             email: poster.customer.email,
             firstName: poster.customer.firstName,
             lastName: poster.customer.lastName,
+            username: poster.customer.username || null,
             avatar: poster.customer.profile?.avatar || null,
           }
         : undefined,
@@ -2027,8 +1917,8 @@ export class FeedService {
   }
 
   /**
-   * Obtener feed público (solo productos, sin posters, sin autenticación)
-   * Cacheable y limitado a 100 productos máximo
+   * Obtener feed público (productos + posts de cuentas globales, sin autenticación)
+   * Cacheable y limitado a 100 ítems máximo
    * 
    * @param cursorToken Token del cursor (opcional, para paginación)
    * @param categoryId ID de categoría para filtrar (opcional)
@@ -2043,6 +1933,7 @@ export class FeedService {
     try {
       const birthDate = await getBirthDateForUserId(userId);
       const restricted = viewerCannotSeeAdultCatalog(Boolean(userId), birthDate);
+      const globalAccountsVersion = getGlobalAccountsCacheVersion();
 
       // Verificar cache primero
       const now = Date.now();
@@ -2052,6 +1943,7 @@ export class FeedService {
         this.publicFeedCache.categoryId === categoryId &&
         this.publicFeedCache.search === search &&
         this.publicFeedCache.restricted === restricted &&
+        this.publicFeedCache.globalAccountsVersion === globalAccountsVersion &&
         (now - this.publicFeedCache.timestamp) < this.PUBLIC_FEED_CACHE_TTL &&
         !cursorToken
       ) {
@@ -2106,25 +1998,41 @@ export class FeedService {
         }
       }
 
-      // No limitar aquí, procesaremos hasta tener 100 válidos
-
-      // Obtener IDs de productos para batch query
-      const productIds = products.map(item => item.itemId);
-
-      // Batch query para productos
-      let productsData: any[] = [];
+      const estimatedPosts =
+        Math.ceil(PUBLIC_FEED_MAX_PRODUCTS / (this.DEFAULT_POSTS_PER_PRODUCTS + 1)) + 2;
+      let posts: any[] = [];
       try {
-        if (productIds.length > 0) {
-          // ✅ Usar categorías bloqueadas con cache
-          const blockedCategoryIds = await this.getBlockedCategoryIdsCached();
-          
+        posts = await this.getPostsByDate(cursor, estimatedPosts, undefined);
+      } catch (postsError: any) {
+        console.warn(`⚠️ [FEED-SERVICE] Error obteniendo posts globales (feed público):`, postsError?.message);
+        posts = [];
+      }
+
+      const intercalated = this.intercalateItems(
+        products,
+        posts,
+        PUBLIC_FEED_MAX_PRODUCTS,
+        this.DEFAULT_POSTS_PER_PRODUCTS
+      );
+
+      const intercalatedProductIds = intercalated.items
+        .filter((i) => i.itemType === 'product')
+        .map((i) => i.itemId);
+      const intercalatedPosterIds = intercalated.items
+        .filter((i) => i.itemType === 'poster')
+        .map((i) => i.itemId);
+
+      let productsData: any[] = [];
+      let postersData: any[] = [];
+      const blockedCategoryIds = await this.getBlockedCategoryIdsCached();
+
+      try {
+        if (intercalatedProductIds.length > 0) {
           productsData = await prisma.product.findMany({
-            where: { 
-              id: { in: productIds },
+            where: {
+              id: { in: intercalatedProductIds },
               ...(blockedCategoryIds.length > 0 && {
-                categoryId: {
-                  notIn: blockedCategoryIds,
-                },
+                categoryId: { notIn: blockedCategoryIds },
               }),
             },
             include: {
@@ -2139,15 +2047,45 @@ export class FeedService {
         }
       } catch (productsDataError: any) {
         console.error(`❌ [FEED-SERVICE] Error en batch query de productos (feed público):`, productsDataError?.message);
-        productsData = [];
       }
 
-      // Crear mapa para acceso rápido
-      const productMap = new Map(productsData.map(p => [p.id, p]));
+      try {
+        if (intercalatedPosterIds.length > 0) {
+          postersData = await prisma.poster.findMany({
+            where: { id: { in: intercalatedPosterIds } },
+            select: {
+              id: true,
+              customerId: true,
+              title: true,
+              description: true,
+              imageUrl: true,
+              videoUrl: true,
+              likesCount: true,
+              commentsCount: true,
+              isActive: true,
+              createdAt: true,
+              customer: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                  username: true,
+                  profile: { select: { avatar: true } },
+                },
+              },
+            },
+          });
+        }
+      } catch (postersDataError: any) {
+        console.error(`❌ [FEED-SERVICE] Error en batch query de posters (feed público):`, postersDataError?.message);
+      }
 
-      // Obtener métricas de likes para productos (batch query)
-      const productIdsForMetrics = Array.from(productMap.keys());
+      const productMap = new Map(productsData.map((p) => [p.id, p]));
+      const posterMap = new Map(postersData.map((p) => [p.id, p]));
+
       const itemMetricsMap = new Map<string, { likesCount: number }>();
+      const productIdsForMetrics = Array.from(productMap.keys());
       if (productIdsForMetrics.length > 0) {
         try {
           const metrics = await (prisma as any).itemMetric.findMany({
@@ -2155,10 +2093,7 @@ export class FeedService {
               itemId: { in: productIdsForMetrics },
               itemType: 'product',
             },
-            select: {
-              itemId: true,
-              likesCount: true,
-            },
+            select: { itemId: true, likesCount: true },
           });
           metrics.forEach((m: any) => {
             itemMetricsMap.set(m.itemId, { likesCount: m.likesCount || 0 });
@@ -2168,175 +2103,81 @@ export class FeedService {
         }
       }
 
-      // Mapear productos a FeedItemDTO (sin isLiked ya que no hay userId)
-      // Continuar hasta tener 100 productos válidos
       const feedItems: FeedItemDTO[] = [];
-      let currentCursor: FeedCursorDTO | undefined = cursor;
-      let allProducts = [...products];
-      let processedIndex = 0;
-      
-      // Loop para asegurar que siempre tengamos 100 productos válidos
-      while (feedItems.length < PUBLIC_FEED_MAX_PRODUCTS) {
-        // Procesar productos disponibles
-        while (processedIndex < allProducts.length && feedItems.length < PUBLIC_FEED_MAX_PRODUCTS) {
-          const item = allProducts[processedIndex];
-          processedIndex++;
-          
-          const product = productMap.get(item.itemId);
-          if (!product) {
-            continue; // Saltar si no se encontró el producto
-          }
 
-          const firstVariant = product.variants[0];
-          
-          // Extraer imágenes
+      for (const item of intercalated.items) {
+        if (item.itemType === 'product') {
+          const product = productMap.get(item.itemId);
+          if (!product || !product.title?.trim()) continue;
+
+          const firstVariant = product.variants?.[0];
           let imagesArray: string[] = [];
           if (product.images) {
             if (Array.isArray(product.images)) {
-              imagesArray = product.images.map((img: any) => {
-                if (typeof img === 'string') return img;
-                if (typeof img === 'object' && img !== null) {
-                  return img.url || img.urlS3 || img;
-                }
-                return img;
-              }).filter((img: any) => img && typeof img === 'string');
+              imagesArray = product.images
+                .map((img: any) => {
+                  if (typeof img === 'string') return img;
+                  if (typeof img === 'object' && img !== null) return img.url || img.urlS3 || img;
+                  return img;
+                })
+                .filter((img: any) => img && typeof img === 'string');
             } else if (typeof product.images === 'string') {
               try {
                 const parsed = JSON.parse(product.images);
                 if (Array.isArray(parsed)) {
                   imagesArray = parsed.filter((img: any) => typeof img === 'string');
                 }
-              } catch (e) {
-                // No es JSON válido, ignorar
+              } catch {
+                /* ignore */
               }
             }
           }
-          
-          // Filtrar imágenes bloqueadas
           const hiddenImages = (product.hiddenImages || []) as string[];
-          imagesArray = imagesArray.filter(img => !hiddenImages.includes(img));
-          
-          // Obtener primera imagen válida
+          imagesArray = imagesArray.filter((img) => !hiddenImages.includes(img));
           const firstImage = imagesArray.length > 0 ? imagesArray[0] : null;
           let imageUrl = firstImage ? (this.normalizeImageUrl(firstImage) || '') : '';
-          
-          if (!imageUrl || imageUrl.trim() === '') {
-            imageUrl = ''; // Frontend manejará el placeholder
-          }
-          
-          // Verificar que el producto tenga título (requerido)
-          if (!product.title || product.title.trim() === '') {
-            continue; // Saltar productos sin título
-          }
-          
-          // Usar tankuPrice directamente
-          const finalPrice = firstVariant?.tankuPrice || undefined;
-          
-          // Obtener likesCount (sin isLiked ya que no hay userId)
+
           const metrics = itemMetricsMap.get(product.id);
-          const likesCount = metrics?.likesCount || 0;
-          
           feedItems.push({
             id: product.id,
             type: 'product',
             createdAt: product.createdAt.toISOString(),
             title: product.title,
             imageUrl,
-            price: finalPrice,
+            price: firstVariant?.tankuPrice || undefined,
             handle: product.handle,
-            category: product.category ? {
-              id: product.category.id,
-              name: product.category.name,
-              handle: product.category.handle,
-            } : undefined,
-            likesCount,
-            // No incluir isLiked (requiere userId)
+            category: product.category
+              ? {
+                  id: product.category.id,
+                  name: product.category.name,
+                  handle: product.category.handle,
+                }
+              : undefined,
+            likesCount: metrics?.likesCount || 0,
           });
-        }
-        
-        // Si aún no tenemos 100 productos y no hay cursor (primera carga), pedir más
-        if (feedItems.length < PUBLIC_FEED_MAX_PRODUCTS && !cursorToken && processedIndex >= allProducts.length) {
-          try {
-            // Crear cursor desde el último producto procesado
-            if (allProducts.length > 0) {
-              const lastProduct = allProducts[allProducts.length - 1];
-              const createdAt = lastProduct.createdAt instanceof Date 
-                ? lastProduct.createdAt.toISOString()
-                : (lastProduct.createdAt ? new Date(lastProduct.createdAt).toISOString() : undefined);
-              currentCursor = {
-                lastProductScore: lastProduct.globalScore,
-                lastProductCreatedAt: createdAt,
-                lastProductId: lastProduct.itemId,
-                lastItemType: 'product',
-              };
-            }
-            
-            // Obtener más productos del ranking
-            const additionalProducts = await this.getProductsByRanking(
-              currentCursor,
-              50, // Pedir 50 más
-              1.0,
-              categoryId,
-              userId,
-              birthDate
-            );
-            
-            if (additionalProducts.length === 0) {
-              // No hay más productos disponibles
-              break;
-            }
-            
-            // Agregar los nuevos productos a la lista
-            allProducts = [...allProducts, ...additionalProducts];
-            
-            // Obtener los nuevos IDs y hacer batch query
-            const newProductIds = additionalProducts.map(item => item.itemId);
-            if (newProductIds.length > 0) {
-              const blockedCategoryIds = await getBlockedCategoryIds();
-              const newProductsData = await prisma.product.findMany({
-                where: { 
-                  id: { in: newProductIds },
-                  ...(blockedCategoryIds.length > 0 && {
-                    categoryId: {
-                      notIn: blockedCategoryIds,
-                    },
-                  }),
-                },
-                include: {
-                  category: true,
-                  variants: {
-                    where: { active: true },
-                    orderBy: { price: 'asc' },
-                    take: 1,
-                  },
-                },
-              });
-              
-              // Agregar al mapa
-              newProductsData.forEach(p => productMap.set(p.id, p));
-              
-              // Actualizar métricas
-              const newMetrics = await (prisma as any).itemMetric.findMany({
-                where: {
-                  itemId: { in: newProductIds },
-                  itemType: 'product',
-                },
-                select: {
-                  itemId: true,
-                  likesCount: true,
-                },
-              });
-              newMetrics.forEach((m: any) => {
-                itemMetricsMap.set(m.itemId, { likesCount: m.likesCount || 0 });
-              });
-            }
-          } catch (error: any) {
-            console.error(`❌ [FEED-SERVICE] Error obteniendo productos adicionales:`, error?.message);
-            break; // Salir del loop si hay error
-          }
         } else {
-          // Ya procesamos todos los productos disponibles o hay cursor (paginación)
-          break;
+          const poster = posterMap.get(item.itemId);
+          if (!poster) continue;
+          feedItems.push({
+            id: poster.id,
+            type: 'poster',
+            createdAt: poster.createdAt.toISOString(),
+            imageUrl: poster.imageUrl,
+            description: poster.description || undefined,
+            videoUrl: poster.videoUrl || undefined,
+            likesCount: poster.likesCount,
+            commentsCount: poster.commentsCount,
+            author: poster.customer
+              ? {
+                  id: poster.customer.id,
+                  email: poster.customer.email,
+                  firstName: poster.customer.firstName,
+                  lastName: poster.customer.lastName,
+                  username: poster.customer.username || null,
+                  avatar: poster.customer.profile?.avatar || null,
+                }
+              : undefined,
+          });
         }
       }
 
@@ -2362,6 +2203,7 @@ export class FeedService {
           categoryId,
           search,
           restricted,
+          globalAccountsVersion,
         };
       }
 

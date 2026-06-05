@@ -3,67 +3,59 @@
 import { useRef, useMemo } from 'react'
 import Masonry from 'react-masonry-css'
 import { ProductCard } from './product-card'
+import { PosterCard } from './poster-card'
 import { PromotionalBanner } from './promotional-banner'
 import type { FeedItem } from '@/lib/types/feed.types'
 
 interface LandingGridProps {
   items: FeedItem[]
+  onPosterClick?: (poster: FeedItem) => void
+  onAuthRequired?: () => void
 }
 
-export function LandingGrid({ items }: LandingGridProps) {
+export function LandingGrid({ items, onPosterClick, onAuthRequired }: LandingGridProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Configuración de breakpoints para masonry (memoizada)
-  const breakpointColumnsObj = useMemo(() => ({
-    default: 4,  // 4 columnas por defecto (pantallas >= 1400px)
-    1400: 4,     // 4 columnas (>= 1400px)
-    1200: 3,     // 3 columnas (>= 1200px)
-    1024: 3,     // 3 columnas (>= 1024px)
-    768: 2,      // 2 columnas (>= 768px)
-    640: 2,      // 2 columnas (>= 640px)
-  }), [])
+  const breakpointColumnsObj = useMemo(
+    () => ({
+      default: 4,
+      1400: 4,
+      1200: 3,
+      1024: 3,
+      768: 2,
+      640: 2,
+    }),
+    []
+  )
 
-  // Memoizar la lógica de secciones para evitar recálculos innecesarios
   const sections = useMemo(() => {
     if (items.length === 0) {
       return []
     }
 
-    // Filtrar solo productos (no posts)
-    const productsOnly = items.filter(item => item.type === 'product')
-
-    // Dividir productos: primer banner a los 48, segundo a los 52 siguientes (total 100)
     let productCount = 0
     const sections: Array<{ items: FeedItem[]; showBanner?: boolean; bannerVariant?: 1 | 2 }> = []
     let currentSection: FeedItem[] = []
-    
-    productsOnly.forEach((item) => {
-      productCount++
-      currentSection.push(item)
-      
-      // Primer banner después de 48 productos
-      if (productCount === 48) {
-        sections.push({ items: [...currentSection] })
-        sections.push({ 
-          items: [], 
-          showBanner: true, 
-          bannerVariant: 1 
-        })
-        currentSection = []
-      }
-      // Segundo banner después de 100 productos (48 + 52)
-      else if (productCount === 100) {
-        sections.push({ items: [...currentSection] })
-        sections.push({ 
-          items: [], 
-          showBanner: true, 
-          bannerVariant: 2 
-        })
-        currentSection = []
+
+    items.forEach((item) => {
+      if (item.type === 'product') {
+        productCount++
+        currentSection.push(item)
+
+        if (productCount === 48) {
+          sections.push({ items: [...currentSection] })
+          sections.push({ items: [], showBanner: true, bannerVariant: 1 })
+          currentSection = []
+        } else if (productCount === 100) {
+          sections.push({ items: [...currentSection] })
+          sections.push({ items: [], showBanner: true, bannerVariant: 2 })
+          currentSection = []
+        }
+      } else {
+        currentSection.push(item)
       }
     })
-    
-    // Agregar la última sección si tiene items
+
     if (currentSection.length > 0) {
       sections.push({ items: currentSection })
     }
@@ -75,18 +67,16 @@ export function LandingGrid({ items }: LandingGridProps) {
     return null
   }
 
-  // Renderizar secciones con banners
   let globalItemIndex = 0
   return (
     <div className="w-full" ref={containerRef} style={{ maxWidth: '1280px', margin: '0 auto' }}>
       {sections.map((section, sectionIndex) => {
         if (section.showBanner && section.bannerVariant) {
-          // Renderizar banner
           return (
-            <div 
+            <div
               key={`banner-${sectionIndex}`}
               className="w-full my-8"
-              style={{ 
+              style={{
                 width: '100%',
                 maxWidth: '100%',
                 position: 'relative',
@@ -99,10 +89,9 @@ export function LandingGrid({ items }: LandingGridProps) {
             </div>
           )
         }
-        
-        // Renderizar productos de esta sección
+
         if (section.items.length === 0) return null
-        
+
         return (
           <Masonry
             key={`section-${sectionIndex}`}
@@ -110,14 +99,14 @@ export function LandingGrid({ items }: LandingGridProps) {
             className="masonry-grid"
             columnClassName="masonry-grid_column"
           >
-            {section.items.map((item, itemIndex) => {
+            {section.items.map((item) => {
               const currentIndex = globalItemIndex++
               const isAboveFold = currentIndex < 6
-              
+
               if (item.type === 'product' && item.title) {
                 return (
-                  <div 
-                    key={`product-${item.id}-${currentIndex}`} 
+                  <div
+                    key={`product-${item.id}-${currentIndex}`}
                     data-item-id={`product-${item.id}-${currentIndex}`}
                     className="mb-4"
                   >
@@ -141,6 +130,35 @@ export function LandingGrid({ items }: LandingGridProps) {
                   </div>
                 )
               }
+
+              if (item.type === 'poster') {
+                return (
+                  <div
+                    key={`poster-${item.id}-${currentIndex}`}
+                    data-item-id={`poster-${item.id}-${currentIndex}`}
+                    className="mb-4"
+                  >
+                    <PosterCard
+                      poster={{
+                        id: item.id,
+                        type: 'poster',
+                        imageUrl: item.imageUrl,
+                        videoUrl: item.videoUrl,
+                        description: item.description,
+                        likesCount: item.likesCount ?? 0,
+                        commentsCount: item.commentsCount ?? 0,
+                        createdAt: item.createdAt,
+                        author: item.author,
+                      }}
+                      isLightMode={false}
+                      isAboveFold={isAboveFold}
+                      onOpenModal={() => onPosterClick?.(item)}
+                      onAuthRequired={onAuthRequired}
+                    />
+                  </div>
+                )
+              }
+
               return null
             })}
           </Masonry>
@@ -149,4 +167,3 @@ export function LandingGrid({ items }: LandingGridProps) {
     </div>
   )
 }
-

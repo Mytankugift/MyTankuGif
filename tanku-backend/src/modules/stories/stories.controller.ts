@@ -66,11 +66,25 @@ export class StoriesController {
         return res.status(401).json(errorResponse(ErrorCode.UNAUTHORIZED, 'No autenticado'));
       }
 
-      const { title, description } = req.body;
+      const { title, description, fileDurations: fileDurationsRaw } = req.body;
       const files = req.files as Express.Multer.File[] || [];
 
       if (!files || files.length === 0) {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'Se requiere al menos un archivo para la story'));
+      }
+
+      let fileDurations: Array<number | null> = [];
+      if (typeof fileDurationsRaw === 'string' && fileDurationsRaw.trim()) {
+        try {
+          const parsed = JSON.parse(fileDurationsRaw) as unknown;
+          if (Array.isArray(parsed)) {
+            fileDurations = parsed.map((d) =>
+              typeof d === 'number' && Number.isFinite(d) && d > 0 ? Math.ceil(d) : null
+            );
+          }
+        } catch {
+          /* ignorar JSON inválido */
+        }
       }
 
       // Subir archivos a S3
@@ -82,6 +96,7 @@ export class StoriesController {
             file_type: file.mimetype.startsWith('image/') ? 'image' : 'video',
             file_size: file.size,
             order_index: index,
+            duration: fileDurations[index] ?? null,
           };
         })
       );

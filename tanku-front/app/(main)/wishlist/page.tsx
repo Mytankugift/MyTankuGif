@@ -12,14 +12,18 @@ import { SavedWishlistsViewer } from '@/components/wishlists/saved-wishlists-vie
 import { LikedProductsViewer } from '@/components/wishlists/liked-products-viewer'
 import { WishlistNav } from '@/components/layout/wishlist-nav'
 import { WishlistSavedShortcut } from '@/components/wishlists/wishlist-saved-shortcut'
+import { CategoryLoginModal } from '@/components/feed/category-login-modal'
+import { useAuthStore } from '@/lib/stores/auth-store'
 
 type WishlistTab = 'liked' | 'mine' | 'saved'
 
 function WishlistPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { isAuthenticated, token } = useAuthStore()
   const prevTabRef = useRef<WishlistTab | null>(null)
   const [savedPanelKey, setSavedPanelKey] = useState(0)
+  const [showLoginModal, setShowLoginModal] = useState(false)
 
   const activeTab = useMemo((): WishlistTab => {
     const t = searchParams.get('tab')
@@ -27,6 +31,12 @@ function WishlistPageContent() {
     if (searchParams.get('saved') === 'true') return 'saved'
     return 'mine'
   }, [searchParams])
+
+  useEffect(() => {
+    if (!isAuthenticated && !token) {
+      setShowLoginModal(true)
+    }
+  }, [isAuthenticated, token])
 
   useEffect(() => {
     /** La pestaña «Solicitudes» se unificó en Acceso (modal) en Mis wishlists. */
@@ -42,6 +52,19 @@ function WishlistPageContent() {
     }
     prevTabRef.current = activeTab
   }, [activeTab])
+
+  if (!isAuthenticated && !token) {
+    return (
+      <CategoryLoginModal
+        isOpen={showLoginModal}
+        onClose={() => {
+          setShowLoginModal(false)
+          router.replace('/')
+        }}
+        onLogin={() => setShowLoginModal(false)}
+      />
+    )
+  }
 
   return (
     <div

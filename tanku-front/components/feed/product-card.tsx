@@ -13,6 +13,7 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { logger } from '@/lib/utils/logger'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 import type { FeedItemDTO } from '@/types/api'
+import { productHappinessLabel } from '@/lib/utils/product-happiness-label'
 
 interface ProductCardProps {
   product: {
@@ -525,7 +526,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
             className="text-[10px] sm:text-xs md:text-xs font-normal leading-tight"
             style={{ color: '#73FFA2' }}
           >
-            {likesCount} personas son felices con este producto
+            {productHappinessLabel(likesCount)}
           </span>
         </div>
 

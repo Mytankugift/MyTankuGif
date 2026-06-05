@@ -74,6 +74,19 @@ export function StoriesCarousel({
     [storiesByUser, user?.id]
   )
 
+  /** Tu historia siempre primero (móvil y desktop) */
+  const orderedForCarousel = useMemo(() => {
+    if (!user?.id) return storiesByUser
+    const own = storiesByUser.find((g) => g.userId === user.id)
+    const others = storiesByUser.filter((g) => g.userId !== user.id)
+    return own ? [own, ...others] : others
+  }, [storiesByUser, user?.id])
+
+  const viewerUserQueue = useMemo(
+    () => orderedForCarousel.map((g) => g.userId),
+    [orderedForCarousel]
+  )
+
   useEffect(() => {
     if (!hasPrefetchedStories) {
       fetchFeedStories()
@@ -276,9 +289,10 @@ export function StoriesCarousel({
             fetchFeedStories()
           }}
         />
-        {isViewerOpen && selectedUserId && (
+        {isViewerOpen && selectedUserId && viewerUserQueue.length > 0 && (
           <StoryViewer
             userId={selectedUserId}
+            userQueue={viewerUserQueue}
             isOpen={isViewerOpen}
             onClose={handleCloseViewer}
             onStoryDeleted={() => fetchFeedStories()}
@@ -297,9 +311,9 @@ export function StoriesCarousel({
         )}
       </div>
 
-      {/* Desktop / tablet md+: lista completa como antes (incluye tu historia como círculo, sin + en la tira) */}
+      {/* Desktop / tablet md+: misma prioridad que móvil — tu historia primero */}
       <div className={`hidden md:flex ${flexClasses} scrollbar-hide`}>
-        {storiesByUser.map(({ userId, author, hasNewStories }) =>
+        {orderedForCarousel.map(({ userId, author, hasNewStories }) =>
           renderStoryAvatarButton(
             userId,
             author,
@@ -309,9 +323,10 @@ export function StoriesCarousel({
         )}
       </div>
 
-      {isViewerOpen && selectedUserId && (
+      {isViewerOpen && selectedUserId && viewerUserQueue.length > 0 && (
         <StoryViewer
           userId={selectedUserId}
+          userQueue={viewerUserQueue}
           isOpen={isViewerOpen}
           onClose={handleCloseViewer}
           onStoryDeleted={() => fetchFeedStories()}

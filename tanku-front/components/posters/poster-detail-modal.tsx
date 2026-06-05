@@ -2,9 +2,15 @@
 
 import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { clsx } from 'clsx'
 import { PosterDetailContent } from './poster-detail-content'
+import { TANKU_CARD_SHELL_RADIUS_PX } from '@/lib/utils/tanku-card-radius'
+import {
+  tankuOrderModalBackdropClass,
+  tankuOrderModalPanelClass,
+} from '@/lib/ui/tanku-modal-surface'
 
-/** Modal normal (puede quedar por debajo del bottom nav); comentarios se elevan aparte */
+/** Por encima del bottom nav en móvil */
 const POSTER_MODAL_Z = 10050
 
 interface PosterDetailModalProps {
@@ -31,6 +37,7 @@ interface PosterDetailModalProps {
   onClose: () => void
   onPostDeleted?: (posterId: string) => void
   onPostUpdated?: (posterId: string, updates: { likesCount?: number; isLiked?: boolean; commentsCount?: number }) => void
+  onAuthRequired?: () => void
 }
 
 interface Comment {
@@ -66,11 +73,12 @@ interface PosterDetail {
     email: string
     firstName: string | null
     lastName: string | null
+    username: string | null
     avatar: string | null
   }
 }
 
-export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose, onPostDeleted, onPostUpdated }: PosterDetailModalProps) {
+export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose, onPostDeleted, onPostUpdated, onAuthRequired }: PosterDetailModalProps) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -91,27 +99,49 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
 
   if (!isOpen || !posterId || !mounted) return null
 
-  /** Espacio para MobileBottomNav solo &lt; md (barra fija + safe area) */
+  /** Espacio para MobileBottomNav solo en móvil cuando el modal no ocupa pantalla completa */
   const modal = (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black/80 p-4 max-md:p-0"
+      className="fixed inset-0 isolate flex items-center justify-center p-2 sm:px-4 sm:pt-4 md:p-4 max-md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
       style={{ zIndex: POSTER_MODAL_Z }}
-      onClick={handleClose}
       role="presentation"
     >
       <div
-        className="flex w-[95vw] max-w-[1400px] flex-col overflow-hidden rounded-lg border border-gray-700 bg-gray-900 shadow-2xl md:h-[90vh] md:max-h-[90vh] max-md:h-[100dvh] max-md:w-full max-md:max-w-none max-md:rounded-none max-md:border-0"
+        className={clsx('absolute inset-0', tankuOrderModalBackdropClass)}
+        aria-hidden
+        onClick={handleClose}
+      />
+
+      <div
+        className={clsx(
+          'relative z-10 flex w-full max-w-6xl flex-col overflow-hidden',
+          tankuOrderModalPanelClass,
+          'max-md:max-h-[calc(100dvh-1rem-env(safe-area-inset-bottom,0px))]',
+          'md:h-[580px] md:max-h-[580px]',
+          'lg:h-[680px] lg:max-h-[680px]',
+        )}
+        style={{ borderRadius: `${TANKU_CARD_SHELL_RADIUS_PX}px` }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div
+          className={clsx(
+            'flex min-h-0 flex-1 flex-col',
+            'max-md:max-h-[calc(100dvh-1rem-env(safe-area-inset-bottom,0px))] max-md:overflow-y-auto max-md:overflow-x-hidden max-md:custom-scrollbar',
+            'md:h-full md:overflow-hidden',
+          )}
+          style={{
+            paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
           <PosterDetailContent
             posterId={posterId}
             initialPosterData={initialPosterData}
-            isPageView={false}
-            mobilePageLike
+            isPageView
             onModalClose={handleClose}
             onPostDeleted={handlePostDeleted}
             onPostUpdated={onPostUpdated}
+            onAuthRequired={onAuthRequired}
           />
         </div>
       </div>

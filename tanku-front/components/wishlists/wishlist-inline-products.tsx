@@ -10,6 +10,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useToast } from '@/lib/contexts/toast-context'
 import { GiftEligibilityMessageModal } from '@/components/gifts/gift-eligibility-message-modal'
+import { CategoryLoginModal } from '@/components/feed/category-login-modal'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import {
   getWishlistTwoRowCapacityPx,
@@ -51,12 +52,17 @@ export function WishlistInlineProducts({
   const n = items.length
   const twoRowCap = useWishlistTwoRowCapacity()
   const wishlistOwnerId = wishlist.userId
-  const showGiftToOwner =
-    Boolean(hideRemoveButton && currentUser?.id && wishlistOwnerId !== currentUser.id)
+  /** Perfil ajeno / wishlists guardadas: «Regalar», aunque no haya sesión */
+  const showGiftToOwner = Boolean(
+    hideRemoveButton && wishlistOwnerId && wishlistOwnerId !== currentUser?.id,
+  )
+  /** Sin sesión: solo «Regalar Tanku», sin icono de carrito */
+  const giftOnlyLayout = hideCartButton || !currentUser?.id
 
   const [giftLoadingItemId, setGiftLoadingItemId] = useState<string | null>(null)
   const [giftEligibilityMessage, setGiftEligibilityMessage] = useState<string | null>(null)
   const [comprarLoadingItemId, setComprarLoadingItemId] = useState<string | null>(null)
+  const [showLoginModal, setShowLoginModal] = useState(false)
 
   const [visibleCount, setVisibleCount] = useState(() => Math.min(n, getWishlistTwoRowCapacityPx()))
 
@@ -151,7 +157,7 @@ export function WishlistInlineProducts({
         return
       }
       if (!currentUser?.id) {
-        router.push('/feed')
+        setShowLoginModal(true)
         return
       }
       setGiftLoadingItemId(item.id)
@@ -271,11 +277,11 @@ export function WishlistInlineProducts({
         <div className="mt-auto flex min-h-0 w-full shrink-0 flex-col gap-1.5 px-1 pb-2 pt-1 sm:px-2 sm:pt-2">
           <div
             className={`flex items-center gap-1 ${
-              showGiftToOwner && !hideCartButton ? 'justify-between' : 'justify-stretch'
+              showGiftToOwner && !giftOnlyLayout ? 'justify-between' : 'justify-stretch'
             }`}
           >
             {showGiftToOwner ? (
-              hideCartButton ? (
+              giftOnlyLayout ? (
                 <button
                   type="button"
                   title="Regalar Tanku a quien creó la wishlist"
@@ -392,6 +398,11 @@ export function WishlistInlineProducts({
       open={Boolean(giftEligibilityMessage?.trim())}
       message={giftEligibilityMessage ?? ''}
       onClose={() => setGiftEligibilityMessage(null)}
+    />
+    <CategoryLoginModal
+      isOpen={showLoginModal}
+      onClose={() => setShowLoginModal(false)}
+      onLogin={() => setShowLoginModal(false)}
     />
     </>
   )

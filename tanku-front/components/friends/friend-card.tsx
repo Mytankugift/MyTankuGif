@@ -13,12 +13,12 @@ import { useFriends } from '@/lib/hooks/use-friends'
 import { FriendCardOptionsModal } from '@/components/friends/friend-card-options-modal'
 import type { FriendDTO } from '@/types/api'
 
-/** Primario teal + outline — inner shadow siempre; en viewport menor a md, botones más compactos */
+/** Primario teal + outline — compacto en móvil; en desktop fila con iconos */
 const LINK_MSG =
-  'inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#66DEDB] text-center font-semibold text-zinc-900 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-opacity hover:opacity-95 max-md:gap-1 max-md:rounded-lg max-md:py-1.5 max-md:text-[10px] max-md:leading-tight md:py-2.5 md:text-xs'
+  'inline-flex w-full min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#66DEDB] text-center font-semibold text-zinc-900 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-opacity hover:opacity-95 max-md:gap-1 max-md:rounded-lg max-md:py-1.5 max-md:text-[10px] max-md:leading-tight md:py-2.5 md:text-xs'
 
 const LINK_GIFT =
-  'inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/[0.12] bg-black/20 text-center font-semibold text-zinc-100 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-colors hover:border-[#66DEDB]/35 hover:bg-white/[0.04] max-md:gap-1 max-md:rounded-lg max-md:py-1.5 max-md:text-[10px] max-md:leading-tight md:py-2.5 md:text-xs'
+  'inline-flex w-full min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/[0.12] bg-black/20 text-center font-semibold text-zinc-100 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-colors hover:border-[#66DEDB]/35 hover:bg-white/[0.04] max-md:gap-1 max-md:rounded-lg max-md:py-1.5 max-md:text-[10px] max-md:leading-tight md:py-2.5 md:text-xs'
 
 const ICON_BTN = 'h-4 w-4 shrink-0 max-md:h-3 max-md:w-3'
 
@@ -152,15 +152,22 @@ export function FriendCard({ friend, onRefresh, groups, layout = 'grid' }: Frien
   )
 
   const gridActions = (
-    <div className="flex w-full flex-1 flex-row flex-wrap gap-1.5 sm:flex-nowrap lg:gap-2">
-      <Link href={wishlistPathFromFriend(friend.friend)} className={`${LINK_GIFT} lg:py-2.5`}>
-        <GiftIcon className={`hidden lg:inline ${ICON_BTN} text-[#66DEDB]`} aria-hidden />
-        Enviar{' '}
-        <span className="font-semibold uppercase">TANKU</span>
+    <div className="friend-card-grid-actions">
+      <Link
+        href={wishlistPathFromFriend(friend.friend)}
+        className={`friend-card-action-btn border border-white/[0.12] bg-black/20 font-semibold text-zinc-100 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-colors hover:border-[#66DEDB]/35 hover:bg-white/[0.04]`}
+      >
+        <GiftIcon className="friend-card-action-icon hidden h-3.5 w-3.5 shrink-0 text-[#66DEDB] lg:inline xl:h-4 xl:w-4" aria-hidden />
+        <span className="truncate">
+          Enviar <span className="font-semibold uppercase">TANKU</span>
+        </span>
       </Link>
-      <Link href={`/messages?userId=${userId}`} className={`${LINK_MSG} lg:py-2.5`}>
-        <PaperAirplaneIcon className={`hidden lg:inline ${ICON_BTN}`} aria-hidden />
-        Mensaje
+      <Link
+        href={`/messages?userId=${userId}`}
+        className="friend-card-action-btn bg-[#66DEDB] font-semibold text-zinc-900 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-opacity hover:opacity-95"
+      >
+        <PaperAirplaneIcon className="friend-card-action-icon hidden h-3.5 w-3.5 shrink-0 lg:inline xl:h-4 xl:w-4" aria-hidden />
+        <span className="truncate">Mensaje</span>
       </Link>
     </div>
   )
@@ -259,7 +266,7 @@ export function FriendCard({ friend, onRefresh, groups, layout = 'grid' }: Frien
   /* —— grid —— avatar centrado en hueco cuadrado + laterales con color difuminado -- */
   return (
     <>
-      <div className={`relative flex h-full flex-col overflow-hidden ${cardShell}`}>
+      <div className={`friend-card-grid-shell relative flex h-full min-w-0 flex-col overflow-hidden ${cardShell}`}>
         <div className="relative w-full shrink-0 overflow-hidden rounded-t-2xl bg-zinc-950/95">
         {imgSrc ? (
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>

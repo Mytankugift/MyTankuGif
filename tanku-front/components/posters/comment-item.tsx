@@ -8,6 +8,9 @@ import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { TankuConfirmModal } from '@/components/ui/tanku-confirm-modal'
+
+type CommentConfirmAction = 'delete' | 'hide' | 'unhide'
 
 interface Comment {
   id: string
@@ -63,6 +66,7 @@ export function CommentItem({
   const [isLiking, setIsLiking] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isHiding, setIsHiding] = useState(false)
+  const [pendingConfirm, setPendingConfirm] = useState<CommentConfirmAction | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [isDoubleExpanded, setIsDoubleExpanded] = useState(false)
   const [showReplies, setShowReplies] = useState(false) // Colapsar respuestas por defecto
@@ -283,10 +287,6 @@ export function CommentItem({
 
   const handleDeleteComment = async () => {
     if (!posterId || !token) return
-    
-    if (!confirm('¿Estás seguro de que quieres eliminar este comentario?')) {
-      return
-    }
 
     setIsDeleting(true)
     try {
@@ -307,16 +307,12 @@ export function CommentItem({
       console.error('Error al eliminar comentario:', err)
     } finally {
       setIsDeleting(false)
+      setPendingConfirm(null)
     }
   }
 
   const handleHideComment = async () => {
     if (!posterId || !token || !isPostOwner) return
-    
-    const action = comment.hiddenByOwner ? 'mostrar' : 'ocultar'
-    if (!confirm(`¿Estás seguro de que quieres ${action} este comentario? ${comment.hiddenByOwner ? 'El comentario y sus respuestas volverán a ser visibles.' : 'El comentario y sus respuestas serán ocultados.'}`)) {
-      return
-    }
 
     setIsHiding(true)
     try {
@@ -339,7 +335,39 @@ export function CommentItem({
       alert('Error al ocultar/mostrar comentario')
     } finally {
       setIsHiding(false)
+      setPendingConfirm(null)
     }
+  }
+
+  const confirmModalCopy =
+    pendingConfirm === 'delete'
+      ? {
+          title: 'Eliminar comentario',
+          message: '¿Estás seguro de que quieres eliminar este comentario?',
+          confirmLabel: 'Eliminar',
+          variant: 'danger' as const,
+        }
+      : pendingConfirm === 'hide'
+        ? {
+            title: 'Ocultar comentario',
+            message:
+              '¿Estás seguro de que quieres ocultar este comentario? El comentario y sus respuestas serán ocultados.',
+            confirmLabel: 'Ocultar',
+            variant: 'default' as const,
+          }
+        : pendingConfirm === 'unhide'
+          ? {
+              title: 'Mostrar comentario',
+              message:
+                '¿Estás seguro de que quieres mostrar este comentario? El comentario y sus respuestas volverán a ser visibles.',
+              confirmLabel: 'Mostrar',
+              variant: 'default' as const,
+            }
+          : null
+
+  const handleConfirmPending = () => {
+    if (pendingConfirm === 'delete') void handleDeleteComment()
+    else if (pendingConfirm === 'hide' || pendingConfirm === 'unhide') void handleHideComment()
   }
 
   return (
@@ -439,7 +467,7 @@ export function CommentItem({
               {/* Ocultar - solo si es el dueño del post */}
               {token && isPostOwner && (
                 <button
-                  onClick={handleHideComment}
+                  onClick={() => setPendingConfirm(comment.hiddenByOwner ? 'unhide' : 'hide')}
                   disabled={isHiding}
                   className="text-gray-500 hover:text-yellow-500 text-xs transition-colors disabled:opacity-50"
                   title={comment.hiddenByOwner ? 'Mostrar comentario' : 'Ocultar comentario'}
@@ -451,7 +479,7 @@ export function CommentItem({
               {/* Eliminar - solo si es el dueño del comentario */}
               {token && user && comment.userId === user.id && (
                 <button
-                  onClick={handleDeleteComment}
+                  onClick={() => setPendingConfirm('delete')}
                   disabled={isDeleting}
                   className="text-gray-500 hover:text-red-500 text-xs transition-colors disabled:opacity-50"
                 >
@@ -520,6 +548,21 @@ export function CommentItem({
           )}
         </div>
       </div>
+
+      {confirmModalCopy ? (
+        <TankuConfirmModal
+          open={pendingConfirm !== null}
+          title={confirmModalCopy.title}
+          message={confirmModalCopy.message}
+          confirmLabel={confirmModalCopy.confirmLabel}
+          variant={confirmModalCopy.variant}
+          isLoading={isDeleting || isHiding}
+          onCancel={() => {
+            if (!isDeleting && !isHiding) setPendingConfirm(null)
+          }}
+          onConfirm={handleConfirmPending}
+        />
+      ) : null}
     </div>
   )
 }

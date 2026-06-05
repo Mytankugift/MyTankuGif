@@ -10,7 +10,9 @@ import { UserMentionAutocomplete } from './user-mention-autocomplete'
 import { UserAvatar } from '@/components/shared/user-avatar'
 import { CommentItem } from './comment-item'
 import { SharePostModal } from './share-post-modal'
+import { CategoryLoginModal } from '@/components/feed/category-login-modal'
 import { EmojiPickerButton } from './emoji-picker-button'
+import { TankuConfirmModal } from '@/components/ui/tanku-confirm-modal'
 import Image from 'next/image'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 import { ChatBubbleLeftIcon, TrashIcon, EllipsisVerticalIcon, PaperAirplaneIcon, XMarkIcon } from '@heroicons/react/24/outline'
@@ -42,6 +44,8 @@ interface PosterDetailContentProps {
   onModalClose?: () => void
   onPostDeleted?: (posterId: string) => void
   onPostUpdated?: (posterId: string, updates: { likesCount?: number; isLiked?: boolean; commentsCount?: number }) => void
+  /** Sin sesión: abrir login en lugar de navegar al perfil (p. ej. landing) */
+  onAuthRequired?: () => void
 }
 
 interface Comment {
@@ -89,7 +93,7 @@ export function PosterDetailContent({
   mobilePageLike = false,
   onModalClose,
   onPostDeleted,
-  onPostUpdated 
+  onPostUpdated,
 }: PosterDetailContentProps) {
   const router = useRouter()
   const { token, user } = useAuthStore()
@@ -116,40 +120,62 @@ export function PosterDetailContent({
   const [showMenu, setShowMenu] = useState(false)
   const [showOwnerPageActionsModal, setShowOwnerPageActionsModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  const [showDeletePostConfirm, setShowDeletePostConfirm] = useState(false)
   const [isCommentsSheetOpen, setIsCommentsSheetOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [mediaOrientation, setMediaOrientation] = useState<'landscape' | 'portrait' | 'square'>('square')
   const menuRef = useRef<HTMLDivElement>(null)
   const commentFormRef = useRef<HTMLDivElement>(null)
   const commentsListRef = useRef<HTMLDivElement>(null)
+  const loadedPosterIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     setIsMounted(true)
     return () => setIsMounted(false)
   }, [])
 
-  // Inicializar con datos del feed si están disponibles
-  useEffect(() => {
-    if (posterId) {
-      if (initialPosterData) {
-        setPoster({
-          id: initialPosterData.id,
-          imageUrl: initialPosterData.imageUrl,
-          videoUrl: initialPosterData.videoUrl || null,
-          description: initialPosterData.description || null,
-          likesCount: initialPosterData.likesCount,
-          commentsCount: initialPosterData.commentsCount,
-          createdAt: initialPosterData.createdAt,
-          isLiked: initialPosterData.isLiked,
-          comments: [],
-          author: initialPosterData.author,
-        })
-        loadComments(0)
-      } else {
-        loadPoster()
-      }
+  const syncCommentsCount = (count: number) => {
+    setTotalComments(count)
+    setPoster((prev) => (prev ? { ...prev, commentsCount: count } : null))
+    if (onPostUpdated && posterId) {
+      onPostUpdated(posterId, { commentsCount: count })
     }
-  }, [posterId, initialPosterData])
+  }
+
+  // Inicializar solo al cambiar de post (evita resetear el contador si el feed re-renderiza)
+  useEffect(() => {
+    if (!posterId) {
+      loadedPosterIdRef.current = null
+      return
+    }
+
+    if (loadedPosterIdRef.current === posterId) {
+      return
+    }
+
+    loadedPosterIdRef.current = posterId
+
+    if (initialPosterData) {
+      setPoster({
+        id: initialPosterData.id,
+        imageUrl: initialPosterData.imageUrl,
+        videoUrl: initialPosterData.videoUrl || null,
+        description: initialPosterData.description || null,
+        likesCount: initialPosterData.likesCount,
+        commentsCount: initialPosterData.commentsCount,
+        createdAt: initialPosterData.createdAt,
+        isLiked: initialPosterData.isLiked,
+        comments: [],
+        author: initialPosterData.author,
+      })
+      setTotalComments(initialPosterData.commentsCount ?? 0)
+      loadComments(0)
+    } else {
+      loadPoster()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posterId])
 
   const loadPoster = async () => {
     if (!posterId) return
@@ -159,6 +185,7 @@ export function PosterDetailContent({
       const response = await apiClient.get<PosterDetail>(`${API_ENDPOINTS.POSTERS.BY_ID(posterId)}?comments=false`)
       if (response.success && response.data) {
         setPoster(response.data)
+        setTotalComments(response.data.commentsCount ?? 0)
         loadComments(0)
       } else {
         setError('Error al cargar el post')
@@ -181,12 +208,14 @@ export function PosterDetailContent({
       }>(`${API_ENDPOINTS.POSTERS.BY_ID(posterId)}/comments?page=${page}&limit=20`)
 
       if (response.success && response.data) {
+        const total = response.data.total ?? 0
         setPoster(prev => prev ? {
           ...prev,
           comments: page === 0 ? response.data.comments : [...(prev.comments || []), ...response.data.comments],
+          commentsCount: total,
         } : null)
         setHasMoreComments(response.data.hasMore)
-        setTotalComments(response.data.total)
+        setTotalComments(total)
         setCommentsPage(page)
         await loadMentionedUsers(response.data.comments)
       }
@@ -228,7 +257,12 @@ export function PosterDetailContent({
   }
 
   const handleLike = async () => {
-    if (!poster || !token || isLiking) return
+    if (!poster) return
+    if (!token) {
+      setShowLoginModal(true)
+      return
+    }
+    if (isLiking) return
 
     setIsLiking(true)
     try {
@@ -368,19 +402,11 @@ export function PosterDetailContent({
       if (response.success && response.data) {
         setCommentText('')
         setReplyingTo(null)
-        
-        setPoster(prev => prev ? {
-          ...prev,
-          commentsCount: prev.commentsCount + 1,
-        } : null)
+
+        const optimisticCount = (poster.commentsCount ?? totalComments ?? 0) + 1
+        syncCommentsCount(optimisticCount)
 
         await loadComments(0)
-        
-        if (onPostUpdated && poster) {
-          onPostUpdated(poster.id, {
-            commentsCount: (poster.commentsCount || 0) + 1,
-          })
-        }
       }
     } catch (err: any) {
       setError(err.message || 'Error al comentar')
@@ -404,10 +430,6 @@ export function PosterDetailContent({
 
   const handleDelete = async () => {
     if (!poster || !token || isDeleting) return
-
-    if (!confirm('¿Estás seguro de que quieres eliminar este post?')) {
-      return
-    }
 
     setIsDeleting(true)
     try {
@@ -436,11 +458,23 @@ export function PosterDetailContent({
       setError(err.message || 'Error al eliminar el post')
     } finally {
       setIsDeleting(false)
+      setShowDeletePostConfirm(false)
     }
+  }
+
+  const requestDeletePost = () => {
+    if (!poster || !token || isDeleting) return
+    setShowOwnerPageActionsModal(false)
+    setShowMenu(false)
+    setShowDeletePostConfirm(true)
   }
 
   const handleShare = () => {
     if (!poster) return
+    if (!token) {
+      setShowLoginModal(true)
+      return
+    }
     setShowShareModal(true)
   }
 
@@ -507,15 +541,52 @@ export function PosterDetailContent({
 
   const isOwner = user?.id === poster.author?.id
   const usePageLikeMobile = isPageView || mobilePageLike
+  const embeddedInModal = Boolean(onModalClose)
   /** Misma cáscara visual que /messages (tarjeta en page.tsx) */
   const postPageBg = isPageView ? 'bg-[#171B21]' : 'bg-[var(--color-surface-191e23-20)]'
   const postPageDivider = isPageView ? 'border-[#414141]' : 'border-white/10'
   /** Solo divisores internos fuera de vista página (el borde exterior es la tarjeta en /posts/.../page) */
   const innerRule = (classes: string) => (isPageView ? '' : classes)
+  /** En modal: layout 2 columnas desde tablet (md) con comentarios fijos abajo-derecha */
+  const hideBelowSplit = embeddedInModal ? 'md:hidden' : 'lg:hidden'
+  const showFlexAtSplit = embeddedInModal ? 'hidden md:flex' : 'hidden lg:flex'
+  const showBlockAtSplit = embeddedInModal ? 'hidden md:block' : 'hidden lg:block'
+  const splitRowClass = embeddedInModal ? 'md:flex-row' : 'lg:flex-row'
+  const leftColClass = embeddedInModal
+    ? 'md:h-full md:min-h-0 md:w-3/5'
+    : 'lg:h-full lg:min-h-0 lg:w-3/5'
+  const rightColClass = embeddedInModal ? 'md:w-2/5' : 'lg:w-2/5'
+  const detailsPanelClass = embeddedInModal
+    ? 'hidden md:flex'
+    : usePageLikeMobile
+      ? 'hidden lg:flex'
+      : 'flex'
+  const detailsBorderClass = isPageView
+    ? embeddedInModal
+      ? 'md:border-l md:border-white/[0.08]'
+      : 'lg:border-l lg:border-white/[0.08]'
+    : innerRule(`border-t lg:border-t-0 lg:border-l ${postPageDivider}`)
+  const mediaMinHeightClass = embeddedInModal
+    ? 'min-h-0 flex-1 max-md:min-h-[220px] max-md:max-h-[50vh]'
+    : 'min-h-[58dvh] lg:min-h-0 lg:flex-1'
+  /** Desktop página: imagen centrada en el espacio libre; descripción anclada abajo */
+  const pageViewMediaWrapperClass = isPageView
+    ? embeddedInModal
+      ? 'md:min-h-0'
+      : 'lg:min-h-0 lg:flex-1 lg:pt-0'
+    : embeddedInModal
+      ? 'md:min-h-0'
+      : 'lg:min-h-0'
 
   const profileHref = poster.author.username
     ? `/profile/${poster.author.username}`
     : `/profile/${poster.author.id}`
+
+  const handleGoToProfile = () => {
+    router.push(profileHref)
+  }
+
+  const displayedCommentsCount = Math.max(poster.commentsCount ?? 0, totalComments)
 
   const posterMedia = (
     <>
@@ -577,23 +648,46 @@ export function PosterDetailContent({
       {/* Header - Solo en pageView */}
       {isPageView && (
         <div className={`flex-shrink-0 ${postPageBg}`}>
-          <div className="flex items-center gap-2 px-4 py-3">
+          <div className={`flex items-center gap-2 px-4 ${embeddedInModal ? 'py-2' : 'py-3'}`}>
+            {embeddedInModal && (
+              <button
+                type="button"
+                onClick={handleGoToProfile}
+                className="flex min-w-0 flex-1 items-center justify-start gap-2 overflow-hidden text-left md:hidden"
+              >
+                <UserAvatar user={poster.author} size={32} />
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold leading-tight text-white">{authorName}</p>
+                  {accountHandle ? (
+                    <p className="truncate text-[11px] leading-tight text-gray-400">{accountHandle}</p>
+                  ) : null}
+                </div>
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => router.back()}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/10"
-              aria-label="Volver"
+              onClick={() => (onModalClose ? onModalClose() : router.back())}
+              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/10 ${embeddedInModal ? 'hidden md:flex' : ''}`}
+              aria-label={onModalClose ? 'Cerrar' : 'Volver'}
             >
-              <Image
-                src="/icons_tanku/mobile_tanku_menu_ir_atras_Universal.svg"
-                alt=""
-                width={24}
-                height={24}
-                className="h-6 w-6 object-contain"
-                unoptimized
-              />
+              {onModalClose ? (
+                <XMarkIcon className="h-6 w-6 text-white" aria-hidden />
+              ) : (
+                <Image
+                  src="/icons_tanku/mobile_tanku_menu_ir_atras_Universal.svg"
+                  alt=""
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 object-contain"
+                  unoptimized
+                />
+              )}
             </button>
-            <h2 className="min-w-0 flex-1 text-center text-sm font-semibold text-white">Publicación</h2>
+            {!embeddedInModal ? (
+              <h2 className="min-w-0 flex-1 text-center text-sm font-semibold text-white">Publicación</h2>
+            ) : (
+              <div className="hidden min-w-0 flex-1 md:block" aria-hidden />
+            )}
             <div className="flex max-w-[min(72%,300px)] shrink-0 items-center gap-2 sm:max-w-[min(65%,340px)]">
               {isOwner && (
                 <div className="relative flex-shrink-0">
@@ -609,7 +703,7 @@ export function PosterDetailContent({
                   </button>
                 </div>
               )}
-              <div className="hidden min-w-0 flex-1 text-right lg:block">
+              <div className={`hidden min-w-0 flex-1 text-right ${showBlockAtSplit}`}>
                 <p className="truncate text-sm font-semibold text-white">{authorName}</p>
                 {accountHandle ? (
                   <p className="truncate text-xs text-gray-400">{accountHandle}</p>
@@ -617,20 +711,22 @@ export function PosterDetailContent({
               </div>
               <button
                 type="button"
-                onClick={() => router.push(profileHref)}
-                className="hidden flex-shrink-0 rounded-full ring-1 ring-white/[0.12] transition-opacity hover:opacity-90 lg:flex"
+                onClick={handleGoToProfile}
+                className={`hidden flex-shrink-0 rounded-full ring-1 ring-white/[0.12] transition-opacity hover:opacity-90 ${showFlexAtSplit}`}
                 aria-label={`Perfil de ${authorName}`}
               >
                 <UserAvatar user={poster.author} size={36} />
               </button>
             </div>
           </div>
-          <div className="h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/[0.14] to-transparent" aria-hidden />
+          <div className={`h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/[0.14] to-transparent ${embeddedInModal ? 'max-md:hidden' : ''}`} aria-hidden />
+          {!embeddedInModal && (
+            <>
           {/* Debajo del nav: nombre + @ + avatar alineados a la derecha — tablet / móvil */}
-          <div className={`flex justify-end px-4 py-2.5 lg:hidden ${postPageBg}`}>
+          <div className={`flex justify-end px-4 py-2.5 ${hideBelowSplit} ${postPageBg}`}>
             <button
               type="button"
-              onClick={() => router.push(profileHref)}
+              onClick={handleGoToProfile}
               className="flex max-w-full items-center gap-3 rounded-xl py-1 pl-2 text-right transition-colors hover:bg-white/[0.04]"
             >
               <div className="min-w-0 text-right">
@@ -642,7 +738,9 @@ export function PosterDetailContent({
               <UserAvatar user={poster.author} size={40} />
             </button>
           </div>
-          <div className="h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/[0.1] to-transparent lg:hidden" aria-hidden />
+          <div className={`h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/[0.1] to-transparent ${hideBelowSplit}`} aria-hidden />
+            </>
+          )}
         </div>
       )}
 
@@ -650,7 +748,7 @@ export function PosterDetailContent({
       {!isPageView && (
         <div className="flex-shrink-0 flex items-center justify-between border-b border-gray-700 p-4 bg-[linear-gradient(180deg,#20262D_0%,#191E23_100%)]">
           <button
-            onClick={() => router.push(poster.author.username ? `/profile/${poster.author.username}` : `/profile/${poster.author.id}`)}
+            onClick={handleGoToProfile}
             className="flex items-center gap-3 hover:opacity-80 transition-opacity"
           >
             <UserAvatar user={poster.author} size={40} />
@@ -689,8 +787,7 @@ export function PosterDetailContent({
                     <button
                       type="button"
                       onClick={() => {
-                        handleDelete()
-                        setShowMenu(false)
+                        requestDeletePost()
                       }}
                       disabled={isDeleting}
                       className="w-full whitespace-nowrap px-3 py-2 text-left text-xs text-red-400 transition-colors hover:bg-red-900/20 disabled:opacity-50"
@@ -720,15 +817,17 @@ export function PosterDetailContent({
 
       {/* Content */}
       <div
-        className={`flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row ${isPageView ? '' : 'overflow-y-auto'} ${postPageBg}`}
+        className={`flex min-h-0 flex-1 flex-col overflow-hidden ${splitRowClass} ${isPageView && !embeddedInModal ? 'lg:min-h-0 lg:flex-1' : ''} ${!embeddedInModal && !isPageView ? 'overflow-y-auto' : ''} ${postPageBg}`}
       >
         {isPageView ? (
-          <div className={`flex min-h-0 flex-col lg:h-full lg:min-h-0 lg:w-3/5 ${postPageBg}`}>
-            <div className="relative flex min-h-[58dvh] flex-1 items-center justify-center overflow-hidden px-2 pt-2 lg:min-h-0">
+          <div className={`flex min-h-0 flex-col ${leftColClass} ${postPageBg} ${embeddedInModal ? '' : 'lg:h-full'}`}>
+            <div
+              className={`relative flex ${mediaMinHeightClass} items-center justify-center overflow-hidden px-2 pt-2 ${pageViewMediaWrapperClass}`}
+            >
               {posterMedia}
             </div>
-            {/* Solo desktop (lg+): descripción bajo la imagen */}
-            <div className="hidden shrink-0 lg:block">
+            {/* Solo desktop (lg+): descripción anclada al pie de la columna izquierda */}
+            <div className={`mt-auto hidden shrink-0 ${showBlockAtSplit}`}>
               {poster.description ? (
                 <>
                   <div
@@ -753,7 +852,7 @@ export function PosterDetailContent({
         {/* Bloque inferior en mobile page view: acciones + fecha + descripción */}
         {usePageLikeMobile && (
           <div
-            className={`space-y-2.5 px-4 py-3 lg:hidden ${postPageBg} ${
+            className={`space-y-2.5 px-4 py-3 ${hideBelowSplit} ${postPageBg} ${
               isPageView ? 'border-t border-white/[0.08]' : innerRule(`border-t ${postPageDivider}`)
             }`}
           >
@@ -777,11 +876,17 @@ export function PosterDetailContent({
                   <span className="text-sm font-semibold">{poster.likesCount}</span>
                 </button>
                 <button
-                  onClick={() => setIsCommentsSheetOpen(true)}
+                  onClick={() => {
+                    if (!token) {
+                      setShowLoginModal(true)
+                      return
+                    }
+                    setIsCommentsSheetOpen(true)
+                  }}
                   className="flex items-center gap-1.5 text-white hover:text-[#73FFA2] transition-colors"
                 >
                   <ChatBubbleLeftIcon className="w-5 h-5" />
-                  <span className="text-sm font-semibold">{poster.commentsCount}</span>
+                  <span className="text-sm font-semibold">{displayedCommentsCount}</span>
                 </button>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
@@ -818,50 +923,60 @@ export function PosterDetailContent({
 
         {/* Details */}
         <div
-          className={`${usePageLikeMobile ? 'hidden lg:flex' : 'flex'} h-full min-h-0 flex-col lg:w-2/5 ${postPageBg} ${
-            isPageView ? 'lg:border-l lg:border-white/[0.08]' : innerRule(`border-t lg:border-t-0 lg:border-l ${postPageDivider}`)
-          }`}
+          className={`${detailsPanelClass} h-full min-h-0 flex-col overflow-hidden ${rightColClass} ${postPageBg} ${detailsBorderClass}`}
         >
-          {/* Comments - Con altura definida y scroll interno */}
+          {/* Comments - scroll interno; formulario anclado abajo en columna derecha */}
           <div
             ref={commentsListRef}
-            className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 min-h-0 md:pb-0 pb-24"
+            className={`min-h-0 flex-1 overflow-y-auto custom-scrollbar md:pb-0 pb-24 ${
+              isPageView && !embeddedInModal ? 'lg:flex lg:flex-col' : ''
+            }`}
           >
-            {poster.comments && poster.comments.length > 0 ? (
-              <>
-                {poster.comments
-                  .filter(comment => !comment.parentId)
-                  .map((comment) => (
-                    <CommentItem
-                      key={comment.id}
-                      comment={comment}
-                      posterId={poster.id}
-                      mentionedUsers={mentionedUsers}
-                      allComments={poster.comments || []}
-                      onReplyClick={handleReplyClick}
-                      onUpdate={() => loadComments(0)}
-                      parentComment={null}
-                      rootComment={null}
-                      isPostOwner={isOwner}
-                    />
-                  ))}
-                {hasMoreComments && (poster?.comments?.length || 0) >= 20 && (
-                  <button
-                    onClick={() => loadComments(commentsPage + 1)}
-                    disabled={isLoadingComments}
-                    className="w-full py-2 text-[#73FFA2] hover:text-[#66e891] text-sm font-medium disabled:opacity-50"
-                  >
-                    {isLoadingComments ? 'Cargando...' : 'Cargar más comentarios'}
-                  </button>
-                )}
-              </>
-            ) : isLoadingComments ? (
-              <div className="flex justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#73FFA2]"></div>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">No hay comentarios aún</p>
-            )}
+            <div
+              className={`space-y-4 p-4 ${
+                isPageView && !embeddedInModal
+                  ? 'lg:flex lg:min-h-full lg:flex-col lg:justify-end'
+                  : ''
+              }`}
+            >
+              {poster.comments && poster.comments.length > 0 ? (
+                <>
+                  {poster.comments
+                    .filter(comment => !comment.parentId)
+                    .map((comment) => (
+                      <CommentItem
+                        key={comment.id}
+                        comment={comment}
+                        posterId={poster.id}
+                        mentionedUsers={mentionedUsers}
+                        allComments={poster.comments || []}
+                        onReplyClick={handleReplyClick}
+                        onUpdate={async () => {
+                          await loadComments(0)
+                        }}
+                        parentComment={null}
+                        rootComment={null}
+                        isPostOwner={isOwner}
+                      />
+                    ))}
+                  {hasMoreComments && (poster?.comments?.length || 0) >= 20 && (
+                    <button
+                      onClick={() => loadComments(commentsPage + 1)}
+                      disabled={isLoadingComments}
+                      className="w-full py-2 text-[#73FFA2] hover:text-[#66e891] text-sm font-medium disabled:opacity-50"
+                    >
+                      {isLoadingComments ? 'Cargando...' : 'Cargar más comentarios'}
+                    </button>
+                  )}
+                </>
+              ) : isLoadingComments ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#73FFA2]"></div>
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8 lg:py-4">No hay comentarios aún</p>
+              )}
+            </div>
           </div>
 
           {usePageLikeMobile && (
@@ -873,7 +988,7 @@ export function PosterDetailContent({
                 />
               )}
               <div
-                className={`hidden shrink-0 items-center justify-between gap-3 px-4 py-3 lg:flex ${innerRule(`border-b ${postPageDivider}`)}`}
+                className={`hidden shrink-0 items-center justify-between gap-3 px-4 py-3 ${embeddedInModal ? 'md:flex' : 'lg:flex'} ${innerRule(`border-b ${postPageDivider}`)}`}
               >
                 <div className="flex items-center gap-3">
                   <button
@@ -897,13 +1012,17 @@ export function PosterDetailContent({
                   <button
                     type="button"
                     onClick={() => {
-                      const el = token ? commentFormRef.current : commentsListRef.current
+                      if (!token) {
+                        setShowLoginModal(true)
+                        return
+                      }
+                      const el = commentFormRef.current
                       el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
                     }}
                     className="flex items-center gap-1.5 text-white transition-colors hover:text-[#73FFA2]"
                   >
                     <ChatBubbleLeftIcon className="h-5 w-5" />
-                    <span className="text-sm font-semibold">{poster.commentsCount}</span>
+                    <span className="text-sm font-semibold">{displayedCommentsCount}</span>
                   </button>
                 </div>
                 <div className="flex items-center gap-1">
@@ -1033,7 +1152,7 @@ export function PosterDetailContent({
       {usePageLikeMobile && isMounted
         ? createPortal(
             <div
-              className={`fixed inset-0 left-0 z-[1000002] bg-black/60 transition-opacity duration-200 md:left-36 lg:hidden ${
+              className={`fixed inset-0 left-0 z-[1000002] bg-black/60 transition-opacity duration-200 md:left-36 ${hideBelowSplit} ${
                 isCommentsSheetOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
               }`}
               onClick={() => setIsCommentsSheetOpen(false)}
@@ -1083,7 +1202,9 @@ export function PosterDetailContent({
                               mentionedUsers={mentionedUsers}
                               allComments={poster.comments || []}
                               onReplyClick={handleReplyClick}
-                              onUpdate={() => loadComments(0)}
+                              onUpdate={async () => {
+                        await loadComments(0)
+                      }}
                               parentComment={null}
                               rootComment={null}
                               isPostOwner={isOwner}
@@ -1139,11 +1260,13 @@ export function PosterDetailContent({
                     </form>
                   </div>
                 ) : (
-                  <div
-                    className={`shrink-0 border-t border-white/[0.08] px-4 py-3 pb-[max(0.75rem,calc(0.75rem+env(safe-area-inset-bottom,0px)))] text-center text-sm text-gray-500 ${postPageBg}`}
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginModal(true)}
+                    className={`shrink-0 border-t border-white/[0.08] px-4 py-3 pb-[max(0.75rem,calc(0.75rem+env(safe-area-inset-bottom,0px)))] w-full text-center text-sm text-[#73FFA2] hover:underline ${postPageBg}`}
                   >
                     Inicia sesión para comentar
-                  </div>
+                  </button>
                 )}
               </div>
             </div>,
@@ -1193,8 +1316,7 @@ export function PosterDetailContent({
                   disabled={isDeleting}
                   className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-left text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
                   onClick={() => {
-                    setShowOwnerPageActionsModal(false)
-                    void handleDelete()
+                    requestDeletePost()
                   }}
                 >
                   <TrashIcon className="h-5 w-5 shrink-0" aria-hidden />
@@ -1222,6 +1344,25 @@ export function PosterDetailContent({
           onClose={() => setShowShareModal(false)}
         />
       )}
+
+      <CategoryLoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLogin={() => setShowLoginModal(false)}
+      />
+
+      <TankuConfirmModal
+        open={showDeletePostConfirm}
+        title="Eliminar publicación"
+        message="¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar publicación"
+        variant="danger"
+        isLoading={isDeleting}
+        onCancel={() => {
+          if (!isDeleting) setShowDeletePostConfirm(false)
+        }}
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   )
 }

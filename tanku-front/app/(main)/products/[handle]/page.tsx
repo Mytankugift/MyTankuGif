@@ -2,12 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Image from 'next/image'
+import { clsx } from 'clsx'
 import { useProduct } from '@/lib/hooks/use-product'
 import { ProductDetailContent } from '@/components/products/product-detail-content'
 import { ProductAgeRestricted } from '@/components/products/product-age-restricted'
-import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { isAgeRestrictedApiError } from '@/lib/api/error-codes'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { TANKU_CARD_SHELL_RADIUS_PX } from '@/lib/utils/tanku-card-radius'
+import { tankuOrderModalBackdropClass } from '@/lib/ui/tanku-modal-surface'
 import type { FeedItemDTO, ProductDTO } from '@/types/api'
 
 function toFeedItem(p: ProductDTO): FeedItemDTO {
@@ -33,7 +36,7 @@ export default function ProductPage() {
 
   const { product: fullProduct, isLoading: isLoadingProduct, error: productError } = useProduct(
     handle,
-    { enabled: !!handle }
+    { enabled: !!handle },
   )
 
   const displayProduct = useMemo(() => {
@@ -52,8 +55,8 @@ export default function ProductPage() {
 
   if (isLoading || isLoadingProduct) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2]"></div>
+      <div className={clsx('flex min-h-screen flex-1 items-center justify-center', tankuOrderModalBackdropClass)}>
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#73FFA2]" />
       </div>
     )
   }
@@ -70,12 +73,12 @@ export default function ProductPage() {
 
   if (!displayProduct) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className={clsx('flex min-h-screen flex-1 items-center justify-center', tankuOrderModalBackdropClass)}>
         <div className="text-center">
-          <p className="text-red-400 text-xl mb-4">Producto no encontrado</p>
+          <p className="mb-4 text-xl text-red-400">Producto no encontrado</p>
           <button
             onClick={() => router.push('/feed')}
-            className="px-4 py-2 bg-[#73FFA2] text-gray-900 rounded-lg font-semibold hover:bg-[#60D489]"
+            className="rounded-lg bg-[#73FFA2] px-4 py-2 font-semibold text-gray-900 hover:bg-[#60D489]"
           >
             Volver al feed
           </button>
@@ -85,22 +88,51 @@ export default function ProductPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800"
-            aria-label="Volver"
-          >
-            <ArrowLeftIcon className="w-6 h-6" />
-          </button>
-          <h1 className="text-white font-semibold text-lg">{displayProduct.title}</h1>
+    <div className={clsx('flex min-h-0 w-full flex-1 flex-col overflow-hidden', tankuOrderModalBackdropClass)}>
+      <div
+        className={clsx(
+          'custom-scrollbar flex min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+          'px-4 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] pt-4',
+          'md:pt-6 lg:px-8 lg:pb-8 lg:pt-6 xl:px-10 xl:pt-8',
+        )}
+      >
+        <div
+          className={clsx(
+            'flex min-h-0 w-full flex-1 flex-col overflow-hidden border border-[#414141] shadow-xl',
+            'md:min-h-[calc(100dvh-10rem)] lg:min-h-[calc(100vh-11rem)] xl:min-h-[calc(100vh-12rem)]',
+          )}
+          style={{
+            backgroundColor: '#171B21',
+            borderRadius: `${TANKU_CARD_SHELL_RADIUS_PX}px`,
+          }}
+        >
+          <div className="flex-shrink-0 border-b border-white/[0.08] bg-[#171B21]">
+            <div className="flex items-center gap-2 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/10"
+                aria-label="Volver"
+              >
+                <Image
+                  src="/icons_tanku/mobile_tanku_menu_ir_atras_Universal.svg"
+                  alt=""
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 object-contain"
+                  unoptimized
+                />
+              </button>
+              <h1 className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-white">
+                {displayProduct.title}
+              </h1>
+              <div className="h-9 w-9 flex-shrink-0" aria-hidden />
+            </div>
+          </div>
+          <div className="min-h-0 flex-1">
+            <ProductDetailContent product={displayProduct} isPageView={true} />
+          </div>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <ProductDetailContent product={displayProduct} isPageView={true} />
       </div>
     </div>
   )

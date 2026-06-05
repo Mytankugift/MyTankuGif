@@ -58,6 +58,11 @@ export const API_ENDPOINTS = {
       SHOW_IMAGE: (id: string) => `${API_BASE}/api/v1/admin/products/${id}/images/show`,
       APPLY_PRICE_FORMULA: (id: string) => `${API_BASE}/api/v1/admin/products/${id}/apply-price-formula`,
     },
+    FEED_GLOBAL_ACCOUNTS: {
+      LIST: `${API_BASE}/api/v1/admin/feed-global-accounts`,
+      CREATE: `${API_BASE}/api/v1/admin/feed-global-accounts`,
+      UPDATE: (id: string) => `${API_BASE}/api/v1/admin/feed-global-accounts/${id}`,
+    },
     PRICE_FORMULAS: {
       LIST: `${API_BASE}/api/v1/admin/price-formulas`,
       BY_ID: (id: string) => `${API_BASE}/api/v1/admin/price-formulas/${id}`,

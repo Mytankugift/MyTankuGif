@@ -17,6 +17,7 @@ import {
   tankuOrderModalPanelClass,
   tankuVerticalModalPanelClass,
 } from '@/lib/ui/tanku-modal-surface'
+import { getVideoDurationSeconds } from '@/lib/stories/get-video-duration-seconds'
 
 interface CreateStoryModalProps {
   isOpen: boolean
@@ -132,11 +133,16 @@ export function CreateStoryModal({ isOpen, onClose, onStoryCreated }: CreateStor
     setError(null)
 
     try {
+      const durations = await Promise.all(
+        selectedFiles.map((file) => getVideoDurationSeconds(file))
+      )
+
       const formData = new FormData()
       selectedFiles.forEach((file) => {
         formData.append('files', file)
       })
       if (description.trim()) formData.append('description', description.trim())
+      formData.append('fileDurations', JSON.stringify(durations))
 
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'
       const response = await fetch(`${API_URL}${API_ENDPOINTS.STORIES.CREATE}`, {

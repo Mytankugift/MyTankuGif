@@ -95,7 +95,7 @@ export class FeedController {
 
   /**
    * GET /api/v1/feed/public
-   * Obtener feed público (solo productos, sin posters, sin autenticación)
+   * Obtener feed público (productos + posts de cuentas globales, sin autenticación)
    * Cacheable y limitado a 100 productos máximo
    * 
    * Headers:

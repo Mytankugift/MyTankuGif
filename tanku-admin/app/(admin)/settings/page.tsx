@@ -7,6 +7,7 @@ import {
   ClockIcon,
   EnvelopeIcon,
   LifebuoyIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 
 export default function SettingsPage() {
@@ -21,6 +22,14 @@ export default function SettingsPage() {
   }
 
   const settingsOptions = [
+    {
+      id: 'feed-global-accounts',
+      name: 'Cuentas del feed',
+      description:
+        'Usuarios de la app cuyos posts e historias se muestran a todos en feed y landing',
+      icon: UserGroupIcon,
+      href: '/settings/feed-global-accounts',
+    },
     {
       id: 'price-formulas',
       name: 'Fórmulas de Precio',

@@ -360,6 +360,10 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/admin/categories`, adminCategoriesRoutes);
 import adminPriceFormulasRoutes from './modules/admin/admin-price-formulas/admin-price-formulas.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/admin/price-formulas`, adminPriceFormulasRoutes);
 
+// Admin Feed Global Accounts routes
+import adminFeedGlobalAccountsRoutes from './modules/admin/admin-feed-global-accounts/admin-feed-global-accounts.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/admin/feed-global-accounts`, adminFeedGlobalAccountsRoutes);
+
 // System Admin routes
 import systemAdminRoutes from './modules/system-admin/system-admin.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/admin/system`, systemAdminRoutes);

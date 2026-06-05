@@ -24,7 +24,17 @@ const LandingGrid = dynamic(
 // ✅ Lazy load del modal de video (solo cuando se necesita)
 const VideoModal = dynamic(
   () => import('@/components/feed/video-modal').then(mod => ({ default: mod.VideoModal })),
-  { ssr: false } // No renderizar en servidor
+  { ssr: false }
+)
+
+const PosterDetailModal = dynamic(
+  () => import('@/components/posters/poster-detail-modal').then(mod => ({ default: mod.PosterDetailModal })),
+  { ssr: false }
+)
+
+const CategoryLoginModal = dynamic(
+  () => import('@/components/feed/category-login-modal').then(mod => ({ default: mod.CategoryLoginModal })),
+  { ssr: false }
 )
 
 // URL del video de bienvenida en S3
@@ -50,6 +60,9 @@ function LandingPageContent() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
+  const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
+  const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1024
   )
@@ -110,12 +123,13 @@ function LandingPageContent() {
 
   // Las categorías se cargan con el hook useCategories (cacheado)
 
-  // Cargar feed de productos (hasta 100, sin posts)
+  // Feed landing: productos + posts de cuentas globales (hasta 100 ítems)
   // Nota: searchQuery no se pasa al hook, la búsqueda se hace localmente
   const {
     items: allItems,
     isLoading,
     error: feedError,
+    updateItem,
   } = useLandingFeed({
     categoryId: selectedCategoryId,
   })
@@ -156,10 +170,24 @@ function LandingPageContent() {
     
     const query = searchQuery.toLowerCase().trim()
     return allItems.filter((item) => {
-      if (item.type !== 'product') return false
-      const title = (item.title || '').toLowerCase()
-      const category = (item.category?.name || '').toLowerCase()
-      return title.includes(query) || category.includes(query)
+      if (item.type === 'product') {
+        const title = (item.title || '').toLowerCase()
+        const category = (item.category?.name || '').toLowerCase()
+        return title.includes(query) || category.includes(query)
+      }
+      if (item.type === 'poster') {
+        const description = (item.description || '').toLowerCase()
+        const authorName = [
+          item.author?.firstName,
+          item.author?.lastName,
+          item.author?.email,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return description.includes(query) || authorName.includes(query)
+      }
+      return false
     })
   }, [allItems, searchQuery])
 
@@ -239,11 +267,18 @@ function LandingPageContent() {
           </div>
         ) : items.length === 0 ? (
           <div className="flex justify-center items-center py-12">
-            <div className="text-white">No hay productos disponibles</div>
+            <div className="text-white">No hay contenido disponible</div>
           </div>
         ) : (
           <>
-            <LandingGrid items={items} />
+            <LandingGrid
+              items={items}
+              onPosterClick={(poster) => {
+                setSelectedPosterId(poster.id)
+                setIsPosterModalOpen(true)
+              }}
+              onAuthRequired={() => setShowLoginModal(true)}
+            />
             {/* Footer pequeño */}
             <footer className="w-full py-6 mt-8 text-center">
               <p className="text-gray-500 text-xs" style={{ fontFamily: 'Poppins, sans-serif' }}>
@@ -259,6 +294,32 @@ function LandingPageContent() {
         isOpen={isVideoModalOpen}
         onClose={() => setIsVideoModalOpen(false)}
         videoUrl={WELCOME_VIDEO_URL}
+      />
+
+      <PosterDetailModal
+        isOpen={isPosterModalOpen}
+        posterId={selectedPosterId}
+        initialPosterData={
+          selectedPosterId
+            ? (allItems.find(
+                (item) => item.id === selectedPosterId && item.type === 'poster'
+              ) as any)
+            : null
+        }
+        onClose={() => {
+          setIsPosterModalOpen(false)
+          setSelectedPosterId(null)
+        }}
+        onPostUpdated={(posterId, updates) => {
+          updateItem(posterId, updates)
+        }}
+        onAuthRequired={() => setShowLoginModal(true)}
+      />
+
+      <CategoryLoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLogin={() => setShowLoginModal(false)}
       />
     </div>
   )

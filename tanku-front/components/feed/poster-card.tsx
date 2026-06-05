@@ -7,6 +7,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
+import { tankuMediaFullRadiusStyle } from '@/lib/utils/tanku-card-radius'
 import { SharePostModal } from '@/components/posters/share-post-modal'
 
 interface PosterCardProps {
@@ -30,6 +31,8 @@ interface PosterCardProps {
     }
   }
   onOpenModal?: (poster: any) => void
+  /** Si no hay sesión, like/compartir abren este callback (p. ej. modal de login) */
+  onAuthRequired?: () => void
   isLightMode?: boolean
   isAboveFold?: boolean // Nuevo prop: visible sin scroll (above the fold)
   variant?: 'feed' | 'profile'
@@ -38,6 +41,7 @@ interface PosterCardProps {
 export const PosterCard = memo(function PosterCard({
   poster,
   onOpenModal,
+  onAuthRequired,
   isLightMode = false,
   isAboveFold = false,
   variant = 'feed',
@@ -157,12 +161,20 @@ export const PosterCard = memo(function PosterCard({
 
   const handleShareClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (!token) {
+      onAuthRequired?.()
+      return
+    }
     setIsShareModalOpen(true)
   }
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!token || isLiking) return
+    if (!token) {
+      onAuthRequired?.()
+      return
+    }
+    if (isLiking) return
 
     setIsLiking(true)
     try {
@@ -183,10 +195,23 @@ export const PosterCard = memo(function PosterCard({
     }
   }
 
-  const authorName =
-    poster.author?.firstName && poster.author?.lastName
-      ? `${poster.author.firstName} ${poster.author.lastName}`
-      : poster.author?.email || 'Usuario'
+  const authorUsername =
+    poster.author?.username?.trim() ||
+    poster.author?.email?.split('@')[0] ||
+    'usuario'
+  const authorDisplayName =
+    authorUsername.length > 16 ? `${authorUsername.slice(0, 14)}…` : authorUsername
+
+  const goToAuthorProfile = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!poster.author?.id) return
+    router.push(
+      poster.author.username
+        ? `/profile/${poster.author.username}`
+        : `/profile/${poster.author.id}`,
+    )
+  }
+
   const isProfileVariant = variant === 'profile'
 
   return (
@@ -209,12 +234,17 @@ export const PosterCard = memo(function PosterCard({
       onClick={handleCardClick}
     >
       {!isProfileVariant && (
-        <div className="flex items-center mb-2 sm:mb-3">
-          <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+        <div className="flex items-center mb-2 sm:mb-3 min-w-0">
+          <button
+            type="button"
+            onClick={goToAuthorProfile}
+            className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center flex-shrink-0 hover:opacity-90 transition-opacity"
+            aria-label={`Perfil de ${authorDisplayName}`}
+          >
             {poster.author?.avatar ? (
               <Image
                 src={poster.author.avatar}
-                alt={authorName}
+                alt={authorDisplayName}
                 width={32}
                 height={32}
                 className="object-cover w-full h-full"
@@ -222,23 +252,20 @@ export const PosterCard = memo(function PosterCard({
               />
             ) : (
               <span className="text-xs text-gray-400 font-bold">
-                {(poster.author?.firstName?.[0] || poster.author?.email?.[0] || 'U').toUpperCase()}
+                {(authorUsername[0] || 'U').toUpperCase()}
               </span>
             )}
-          </div>
-          <div className="ml-1.5 sm:ml-2">
+          </button>
+          <div className="ml-1.5 sm:ml-2 min-w-0 flex-1">
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                if (poster.author?.id) {
-                  router.push(poster.author.username ? `/profile/${poster.author.username}` : `/profile/${poster.author.id}`)
-                }
-              }}
-              className={`font-medium text-xs sm:text-sm truncate max-w-[80px] sm:max-w-full text-left hover:text-[#73FFA2] transition-colors ${
+              type="button"
+              onClick={goToAuthorProfile}
+              className={`font-medium text-xs sm:text-sm truncate max-w-[88px] sm:max-w-[120px] md:max-w-[160px] text-left hover:text-[#73FFA2] transition-colors ${
                 isLightMode ? 'text-black' : 'text-white'
               }`}
+              title={authorUsername}
             >
-              {authorName}
+              {authorDisplayName}
             </button>
             <p className={`text-xs ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
               {new Date(poster.createdAt).toLocaleDateString('es-ES', {
@@ -250,7 +277,10 @@ export const PosterCard = memo(function PosterCard({
         </div>
       )}
 
-      <div className={`w-full relative overflow-hidden rounded-lg ${isProfileVariant ? '' : 'mb-2 sm:mb-3 md:mb-4'}`}>
+      <div
+        className={`w-full relative overflow-hidden ${isProfileVariant ? '' : 'mb-2 sm:mb-3 md:mb-4'}`}
+        style={isProfileVariant ? undefined : tankuMediaFullRadiusStyle}
+      >
         {(poster.imageUrl || poster.videoUrl) && (
           <>
             {poster.imageUrl && (
@@ -450,7 +480,7 @@ export const PosterCard = memo(function PosterCard({
           <button
             className="flex items-center transition-colors hover:opacity-80"
             onClick={handleLike}
-            disabled={!token || isLiking}
+            disabled={isLiking}
           >
             <Image
               src={isLiked ? '/icons_tanku/tanku_megusta_relleno.svg' : '/icons_tanku/tanku_megusta_lineas.svg'}

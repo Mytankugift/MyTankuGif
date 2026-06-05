@@ -6,6 +6,7 @@ import { clsx } from 'clsx'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { PosterDetailContent } from '@/components/posters/poster-detail-content'
+import { TANKU_CARD_SHELL_RADIUS_PX } from '@/lib/utils/tanku-card-radius'
 
 interface PosterDetail {
   id: string
@@ -112,12 +113,15 @@ export default function PostPage() {
       >
         <div
           className={clsx(
-            'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-[#414141] shadow-xl',
+            'flex min-h-0 w-full flex-1 flex-col overflow-hidden border border-[#414141] shadow-xl',
             'md:min-h-[calc(100dvh-10rem)] lg:min-h-[calc(100vh-11rem)] xl:min-h-[calc(100vh-12rem)]',
             'transition-all duration-300 ease-out',
             fromProfile && (animateIn ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.98]'),
           )}
-          style={{ backgroundColor: '#171B21' }}
+          style={{
+            backgroundColor: '#171B21',
+            borderRadius: `${TANKU_CARD_SHELL_RADIUS_PX}px`,
+          }}
         >
           <PosterDetailContent
             posterId={posterId}

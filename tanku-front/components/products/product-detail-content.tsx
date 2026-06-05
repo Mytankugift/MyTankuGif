@@ -17,6 +17,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { ProductDTO, FeedItemDTO } from '@/types/api'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
+import { productHappinessLabel } from '@/lib/utils/product-happiness-label'
 import { isAgeRestrictedApiError } from '@/lib/api/error-codes'
 import {
   ProductAgeRestricted,
@@ -324,18 +325,19 @@ export function ProductDetailContent({
   
   const descriptionLines = productDescription.split('\n').filter(line => line.trim().length > 0)
   const hasLongDescription = descriptionLines.length > 3 || productDescription.length > 200
-  const displayDescription = showFullDescription
-    ? productDescription
-    : hasLongDescription
-      ? productDescription.substring(0, 200) + '...'
-      : productDescription
+  const displayDescription =
+    isPageView || showFullDescription
+      ? productDescription
+      : hasLongDescription
+        ? productDescription.substring(0, 200) + '...'
+        : productDescription
 
   const showAgeGate = Boolean(
     fullProduct && productError && isAgeRestrictedApiError(productError)
   )
 
   return (
-    <div className={`relative ${isPageView ? 'bg-gray-900 rounded-lg border border-gray-700' : ''}`}>
+    <div className="relative bg-[#171B21]">
       {showAgeGate && (
         <>
           <div className="absolute inset-0 z-[50] bg-black/25 backdrop-blur-[1px]" aria-hidden />
@@ -353,7 +355,7 @@ export function ProductDetailContent({
       {/* Lightbox para imagen ampliada */}
       {isImageLightboxOpen && allImages.length > 0 && !showAgeGate && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-[60] p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#171B21] p-4"
           onClick={() => setIsImageLightboxOpen(false)}
         >
           <button
@@ -388,9 +390,9 @@ export function ProductDetailContent({
                 <button
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
-                  className={`flex-shrink-0 h-12 w-12 sm:h-16 sm:w-16 md:h-14 md:w-14 rounded-lg overflow-hidden border-2 transition-all ${
+                  className={`flex-shrink-0 h-12 w-12 sm:h-16 sm:w-16 md:h-14 md:w-14 rounded-lg overflow-hidden border-2 bg-[#171B21] transition-all ${
                     currentImageIndex === index
-                      ? 'border-[#66DEDB] ring-2 ring-[#66DEDB] ring-offset-2 ring-offset-[#2C3137]'
+                      ? 'border-[#66DEDB] ring-2 ring-[#66DEDB] ring-offset-2 ring-offset-[#171B21]'
                       : 'border-gray-600 hover:border-gray-500'
                   }`}
                 >
@@ -416,7 +418,7 @@ export function ProductDetailContent({
           {allImages.length > 0 && (
             <div className="relative min-w-0 flex-1 max-w-sm">
               <div
-                className={`relative aspect-square bg-gray-800 rounded-lg overflow-hidden group ${
+                className={`relative aspect-square overflow-hidden rounded-lg bg-[#171B21] group ${
                   isPageView ? 'cursor-pointer' : 'cursor-default'
                 }`}
                 onClick={isPageView ? () => setIsImageLightboxOpen(true) : undefined}
@@ -529,7 +531,7 @@ export function ProductDetailContent({
               className="text-xs sm:text-base font-normal"
               style={{ color: '#73FFA2' }}
             >
-              A {likesCount} personas este producto las hace feliz.
+              {productHappinessLabel(likesCount)}
             </span>
           </div>
 
@@ -727,16 +729,14 @@ export function ProductDetailContent({
           <div className="relative">
             <p 
               className={`text-gray-300 text-sm leading-relaxed whitespace-pre-wrap ${
-                !showFullDescription && hasLongDescription
-                  ? isPageView
-                    ? 'line-clamp-3'
-                    : 'line-clamp-3 md:line-clamp-5 lg:line-clamp-3'
+                !isPageView && !showFullDescription && hasLongDescription
+                  ? 'line-clamp-3 md:line-clamp-5 lg:line-clamp-3'
                   : ''
               }`}
             >
               {displayDescription}
             </p>
-            {hasLongDescription && !showFullDescription && (
+            {!isPageView && hasLongDescription && !showFullDescription && (
               <div className="flex justify-end mt-2">
                 <button
                   onClick={() => {
@@ -762,7 +762,7 @@ export function ProductDetailContent({
                 </button>
               </div>
             )}
-            {hasLongDescription && showFullDescription && (
+            {!isPageView && hasLongDescription && showFullDescription && (
               <div className="flex justify-end mt-2">
                 <button
                   onClick={() => {

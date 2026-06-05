@@ -8,6 +8,7 @@ import {
   viewerCannotSeeAdultCatalog,
 } from '../../shared/catalog/catalog-age-policy';
 import { getBirthDateForUserId } from '../../shared/catalog/catalog-age-viewer';
+import { resolveVisiblePosterAuthorIds } from '../feed-global-accounts/resolve-visible-poster-authors';
 
 const storyProductInclude = {
   select: {
@@ -134,6 +135,8 @@ export class StoriesService {
       file_type: string;
       file_size?: number;
       order_index: number;
+      /** Duración del clip en segundos (videos) */
+      duration?: number | null;
     }>;
   }): Promise<StoryDTO> {
     if (!data.files || data.files.length === 0) {
@@ -163,6 +166,7 @@ export class StoriesService {
             fileUrl: file.file_url,
             fileType: file.file_type,
             fileSize: file.file_size || null,
+            duration: file.duration ?? null,
             orderIndex: file.order_index,
           })),
         },
@@ -358,68 +362,16 @@ export class StoriesService {
       // OPTIMIZACIÓN 3: Filtrar por expiresAt directamente en la consulta
       
       const now = new Date();
-      
-      // Obtener IDs de amigos de forma más eficiente usando consultas separadas
-      // Esto aprovecha mejor los índices compuestos [userId, status] y [friendId, status]
-      const [friendsAsUser, friendsAsFriend] = await Promise.all([
-        prisma.friend.findMany({
-          where: {
-            userId,
-            status: 'accepted',
-          },
-          select: {
-            friendId: true,
-          },
-        }),
-        prisma.friend.findMany({
-          where: {
-            friendId: userId,
-            status: 'accepted',
-          },
-          select: {
-            userId: true,
-          },
-        }),
-      ]);
 
-      const friendIds = new Set<string>([userId]); // Incluir historias propias
-      friendsAsUser.forEach((f) => friendIds.add(f.friendId));
-      friendsAsFriend.forEach((f) => friendIds.add(f.userId));
-
-      // Si no hay amigos, solo obtener stories propias
-      if (friendIds.size === 1) {
-        const stories = await prisma.storiesUser.findMany({
-          where: {
-            customerId: userId,
-            isActive: true,
-            expiresAt: {
-              gt: now,
-            },
-          },
-          include: {
-            customer: {
-              include: {
-                profile: true,
-              },
-            },
-            storyFiles: {
-              orderBy: { orderIndex: 'asc' },
-            },
-            product: storyProductInclude,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: limit, // ✅ Agregar límite
-        });
-
-        const filteredOwn = await this.filterStoriesForViewerAge(stories, userId);
-        return filteredOwn.map((story) => this.mapStoryToDTO(story));
+      const authorIds = await resolveVisiblePosterAuthorIds(userId);
+      if (authorIds.size === 0) {
+        return [];
       }
 
-      // OPTIMIZACIÓN 4: Agregar límite y usar índices existentes
       const stories = await prisma.storiesUser.findMany({
         where: {
           customerId: {
-            in: Array.from(friendIds),
+            in: Array.from(authorIds),
           },
           isActive: true,
           expiresAt: {

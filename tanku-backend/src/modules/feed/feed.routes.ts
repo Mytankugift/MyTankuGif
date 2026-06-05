@@ -43,10 +43,10 @@ router.get('/', optionalAuthenticate, feedController.getFeed);
 
 /**
  * GET /api/v1/feed/public
- * Obtener feed público (solo productos, sin posters, sin autenticación)
+ * Obtener feed público (productos + posts de cuentas globales del ERP)
  * 
  * Características:
- * - Solo productos del ranking global
+ * - Productos del ranking global intercalados con posts de cuentas globales (1 cada 5)
  * - Máximo 100 productos
  * - Sin boost personalizado
  * - Cacheable (60 segundos TTL)

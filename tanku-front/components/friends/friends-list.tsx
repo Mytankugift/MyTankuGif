@@ -1,5 +1,5 @@
 /**
- * Lista de amigos — cuadrícula (2 cols en móvil/tablet, 3 desde lg) o lista en columna; “Ver más” bajo el bloque
+ * Lista de amigos — cuadrícula 2/3/4 cols según contenedor (ver .friends-cards-grid) o lista
  */
 
 'use client'
@@ -58,23 +58,33 @@ export function FriendsList({
 
   return (
     <div className="space-y-5">
-      <div
-        className={
-          layout === 'list'
-            ? 'flex flex-col gap-3'
-            : 'grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-4'
-        }
-      >
-        {chunk.map((friend) => (
-          <FriendCard
-            key={friend.id}
-            friend={friend}
-            onRefresh={onRefresh}
-            groups={groupByFriendId[friend.friendId] || []}
-            layout={layout}
-          />
-        ))}
-      </div>
+      {layout === 'list' ? (
+        <div className="flex flex-col gap-3">
+          {chunk.map((friend) => (
+            <FriendCard
+              key={friend.id}
+              friend={friend}
+              onRefresh={onRefresh}
+              groups={groupByFriendId[friend.friendId] || []}
+              layout={layout}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="friends-cards-container">
+          <div className="friends-cards-grid">
+            {chunk.map((friend) => (
+              <FriendCard
+                key={friend.id}
+                friend={friend}
+                onRefresh={onRefresh}
+                groups={groupByFriendId[friend.friendId] || []}
+                layout={layout}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {hasMore && (
         <div className="flex justify-center pt-2">

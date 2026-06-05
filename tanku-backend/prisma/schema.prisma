@@ -44,8 +44,21 @@ model User {
   wishLists                WishList[]
   wishlistAccessRequests   WishlistAccessRequest[]   @relation("WishlistAccessRequests")
   events                   Event[]
+  feedGlobalAccount        FeedGlobalAccount?
 
   @@map("users")
+}
+
+model FeedGlobalAccount {
+  id        String   @id @default(cuid())
+  userId    String   @unique @map("user_id")
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("feed_global_accounts")
 }
 
 model UserProfile {

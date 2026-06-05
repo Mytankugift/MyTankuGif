@@ -389,24 +389,32 @@ export default function FriendsPage() {
 
           <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-8">
             <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col lg:min-w-[min(100%,calc(100%-21rem))]">
-              {/* Pestañas + orden/vista: columna hasta lg (tablet nav a ancho completo — las 3 pestañas dentro del pill). En lg+: fila. */}
-              <div className="mb-4 flex flex-col gap-3 sm:mb-5 sm:gap-4 lg:flex-row lg:items-center lg:justify-start lg:gap-x-3 lg:gap-y-3">
+              {/* Pestañas a ancho del módulo; en Amigos, orden/vista a la derecha en la misma fila (lg+) */}
+              <div
+                className={clsx(
+                  'mb-4 flex w-full min-w-0 flex-col gap-3 sm:mb-5 sm:gap-4',
+                  mainTab === 'friends' && 'lg:flex-row lg:items-stretch lg:gap-3',
+                )}
+              >
                 <nav
-                  className="flex min-h-[2.75rem] w-full min-w-0 flex-nowrap gap-1 rounded-2xl border border-white/[0.08] bg-black/[0.25] p-1 shadow-inner sm:p-1.5 lg:min-w-0 lg:flex-1 lg:gap-0.5"
+                  className={clsx(
+                    'flex min-h-[2.75rem] w-full min-w-0 flex-nowrap gap-1 rounded-2xl border border-white/[0.08] bg-black/[0.25] p-1 shadow-inner sm:p-1.5',
+                    mainTab === 'friends' && 'lg:min-w-0 lg:flex-1',
+                  )}
                   aria-label="Contenido principal: Amigos, Sugerencias o Solicitudes"
                 >
                   <button
                     type="button"
                     onClick={() => setMainTab('friends')}
                     className={clsx(
-                      'flex min-h-[2.75rem] min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-2 text-[11px] font-semibold transition-all sm:flex-row sm:gap-2 sm:text-sm lg:justify-center',
+                      'flex min-h-[2.75rem] min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-2 text-[11px] font-semibold transition-all sm:flex-row sm:gap-2 sm:px-2 sm:text-sm lg:justify-center lg:px-2 lg:text-sm',
                       mainTab === 'friends'
                         ? 'bg-[#66DEDB]/16 text-[#66DEDB] shadow-[inset_0_0_0_1px_rgba(102,222,219,0.35)]'
                         : 'text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300',
                     )}
                   >
                     <UserGroupIcon className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-                    <span className="flex items-center whitespace-nowrap">
+                    <span className="flex min-w-0 max-w-full items-center truncate">
                       Amigos
                       <TabBadge count={friends.length} />
                     </span>
@@ -415,14 +423,14 @@ export default function FriendsPage() {
                     type="button"
                     onClick={() => setMainTab('suggestions')}
                     className={clsx(
-                      'flex min-h-[2.75rem] min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-2 text-[11px] font-semibold transition-all sm:flex-row sm:gap-2 sm:text-sm lg:justify-center',
+                      'flex min-h-[2.75rem] min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-2 text-[11px] font-semibold transition-all sm:flex-row sm:gap-2 sm:px-2 sm:text-sm lg:justify-center lg:px-2 lg:text-sm',
                       mainTab === 'suggestions'
                         ? 'bg-[#66DEDB]/16 text-[#66DEDB] shadow-[inset_0_0_0_1px_rgba(102,222,219,0.35)]'
                         : 'text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300',
                     )}
                   >
                     <SparklesIcon className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-                    <span className="flex items-center whitespace-nowrap">
+                    <span className="flex min-w-0 max-w-full items-center truncate">
                       Sugerencias
                       <TabBadge count={sortedSuggestionsForPage.length} />
                     </span>
@@ -431,87 +439,77 @@ export default function FriendsPage() {
                     type="button"
                     onClick={() => setMainTab('requests')}
                     className={clsx(
-                      'flex min-h-[2.75rem] min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-2 text-[11px] font-semibold transition-all sm:flex-row sm:gap-2 sm:text-sm lg:justify-center',
+                      'flex min-h-[2.75rem] min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-2 text-[11px] font-semibold transition-all sm:flex-row sm:gap-2 sm:px-2 sm:text-sm lg:justify-center lg:px-2 lg:text-sm',
                       mainTab === 'requests'
                         ? 'bg-[#66DEDB]/16 text-[#66DEDB] shadow-[inset_0_0_0_1px_rgba(102,222,219,0.35)]'
                         : 'text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300',
                     )}
                   >
                     <UserPlusIcon className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-                    <span className="flex items-center whitespace-nowrap">
+                    <span className="flex min-w-0 max-w-full items-center truncate">
                       Solicitudes
                       <TabBadge count={requests.length} />
                     </span>
                   </button>
                 </nav>
 
-                <div className="flex w-full shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end sm:gap-x-2 lg:w-[20rem] lg:max-w-[20rem] lg:flex-none lg:items-center lg:justify-end lg:gap-x-3">
-                  {mainTab === 'friends' ? (
-                  <div className="flex w-full justify-end lg:w-[20rem] lg:max-w-[20rem] lg:flex-none">
-                    {/* Orden + cuadrícula/lista — móvil alineado a la derecha; orden abre modal */}
-                    <div className="flex min-h-[2.75rem] w-full max-w-full flex-nowrap items-center justify-end gap-2 sm:gap-3">
-                      <div
-                        className="flex shrink-0 rounded-xl border border-white/10 p-0.5"
-                        role="group"
-                        aria-label="Orden y vista de amigos"
+                {mainTab === 'friends' ? (
+                  <div
+                    className="flex min-h-[2.75rem] w-full shrink-0 items-center justify-end lg:w-auto"
+                    role="group"
+                    aria-label="Orden y vista de amigos"
+                  >
+                    <div className="flex shrink-0 rounded-xl border border-white/10 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setFriendsSortSheetOpen(true)}
+                        aria-haspopup="listbox"
+                        aria-expanded={friendsSortSheetOpen}
+                        aria-label={`Orden: ${friendsSortLabel}. Abrir opciones`}
+                        title={`Orden: ${friendsSortLabel}`}
+                        className={clsx(
+                          'rounded-lg p-2 transition-colors',
+                          friendsSortSheetOpen
+                            ? 'bg-[#66DEDB]/20 text-[#66DEDB]'
+                            : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300',
+                        )}
                       >
-                        <button
-                          type="button"
-                          onClick={() => setFriendsSortSheetOpen(true)}
-                          aria-haspopup="listbox"
-                          aria-expanded={friendsSortSheetOpen}
-                          aria-label={`Orden: ${friendsSortLabel}. Abrir opciones`}
-                          title={`Orden: ${friendsSortLabel}`}
-                          className={clsx(
-                            'rounded-lg p-2 transition-colors',
-                            friendsSortSheetOpen
-                              ? 'bg-[#66DEDB]/20 text-[#66DEDB]'
-                              : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300',
-                          )}
-                        >
-                          <ArrowsUpDownIcon className="h-5 w-5 shrink-0" aria-hidden />
-                          <span className="sr-only">Orden</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setFriendsView('grid')}
-                          aria-pressed={friendsView === 'grid'}
-                          className={clsx(
-                            'rounded-lg p-2 transition-colors',
-                            friendsView === 'grid'
-                              ? 'bg-[#66DEDB]/20 text-[#66DEDB]'
-                              : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300',
-                          )}
-                          title="Cuadrícula"
-                        >
-                          <Squares2X2Icon className="h-5 w-5" aria-hidden />
-                          <span className="sr-only">Vista cuadrícula</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setFriendsView('list')}
-                          aria-pressed={friendsView === 'list'}
-                          className={clsx(
-                            'rounded-lg p-2 transition-colors',
-                            friendsView === 'list'
-                              ? 'bg-[#66DEDB]/20 text-[#66DEDB]'
-                              : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300',
-                          )}
-                          title="Lista"
-                        >
-                          <QueueListIcon className="h-5 w-5" aria-hidden />
-                          <span className="sr-only">Vista lista</span>
-                        </button>
-                      </div>
+                        <ArrowsUpDownIcon className="h-5 w-5 shrink-0" aria-hidden />
+                        <span className="sr-only">Orden</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFriendsView('grid')}
+                        aria-pressed={friendsView === 'grid'}
+                        className={clsx(
+                          'rounded-lg p-2 transition-colors',
+                          friendsView === 'grid'
+                            ? 'bg-[#66DEDB]/20 text-[#66DEDB]'
+                            : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300',
+                        )}
+                        title="Cuadrícula"
+                      >
+                        <Squares2X2Icon className="h-5 w-5" aria-hidden />
+                        <span className="sr-only">Vista cuadrícula</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFriendsView('list')}
+                        aria-pressed={friendsView === 'list'}
+                        className={clsx(
+                          'rounded-lg p-2 transition-colors',
+                          friendsView === 'list'
+                            ? 'bg-[#66DEDB]/20 text-[#66DEDB]'
+                            : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300',
+                        )}
+                        title="Lista"
+                      >
+                        <QueueListIcon className="h-5 w-5" aria-hidden />
+                        <span className="sr-only">Vista lista</span>
+                      </button>
                     </div>
                   </div>
-                ) : (
-                    <div
-                      className="hidden min-h-[2.75rem] w-full shrink-0 lg:block lg:h-[2.75rem] lg:w-[20rem]"
-                      aria-hidden
-                    />
-                  )}
-                </div>
+                ) : null}
               </div>
 
           {mainTab === 'friends' && (
