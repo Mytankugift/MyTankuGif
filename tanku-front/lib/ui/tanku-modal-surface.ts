@@ -11,5 +11,9 @@ export const tankuOrderModalInputClass =
 export const tankuOrderModalDropzoneClass =
   'flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#414141] bg-black/25 transition-colors hover:border-[#66DEDB]/40 aspect-[9/16] max-h-[min(50vh,26rem)]'
 
-/** Ancho/alto del panel vertical — ver `.tanku-vertical-modal-panel` en globals.css */
 export const tankuVerticalModalPanelClass = 'tanku-vertical-modal-panel'
+
+/** Bottom nav móvil ≈ 999999; modal post/producto 1000003 */
+export const TANKU_POSTER_MODAL_Z = 1_000_003
+/** Sheet de comentarios en móvil — debe quedar sobre el modal de publicación */
+export const TANKU_POSTER_COMMENTS_SHEET_Z = TANKU_POSTER_MODAL_Z + 1

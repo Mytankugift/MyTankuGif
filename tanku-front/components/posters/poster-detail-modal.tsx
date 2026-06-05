@@ -8,10 +8,11 @@ import { TANKU_CARD_SHELL_RADIUS_PX } from '@/lib/utils/tanku-card-radius'
 import {
   tankuOrderModalBackdropClass,
   tankuOrderModalPanelClass,
+  TANKU_POSTER_MODAL_Z,
 } from '@/lib/ui/tanku-modal-surface'
 
 /** Por encima del bottom nav móvil (999999), alineado con ProductModal */
-const POSTER_MODAL_Z = 1000003
+const POSTER_MODAL_Z = TANKU_POSTER_MODAL_Z
 
 interface PosterDetailModalProps {
   isOpen: boolean

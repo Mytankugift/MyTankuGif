@@ -15,6 +15,7 @@ import { EmojiPickerButton } from './emoji-picker-button'
 import { TankuConfirmModal } from '@/components/ui/tanku-confirm-modal'
 import Image from 'next/image'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
+import { TANKU_POSTER_COMMENTS_SHEET_Z, TANKU_POSTER_MODAL_Z } from '@/lib/ui/tanku-modal-surface'
 import { ChatBubbleLeftIcon, TrashIcon, EllipsisVerticalIcon, PaperAirplaneIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
 interface PosterDetailContentProps {
@@ -1162,9 +1163,10 @@ export function PosterDetailContent({
       {usePageLikeMobile && isMounted
         ? createPortal(
             <div
-              className={`fixed inset-0 left-0 z-[1000002] bg-black/60 transition-opacity duration-200 md:left-36 ${hideBelowSplit} ${
+              className={`fixed inset-0 left-0 bg-black/60 transition-opacity duration-200 md:left-36 ${hideBelowSplit} ${
                 isCommentsSheetOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
               }`}
+              style={{ zIndex: TANKU_POSTER_COMMENTS_SHEET_Z }}
               onClick={() => setIsCommentsSheetOpen(false)}
               role="presentation"
             >
@@ -1287,7 +1289,8 @@ export function PosterDetailContent({
       {isPageView && isOwner && showOwnerPageActionsModal && isMounted
         ? createPortal(
             <div
-              className="fixed inset-0 z-[1000003] flex items-end justify-center bg-black/55 sm:items-center sm:p-4"
+              className="fixed inset-0 flex items-end justify-center bg-black/55 sm:items-center sm:p-4"
+              style={{ zIndex: embeddedInModal ? TANKU_POSTER_COMMENTS_SHEET_Z : TANKU_POSTER_MODAL_Z }}
               role="dialog"
               aria-modal="true"
               aria-labelledby="owner-post-actions-title"
