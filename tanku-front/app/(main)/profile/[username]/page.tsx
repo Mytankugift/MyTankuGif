@@ -8,6 +8,7 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
 import type { PosterDTO } from '@/types/api'
 import { PosterCard } from '@/components/feed/poster-card'
+import { PosterDetailModal } from '@/components/posters/poster-detail-modal'
 import Image from 'next/image'
 import { ArrowLeftIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline'
 import { UserWishlistsTab } from '@/components/profile/user-wishlists-tab'
@@ -64,6 +65,8 @@ export default function OtherUserProfilePage() {
   const [activeTab, setActiveTab] = useState<'PUBLICACIONES' | 'WISHLISTS'>('PUBLICACIONES')
   const [posters, setPosters] = useState<any[]>([])
   const [isLoadingPosters, setIsLoadingPosters] = useState(false)
+  const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
+  const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
   const [postsCount, setPostsCount] = useState(0)
   const [friendsCount, setFriendsCount] = useState(0)
   const [isSendingRequest, setIsSendingRequest] = useState(false)
@@ -703,7 +706,8 @@ export default function OtherUserProfilePage() {
                       author: poster.author,
                     }}
                     onOpenModal={(poster) => {
-                      router.push(`/posts/${poster.id}?from=profile`)
+                      setSelectedPosterId(poster.id)
+                      setIsPosterModalOpen(true)
                     }}
                     isLightMode={false}
                     variant="profile"
@@ -723,6 +727,43 @@ export default function OtherUserProfilePage() {
       </div>
       </div>
       </div>
+
+      <PosterDetailModal
+        isOpen={isPosterModalOpen}
+        posterId={selectedPosterId}
+        initialPosterData={
+          selectedPosterId
+            ? (() => {
+                const p = posters.find((item) => item.id === selectedPosterId)
+                if (!p) return null
+                return {
+                  id: p.id,
+                  imageUrl: p.imageUrl,
+                  videoUrl: p.videoUrl,
+                  description: p.description,
+                  likesCount: p.likesCount || 0,
+                  commentsCount: p.commentsCount || 0,
+                  createdAt: p.createdAt,
+                  isLiked: p.isLiked,
+                  author: p.author,
+                }
+              })()
+            : null
+        }
+        onClose={() => {
+          setIsPosterModalOpen(false)
+          setSelectedPosterId(null)
+        }}
+        onPostDeleted={(posterId) => {
+          setPosters((prev) => prev.filter((p) => p.id !== posterId))
+          setPostsCount((prev) => Math.max(0, prev - 1))
+        }}
+        onPostUpdated={(posterId, updates) => {
+          setPosters((prev) =>
+            prev.map((p) => (p.id === posterId ? { ...p, ...updates } : p)),
+          )
+        }}
+      />
     </div>
   )
 }

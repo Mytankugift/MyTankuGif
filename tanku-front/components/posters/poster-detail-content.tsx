@@ -568,7 +568,7 @@ export function PosterDetailContent({
       : 'lg:border-l lg:border-white/[0.08]'
     : innerRule(`border-t lg:border-t-0 lg:border-l ${postPageDivider}`)
   const mediaMinHeightClass = embeddedInModal
-    ? 'min-h-0 flex-1 max-md:min-h-[220px] max-md:max-h-[50vh]'
+    ? 'max-md:min-h-[220px] max-md:max-h-[50vh] md:min-h-0 md:flex-1'
     : 'min-h-[58dvh] lg:min-h-0 lg:flex-1'
   /** Desktop página: imagen centrada en el espacio libre; descripción anclada abajo */
   const pageViewMediaWrapperClass = isPageView
@@ -828,12 +828,12 @@ export function PosterDetailContent({
 
       {/* Content */}
       <div
-        className={`flex min-h-0 flex-1 flex-col overflow-hidden ${splitRowClass} ${isPageView && !embeddedInModal ? 'lg:min-h-0 lg:flex-1' : ''} ${!embeddedInModal && !isPageView ? 'overflow-y-auto' : ''} ${postPageBg}`}
+        className={`flex min-h-0 flex-col overflow-hidden ${embeddedInModal ? 'max-md:flex-none md:flex-1' : 'flex-1'} ${splitRowClass} ${isPageView && !embeddedInModal ? 'lg:min-h-0 lg:flex-1' : ''} ${!embeddedInModal && !isPageView ? 'overflow-y-auto' : ''} ${postPageBg}`}
       >
         {isPageView ? (
           <div className={`flex min-h-0 flex-col ${leftColClass} ${postPageBg} ${embeddedInModal ? '' : 'lg:h-full'}`}>
             <div
-              className={`relative flex ${mediaMinHeightClass} items-center justify-center overflow-hidden px-2 pt-2 ${pageViewMediaWrapperClass}`}
+              className={`relative flex ${mediaMinHeightClass} max-md:flex-none items-center justify-center overflow-hidden px-2 pt-2 ${pageViewMediaWrapperClass}`}
             >
               {posterMedia}
             </div>
@@ -926,7 +926,15 @@ export function PosterDetailContent({
                   style={{ height: '1px' }}
                   aria-hidden
                 />
-                <p className="text-sm leading-relaxed text-white">{poster.description}</p>
+                <div
+                  className={
+                    embeddedInModal
+                      ? 'max-md:max-h-[min(28vh,9.5rem)] max-md:overflow-y-auto max-md:overscroll-y-contain max-md:pr-0.5 max-md:variant-selector-scrollbar'
+                      : undefined
+                  }
+                >
+                  <p className="text-sm leading-relaxed text-white">{poster.description}</p>
+                </div>
               </>
             ) : null}
           </div>

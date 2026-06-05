@@ -121,11 +121,6 @@ export class PostersController {
       const { title, description } = req.body;
       const files = req.files as Express.Multer.File[] || [];
 
-      // Validar que al menos haya título o descripción
-      if (!title?.trim() && !description?.trim()) {
-        return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'Se requiere al menos un título o descripción'));
-      }
-
       let imageUrl = '';
       let videoUrl = '';
 

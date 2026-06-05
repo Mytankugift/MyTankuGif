@@ -121,13 +121,17 @@ export class GiftController {
             orderAddresses: {
               include: {
                 address: {
-                  // NO incluir dirección completa - privacidad
                   select: {
                     id: true,
+                    firstName: true,
+                    lastName: true,
+                    phone: true,
+                    address1: true,
+                    detail: true,
                     city: true,
                     state: true,
+                    postalCode: true,
                     country: true,
-                    // NO incluir address1, firstName, lastName, phone, postalCode
                   },
                 },
               },
@@ -171,8 +175,14 @@ export class GiftController {
                 address: {
                   select: {
                     id: true,
+                    firstName: true,
+                    lastName: true,
+                    phone: true,
+                    address1: true,
+                    detail: true,
                     city: true,
                     state: true,
+                    postalCode: true,
                     country: true,
                   },
                 },
@@ -219,7 +229,13 @@ export class GiftController {
       // Formatear respuesta con filtros de privacidad
       const formattedOrders = orders.map((order) => {
         const isSender = type === 'sent';
-        
+        const productAmountFromItems = order.items.reduce(
+          (sum, item) => sum + (item.finalPrice ?? item.price) * item.quantity,
+          0
+        );
+        const giftProductAmount =
+          productAmountFromItems > 0 ? productAmountFromItems : order.subtotal;
+
         return {
           id: order.id,
           ref: order.ref ?? null,
@@ -228,12 +244,13 @@ export class GiftController {
           paymentMethod: order.paymentMethod,
           createdAt: order.createdAt,
           updatedAt: order.updatedAt,
-          // NO incluir total, subtotal, shippingTotal si es destinatario
-          ...(isSender ? {
-            total: order.total,
-            subtotal: order.subtotal,
-            shippingTotal: order.shippingTotal,
-          } : {}),
+          // Precio regalo = producto (envío incluido en tankuPrice; no exponer shippingTotal)
+          ...(isSender
+            ? {
+                total: giftProductAmount,
+                subtotal: giftProductAmount,
+              }
+            : {}),
           // Información del otro usuario
           otherUser: isSender
             ? (order.giftRecipientId
@@ -275,13 +292,27 @@ export class GiftController {
             dropiWebhookData: item.dropiWebhookData,
           })),
           address: order.orderAddresses && order.orderAddresses.length > 0
-            ? {
-                // Información limitada de dirección
-                city: order.orderAddresses[0].address.city,
-                state: order.orderAddresses[0].address.state,
-                country: order.orderAddresses[0].address.country,
-                // NO incluir address1, firstName, lastName, phone, postalCode
-              }
+            ? (() => {
+                const addr = order.orderAddresses[0].address;
+                if (isSender) {
+                  return {
+                    city: addr.city,
+                    state: addr.state,
+                    country: addr.country,
+                  };
+                }
+                return {
+                  firstName: addr.firstName,
+                  lastName: addr.lastName,
+                  phone: addr.phone,
+                  address1: addr.address1,
+                  address2: addr.detail,
+                  city: addr.city,
+                  state: addr.state,
+                  postalCode: addr.postalCode,
+                  country: addr.country,
+                };
+              })()
             : null,
         };
       });

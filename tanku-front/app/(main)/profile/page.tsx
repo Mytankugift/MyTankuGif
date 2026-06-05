@@ -561,7 +561,8 @@ function ProfileContent() {
                           author: poster.author,
                         }}
                         onOpenModal={(poster) => {
-                          router.push(`/posts/${poster.id}?from=profile`)
+                          setSelectedPosterId(poster.id)
+                          setIsPosterModalOpen(true)
                         }}
                         isLightMode={false}
                         variant="profile"
@@ -618,6 +619,25 @@ function ProfileContent() {
         <PosterDetailModal
           isOpen={isPosterModalOpen}
           posterId={selectedPosterId}
+          initialPosterData={
+            selectedPosterId
+              ? (() => {
+                  const p = posters.find((item) => item.id === selectedPosterId)
+                  if (!p) return null
+                  return {
+                    id: p.id,
+                    imageUrl: p.imageUrl,
+                    videoUrl: p.videoUrl,
+                    description: p.description,
+                    likesCount: p.likesCount || 0,
+                    commentsCount: p.commentsCount || 0,
+                    createdAt: p.createdAt,
+                    isLiked: p.isLiked,
+                    author: p.author,
+                  }
+                })()
+              : null
+          }
           onClose={() => {
             setIsPosterModalOpen(false)
             setSelectedPosterId(null)

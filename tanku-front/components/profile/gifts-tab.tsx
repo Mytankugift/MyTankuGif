@@ -21,6 +21,9 @@ import { displayOrderRef } from '@/lib/utils/entity-ref-display'
 import { dropiStatusChipClass, formatDropiStatus } from '@/lib/dropi-status'
 import { OrderItemDropiShippingModal } from '@/components/profile/order-item-dropi-shipping-modal'
 import { OrderItemDropiShippingActions } from '@/components/profile/order-item-dropi-shipping-actions'
+import { OrderSupportSection } from '@/components/profile/order-support-section'
+import { useAuthStore } from '@/lib/stores/auth-store'
+import type { OrderDTO } from '@/types/api'
 
 /** Superficie alineada con compras; `ring` = stroke verde (recibido) o azul Tanku (enviado). */
 const GIFT_SURFACE_CLASS =
@@ -68,6 +71,12 @@ interface GiftOrder {
     city: string
     state: string
     country: string
+    firstName?: string
+    lastName?: string
+    phone?: string | null
+    address1?: string
+    address2?: string | null
+    postalCode?: string
   } | null
 }
 
@@ -83,6 +92,96 @@ interface GiftsTabProps {
 
 function getGiftAccentRing(direction: GiftDirection): string {
   return direction === 'received' ? 'ring-[#73FFA2]' : 'ring-[#66DEDB]'
+}
+
+function getDirectionBadgeLabel(direction: GiftDirection): string {
+  return direction === 'sent' ? 'Enviado' : 'REGALO'
+}
+
+function getDirectionHeaderLabel(direction: GiftDirection): string {
+  return direction === 'sent' ? 'Regalo · Enviado' : 'Regalo'
+}
+
+function isPaymentPaid(paymentStatus: string): boolean {
+  const ps = (paymentStatus || '').toLowerCase()
+  return ['paid', 'completed', 'captured', 'authorized'].some((x) => ps.includes(x))
+}
+
+function shouldShowOrderStatusChip(gift: GiftOrder): boolean {
+  if (gift.paymentStatus === 'cancelled') return true
+  if (isPaymentPaid(gift.paymentStatus)) return false
+  const s = (gift.status || '').toLowerCase()
+  return s !== 'confirmed' && s !== 'confirmado'
+}
+
+function hasFullGiftAddress(
+  address: GiftOrder['address']
+): address is NonNullable<GiftOrder['address']> & { address1: string } {
+  return Boolean(address?.address1)
+}
+
+/** Precio del regalo: solo producto (el envío va incluido en tankuPrice). */
+function getGiftProductAmount(gift: GiftOrder): number {
+  const lines = gift.items.reduce((acc, item) => {
+    const unit = item.finalPrice ?? item.price ?? 0
+    return acc + unit * item.quantity
+  }, 0)
+  if (lines > 0) return lines
+  if (typeof gift.subtotal === 'number' && gift.subtotal > 0) return gift.subtotal
+  return gift.total ?? 0
+}
+
+function giftToOrderDTO(gift: GiftWithDirection, senderUserId: string): OrderDTO {
+  const productAmount = getGiftProductAmount(gift)
+  return {
+    id: gift.id,
+    ref: gift.ref ?? null,
+    userId: senderUserId,
+    email: '',
+    status: gift.status,
+    paymentStatus: gift.paymentStatus,
+    paymentMethod: gift.paymentMethod || 'epayco',
+    total: productAmount,
+    subtotal: productAmount,
+    shippingTotal: 0,
+    items: gift.items.map((item) => ({
+      id: item.id,
+      productId: item.product.id,
+      variantId: item.variant.id,
+      quantity: item.quantity,
+      price: item.price ?? item.finalPrice ?? 0,
+      finalPrice: item.finalPrice ?? item.price ?? 0,
+      dropiOrderId: item.dropiOrderId ?? null,
+      dropiStatus: item.dropiStatus ?? null,
+      dropiWebhookData: item.dropiWebhookData ?? null,
+      product: {
+        id: item.product.id,
+        title: item.product.title,
+        handle: item.product.handle,
+        images: item.product.images,
+      },
+      variant: {
+        id: item.variant.id,
+        title: item.variant.title,
+        price: item.price ?? item.finalPrice ?? 0,
+      },
+    })),
+    address: hasFullGiftAddress(gift.address)
+      ? {
+          firstName: gift.address.firstName ?? '',
+          lastName: gift.address.lastName ?? '',
+          phone: gift.address.phone ?? '',
+          address1: gift.address.address1,
+          address2: gift.address.address2 ?? null,
+          city: gift.address.city,
+          state: gift.address.state,
+          postalCode: gift.address.postalCode ?? '',
+          country: gift.address.country,
+        }
+      : null,
+    createdAt: gift.createdAt,
+    updatedAt: gift.updatedAt,
+  }
 }
 
 function getStatusIcon(status: string) {
@@ -133,6 +232,25 @@ function getStatusColor(status: string) {
   }
 }
 
+function getPaymentChipClass(paymentStatus: string): string {
+  if (isPaymentPaid(paymentStatus)) {
+    return 'bg-[#73FFA2]/20 text-[#73FFA2] border-[#73FFA2]/50 ring-1 ring-[#73FFA2]/35 font-semibold shadow-[0_0_12px_rgba(115,255,162,0.12)]'
+  }
+  const s = (paymentStatus || '').toLowerCase()
+  if (s === 'cancelled' || s === 'cancelado') return getStatusColor('cancelled')
+  if (['pending', 'pendiente', 'awaiting', 'not_paid'].some((x) => s.includes(x))) {
+    return getStatusColor('pending')
+  }
+  return getStatusColor(paymentStatus)
+}
+
+function getPaymentStatusIcon(paymentStatus: string) {
+  if (isPaymentPaid(paymentStatus)) {
+    return <CheckCircleIcon className="h-4 w-4 shrink-0 text-[#73FFA2]" />
+  }
+  return getStatusIcon(paymentStatus)
+}
+
 function GiftPurchaseCard({
   gift,
   direction,
@@ -155,7 +273,8 @@ function GiftPurchaseCard({
       ? `${gift.otherUser.firstName} ${gift.otherUser.lastName}`
       : gift.otherUser.firstName || gift.otherUser.username || 'Usuario')
   const counterpartyLabel = direction === 'sent' ? 'Para' : 'De'
-  const directionLabel = direction === 'sent' ? 'Enviado' : 'Recibido'
+  const directionBadgeLabel = getDirectionBadgeLabel(direction)
+  const directionHeaderLabel = getDirectionHeaderLabel(direction)
   const directionBadgeClass =
     direction === 'sent'
       ? 'bg-[#66DEDB]/15 text-[#66DEDB] ring-1 ring-[#66DEDB]/35'
@@ -172,7 +291,7 @@ function GiftPurchaseCard({
         <div className="flex min-w-0 flex-1 flex-wrap items-end gap-x-4 gap-y-2">
           <div>
             <span className="block text-[9px] font-medium uppercase tracking-wide text-gray-500">
-              Regalo · {directionLabel}
+              {directionHeaderLabel}
             </span>
             <span className="text-sm text-gray-100">{formatDate(gift.createdAt)}</span>
           </div>
@@ -191,7 +310,7 @@ function GiftPurchaseCard({
           <span
             className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${directionBadgeClass}`}
           >
-            {directionLabel}
+            {directionBadgeLabel}
           </span>
         </div>
         <button
@@ -205,21 +324,27 @@ function GiftPurchaseCard({
 
       <div className="px-3 py-3 sm:px-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${getStatusColor(statusKey)}`}
-          >
-            {getStatusIcon(statusKey)}
-            {formatStatus(statusKey)}
-          </span>
-          <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${getStatusColor(gift.paymentStatus)}`}
-          >
-            {getStatusIcon(gift.paymentStatus)}
-            Pago: {formatStatus(gift.paymentStatus)}
-          </span>
-          {direction === 'sent' && gift.total !== undefined && (
-            <span className="text-sm font-semibold tabular-nums text-white">{formatPrice(gift.total)}</span>
-          )}
+          {shouldShowOrderStatusChip(gift) ? (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${getStatusColor(statusKey)}`}
+            >
+              {getStatusIcon(statusKey)}
+              {formatStatus(statusKey)}
+            </span>
+          ) : null}
+          {direction === 'sent' ? (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${getPaymentChipClass(gift.paymentStatus)}`}
+            >
+              {getPaymentStatusIcon(gift.paymentStatus)}
+              Pago: {formatStatus(gift.paymentStatus)}
+            </span>
+          ) : null}
+          {direction === 'sent' ? (
+            <span className="text-sm font-semibold tabular-nums text-white">
+              {formatPrice(getGiftProductAmount(gift))}
+            </span>
+          ) : null}
         </div>
 
         <div className="space-y-0 divide-y divide-[#414141]/80">
@@ -263,15 +388,15 @@ function GiftPurchaseCard({
                         </span>
                       )}
                     </div>
-                    {item.dropiStatus && (
+                    {direction === 'sent' && item.dropiStatus ? (
                       <div className="mt-2">
                         <span
                           className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${dropiStatusChipClass(item.dropiStatus)}`}
                         >
-                          Envío: {formatDropiStatus(item.dropiStatus)}
+                          Estado: {formatDropiStatus(item.dropiStatus)}
                         </span>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -284,12 +409,13 @@ function GiftPurchaseCard({
 }
 
 export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
+  const { user } = useAuthStore()
   const [sentGifts, setSentGifts] = useState<GiftOrder[]>([])
   const [receivedGifts, setReceivedGifts] = useState<GiftOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedGift, setSelectedGift] = useState<GiftWithDirection | null>(null)
   const [showGiftDetails, setShowGiftDetails] = useState(false)
-  const [selectedItemForWebhook, setSelectedItemForWebhook] = useState<string | null>(null)
+  const [selectedItemForHistory, setSelectedItemForHistory] = useState<string | null>(null)
 
   const mergedGifts = useMemo((): GiftWithDirection[] => {
     const sent: GiftWithDirection[] = sentGifts.map((g) => ({ ...g, direction: 'sent' as const }))
@@ -380,10 +506,14 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
   const closeGiftDetails = () => {
     setSelectedGift(null)
     setShowGiftDetails(false)
-    setSelectedItemForWebhook(null)
+    setSelectedItemForHistory(null)
   }
 
   const isSender = selectedGift?.direction === 'sent'
+  const supportOrder =
+    selectedGift && isSender && user?.id
+      ? giftToOrderDTO(selectedGift, user.id)
+      : null
 
   if (loading) {
     return (
@@ -403,8 +533,8 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
           </div>
           <h4 className="mb-2 text-lg font-medium text-white">Sin regalos aún</h4>
           <p className="text-sm text-gray-400">
-            Cuando envíes o recibas regalos, aparecerán aquí. El borde indica si fue enviado (azul
-            Tanku) o recibido (verde).
+            Cuando envíes o recibas regalos, aparecerán aquí. El borde azul Tanku es enviado; el
+            verde es regalo recibido.
           </p>
         </div>
       ) : filteredGifts.length === 0 ? (
@@ -414,8 +544,8 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
           </div>
           <h4 className="mb-2 text-lg font-medium text-white">Sin regalos en este período</h4>
           <p className="text-sm text-gray-400">
-            Prueba otro rango de fechas en el selector de período. El borde verde es recibido y el
-            azul Tanku, enviado.
+            Prueba otro rango de fechas en el selector de período. Verde = regalo; azul Tanku =
+            enviado.
           </p>
         </div>
       ) : (
@@ -443,7 +573,7 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
           mobileBackdrop="blur"
           maxWidthClass="max-w-lg"
           panelHeightClass="h-auto max-md:max-h-[min(46rem,93dvh)] md:max-h-[min(44rem,90vh)]"
-          panelClassName={`flex min-h-0 flex-col ${getGiftAccentRing(selectedGift.direction)}`}
+          panelClassName={`flex min-h-0 flex-col overflow-hidden ${getGiftAccentRing(selectedGift.direction)}`}
         >
             <div
               className="flex shrink-0 items-center justify-between border-b bg-[#171B21] px-4 py-3"
@@ -451,7 +581,7 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
             >
               <div>
                 <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
-                  {selectedGift.direction === 'sent' ? 'Regalo enviado' : 'Regalo recibido'}
+                  {selectedGift.direction === 'sent' ? 'Regalo enviado' : 'Regalo'}
                 </p>
                 <h3 id="gift-details-title" className="text-base font-semibold text-white">
                   Orden{' '}
@@ -468,83 +598,99 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
               </button>
             </div>
 
-            <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
-              <div className="space-y-4">
-                {selectedGift.otherUser && (
-                  <div className="rounded-lg border border-[#414141]/90 bg-black/20 p-3">
-                    <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-                      {isSender ? 'Enviado a' : 'Enviado por'}
-                    </h4>
-                    <div className="flex items-center gap-3">
-                      {selectedGift.otherUser.avatar && (
-                        <Image
-                          src={selectedGift.otherUser.avatar}
-                          alt={selectedGift.otherUser.firstName || 'Usuario'}
-                          width={48}
-                          height={48}
-                          className="rounded-full"
-                          unoptimized
-                        />
-                      )}
-                      <div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="custom-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
+                <div
+                  className={
+                    !isSender && hasFullGiftAddress(selectedGift.address)
+                      ? 'grid grid-cols-1 gap-4 lg:grid-cols-2'
+                      : 'grid grid-cols-1 gap-4'
+                  }
+                >
+                  <div className="space-y-4">
+                    {selectedGift.otherUser && (
+                      <div className="rounded-lg border border-[#414141]/90 bg-black/20 p-3">
+                        <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                          {isSender ? 'Enviado a' : 'Enviado por'}
+                        </h4>
+                        <div className="flex items-center gap-3">
+                          {selectedGift.otherUser.avatar && (
+                            <Image
+                              src={selectedGift.otherUser.avatar}
+                              alt={selectedGift.otherUser.firstName || 'Usuario'}
+                              width={48}
+                              height={48}
+                              className="rounded-full"
+                              unoptimized
+                            />
+                          )}
+                          <div>
+                            <p className="font-medium text-white">
+                              {selectedGift.otherUser.firstName && selectedGift.otherUser.lastName
+                                ? `${selectedGift.otherUser.firstName} ${selectedGift.otherUser.lastName}`
+                                : selectedGift.otherUser.firstName ||
+                                  selectedGift.otherUser.username ||
+                                  'Usuario'}
+                            </p>
+                            {isSender && selectedGift.address && (
+                              <p className="text-sm text-gray-400">
+                                {selectedGift.address.city}, {selectedGift.address.state}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="rounded-lg border border-[#414141]/90 bg-black/20 p-3">
+                      <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                        {isSender ? 'Pago' : 'Regalo'}
+                      </h4>
+                      {isSender ? (
+                        <div className="space-y-2">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${getPaymentChipClass(selectedGift.paymentStatus)}`}
+                          >
+                            {getPaymentStatusIcon(selectedGift.paymentStatus)}
+                            Pago: {formatStatus(selectedGift.paymentStatus)}
+                          </span>
+                          <div className="flex items-center justify-between gap-3 border-t border-[#414141]/60 pt-2">
+                            <span className="text-sm font-medium text-gray-400">Total pagado</span>
+                            <span className="text-lg font-bold text-[#73FFA2]">
+                              {formatPrice(getGiftProductAmount(selectedGift))}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-500">Incluye envío en el precio del producto.</p>
+                        </div>
+                      ) : null}
+                      <p className={`text-[11px] leading-relaxed text-gray-500 ${isSender ? 'mt-2' : ''}`}>
+                        {formatDate(selectedGift.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {!isSender && hasFullGiftAddress(selectedGift.address) ? (
+                    <div className="rounded-lg border border-[#414141]/90 bg-black/20 p-3">
+                      <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Dirección de envío
+                      </h4>
+                      <div className="space-y-1 text-sm text-gray-200">
                         <p className="font-medium text-white">
-                          {selectedGift.otherUser.firstName && selectedGift.otherUser.lastName
-                            ? `${selectedGift.otherUser.firstName} ${selectedGift.otherUser.lastName}`
-                            : selectedGift.otherUser.firstName ||
-                              selectedGift.otherUser.username ||
-                              'Usuario'}
+                          {selectedGift.address.firstName} {selectedGift.address.lastName}
                         </p>
-                        {selectedGift.address && (
-                          <p className="text-sm text-gray-400">
-                            {selectedGift.address.city}, {selectedGift.address.state}
-                          </p>
-                        )}
+                        <p>{selectedGift.address.address1}</p>
+                        {selectedGift.address.address2 ? <p>{selectedGift.address.address2}</p> : null}
+                        <p>
+                          {selectedGift.address.city}, {selectedGift.address.state}{' '}
+                          {selectedGift.address.postalCode}
+                        </p>
+                        {selectedGift.address.phone ? (
+                          <p className="pt-1 text-gray-400">Tel: {selectedGift.address.phone}</p>
+                        ) : null}
                       </div>
                     </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border border-[#414141]/90 bg-black/20 p-3">
-                    <h4 className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
-                      Estado
-                    </h4>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${getStatusColor(
-                        selectedGift.paymentStatus === 'cancelled' ? 'cancelled' : selectedGift.status
-                      )}`}
-                    >
-                      {getStatusIcon(
-                        selectedGift.paymentStatus === 'cancelled' ? 'cancelled' : selectedGift.status
-                      )}
-                      {formatStatus(
-                        selectedGift.paymentStatus === 'cancelled' ? 'cancelled' : selectedGift.status
-                      )}
-                    </span>
-                  </div>
-                  <div className="rounded-lg border border-[#414141]/90 bg-black/20 p-3">
-                    <h4 className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
-                      Pago
-                    </h4>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${getStatusColor(selectedGift.paymentStatus)}`}
-                    >
-                      {getStatusIcon(selectedGift.paymentStatus)}
-                      {formatStatus(selectedGift.paymentStatus)}
-                    </span>
-                  </div>
+                  ) : null}
                 </div>
-
-                {isSender && selectedGift.total !== undefined && (
-                  <div className="rounded-lg border border-[#414141]/90 bg-black/20 p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-400">Total</span>
-                      <span className="text-lg font-bold text-[#73FFA2]">
-                        {formatPrice(selectedGift.total)}
-                      </span>
-                    </div>
-                  </div>
-                )}
 
                 <div>
                   <h4 className="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500">
@@ -584,20 +730,24 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
                                 {formatPrice(item.finalPrice * item.quantity)}
                               </div>
                             )}
-                            {item.dropiStatus && (
+                            {isSender && item.dropiStatus ? (
                               <div className="mt-2">
                                 <span
                                   className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${dropiStatusChipClass(item.dropiStatus)}`}
                                 >
-                                  Envío: {formatDropiStatus(item.dropiStatus)}
+                                  Estado: {formatDropiStatus(item.dropiStatus)}
                                 </span>
                               </div>
-                            )}
-                            <OrderItemDropiShippingActions
-                              item={item}
-                              onViewShipping={() => setSelectedItemForWebhook(item.id)}
-                              className="mt-1.5"
-                            />
+                            ) : null}
+                            {isSender ? (
+                              <OrderItemDropiShippingActions
+                                item={item}
+                                onViewShipping={() => setSelectedItemForHistory(item.id)}
+                                linkLabel="Ver historial"
+                                title="Ver historial del producto"
+                                className="mt-1.5"
+                              />
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -605,24 +755,28 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
                   </div>
                 </div>
               </div>
+
+              {supportOrder ? (
+                <OrderSupportSection order={supportOrder} variant="footer" />
+              ) : null}
             </div>
         </ProfileTabletOverlayModal>
       )}
 
-      {selectedGift && selectedItemForWebhook ? (
+      {selectedGift && selectedItemForHistory ? (
         <OrderItemDropiShippingModal
           open
-          onClose={() => setSelectedItemForWebhook(null)}
-          orderItemId={selectedItemForWebhook}
+          onClose={() => setSelectedItemForHistory(null)}
+          orderItemId={selectedItemForHistory}
           productTitle={
-            selectedGift.items.find((i) => i.id === selectedItemForWebhook)?.product.title ??
+            selectedGift.items.find((i) => i.id === selectedItemForHistory)?.product.title ??
             'Producto'
           }
           tankuDropiStatus={
-            selectedGift.items.find((i) => i.id === selectedItemForWebhook)?.dropiStatus
+            selectedGift.items.find((i) => i.id === selectedItemForHistory)?.dropiStatus
           }
           dropiWebhookData={
-            selectedGift.items.find((i) => i.id === selectedItemForWebhook)?.dropiWebhookData
+            selectedGift.items.find((i) => i.id === selectedItemForHistory)?.dropiWebhookData
           }
         />
       ) : null}

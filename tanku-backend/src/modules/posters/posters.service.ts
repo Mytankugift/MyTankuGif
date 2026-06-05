@@ -445,11 +445,6 @@ export class PostersService {
     imageUrl?: string;
     videoUrl?: string;
   }): Promise<PosterDTO> {
-    // Validar que al menos haya título o descripción
-    if (!data.title?.trim() && !data.description?.trim()) {
-      throw new BadRequestError('Se requiere al menos un título o descripción');
-    }
-
     // Validar que haya al menos una imagen o video
     if (!data.imageUrl && !data.videoUrl) {
       throw new BadRequestError('Se requiere al menos una imagen o video');

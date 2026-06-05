@@ -120,8 +120,10 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
 
     try {
       const formData = new FormData()
-      formData.append('title', '')
-      formData.append('description', description.trim())
+      const trimmedDescription = description.trim()
+      if (trimmedDescription) {
+        formData.append('description', trimmedDescription)
+      }
       formData.append('files', selectedFile)
 
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'

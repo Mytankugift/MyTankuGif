@@ -11,9 +11,6 @@ export const createPosterSchema = z.object({
     imageUrl: z.string().url('imageUrl debe ser una URL válida').optional(),
     videoUrl: z.string().url('videoUrl debe ser una URL válida').optional(),
   }).refine(
-    (data) => data.title || data.description,
-    { message: 'Se requiere al menos un título o descripción' }
-  ).refine(
     (data) => data.imageUrl || data.videoUrl,
     { message: 'Se requiere al menos una imagen o video' }
   ),
