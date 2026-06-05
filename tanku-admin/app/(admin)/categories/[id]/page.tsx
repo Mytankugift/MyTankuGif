@@ -296,8 +296,24 @@ export default function CategoryDetailPage() {
     }
   }
 
+  const isImageFile = (file: File) =>
+    file.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|svg|bmp|avif)$/i.test(file.name)
+
+  const getDroppedImageFile = (dataTransfer: DataTransfer): File | null => {
+    const fromFiles = Array.from(dataTransfer.files).find(isImageFile)
+    if (fromFiles) return fromFiles
+
+    for (const item of Array.from(dataTransfer.items)) {
+      if (item.kind !== 'file') continue
+      const file = item.getAsFile()
+      if (file && isImageFile(file)) return file
+    }
+
+    return null
+  }
+
   const uploadImageFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
+    if (!isImageFile(file)) {
       showNotification('Solo se permiten archivos de imagen', 'error')
       return
     }
@@ -331,26 +347,46 @@ export default function CategoryDetailPage() {
     }
   }
 
+  const resetImageDragState = () => {
+    setImageDragOver(false)
+  }
+
+  const handleImageDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (actionLoading) return
+    setImageDragOver(true)
+  }
+
   const handleImageDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!actionLoading) setImageDragOver(true)
+    if (actionLoading) return
+
+    e.dataTransfer.dropEffect = 'copy'
   }
 
   const handleImageDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
-    setImageDragOver(false)
+
+    const related = e.relatedTarget as Node | null
+    if (related && e.currentTarget.contains(related)) return
+
+    resetImageDragState()
   }
 
   const handleImageDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
-    setImageDragOver(false)
+    resetImageDragState()
     if (actionLoading) return
 
-    const file = e.dataTransfer.files?.[0]
-    if (!file) return
+    const file = getDroppedImageFile(e.dataTransfer)
+    if (!file) {
+      showNotification('Solo se permiten archivos de imagen', 'error')
+      return
+    }
     await uploadImageFile(file)
   }
 
@@ -669,48 +705,58 @@ export default function CategoryDetailPage() {
             {/* Imagen */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Imagen</h2>
-              <div className="flex flex-col items-center gap-4">
-                <div
-                  onDragOver={handleImageDragOver}
-                  onDragEnter={handleImageDragOver}
-                  onDragLeave={handleImageDragLeave}
-                  onDrop={handleImageDrop}
-                  className={`relative w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden border-2 border-dashed transition-colors ${
-                    imageDragOver
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-300 bg-gray-100 hover:border-blue-400'
-                  } ${actionLoading ? 'opacity-50 pointer-events-none' : ''}`}
-                >
+              <div
+                onDragEnter={handleImageDragEnter}
+                onDragOver={handleImageDragOver}
+                onDragLeave={handleImageDragLeave}
+                onDrop={handleImageDrop}
+                className={`relative w-full min-h-[220px] rounded-xl overflow-hidden border-2 border-dashed ${
+                  imageDragOver
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 bg-gray-50'
+                } ${actionLoading ? 'opacity-60 pointer-events-none' : ''}`}
+              >
+                <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 p-6">
                   {category.imageUrl ? (
                     <img
                       src={category.imageUrl}
                       alt={category.name}
                       draggable={false}
-                      className="w-full h-full object-cover select-none pointer-events-none"
+                      className="max-h-40 w-auto max-w-full rounded-lg object-contain select-none pointer-events-none shadow-sm"
                     />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-2 text-center">
-                      <PhotoIcon className="w-10 h-10 text-gray-400" />
-                      <p className="text-[10px] leading-tight text-gray-500">
+                    <>
+                      <PhotoIcon className="w-14 h-14 text-gray-400" />
+                      <p className="text-sm text-gray-500 text-center">
                         Arrastra una imagen aquí
                       </p>
-                    </div>
+                    </>
                   )}
-                  {imageDragOver && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-blue-500/20">
-                      <p className="text-xs font-medium text-blue-700 px-2 text-center">
-                        Suelta para {category.imageUrl ? 'reemplazar' : 'subir'}
-                      </p>
-                    </div>
-                  )}
+                  <p className="text-xs text-gray-400 text-center">
+                    JPG, PNG, WebP, GIF
+                  </p>
                 </div>
 
+                <div
+                  aria-hidden
+                  className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-blue-500/15 transition-opacity duration-150 ${
+                    imageDragOver ? 'opacity-100' : 'opacity-0'
+                  }`}
+                >
+                  <p className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-blue-700 shadow-sm">
+                    Suelta para {category.imageUrl ? 'reemplazar' : 'subir'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col items-center gap-2">
                 <p className="text-xs text-gray-500 text-center">
-                  Arrastra y suelta una imagen en el recuadro para subirla
+                  Arrastra y suelta una imagen en el recuadro
                 </p>
 
                 {category.imageUrl && (
                   <button
+                    type="button"
                     onClick={handleImageDelete}
                     disabled={actionLoading}
                     className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
