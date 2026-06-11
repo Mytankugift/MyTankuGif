@@ -103,22 +103,23 @@ export class CheckoutController {
       console.log(`📝 [CHECKOUT] Email: ${dataForm.email}`);
       console.log(`📝 [CHECKOUT] Payment method: ${dataForm.payment_method}`);
 
-      // Si es Epayco, solo preparar datos sin crear orden
+      // Si es Epayco (classic), preparar carrito y crear orden awaiting antes del pago
       if (dataForm.payment_method === 'epayco') {
-        const preparedData = await this.checkoutService.prepareEpaycoCheckout(
+        const preparedData = await this.checkoutService.prepareEpaycoCartOrder(
           dataForm,
           dataCart,
           userId
         );
 
-        // Retornar datos preparados (sin orden)
         return res.status(200).json(successResponse({
+          orderId: preparedData.orderId,
+          orderRef: preparedData.orderRef,
           cartId: preparedData.cartId,
           total: preparedData.total,
           subtotal: preparedData.subtotal,
           shippingTotal: preparedData.shippingTotal,
           paymentMethod: 'epayco',
-          message: 'Datos preparados para Epayco. La orden se creará cuando el pago sea confirmado.',
+          message: 'Orden creada en espera de pago ePayco.',
         }));
       }
 
@@ -270,25 +271,36 @@ export class CheckoutController {
 
       const frontendBase = env.FRONTEND_URL.replace(/\/$/, '');
 
-      let identifier: string;
+      let confirmationIdentifier: string;
+      let invoiceLabel: string;
       let amount: number;
       let description: string;
       let responseUrl: string;
+      let extras: Record<string, string>;
 
       if (flow === 'cart') {
         const { dataForm, dataCart } = body;
         if (!dataForm || !dataCart) {
           throw new BadRequestError('dataForm y dataCart son requeridos para flow cart');
         }
-        const prepared = await this.checkoutService.prepareEpaycoCheckout(
+        const prepared = await this.checkoutService.prepareEpaycoCartOrder(
           dataForm as CheckoutOrderRequest,
           dataCart as DataCart,
           userId
         );
-        identifier = prepared.cartId;
+        confirmationIdentifier = prepared.orderId;
+        invoiceLabel = prepared.orderRef ?? prepared.orderId;
         amount = prepared.total;
-        description = `Pedido Tanku — ${identifier.slice(0, 8)}`;
-        responseUrl = buildCheckoutSuccessUrl(frontendBase, { cartId: identifier });
+        description = `Pedido Tanku - ${invoiceLabel}`;
+        responseUrl = buildCheckoutSuccessUrl(frontendBase, {
+          orderRef: prepared.orderRef ?? undefined,
+          orderId: prepared.orderId,
+        });
+        extras = {
+          extra1: invoiceLabel,
+          extra2: flow,
+          extra3: prepared.cartId,
+        };
       } else if (flow === 'gift_direct') {
         const { variant_id, quantity, recipient_id, email, payment_method } = body;
         if (!variant_id || !recipient_id || !email || !payment_method) {
@@ -311,15 +323,20 @@ export class CheckoutController {
         if (!result.orderId) {
           throw new BadRequestError('No se pudo crear la orden de regalo directa');
         }
-        identifier = result.orderId;
+        confirmationIdentifier = result.orderId;
+        invoiceLabel = result.orderRef ?? result.orderId;
         amount = result.total ?? 0;
         description = result.orderRef
-          ? `Regalo Tanku — ${result.orderRef}`
-          : `Regalo Tanku — ${result.orderId.slice(0, 8)}`;
+          ? `Regalo Tanku - ${result.orderRef}`
+          : `Regalo Tanku - ${result.orderId.slice(0, 8)}`;
         responseUrl = buildCheckoutSuccessUrl(frontendBase, {
           orderRef: result.orderRef ?? undefined,
           orderId: result.orderId,
         });
+        extras = {
+          extra1: invoiceLabel,
+          extra2: flow,
+        };
       } else {
         const {
           receiverId,
@@ -349,15 +366,20 @@ export class CheckoutController {
           senderMessage,
         });
 
-        identifier = result.cartId;
+        confirmationIdentifier = result.cartId;
+        invoiceLabel = result.stalkerGiftId.slice(0, 8);
         amount = result.total;
-        description = `StalkerGift — ${result.stalkerGiftId.slice(0, 8)}`;
+        description = `StalkerGift - ${invoiceLabel}`;
         responseUrl = `${frontendBase}/stalkergift/success?stalkerGiftId=${encodeURIComponent(
           result.stalkerGiftId
         )}&cartId=${encodeURIComponent(result.cartId)}`;
+        extras = {
+          extra1: confirmationIdentifier,
+          extra2: flow,
+        };
       }
 
-      const confirmation = buildEpaycoWebhookUrl(identifier);
+      const confirmation = buildEpaycoWebhookUrl(confirmationIdentifier);
 
       const session = await this.epaycoApifyService.createSmartSession({
         checkout_version: '2',
@@ -367,18 +389,15 @@ export class CheckoutController {
         description,
         lang: 'ES',
         country: 'CO',
-        invoice: identifier,
+        invoice: invoiceLabel,
         response: responseUrl,
         confirmation,
         method: 'POST',
-        extras: {
-          extra1: identifier,
-          extra2: flow,
-        },
+        extras,
       });
 
       console.log(
-        `✅ [EPAYCO-SMART] Sesión Apify creada flow=${flow} identifier=${identifier.slice(0, 12)}… test=${env.EPAYCO_TEST_MODE} sessionId=${session.sessionId.slice(0, 12)}…`
+        `✅ [EPAYCO-SMART] Sesión Apify creada flow=${flow} confirmationId=${confirmationIdentifier.slice(0, 12)}… invoice=${invoiceLabel} test=${env.EPAYCO_TEST_MODE} sessionId=${session.sessionId.slice(0, 12)}…`
       );
       console.log(`   [EPAYCO-SMART] response=${responseUrl}`);
       console.log(`   [EPAYCO-SMART] confirmation=${confirmation}`);

@@ -258,8 +258,8 @@ function GiftCheckoutContent() {
         console.log('[GIFT CHECKOUT] Respuesta del backend recibida:', response.data)
 
         // Para regalos, siempre es Epayco
-        if (!response.data.cartId) {
-          console.error('[GIFT CHECKOUT] Error: Respuesta del backend no tiene cartId para Epayco:', response.data)
+        if (!response.data.orderId) {
+          console.error('[GIFT CHECKOUT] Error: Respuesta del backend no tiene orderId para Epayco:', response.data)
           setButtonTooltip('Error: El backend no retornó los datos esperados para Epayco.')
           setIsSubmitting(false)
           setShowConfirmationModal(false)
@@ -267,7 +267,7 @@ function GiftCheckoutContent() {
         }
 
         const preparedData = response.data
-        console.log('[GIFT CHECKOUT] Datos preparados para Epayco:', preparedData)
+        console.log('[GIFT CHECKOUT] Orden awaiting + datos Epayco:', preparedData)
         
         try {
           // Cerrar modal de confirmación
@@ -296,7 +296,7 @@ function GiftCheckoutContent() {
 
           // Obtener URL del webhook desde el backend
           const webhookResponse = await apiClient.get<{ webhookUrl: string }>(
-            `/api/v1/checkout/webhook-url?cartId=${preparedData.cartId}`
+            `/api/v1/checkout/webhook-url?orderId=${preparedData.orderId}`
           )
 
           if (!webhookResponse.success || !webhookResponse.data?.webhookUrl) {
@@ -307,14 +307,21 @@ function GiftCheckoutContent() {
           console.log('[GIFT CHECKOUT] URL de webhook obtenida del backend:', webhookUrl)
 
           // Preparar opciones para Epayco
+          const orderLabel = preparedData.orderRef || preparedData.orderId.slice(0, 8)
+          const successParams = new URLSearchParams()
+          if (preparedData.orderRef) successParams.set('orderRef', preparedData.orderRef)
+          successParams.set('orderId', preparedData.orderId)
           const epaycoOptions = {
             amount: preparedData.total,
-            name: `Regalo Tanku ${preparedData.cartId.slice(0, 8)}`,
-            description: `Regalo Tanku - ${giftCart.items.length} producto(s)`,
+            name: `Regalo Tanku ${orderLabel}`,
+            description: `Regalo Tanku - ${orderLabel}`,
             currency: 'cop',
             country: 'co',
-            external: false,
-            response: `${window.location.origin}/checkout/success`,
+            external: preparedData.orderRef || preparedData.orderId,
+            extra1: orderLabel,
+            extra2: 'cart',
+            extra3: preparedData.cartId,
+            response: `${window.location.origin}/checkout/success?${successParams.toString()}`,
             confirmation: webhookUrl,
             name_billing: user?.firstName || '',
             mobilephone_billing: user?.phone || '',

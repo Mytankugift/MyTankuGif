@@ -8,6 +8,18 @@ import { useFeedInitContext } from '@/lib/context/feed-init-context'
 import type { FeedItem, FeedResponse } from '@/lib/types/feed.types'
 import { mapCategoryFromApi, type FeedCategoryItem } from '@/lib/feed/category-tree'
 
+type AuthPersistApi = {
+  hasHydrated: () => boolean
+  onFinishHydration: (fn: () => void) => () => void
+}
+
+function getAuthPersist(): AuthPersistApi | undefined {
+  const p = (useAuthStore as unknown as { persist?: AuthPersistApi }).persist
+  return typeof p?.hasHydrated === 'function' && typeof p?.onFinishHydration === 'function'
+    ? p
+    : undefined
+}
+
 interface FeedInitResponse {
   feed: FeedResponse
   categories: Array<{
@@ -31,8 +43,10 @@ interface FeedInitResponse {
 }
 
 export function useFeedInit() {
-  const { token, isAuthenticated } = useAuthStore()
+  const { token, isAuthenticated, checkAuth } = useAuthStore()
   const { markComplete } = useFeedInitContext()
+  const [authHydrated, setAuthHydrated] = useState(false)
+  const [authResolved, setAuthResolved] = useState(false)
   const [feedItems, setFeedItems] = useState<FeedItem[]>([])
   const [categories, setCategories] = useState<FeedCategoryItem[]>([])
   const [cart, setCart] = useState<any | null>(null)
@@ -61,9 +75,10 @@ export function useFeedInit() {
     setError(null)
 
     try {
+      const { token: currentToken, isAuthenticated: currentAuth } = useAuthStore.getState()
       const headers: HeadersInit = {}
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
+      if (currentToken) {
+        headers['Authorization'] = `Bearer ${currentToken}`
       }
 
       const response = await apiClient.get<FeedInitResponse>('/api/v1/feed/init', headers)
@@ -76,7 +91,7 @@ export function useFeedInit() {
           : null
 
         // ✅ Si no está autenticado, cargar más páginas automáticamente para tener al menos 100 productos
-        if (!isAuthenticated && safeCursor && validItems.length > 0) {
+        if (!currentAuth && safeCursor && validItems.length > 0) {
           let currentCursor: string | null = safeCursor
           let attempts = 0
           const maxAttempts = 3 // Cargar hasta 3 páginas más (50 + 50 + 50 = 150 productos)
@@ -163,7 +178,7 @@ export function useFeedInit() {
     } finally {
       setIsLoading(false)
     }
-  }, [token, isAuthenticated, markComplete])
+  }, [markComplete])
 
   // Cargar más items del feed (usando endpoint normal, no batch)
   const loadMore = useCallback(async () => {
@@ -206,16 +221,39 @@ export function useFeedInit() {
     }
   }, [nextCursorToken, hasMore, isLoadingMore, token, isAuthenticated])
 
-  // Cargar datos al montar (solo una vez)
   useEffect(() => {
-    // ✅ Cargar siempre (tanto autenticado como no autenticado)
-    // El endpoint /api/v1/feed/init funciona con optionalAuthenticate
-    if (hasLoadedRef.current) {
+    const persist = getAuthPersist()
+    if (!persist) {
+      queueMicrotask(() => setAuthHydrated(true))
       return
     }
-    
+    if (persist.hasHydrated()) {
+      setAuthHydrated(true)
+    }
+    return persist.onFinishHydration(() => {
+      setAuthHydrated(true)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!authHydrated) return
+    let cancelled = false
+    ;(async () => {
+      const { token: t, isAuthenticated: auth } = useAuthStore.getState()
+      if (t && !auth) {
+        await checkAuth()
+      }
+      if (!cancelled) setAuthResolved(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [authHydrated, checkAuth])
+
+  useEffect(() => {
+    if (!authResolved || hasLoadedRef.current) return
     loadFeedInit()
-  }, [loadFeedInit])
+  }, [authResolved, loadFeedInit])
 
   // Función para actualizar un item específico
   const updateItem = useCallback((itemId: string, updates: Partial<FeedItem>) => {

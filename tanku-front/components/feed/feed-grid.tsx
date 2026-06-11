@@ -11,10 +11,21 @@ interface FeedGridProps {
   items: FeedItem[]
   onPosterClick?: (poster: FeedItem) => void
   onProductClick?: (product: FeedItem) => void
+  onProductLikeUpdated?: (productId: string, updates: { isLiked: boolean; likesCount: number }) => void
+  onProductWishlistUpdated?: (productId: string, updates: { isInWishlist: boolean }) => void
+  onPosterLikeUpdated?: (posterId: string, updates: { isLiked: boolean; likesCount: number }) => void
   isAuthenticated?: boolean
 }
 
-export function FeedGrid({ items, onPosterClick, onProductClick, isAuthenticated = true }: FeedGridProps) {
+export function FeedGrid({
+  items,
+  onPosterClick,
+  onProductClick,
+  onProductLikeUpdated,
+  onProductWishlistUpdated,
+  onPosterLikeUpdated,
+  isAuthenticated = true,
+}: FeedGridProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Configuración de breakpoints para masonry
@@ -129,6 +140,8 @@ export function FeedGrid({ items, onPosterClick, onProductClick, isAuthenticated
                           isInWishlist: item.isInWishlist,
                         }}
                         onOpenModal={onProductClick}
+                        onLikeUpdated={onProductLikeUpdated}
+                        onWishlistUpdated={onProductWishlistUpdated}
                         isLightMode={false}
                         isAboveFold={isAboveFold}
                       />
@@ -155,6 +168,7 @@ export function FeedGrid({ items, onPosterClick, onProductClick, isAuthenticated
                           author: item.author,
                         }}
                         onOpenModal={onPosterClick}
+                        onLikeUpdated={onPosterLikeUpdated}
                         isLightMode={false}
                         isAboveFold={isAboveFold}
                       />
@@ -202,6 +216,8 @@ export function FeedGrid({ items, onPosterClick, onProductClick, isAuthenticated
                     isInWishlist: item.isInWishlist,
                   }}
                   onOpenModal={onProductClick}
+                  onLikeUpdated={onProductLikeUpdated}
+                  onWishlistUpdated={onProductWishlistUpdated}
                   isLightMode={false}
                   isAboveFold={isAboveFold}
                 />
@@ -228,6 +244,7 @@ export function FeedGrid({ items, onPosterClick, onProductClick, isAuthenticated
                     author: item.author,
                   }}
                   onOpenModal={onPosterClick}
+                  onLikeUpdated={onPosterLikeUpdated}
                   isLightMode={false}
                   isAboveFold={isAboveFold}
                 />

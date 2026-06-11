@@ -5,18 +5,32 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { createPortal } from 'react-dom'
 import { useWishLists } from '@/lib/hooks/use-wishlists'
-import { apiClient } from '@/lib/api/client'
-import { API_ENDPOINTS } from '@/lib/api/endpoints'
-import type { ProductVariantDTO } from '@/types/api'
+import {
+  isProductInWishList,
+  isProductInAnyWishList,
+} from '@/lib/stores/wishlists-store'
 
 interface WishlistSelectorModalProps {
   isOpen: boolean
   onClose: () => void
   productId: string
   variantId?: string
+  /** Stock conocido desde el detalle del producto; evita GET extra de variante */
+  variantStock?: number
   onAdded: () => void
+}
+
+function dispatchWishlistUpdated(productId: string) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('wishlistUpdated', {
+        detail: { productId },
+      }),
+    )
+  }
 }
 
 export function WishlistSelectorModal({
@@ -24,14 +38,17 @@ export function WishlistSelectorModal({
   onClose,
   productId,
   variantId,
+  variantStock,
   onAdded,
 }: WishlistSelectorModalProps) {
-  const { wishLists, fetchWishLists, createWishList, addItemToWishList, isLoading } = useWishLists()
+  const { wishLists, ensureWishListsLoaded, createWishList, addItemToWishList, isLoading } =
+    useWishLists()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newWishlistName, setNewWishlistName] = useState('')
   const [isPublic, setIsPublic] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -39,55 +56,53 @@ export function WishlistSelectorModal({
   }, [])
 
   useEffect(() => {
-    // Cargar wishlists cada vez que se abre el modal (para que no aparezca vacío)
-    if (!isOpen) return
-    fetchWishLists()
-  }, [isOpen, fetchWishLists])
+    if (!isOpen) {
+      setShowCreateForm(false)
+      setStatusMessage(null)
+      return
+    }
+    ensureWishListsLoaded()
+  }, [isOpen, ensureWishListsLoaded])
+
+  const finishAdd = () => {
+    dispatchWishlistUpdated(productId)
+    onAdded()
+    onClose()
+  }
+
+  const validateVariant = (): boolean => {
+    if (!variantId) {
+      setStatusMessage('Selecciona una variante del producto primero.')
+      return false
+    }
+    if (variantStock === 0) {
+      setStatusMessage('Este producto no tiene stock disponible.')
+      return false
+    }
+    return true
+  }
 
   const handleAddToWishlist = async (wishListId: string) => {
+    if (!validateVariant()) return
+
+    if (isProductInWishList(wishLists, wishListId, productId)) {
+      setStatusMessage('Este producto ya está en esa wishlist.')
+      if (isProductInAnyWishList(wishLists, productId)) {
+        finishAdd()
+      }
+      return
+    }
+
     setIsAdding(true)
+    setStatusMessage(null)
     try {
-      // Validar que se haya seleccionado una variante si el producto tiene variantes
-      if (!variantId) {
-        alert('Por favor selecciona una variante del producto')
-        setIsAdding(false)
-        return
+      const result = await addItemToWishList(wishListId, productId, variantId)
+      if (result === 'added' || result === 'already_exists') {
+        finishAdd()
       }
-
-      // Validar stock antes de agregar (validación preventiva)
-      const variantResponse = await apiClient.get<ProductVariantDTO>(API_ENDPOINTS.PRODUCTS.VARIANT_BY_ID(variantId))
-      if (variantResponse.success && variantResponse.data) {
-        const variant = variantResponse.data
-        if (variant.stock === 0) {
-          alert('Este producto no tiene stock disponible')
-          setIsAdding(false)
-          return
-        }
-      }
-
-      await addItemToWishList(wishListId, productId, variantId)
-      // Disparar evento con información del producto agregado
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('wishlistUpdated', { 
-          detail: { productId } 
-        }))
-      }
-      onAdded()
-      onClose()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error agregando a wishlist:', error)
-      // Extraer mensaje del error
-      let errorMessage = 'Error al agregar producto a la wishlist'
-      
-      if (error?.message) {
-        errorMessage = error.message
-      } else if (error?.error?.message) {
-        errorMessage = error.error.message
-      } else if (error?.response?.data?.error?.message) {
-        errorMessage = error.response.data.error.message
-      }
-      
-      alert(errorMessage)
+      setStatusMessage('No se pudo agregar el producto. Intenta de nuevo.')
     } finally {
       setIsAdding(false)
     }
@@ -95,55 +110,23 @@ export function WishlistSelectorModal({
 
   const handleCreateAndAdd = async () => {
     if (!newWishlistName.trim()) return
+    if (!validateVariant()) return
 
     setIsAdding(true)
+    setStatusMessage(null)
     try {
-      // Validar que se haya seleccionado una variante
-      if (!variantId) {
-        alert('Por favor selecciona una variante del producto')
-        setIsAdding(false)
-        return
-      }
-
-      // Validar stock antes de crear y agregar
-      const variantResponse = await apiClient.get<ProductVariantDTO>(API_ENDPOINTS.PRODUCTS.VARIANT_BY_ID(variantId))
-      if (variantResponse.success && variantResponse.data) {
-        const variant = variantResponse.data
-        if (variant.stock === 0) {
-          alert('Este producto no tiene stock disponible')
-          setIsAdding(false)
-          return
-        }
-      }
-
       const newWishlist = await createWishList(newWishlistName.trim(), isPublic)
-      if (newWishlist) {
-        await addItemToWishList(newWishlist.id, productId, variantId)
-        // Disparar evento con información del producto agregado
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('wishlistUpdated', { 
-            detail: { productId } 
-          }))
-        }
-        onAdded()
-        onClose()
+      if (!newWishlist) return
+
+      const result = await addItemToWishList(newWishlist.id, productId, variantId)
+      if (result === 'added' || result === 'already_exists') {
+        finishAdd()
         setShowCreateForm(false)
         setNewWishlistName('')
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creando wishlist:', error)
-      // Extraer mensaje del error
-      let errorMessage = 'Error al crear wishlist'
-      
-      if (error?.message) {
-        errorMessage = error.message
-      } else if (error?.error?.message) {
-        errorMessage = error.error.message
-      } else if (error?.response?.data?.error?.message) {
-        errorMessage = error.response.data.error.message
-      }
-      
-      alert(errorMessage)
+      setStatusMessage('No se pudo crear la wishlist. Intenta de nuevo.')
     } finally {
       setIsAdding(false)
     }
@@ -151,8 +134,8 @@ export function WishlistSelectorModal({
 
   if (!isOpen || !mounted) return null
 
-  // Debe quedar por encima de ProductModal (1000003) y otros overlays globales
   const WISHLIST_MODAL_Z = 1_000_004
+  const showLoadingPlaceholder = isLoading && wishLists.length === 0
 
   return createPortal(
     <div
@@ -163,64 +146,81 @@ export function WishlistSelectorModal({
     >
       <div
         className="relative flex w-full max-w-md max-md:max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px))] flex-col overflow-hidden"
-        style={{ 
+        style={{
           backgroundColor: '#2C3137',
           border: '2px solid #73FFA2',
-          borderRadius: '25px'
+          borderRadius: '25px',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
-          <h3 
-            className="text-xl font-semibold mb-2"
-            style={{ color: '#73FFA2' }}
-          >
+          <h3 className="text-xl font-semibold mb-2" style={{ color: '#73FFA2' }}>
             Agregar a wishlist
           </h3>
-          <p 
-            className="text-sm mb-4"
-            style={{ color: '#66DEDB' }}
-          >
+          <p className="text-sm mb-4" style={{ color: '#66DEDB' }}>
             Tus productos favoritos para sorprender y crear sonrisas.
           </p>
+
+          {statusMessage && (
+            <p className="mb-3 text-sm text-amber-300/90" role="status">
+              {statusMessage}
+            </p>
+          )}
 
           {!showCreateForm ? (
             <>
               <div className="max-h-60 overflow-y-auto custom-scrollbar mb-4">
-                {wishLists.length === 0 ? (
+                {showLoadingPlaceholder ? (
+                  <p className="text-gray-400 text-sm text-center py-4">Cargando wishlists...</p>
+                ) : wishLists.length === 0 ? (
                   <p className="text-gray-400 text-sm text-center py-4">
-                    {isLoading ? 'Cargando...' : 'No tienes wishlists. Crea una nueva.'}
+                    No tienes wishlists. Crea una nueva.
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {wishLists.map((wishlist) => (
-                      <button
-                        key={wishlist.id}
-                        onClick={() => handleAddToWishlist(wishlist.id)}
-                        disabled={isAdding}
-                        className="w-full p-3 text-left transition-opacity disabled:opacity-50"
-                        style={{
-                          backgroundColor: 'transparent',
-                          border: '2px solid #73FFA2',
-                          borderRadius: '25px'
-                        }}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-white font-medium">{wishlist.name}</span>
-                            {wishlist.public && (
-                              <span className="text-xs" style={{ color: '#73FFA2' }}>🌐</span>
-                            )}
+                    {wishLists.map((wishlist) => {
+                      const alreadyAdded = isProductInWishList(wishLists, wishlist.id, productId)
+                      return (
+                        <button
+                          key={wishlist.id}
+                          onClick={() => handleAddToWishlist(wishlist.id)}
+                          disabled={isAdding || alreadyAdded}
+                          className="w-full p-3 text-left transition-opacity disabled:cursor-default"
+                          style={{
+                            backgroundColor: alreadyAdded ? 'rgba(115, 255, 162, 0.08)' : 'transparent',
+                            border: alreadyAdded ? '2px solid rgba(115, 255, 162, 0.45)' : '2px solid #73FFA2',
+                            borderRadius: '25px',
+                            opacity: isAdding ? 0.6 : 1,
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {alreadyAdded && (
+                                <Image
+                                  src="/icons_tanku/tanku_agregado_a_whislist_verde.svg"
+                                  alt=""
+                                  width={18}
+                                  height={18}
+                                  className="h-[18px] w-[18px] shrink-0"
+                                  aria-hidden
+                                />
+                              )}
+                              <span className="text-white font-medium truncate">{wishlist.name}</span>
+                              {wishlist.public && (
+                                <span className="text-xs shrink-0" style={{ color: '#73FFA2' }}>
+                                  🌐
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs shrink-0" style={{ color: '#66DEDB' }}>
+                              {alreadyAdded
+                                ? 'Agregado'
+                                : `${wishlist.items.length} producto${wishlist.items.length !== 1 ? 's' : ''}`}
+                            </span>
                           </div>
-                          <span 
-                            className="text-xs"
-                            style={{ color: '#66DEDB' }}
-                          >
-                            {wishlist.items.length} producto{wishlist.items.length !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -236,7 +236,7 @@ export function WishlistSelectorModal({
                   paddingLeft: '1.5rem',
                   paddingRight: '1.5rem',
                   margin: '0 auto',
-                  display: 'block'
+                  display: 'block',
                 }}
               >
                 + Crear nueva wishlist
@@ -244,13 +244,10 @@ export function WishlistSelectorModal({
             </>
           ) : (
             <div className="space-y-4">
-              <h3 
-                className="text-xl font-semibold mb-4"
-                style={{ color: '#73FFA2' }}
-              >
+              <h3 className="text-xl font-semibold mb-4" style={{ color: '#73FFA2' }}>
                 Crear wishlist
               </h3>
-              
+
               <div>
                 <label className="block text-sm text-gray-300 mb-2">Nombre</label>
                 <input
@@ -262,27 +259,24 @@ export function WishlistSelectorModal({
                   style={{
                     backgroundColor: 'transparent',
                     border: '2px solid #73FFA2',
-                    borderRadius: '25px'
+                    borderRadius: '25px',
                   }}
                 />
               </div>
 
-              {/* Selector segmentado Pública/Privada */}
               <div className="flex items-center justify-center">
-                <div 
+                <div
                   className="flex items-center overflow-hidden"
                   style={{
                     backgroundColor: 'transparent',
                     border: '2px solid #73FFA2',
-                    borderRadius: '25px'
+                    borderRadius: '25px',
                   }}
                 >
                   <button
                     onClick={() => setIsPublic(true)}
                     className={`px-4 py-2 text-sm transition-colors ${
-                      isPublic 
-                        ? 'bg-[#73FFA2] text-gray-900' 
-                        : 'text-gray-300 hover:text-white'
+                      isPublic ? 'bg-[#73FFA2] text-gray-900' : 'text-gray-300 hover:text-white'
                     }`}
                   >
                     Pública
@@ -290,9 +284,7 @@ export function WishlistSelectorModal({
                   <button
                     onClick={() => setIsPublic(false)}
                     className={`px-4 py-2 text-sm transition-colors ${
-                      !isPublic 
-                        ? 'bg-[#73FFA2] text-gray-900' 
-                        : 'text-gray-300 hover:text-white'
+                      !isPublic ? 'bg-[#73FFA2] text-gray-900' : 'text-gray-300 hover:text-white'
                     }`}
                   >
                     Privada
@@ -310,7 +302,7 @@ export function WishlistSelectorModal({
                   style={{
                     backgroundColor: '#3B9BC3',
                     color: '#2C3137',
-                    borderRadius: '25px'
+                    borderRadius: '25px',
                   }}
                 >
                   Cancelar
@@ -329,7 +321,6 @@ export function WishlistSelectorModal({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   )
 }
-

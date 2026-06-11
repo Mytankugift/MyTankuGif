@@ -193,7 +193,7 @@ export class PostersService {
   /**
    * Obtener posters de un usuario específico
    */
-  async getPostersByUserId(userId: string): Promise<PosterDTO[]> {
+  async getPostersByUserId(userId: string, viewerUserId?: string): Promise<PosterDTO[]> {
     try {
       // Verificar que las tablas existen
       try {
@@ -231,7 +231,7 @@ export class PostersService {
         orderBy: { createdAt: 'desc' },
       });
 
-      return posters.map((poster) => this.mapPosterToDTO(poster, userId));
+      return posters.map((poster) => this.mapPosterToDTO(poster, viewerUserId));
     } catch (error: any) {
       console.error(`❌ [POSTERS SERVICE] Error obteniendo posters:`, error.message);
       return [];
@@ -500,7 +500,7 @@ export class PostersService {
   /**
    * Toggle reacción (like/unlike) en un poster
    */
-  async toggleReaction(posterId: string, userId: string, reactionType: string = 'like'): Promise<{ liked: boolean }> {
+  async toggleReaction(posterId: string, userId: string, reactionType: string = 'like'): Promise<{ liked: boolean; likesCount: number }> {
     // Verificar que el poster existe
     const poster = await prisma.poster.findUnique({
       where: { id: posterId },
@@ -542,7 +542,7 @@ export class PostersService {
         likesCount: updatedPoster.likesCount,
       });
 
-      return { liked: false };
+      return { liked: false, likesCount: updatedPoster.likesCount };
     } else {
       // Crear reacción (like)
       await prisma.posterReaction.create({
@@ -604,7 +604,7 @@ export class PostersService {
         }
       }
 
-      return { liked: true };
+      return { liked: true, likesCount: updatedPoster.likesCount };
     }
   }
 

@@ -49,7 +49,8 @@ export class PostersController {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'userId es requerido'));
       }
 
-      const posters = await this.postersService.getPostersByUserId(userId);
+      const viewerUserId = (req as RequestWithUser).user?.id;
+      const posters = await this.postersService.getPostersByUserId(userId, viewerUserId);
 
       res.status(200).json(successResponse(posters));
     } catch (error) {

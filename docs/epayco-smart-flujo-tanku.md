@@ -86,13 +86,15 @@ Campos que arma Tanku (resumen):
 | `response` | URL de redirección post-pago en el front |
 | `confirmation` | URL del webhook del backend |
 | `method` | `"POST"` |
-| `extras.extra1` | Mismo identificador que `invoice` |
+| `extras.extra1` | Igual que `invoice` (`order.ref` en `cart` y `gift_direct`) |
 | `extras.extra2` | `flow`: `cart` \| `gift_direct` \| `stalker_gift` |
+| `extras.extra3` | Solo `cart`: `cartId` (vaciar carrito en webhook) |
 
 **Webhook URL** (confirmation):
 
 ```text
-{WEBHOOK_BASE_URL}/api/v1/webhook/epayco/{identifier}
+{WEBHOOK_BASE_URL}/api/v1/webhook/epayco/{orderId}   # cart y gift_direct (nuevo)
+{WEBHOOK_BASE_URL}/api/v1/webhook/epayco/{cartId}    # stalker_gift; cart legacy
 ```
 
 Si `WEBHOOK_BASE_URL` no está definida, el código usa un fallback hardcodeado en `buildEpaycoWebhookUrl` — revisar `tanku-backend/src/modules/checkout/checkout.controller.ts`.
@@ -105,17 +107,20 @@ Si `WEBHOOK_BASE_URL` no está definida, el código usa un fallback hardcodeado 
 
 **Body requerido**: `dataForm`, `dataCart` (misma forma que checkout).
 
-**Backend**:
+**Backend** (desde 2026-06-11):
 
-1. `prepareEpaycoCheckout` valida carrito, usuario, items seleccionados, totales.
-2. Persiste en `cart.metadata.checkout_data` los datos para crear la orden **cuando el webhook confirme pago** (`dataForm`, `dataCart`, `userId`, `selectedVariantIds`, totales, etc.).
-3. `identifier` = `cartId`.
-4. `invoice` = `cartId`.
-5. `responseUrl` = `{FRONTEND_URL}/checkout/success`.
+1. `prepareEpaycoCartOrder` → `prepareEpaycoCheckout` (metadata en carrito) + **Order `awaiting`** con `ORD-…`.
+2. Sesión Apify: `description` / `invoice` / `extra1` = `order.ref`; `extra2` = `cart`; `extra3` = `cartId`.
+3. `confirmation` = `…/webhook/epayco/{orderId}` (CUID opaco en URL).
+4. `responseUrl` = `{FRONTEND_URL}/checkout/success?orderRef=…&orderId=…`.
 
-**Orden**: se crea en el **webhook** si `x_response` indica pago aprobado, no antes.
+**Webhook `paid`**: branch orden existente → `paid` + Dropi + vaciar carrito (`extra3`) + regalo si aplica.
 
-**Código**: `createEpaycoSmartSession` rama `cart` → `checkout.service.ts` (`prepareEpaycoCheckout`).
+**Legacy**: sesiones antiguas con `…/webhook/epayco/{cartId}` siguen creando la Order en el webhook.
+
+**Código**: `createEpaycoSmartSession` rama `cart` → `checkout.service.ts` (`prepareEpaycoCartOrder`).
+
+**Idempotencia reenvíos:** ver [epayco-idempotencia-y-saldo-a-favor.md](./epayco-idempotencia-y-saldo-a-favor.md).
 
 ---
 
@@ -126,9 +131,9 @@ Si `WEBHOOK_BASE_URL` no está definida, el código usa un fallback hardcodeado 
 **Backend**:
 
 1. `createDirectGiftOrder` — la **orden ya existe** en BD antes del pago.
-2. `identifier` = `orderId`.
-3. `invoice` = `orderId`.
-4. `responseUrl` = `{FRONTEND_URL}/checkout/success`.
+2. `confirmation` = `…/webhook/epayco/{orderId}`.
+3. `invoice` / `extra1` = `order.ref` (`ORD-…`).
+4. `responseUrl` = `{FRONTEND_URL}/checkout/success?orderRef=…&orderId=…`.
 
 **Webhook**: si encuentra orden por `id === identifier`, actualiza `paymentStatus`, Dropi, notificaciones de regalo, etc. **No** pasa por la rama “carrito + metadata checkout_data”.
 

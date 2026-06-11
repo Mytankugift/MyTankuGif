@@ -10,6 +10,30 @@ import { env } from '../../config/env';
 import { NotFoundError } from '../../shared/errors/AppError';
 import { sendGiftReceivedEmailAfterPayment } from '../email/gift-email.service';
 
+async function clearSelectedCartItems(cartId: string): Promise<number> {
+  const cartWithItems = await prisma.cart.findUnique({
+    where: { id: cartId },
+    include: { items: true },
+  });
+
+  if (!cartWithItems?.items.length) {
+    return 0;
+  }
+
+  const metadata = cartWithItems.metadata as { checkout_data?: { selectedVariantIds?: string[] } } | null;
+  const selectedVariantIds = metadata?.checkout_data?.selectedVariantIds || [];
+  const itemsToDelete =
+    selectedVariantIds.length > 0
+      ? cartWithItems.items.filter((item) => selectedVariantIds.includes(item.variantId))
+      : cartWithItems.items;
+
+  for (const item of itemsToDelete) {
+    await prisma.cartItem.delete({ where: { id: item.id } });
+  }
+
+  return itemsToDelete.length;
+}
+
 export class EpaycoController {
   private ordersService: OrdersService;
   private dropiOrdersService: DropiOrdersService;
@@ -74,6 +98,7 @@ export class EpaycoController {
         x_customer_name,
         x_extra1,
         x_extra2,
+        x_extra3,
       } = webhookData;
 
       // ✅ Convertir valores de query params a string si vienen como array
@@ -86,6 +111,8 @@ export class EpaycoController {
       const xResponseValue = Array.isArray(x_response) ? x_response[0] : x_response;
       const xResponseReasonTextValue = Array.isArray(x_response_reason_text) ? x_response_reason_text[0] : x_response_reason_text;
       const xTestRequestValue = Array.isArray(x_test_request) ? x_test_request[0] : x_test_request;
+      const xExtra2Value = Array.isArray(x_extra2) ? x_extra2[0] : x_extra2;
+      const xExtra3Value = Array.isArray(x_extra3) ? x_extra3[0] : x_extra3;
 
       const transactionId = xTransactionIdValue || webhookData.transactionId;
       const paymentStatus = xResponseValue || webhookData.paymentStatus || 'captured';
@@ -215,6 +242,20 @@ export class EpaycoController {
             console.error(`⚠️ [EPAYCO-WEBHOOK] Error creando notificación de regalo:`, notificationError?.message);
           }
           await sendGiftReceivedEmailAfterPayment(updatedOrder.id);
+        }
+
+        // Flujo cart (orden pre-creada): vaciar carrito tras Dropi OK usando extra3
+        if (dropiSuccess && xExtra2Value === 'cart' && xExtra3Value) {
+          try {
+            const removed = await clearSelectedCartItems(String(xExtra3Value));
+            console.log(
+              `✅ [EPAYCO-WEBHOOK] ${removed} items eliminados del carrito ${xExtra3Value} (flow cart)`
+            );
+          } catch (cartError: any) {
+            console.warn(`⚠️ [EPAYCO-WEBHOOK] Error limpiando carrito (flow cart):`, cartError?.message);
+          }
+        } else if (xExtra2Value === 'cart' && !dropiSuccess) {
+          console.warn(`⚠️ [EPAYCO-WEBHOOK] NO se vació el carrito (flow cart) porque Dropi falló`);
         }
 
         return res.status(200).json({

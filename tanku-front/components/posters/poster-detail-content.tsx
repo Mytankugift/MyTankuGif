@@ -274,9 +274,12 @@ export function PosterDetailContent({
 
       if (response.success && response.data) {
         const data = response.data
-        const newLikesCount = data.liked
-          ? poster.likesCount + 1
-          : poster.likesCount - 1
+        const newLikesCount =
+          data.likesCount !== undefined
+            ? data.likesCount
+            : data.liked
+              ? poster.likesCount + 1
+              : Math.max(0, poster.likesCount - 1)
 
         setPoster(prev => prev ? {
           ...prev,
@@ -654,9 +657,9 @@ export function PosterDetailContent({
           : 'flex h-full flex-col'
       }
     >
-      {/* Header - Solo en pageView */}
+      {/* Header - Solo en pageView (móvil en modal; desktop usa barra del PosterDetailModal) */}
       {isPageView && (
-        <div className={`flex-shrink-0 ${postPageBg}`}>
+        <div className={`flex-shrink-0 ${postPageBg} ${embeddedInModal ? 'md:hidden' : ''}`}>
           <div className={`flex items-center gap-2 px-4 ${embeddedInModal ? 'py-2' : 'py-3'}`}>
             {embeddedInModal && (
               <button

@@ -25,28 +25,47 @@ Orden `ORD-2026-0000013` / `cmq1co1zy00333qr8m4y0xpqc` — flujo `gift_direct`:
 
 ## 2. Estado actual del código
 
-### 2.1 Webhook ePayco (`epayco.controller.ts`)
+### 2.1 Cambio de flujo `cart` (2026-06-11) — **sin idempotencia aún**
 
-| Flujo | Orden en BD antes del pago | Comportamiento al webhook `paid` |
-|-------|----------------------------|----------------------------------|
-| `cart` | No (solo `cart.metadata.checkout_data`) | Crea orden + Dropi + side-effects |
-| `gift_direct` | Sí (`awaiting`) | Actualiza pago + **siempre** Dropi + notif + email |
-| `stalker_gift` | No (StalkerGift en carrito) | Actualiza StalkerGift |
+Desde 2026-06-11, el checkout `cart` (Smart y classic) **alinea** el modelo de `gift_direct`:
 
-Para `gift_direct` con orden **ya `paid`**, el código **no corta** antes de Dropi/notificaciones/email.
+| Momento | Qué pasa |
+|---------|----------|
+| Antes del pago | `prepareEpaycoCartOrder` → metadata en carrito + **Order `awaiting`** con `ORD-…` |
+| Sesión ePayco | `description` / `invoice` / `extra1` = `order.ref`; `extra2` = `cart`; `extra3` = `cartId`; `confirmation` = `/webhook/epayco/{orderId}` |
+| Webhook `paid` | Branch **orden existente** (mismo que `gift_direct`): `paid` → Dropi → notif/email si regalo → vaciar carrito vía `extra3` |
+| Webhook rechazado | Marca `cancelled`; la orden **sigue en Mis pedidos** (sin filtro `awaiting`/`cancelled`) |
+| `stalker_gift` | **Sin cambios** (sigue `cartId` temporal en URL) |
+
+**Compatibilidad:** cobros viejos con URL `…/webhook/epayco/{cartId}` siguen entrando por la rama legacy (crea Order en el webhook). Las sesiones nuevas usan `orderId`.
+
+**Idempotencia:** este cambio **no** implementa guards; solo evita que un reenvío con URL nueva **cree otra Order Tanku** en `cart`. Sigue duplicando Dropi / email / notificación al reenviar (igual que `gift_direct`).
+
+### 2.2 Webhook ePayco (`epayco.controller.ts`)
+
+| Flujo | Orden en BD antes del pago | URL webhook (nuevo) | Comportamiento al webhook `paid` |
+|-------|----------------------------|---------------------|----------------------------------|
+| `cart` | Sí (`awaiting`) | `{orderId}` | Actualiza pago + **siempre** Dropi + side-effects + vaciar carrito (`extra3`) |
+| `gift_direct` | Sí (`awaiting`) | `{orderId}` | Actualiza pago + **siempre** Dropi + notif + email |
+| `stalker_gift` | StalkerGift `CREATED` + carrito temp. | `{cartId}` temp. | Actualiza StalkerGift (sin Order hasta aceptación) |
+| `cart` (legacy) | No (solo `checkout_data`) | `{cartId}` | Crea Order + Dropi + side-effects |
+
+Para `cart` y `gift_direct` con orden **ya `paid`**, el código **no corta** antes de Dropi/notificaciones/email.
 
 **Archivos:**
 
 - `tanku-backend/src/modules/orders/epayco.controller.ts`
+- `tanku-backend/src/modules/checkout/checkout.service.ts` — `prepareEpaycoCartOrder`
+- `tanku-backend/src/modules/checkout/checkout.controller.ts` — sesión Apify / `add-order` epayco
 - `tanku-backend/src/modules/orders/dropi-orders.service.ts` — no omite items que ya tienen `dropiOrderId`
 - `tanku-backend/src/modules/notifications/notifications.service.ts` — `createGiftNotification` sin dedupe
 - `tanku-backend/src/modules/email/gift-email.service.ts` — `sendGiftReceivedEmailAfterPayment` sin dedupe
 
-### 2.2 Referencia: Dropi webhook sí tiene idempotencia
+### 2.3 Referencia: Dropi webhook sí tiene idempotencia
 
 En `dropi-webhook.controller.ts`, si el estado del item **no cambió**, responde 200 y no repite trabajo innecesario. **Usar este patrón como modelo** para ePayco.
 
-### 2.3 TODO sin implementar
+### 2.4 TODO sin implementar (idempotencia)
 
 En `epayco.controller.ts` hay un comentario para deduplicar por `x_transaction_id`; **no está implementado**.
 
@@ -60,8 +79,11 @@ En `epayco.controller.ts` hay un comentario para deduplicar por `x_transaction_i
 |-------|-----|-------|
 | `x_transaction_id` | Idempotencia **global** del pago | Único por transacción ePayco; ideal para tabla `PaymentEvent` |
 | `x_ref_payco` | Referencia numérica ePayco | Guardada en `order.metadata.refPayco` |
-| `identifier` (path) | `cartId` u `orderId` | Una sesión de cobro Tanku |
-| `invoice` / `x_id_factura` | Mismo valor que `identifier` hoy | Futuro: migrar a `order.ref` |
+| `identifier` (path) | `orderId` (cart/gift_direct nuevos) o `cartId` (legacy cart / stalker_gift) | Correlación webhook |
+| `invoice` / `x_id_factura` | `order.ref` (`ORD-…`) en cart y gift_direct | Legible en panel ePayco |
+| `x_extra1` | Igual que `invoice` en cart y gift_direct | Soporte / reconciliación manual |
+| `x_extra2` | `cart` \| `gift_direct` \| `stalker_gift` | Rama del webhook |
+| `x_extra3` | `cartId` solo en flujo `cart` | Vaciar carrito tras Dropi OK |
 
 **Regla:** un `x_transaction_id` procesado con éxito **no debe** volver a ejecutar efectos secundarios.
 
@@ -71,11 +93,13 @@ En `epayco.controller.ts` hay un comentario para deduplicar por `x_transaction_i
 |--------|-------------------|----------------------|
 | Actualizar `paymentStatus → paid` | Parcial | OK repetir (mismo estado) |
 | Guardar `transactionId` / `refPayco` | Parcial | OK repetir |
-| Crear orden (flujo `cart`) | **No** | Solo si aún no existe orden para ese `cartId` / `transaction_id` |
+| Crear orden Tanku (flujo `cart` **nuevo**) | **Sí** en reenvío webhook | Orden pre-creada `awaiting`; webhook no llama `createOrderFromCheckout` |
+| Crear orden Tanku (flujo `cart` **legacy** / `cartId` en URL) | **No** | Solo si aún no existe orden para ese pago |
+| Crear orden Tanku (doble clic “Pagar”) | **No** | Cada sesión puede crear otra Order `awaiting` (huérfana si no paga) |
 | Crear orden Dropi | **No** | Solo si `orderItem.dropiOrderId` es null |
 | Notificación regalo | **No** | Una por orden pagada |
 | Email regalo | **No** | Uno por orden pagada |
-| Vaciar carrito | Parcial | Solo una vez tras Dropi OK (cart) |
+| Vaciar carrito (`cart`, `extra3`) | Parcial | Solo tras Dropi OK; sin guard si ya se vació |
 
 ### 3.3 Reenvío manual desde ePayco (`x_manual=1`)
 
@@ -88,7 +112,9 @@ En `epayco.controller.ts` hay un comentario para deduplicar por `x_transaction_i
 
 - Segunda orden Dropi para el mismo `OrderItem`.
 - Segundo email / notificación de regalo.
-- Segunda orden Tanku para el mismo pago.
+- Segunda orden Tanku para el mismo pago (reenvío webhook con misma `orderId` / `x_transaction_id`).
+
+**Ya mitigado (2026-06-11):** reenvío con URL `…/webhook/epayco/{orderId}` en `cart` y `gift_direct` **no** crea otra Order Tanku.
 
 ---
 
@@ -96,7 +122,7 @@ En `epayco.controller.ts` hay un comentario para deduplicar por `x_transaction_i
 
 ### Fase A — Guards rápidos (sin migración)
 
-En `epayco.controller.ts`, rama `existingOrder` + flujo `cart`:
+En `epayco.controller.ts`, rama `existingOrder` (aplica a **`cart` y `gift_direct`** desde 2026-06-11):
 
 ```
 SI paymentStatus === 'paid' Y transactionId ya coincide:
@@ -159,17 +185,27 @@ Al crear sesión Smart, guardar `sessionId` + `identifier` + monto en BD. Correl
 ## 5. Flujos Tanku (recordatorio)
 
 ```text
-cart:
-  prepare → invoice=cartId → webhook crea Order
+cart (actual, desde 2026-06-11):
+  prepareEpaycoCartOrder → Order awaiting + checkout_data en carrito
+  ePayco: invoice/extra1 = ORD-…, extra3 = cartId, confirmation = /webhook/epayco/{orderId}
+  webhook paid → actualiza paid + Dropi + vaciar carrito (extra3) + regalo si aplica
+
+cart (legacy, sesiones antiguas):
+  prepare → invoice=cartId → confirmation = /webhook/epayco/{cartId}
+  webhook paid → crea Order + Dropi + side-effects
 
 gift_direct:
-  create Order (awaiting) → invoice=orderId → webhook marca paid + Dropi
+  create Order (awaiting) → invoice/extra1 = ORD-…, confirmation = /webhook/epayco/{orderId}
+  webhook paid → paid + Dropi + notif + email
 
-stalker_gift:
-  prepare carrito → invoice=cartId → webhook actualiza StalkerGift
+stalker_gift (sin cambios):
+  StalkerGift CREATED + carrito temp. → invoice = cartId temp.
+  webhook paid → actualiza StalkerGift (Order se crea al aceptar)
 ```
 
-**Identificadores legibles:** las órdenes tienen `ref` (`ORD-2026-0000013`). Hoy ePayco usa CUID en `invoice`; conviene migrar a `ref` cuando el flujo cree la orden antes del pago.
+**Órdenes `awaiting` / `cancelled`:** se muestran en Mis pedidos (p. ej. “Pago pendiente”); no hay filtro oculto. Un pago rechazado deja la Order en BD con `cancelled`.
+
+**Doble intento de pago:** cada “Pagar” puede generar **otra** Order `awaiting` (nuevo `ORD-…`); es distinto del reenvío de webhook sobre la misma orden.
 
 ---
 
@@ -274,7 +310,7 @@ Cuando tengáis:
 
 ### Prioridad baja / producto
 
-- [ ] `invoice` = `order.ref` en sesión Apify.
+- [x] `invoice` / `extra1` = `order.ref` en sesión Apify (`cart` y `gift_direct`, 2026-06-11).
 - [ ] Wallet / saldo a favor (sección 6).
 
 ---
@@ -284,13 +320,14 @@ Cuando tengáis:
 **Cuándo usarlo:**
 
 - Webhook original 404 (nginx) y pago confirmado en panel ePayco.
-- Dropi falló y se corrigió precio/producto — **preferir** botón admin “Reintentar Dropi” cuando exista.
+- Dropi falló y se corrigió precio/producto — **preferir** botón admin “Reintentar Dropi” cuando exista (aún no existe).
+- Primera confirmación nunca llegó y la Order `awaiting` ya existe (`cart`/`gift_direct` nuevos): reenviar a `…/webhook/epayco/{orderId}`.
 
 **Cuándo evitarlo:**
 
-- Orden ya `paid` + Dropi OK + email enviado → solo duplica ruido.
+- Orden ya `paid` + Dropi OK + email enviado → duplica email, notificación y puede duplicar Dropi.
 
-**Después de reenviar:** revisar logs `[EPAYCO-WEBHOOK]` y confirmar que no aparecen duplicados de email/Dropi.
+**Después de reenviar:** revisar logs `[EPAYCO-WEBHOOK]` y confirmar que no aparecen duplicados de email/Dropi. La Order Tanku no debería duplicarse si la URL usa `orderId`.
 
 ---
 
@@ -299,9 +336,11 @@ Cuando tengáis:
 | Área | Archivo |
 |------|---------|
 | Webhook ePayco | `tanku-backend/src/modules/orders/epayco.controller.ts` |
+| Pre-orden cart + checkout | `tanku-backend/src/modules/checkout/checkout.service.ts` (`prepareEpaycoCartOrder`) |
 | Creación Dropi | `tanku-backend/src/modules/orders/dropi-orders.service.ts` |
 | Idempotencia Dropi (referencia) | `tanku-backend/src/modules/orders/dropi-webhook.controller.ts` |
 | Sesión Smart / response URL | `tanku-backend/src/modules/checkout/checkout.controller.ts` |
+| Checkout classic epayco | `tanku-front/app/(main)/checkout/page.tsx`, `checkout/gift/page.tsx` |
 | Success page | `tanku-front/app/(main)/checkout/success/page.tsx` |
 | Flujo ePayco general | `docs/epayco-smart-flujo-tanku.md` |
 
@@ -309,11 +348,12 @@ Cuando tengáis:
 
 ## 10. Resumen ejecutivo
 
-1. **Hoy:** reenviar webhook ePayco puede duplicar emails, notificaciones y órdenes Dropi.
-2. **Primero:** idempotencia por `x_transaction_id` + guards en Dropi y side-effects.
-3. **Saldo a favor / cobrar excedente:** buena idea de negocio para **reducir devoluciones**, pero es un **segundo proyecto** que requiere ledger en Tanku; no confiar en ePayco para “recordar” saldo entre compras.
-4. **Atajo operativo:** reintentar Dropi desde admin sin reenviar ePayco, mientras no exista wallet.
+1. **Idempotencia:** sigue **pendiente**. Reenviar webhook ePayco puede duplicar emails, notificaciones y órdenes Dropi (`gift_direct` y `cart` nuevo).
+2. **Cart alineado con gift_direct (2026-06-11):** Order `awaiting` antes del pago; ePayco muestra `ORD-…`; webhook por `orderId`. El reenvío **no** duplica Order Tanku; sí puede repetir side-effects.
+3. **Primero (cuando se implemente):** idempotencia por `x_transaction_id` + guards en Dropi y side-effects (Fases A/B).
+4. **Saldo a favor / cobrar excedente:** segundo proyecto; requiere ledger en Tanku.
+5. **Atajo operativo:** reintentar Dropi desde admin sin reenviar ePayco, mientras no exista wallet ni idempotencia.
 
 ---
 
-*Última actualización: 2026-06-05 — incidente ORD-2026-0000013, Dropi “monto a ganar ≤ 0”, reenvío manual ePayco.*
+*Última actualización: 2026-06-11 — flujo `cart` con pre-orden y `order.ref` en ePayco; idempotencia aún no implementada. Caso de referencia: ORD-2026-0000013 (`gift_direct`), reenvío manual ePayco.*

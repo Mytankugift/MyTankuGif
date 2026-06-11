@@ -16,6 +16,7 @@ import {
   ArrowsUpDownIcon,
 } from '@heroicons/react/24/outline'
 import { useFriends } from '@/lib/hooks/use-friends'
+import { useAuthStore } from '@/lib/stores/auth-store'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import {
@@ -138,6 +139,7 @@ export default function FriendsPage() {
 
 function FriendsPageContent() {
   const searchParams = useSearchParams()
+  const { isAuthenticated, user } = useAuthStore()
   const {
     friends,
     requests,
@@ -185,12 +187,13 @@ function FriendsPageContent() {
   }, [])
 
   useEffect(() => {
+    if (!isAuthenticated || !user?.id) return
+
     const load = async () => {
       await Promise.all([fetchFriends(), fetchRequests(), fetchSuggestions()])
     }
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [isAuthenticated, user?.id, fetchFriends, fetchRequests, fetchSuggestions])
 
   const [searchQuery, setSearchQuery] = useState('')
   const [friendSearchResults, setFriendSearchResults] = useState<FriendSuggestionDTO[] | null>(null)

@@ -33,12 +33,22 @@ interface ProductCardProps {
     isInWishlist?: boolean // Del feed optimizado
   }
   onOpenModal?: (product: any) => void
+  onLikeUpdated?: (productId: string, updates: { isLiked: boolean; likesCount: number }) => void
+  onWishlistUpdated?: (productId: string, updates: { isInWishlist: boolean }) => void
   isLightMode?: boolean
   isAboveFold?: boolean // ✅ Nuevo prop para indicar si está visible sin scroll
   isLanding?: boolean // ✅ Prop para indicar si es landing (oculta carrito y wishlist)
 }
 
-export const ProductCard = memo(function ProductCard({ product, onOpenModal, isLightMode = false, isAboveFold = false, isLanding = false }: ProductCardProps) {
+export const ProductCard = memo(function ProductCard({
+  product,
+  onOpenModal,
+  onLikeUpdated,
+  onWishlistUpdated,
+  isLightMode = false,
+  isAboveFold = false,
+  isLanding = false,
+}: ProductCardProps) {
   const { isAuthenticated } = useAuthStore()
   const { addItem } = useCartStore()
   const { wishLists } = useWishLists()
@@ -50,8 +60,10 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
   const [imageError, setImageError] = useState(false)
   const [isLiked, setIsLiked] = useState(product.isLiked ?? false)
   const [likesCount, setLikesCount] = useState(product.likesCount ?? 0)
+  const [isInWishlist, setIsInWishlist] = useState(product.isInWishlist ?? false)
   const [isTogglingLike, setIsTogglingLike] = useState(false)
-  const hasUserToggledLike = useRef(false) // Rastrear si el usuario hizo un cambio manual
+  const hasUserToggledLike = useRef(false)
+  const hasUserToggledWishlist = useRef(false)
   const previousProductIdRef = useRef<string | null>(null)
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -98,30 +110,44 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     const currentProductId = product.id
     
     if (previousProductIdRef.current !== currentProductId) {
-      // Es un producto nuevo, resetear todo
       hasUserToggledLike.current = false
+      hasUserToggledWishlist.current = false
       previousProductIdRef.current = currentProductId
-      
-      // Actualizar desde las props
-      if (product.likesCount !== undefined) {
-        setLikesCount(product.likesCount)
+
+      if (product.likesCount !== undefined) setLikesCount(product.likesCount)
+      if (product.isLiked !== undefined) setIsLiked(product.isLiked)
+      if (product.isInWishlist !== undefined) setIsInWishlist(product.isInWishlist)
+    } else {
+      if (!hasUserToggledLike.current) {
+        if (product.likesCount !== undefined) setLikesCount(product.likesCount)
+        if (product.isLiked !== undefined) setIsLiked(product.isLiked)
       }
-      if (product.isLiked !== undefined) {
-        setIsLiked(product.isLiked)
-      }
-    } else if (!hasUserToggledLike.current) {
-      // Solo actualizar desde props si el usuario no ha hecho cambios manuales
-      // Esto permite que el feed actualice los likes cuando se recarga
-      if (product.likesCount !== undefined) {
-        setLikesCount(product.likesCount)
-      }
-      if (product.isLiked !== undefined) {
-        setIsLiked(product.isLiked)
+      if (!hasUserToggledWishlist.current && product.isInWishlist !== undefined) {
+        setIsInWishlist(product.isInWishlist)
       }
     }
-    // Si hasUserToggledLike.current es true, NO actualizar desde props
-    // para mantener los cambios del usuario
-  }, [product.id, product.isLiked, product.likesCount]) // También escuchar cambios en isLiked y likesCount
+  }, [product.id, product.isLiked, product.likesCount, product.isInWishlist])
+
+  useEffect(() => {
+    if (!isAuthenticated || hasUserToggledWishlist.current) return
+    const inStore = wishLists.some((list) =>
+      list.items?.some((item) => item.product?.id === product.id),
+    )
+    if (inStore) setIsInWishlist(true)
+  }, [wishLists, product.id, isAuthenticated])
+
+  useEffect(() => {
+    const onWishlistEvent = (e: Event) => {
+      const detail = (e as CustomEvent<{ productId?: string }>).detail
+      if (detail?.productId === product.id) {
+        setIsInWishlist(true)
+        hasUserToggledWishlist.current = true
+        onWishlistUpdated?.(product.id, { isInWishlist: true })
+      }
+    }
+    window.addEventListener('wishlistUpdated', onWishlistEvent)
+    return () => window.removeEventListener('wishlistUpdated', onWishlistEvent)
+  }, [product.id, onWishlistUpdated])
 
 
   // Manejar like/unlike
@@ -153,9 +179,9 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
           API_ENDPOINTS.PRODUCTS.UNLIKE(product.id)
         )
         if (response.success && response.data) {
-          // Actualizar con el valor real del servidor
           setIsLiked(false)
           setLikesCount(response.data.likesCount)
+          onLikeUpdated?.(product.id, { isLiked: false, likesCount: response.data.likesCount })
         } else {
           // Si falla, revertir al estado anterior
           setIsLiked(previousLiked)
@@ -167,9 +193,9 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
           API_ENDPOINTS.PRODUCTS.LIKE(product.id)
         )
         if (response.success && response.data) {
-          // Actualizar con el valor real del servidor
           setIsLiked(true)
           setLikesCount(response.data.likesCount)
+          onLikeUpdated?.(product.id, { isLiked: true, likesCount: response.data.likesCount })
         } else {
           // Si el error es CONFLICT (ya le diste like), actualizar el estado a "liked"
           if (response.error?.code === 'CONFLICT' || response.error?.message?.includes('Ya le diste like')) {
@@ -344,8 +370,9 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
         category: product.category,
         createdAt: new Date().toISOString(),
         handle: product.handle,
-        likesCount: likesCount, // Pasar el conteo actual de likes
-        isLiked: isLiked, // Pasar el estado de like actual
+        likesCount: likesCount,
+        isLiked: isLiked,
+        isInWishlist: isInWishlist,
       } as FeedItemDTO)
     : null
 
@@ -457,11 +484,15 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
             <button
               className="bg-transparent hover:opacity-80 transition-opacity p-0.5 sm:p-1"
               onClick={handleAddToWishlist}
-              title="Agregar a wishlist"
+              title={isInWishlist ? 'En tu wishlist' : 'Agregar a wishlist'}
             >
               <Image
-                src="/icons_tanku/tanku_agregar_a_whislist_azul.svg"
-                alt="Agregar a wishlist"
+                src={
+                  isInWishlist
+                    ? '/icons_tanku/tanku_agregado_a_whislist_verde.svg'
+                    : '/icons_tanku/tanku_agregar_a_whislist_azul.svg'
+                }
+                alt={isInWishlist ? 'En wishlist' : 'Agregar a wishlist'}
                 width={24}
                 height={24}
                 className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6"
@@ -550,6 +581,20 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
           product={productForModal}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
+          onProductUpdated={(_productId, updates) => {
+            if (updates.isLiked !== undefined) {
+              setIsLiked(updates.isLiked)
+              hasUserToggledLike.current = true
+            }
+            if (updates.likesCount !== undefined) {
+              setLikesCount(updates.likesCount)
+            }
+            if (updates.isInWishlist !== undefined) {
+              setIsInWishlist(updates.isInWishlist)
+              hasUserToggledWishlist.current = true
+              onWishlistUpdated?.(product.id, { isInWishlist: updates.isInWishlist })
+            }
+          }}
         />
       )}
 
@@ -566,6 +611,9 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
           onAdded={() => {
             setIsWishlistModalOpen(false)
             setSelectedVariantId(undefined)
+            setIsInWishlist(true)
+            hasUserToggledWishlist.current = true
+            onWishlistUpdated?.(product.id, { isInWishlist: true })
           }}
         />
       )}
@@ -579,6 +627,7 @@ export const ProductCard = memo(function ProductCard({ product, onOpenModal, isL
     prevProps.product.price === nextProps.product.price &&
     prevProps.product.likesCount === nextProps.product.likesCount &&
     prevProps.product.isLiked === nextProps.product.isLiked &&
+    prevProps.product.isInWishlist === nextProps.product.isInWishlist &&
     prevProps.isLightMode === nextProps.isLightMode
   )
 })

@@ -58,7 +58,7 @@ export type FeedItemDTO = {
   };
   
   // Campos adicionales para productos
-  isLiked?: boolean; // Si el usuario actual le dio like (solo productos)
+  isLiked?: boolean; // Si el usuario actual le dio like (productos y posters)
   isInWishlist?: boolean; // Si el producto está en alguna wishlist del usuario (solo productos)
 };
 

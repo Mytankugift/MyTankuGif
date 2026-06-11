@@ -320,6 +320,10 @@ export class DropiOrdersService {
       // total_order debe ser el total del producto (con incremento) + shipping
       const finalTotalOrder = shippingTotal > 0 ? totalOrderWithShipping : productTotal;
 
+      const orderRef = order.ref ?? orderId.slice(-8).toUpperCase();
+      const rotuloSuffix =
+        dropiProducts.length > 1 ? ` (${i + 1}/${dropiProducts.length})` : '';
+
       // Construir body para crear orden en Dropi
       const dropiOrderBody = {
         calculate_costs_and_shiping: true,
@@ -337,7 +341,7 @@ export class DropiOrdersService {
         rate_type: rateType,
         type: 'FINAL_ORDER',
         total_order: finalTotalOrder, // Incluye producto + shipping (producto ya tiene incremento 15% + $10,000)
-        text_to_show_order_rotulo: `Orden #${orderId} - ${product.id}`,
+        text_to_show_order_rotulo: `${orderRef}${rotuloSuffix}`,
         // shop_order_id: `${orderId}-${i + 1}`, Esto se elimina
         products: [{
           ...product,

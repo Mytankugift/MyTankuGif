@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { clsx } from 'clsx'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 import { PosterDetailContent } from './poster-detail-content'
 import { TANKU_CARD_SHELL_RADIUS_PX } from '@/lib/utils/tanku-card-radius'
 import {
@@ -96,6 +97,15 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isOpen, onClose])
+
   const handleClose = () => {
     onClose()
   }
@@ -112,22 +122,17 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
   /** Overlay full-screen: panel y blur por encima del bottom nav en móvil */
   const modal = (
     <div
-      className="pointer-events-none fixed inset-0 isolate flex items-center justify-center p-2 sm:px-4 sm:pt-4 md:p-4 max-md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+      className={clsx(
+        'fixed inset-0 flex cursor-default items-center justify-center touch-manipulation p-2 sm:px-4 sm:pt-4 md:p-4 max-md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]',
+        tankuOrderModalBackdropClass,
+      )}
       style={{ zIndex: POSTER_MODAL_Z }}
       role="presentation"
+      onClick={handleClose}
     >
       <div
         className={clsx(
-          'pointer-events-auto absolute inset-0 cursor-default touch-manipulation',
-          tankuOrderModalBackdropClass,
-        )}
-        aria-hidden
-        onClick={handleClose}
-      />
-
-      <div
-        className={clsx(
-          'pointer-events-auto relative z-10 flex w-full max-w-6xl flex-col overflow-hidden',
+          'relative flex w-full max-w-6xl flex-col overflow-hidden',
           tankuOrderModalPanelClass,
           'max-md:h-auto max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-bottom,0px))]',
           'md:h-[580px] md:max-h-[580px]',
@@ -136,11 +141,29 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
         style={{ borderRadius: `${TANKU_CARD_SHELL_RADIUS_PX}px` }}
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="relative hidden flex-shrink-0 border-b border-white/[0.08] bg-[#171B21] md:block">
+          <div className="flex items-center gap-2 px-4 py-3">
+            <h2 className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-white">
+              Publicación
+            </h2>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleClose()
+              }}
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10"
+              aria-label="Cerrar"
+            >
+              <XMarkIcon className="h-6 w-6" aria-hidden />
+            </button>
+          </div>
+        </div>
         <div
           className={clsx(
             'tanku-modal-scrollbar flex min-h-0 flex-col pr-0.5',
             'max-md:min-h-0 max-md:overflow-x-hidden max-md:overflow-y-auto max-md:overscroll-y-contain max-md:touch-pan-y max-md:[-webkit-overflow-scrolling:touch]',
-            'md:h-full md:flex-1 md:overflow-hidden md:pr-0',
+            'md:h-full md:min-h-0 md:flex-1 md:overflow-hidden md:pr-0',
           )}
           style={{
             paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))',

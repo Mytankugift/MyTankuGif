@@ -10,6 +10,7 @@ import { useFeedScrollNav } from '@/lib/hooks/use-feed-scroll-nav'
 import { useCategories } from '@/lib/hooks/use-categories'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { logger } from '@/lib/utils/logger'
+import type { FeedItemDTO } from '@/types/api'
 import './feed/feed-grid.css'
 
 // ✅ Lazy load del grid (puede ser pesado)
@@ -29,6 +30,11 @@ const VideoModal = dynamic(
 
 const PosterDetailModal = dynamic(
   () => import('@/components/posters/poster-detail-modal').then(mod => ({ default: mod.PosterDetailModal })),
+  { ssr: false }
+)
+
+const ProductModal = dynamic(
+  () => import('@/components/products/product-modal').then(mod => ({ default: mod.ProductModal })),
   { ssr: false }
 )
 
@@ -62,6 +68,8 @@ function LandingPageContent() {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
   const [selectedPosterId, setSelectedPosterId] = useState<string | null>(null)
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<FeedItemDTO | null>(null)
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1024
@@ -273,9 +281,35 @@ function LandingPageContent() {
           <>
             <LandingGrid
               items={items}
+              onProductClick={(product) => {
+                if (!product.handle) return
+                setSelectedProduct({
+                  id: product.id,
+                  type: 'product',
+                  title: product.title ?? '',
+                  imageUrl: product.imageUrl ?? '',
+                  price: product.price,
+                  category: product.category,
+                  createdAt: product.createdAt ?? new Date().toISOString(),
+                  handle: product.handle,
+                  likesCount: product.likesCount,
+                  isLiked: product.isLiked,
+                  isInWishlist: product.isInWishlist,
+                } as FeedItemDTO)
+                setIsProductModalOpen(true)
+              }}
               onPosterClick={(poster) => {
                 setSelectedPosterId(poster.id)
                 setIsPosterModalOpen(true)
+              }}
+              onPosterLikeUpdated={(posterId, updates) => {
+                updateItem(posterId, updates)
+              }}
+              onProductLikeUpdated={(productId, updates) => {
+                updateItem(productId, updates)
+              }}
+              onProductWishlistUpdated={(productId, updates) => {
+                updateItem(productId, updates)
               }}
               onAuthRequired={() => setShowLoginModal(true)}
             />
@@ -294,6 +328,22 @@ function LandingPageContent() {
         isOpen={isVideoModalOpen}
         onClose={() => setIsVideoModalOpen(false)}
         videoUrl={WELCOME_VIDEO_URL}
+      />
+
+      <ProductModal
+        isOpen={isProductModalOpen}
+        product={selectedProduct}
+        copyLinkOnShare
+        onClose={() => {
+          setIsProductModalOpen(false)
+          setSelectedProduct(null)
+        }}
+        onProductUpdated={(productId, updates) => {
+          updateItem(productId, updates)
+          setSelectedProduct((prev) =>
+            prev?.id === productId ? { ...prev, ...updates } : prev,
+          )
+        }}
       />
 
       <PosterDetailModal

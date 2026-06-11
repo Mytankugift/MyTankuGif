@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useProduct } from '@/lib/hooks/use-product'
@@ -9,7 +10,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { useWishLists } from '@/lib/hooks/use-wishlists'
 import { Button } from '@/components/ui/button'
 import { VariantSelector } from '@/components/products/variant-selector'
-import { HeartIcon } from '@heroicons/react/24/outline'
+import { CheckIcon, HeartIcon } from '@heroicons/react/24/outline'
 import { ShareProductModal } from './share-product-modal'
 import { WishlistSelectorModal } from '@/components/wishlists/wishlist-selector-modal'
 import { CategoryLoginModal } from '@/components/feed/category-login-modal'
@@ -29,12 +30,20 @@ interface ProductDetailContentProps {
   isPageView?: boolean
   /** Si el producto es +18 bloqueado (modal feed), cerrar el modal en lugar de router.back */
   onAgeRestrictedClose?: () => void
+  onProductUpdated?: (
+    productId: string,
+    updates: { isLiked?: boolean; likesCount?: number; isInWishlist?: boolean },
+  ) => void
+  /** Landing: copiar enlace al portapapeles en lugar de abrir el modal de compartir */
+  copyLinkOnShare?: boolean
 }
 
 export function ProductDetailContent({
   product,
   isPageView = false,
   onAgeRestrictedClose,
+  onProductUpdated,
+  copyLinkOnShare = false,
 }: ProductDetailContentProps) {
   const router = useRouter()
   const { isAuthenticated, user } = useAuthStore()
@@ -51,9 +60,13 @@ export function ProductDetailContent({
   const [isLiked, setIsLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
   const [isTogglingLike, setIsTogglingLike] = useState(false)
-  const [isInWishlist, setIsInWishlist] = useState(false)
+  const [isInWishlist, setIsInWishlist] = useState(product.isInWishlist ?? false)
   const [showFullDescription, setShowFullDescription] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [shareLinkCopied, setShareLinkCopied] = useState(false)
+  const [shareBubblePos, setShareBubblePos] = useState<{ top: number; left: number } | null>(null)
+  const shareCopiedTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const shareButtonRef = React.useRef<HTMLButtonElement>(null)
   const initializedProductIdRef = React.useRef<string | null>(null)
   const productHandleRef = React.useRef<string | null>(null)
   const descriptionRef = React.useRef<HTMLDivElement>(null)
@@ -74,6 +87,8 @@ export function ProductDetailContent({
         setSelectedVariantIndex(0)
         setQuantity(1)
         setError(null)
+        setShareLinkCopied(false)
+        setShareBubblePos(null)
         initializedProductIdRef.current = null // Resetear cuando cambia el producto
         productHandleRef.current = currentHandle
       }
@@ -145,19 +160,75 @@ export function ProductDetailContent({
     }
   }, [fullProduct?.id, isAuthenticated, product.likesCount, product.isLiked])
 
-  // Verificar si el producto está en alguna wishlist
   useEffect(() => {
-    if (!isAuthenticated || !fullProduct?.id || !wishLists || wishLists.length === 0) {
-      setIsInWishlist(false)
+    if (product.isInWishlist !== undefined) {
+      setIsInWishlist(product.isInWishlist)
+    }
+  }, [product.id, product.isInWishlist])
+
+  // Verificar si el producto está en alguna wishlist (store global)
+  useEffect(() => {
+    if (!isAuthenticated || !fullProduct?.id) return
+
+    if (product.isInWishlist === true) {
+      setIsInWishlist(true)
       return
     }
 
-    // Verificar si el producto está en alguna wishlist
-    const productInWishlist = wishLists.some(wishlist =>
-      wishlist.items?.some(item => item.product?.id === fullProduct.id)
+    if (!wishLists || wishLists.length === 0) return
+
+    const productInWishlist = wishLists.some((wishlist) =>
+      wishlist.items?.some((item) => item.product?.id === fullProduct.id),
     )
     setIsInWishlist(productInWishlist)
-  }, [wishLists, fullProduct?.id, isAuthenticated])
+  }, [wishLists, fullProduct?.id, isAuthenticated, product.isInWishlist])
+
+  useEffect(() => {
+    return () => {
+      if (shareCopiedTimeoutRef.current) clearTimeout(shareCopiedTimeoutRef.current)
+    }
+  }, [])
+
+  const updateShareBubblePos = useCallback(() => {
+    const el = shareButtonRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    setShareBubblePos({
+      top: rect.top + rect.height / 2,
+      left: rect.left - 10,
+    })
+  }, [])
+
+  const showShareCopiedFeedback = useCallback(() => {
+    updateShareBubblePos()
+    setShareLinkCopied(true)
+    if (shareCopiedTimeoutRef.current) clearTimeout(shareCopiedTimeoutRef.current)
+    shareCopiedTimeoutRef.current = setTimeout(() => {
+      setShareLinkCopied(false)
+      setShareBubblePos(null)
+    }, 2500)
+  }, [updateShareBubblePos])
+
+  useEffect(() => {
+    if (!shareLinkCopied) return
+    const sync = () => updateShareBubblePos()
+    window.addEventListener('resize', sync)
+    window.addEventListener('scroll', sync, true)
+    return () => {
+      window.removeEventListener('resize', sync)
+      window.removeEventListener('scroll', sync, true)
+    }
+  }, [shareLinkCopied, updateShareBubblePos])
+
+  const notifyProductUpdated = (updates: {
+    isLiked?: boolean
+    likesCount?: number
+    isInWishlist?: boolean
+  }) => {
+    if (fullProduct?.id && onProductUpdated) {
+      onProductUpdated(fullProduct.id, updates)
+    }
+  }
 
   // Función para toggle like
   const handleToggleLike = async () => {
@@ -172,6 +243,7 @@ export function ProductDetailContent({
         if (response.success && response.data) {
           setIsLiked(false)
           setLikesCount(response.data.likesCount)
+          notifyProductUpdated({ isLiked: false, likesCount: response.data.likesCount })
         }
       } else {
         const response = await apiClient.post<{ liked: boolean; likesCount: number }>(
@@ -180,6 +252,7 @@ export function ProductDetailContent({
         if (response.success && response.data) {
           setIsLiked(true)
           setLikesCount(response.data.likesCount)
+          notifyProductUpdated({ isLiked: true, likesCount: response.data.likesCount })
         }
       }
     } catch (error) {
@@ -315,8 +388,33 @@ export function ProductDetailContent({
     }
   }
 
-  const handleShare = () => {
+  const handleShare = async () => {
     if (!product?.handle) return
+
+    if (copyLinkOnShare) {
+      const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/products/${product.handle}`
+      try {
+        await navigator.clipboard.writeText(url)
+        showShareCopiedFeedback()
+      } catch {
+        // Fallback para navegadores que bloquean clipboard API
+        try {
+          const textarea = document.createElement('textarea')
+          textarea.value = url
+          textarea.style.position = 'fixed'
+          textarea.style.opacity = '0'
+          document.body.appendChild(textarea)
+          textarea.select()
+          document.execCommand('copy')
+          document.body.removeChild(textarea)
+          showShareCopiedFeedback()
+        } catch {
+          setShareLinkCopied(false)
+        }
+      }
+      return
+    }
+
     setShowShareModal(true)
   }
 
@@ -461,7 +559,7 @@ export function ProductDetailContent({
           {/* Información del producto */}
           <div className={`md:w-1/2 ${isFeedModal ? 'space-y-4 md:space-y-5' : 'space-y-5'}`}>
           {/* Precio con iconos de wishlist y compartir */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <span 
               className={`font-semibold ${isFeedModal ? 'text-2xl md:text-3xl' : 'text-3xl'}`}
               style={{ color: '#3B9BC3' }}
@@ -493,6 +591,7 @@ export function ProductDetailContent({
                 </button>
               )}
               <button
+                ref={shareButtonRef}
                 onClick={handleShare}
                 className="p-2 hover:opacity-80 transition-opacity"
                 title="Compartir"
@@ -829,10 +928,11 @@ export function ProductDetailContent({
           onClose={() => setShowWishlistModal(false)}
           productId={fullProduct.id}
           variantId={selectedVariant?.id}
-          onAdded={async () => {
+          variantStock={selectedVariant?.stock}
+          onAdded={() => {
             setShowWishlistModal(false)
-            // Actualizar estado después de agregar a wishlist
             setIsInWishlist(true)
+            notifyProductUpdated({ isInWishlist: true })
           }}
         />
       )}
@@ -845,6 +945,34 @@ export function ProductDetailContent({
           setShowLoginModal(false)
         }}
       />
+
+      {copyLinkOnShare &&
+        shareLinkCopied &&
+        shareBubblePos &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            role="status"
+            className="pointer-events-none fixed z-[1000010]"
+            style={{
+              top: shareBubblePos.top,
+              left: shareBubblePos.left,
+              transform: 'translate(-100%, -50%)',
+            }}
+          >
+            <div className="flex items-center">
+              <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-[#73FFA2] bg-[#2C3137] px-3.5 py-2 text-xs font-semibold text-[#73FFA2] shadow-xl shadow-black/50">
+                <CheckIcon className="h-4 w-4 shrink-0" aria-hidden />
+                Enlace copiado
+              </div>
+              <div
+                className="h-2.5 w-2.5 -ml-1.5 rotate-45 border-t-2 border-r-2 border-[#73FFA2] bg-[#2C3137]"
+                aria-hidden
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
       </div>
     </div>
   )

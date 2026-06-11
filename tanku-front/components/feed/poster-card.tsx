@@ -31,6 +31,7 @@ interface PosterCardProps {
     }
   }
   onOpenModal?: (poster: any) => void
+  onLikeUpdated?: (posterId: string, updates: { isLiked: boolean; likesCount: number }) => void
   /** Si no hay sesión, like/compartir abren este callback (p. ej. modal de login) */
   onAuthRequired?: () => void
   isLightMode?: boolean
@@ -41,6 +42,7 @@ interface PosterCardProps {
 export const PosterCard = memo(function PosterCard({
   poster,
   onOpenModal,
+  onLikeUpdated,
   onAuthRequired,
   isLightMode = false,
   isAboveFold = false,
@@ -53,6 +55,8 @@ export const PosterCard = memo(function PosterCard({
   const [isLiked, setIsLiked] = useState(poster.isLiked || false)
   const [likesCount, setLikesCount] = useState(poster.likesCount || 0)
   const [isLiking, setIsLiking] = useState(false)
+  const hasUserToggledLike = useRef(false)
+  const previousPosterIdRef = useRef<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const pointerDownRef = useRef<{ clientX: number; clientY: number } | null>(null)
@@ -67,6 +71,28 @@ export const PosterCard = memo(function PosterCard({
       setActiveMedia('video')
     }
   }, [poster.imageUrl, poster.videoUrl])
+
+  useEffect(() => {
+    const currentPosterId = poster.id
+
+    if (previousPosterIdRef.current !== currentPosterId) {
+      hasUserToggledLike.current = false
+      previousPosterIdRef.current = currentPosterId
+      if (poster.likesCount !== undefined) {
+        setLikesCount(poster.likesCount)
+      }
+      if (poster.isLiked !== undefined) {
+        setIsLiked(poster.isLiked)
+      }
+    } else if (!hasUserToggledLike.current) {
+      if (poster.likesCount !== undefined) {
+        setLikesCount(poster.likesCount)
+      }
+      if (poster.isLiked !== undefined) {
+        setIsLiked(poster.isLiked)
+      }
+    }
+  }, [poster.id, poster.isLiked, poster.likesCount])
 
   useEffect(() => {
     if (!poster.videoUrl || activeMedia !== 'video') return
@@ -185,8 +211,16 @@ export const PosterCard = memo(function PosterCard({
 
       if (response.success && response.data) {
         const data = response.data
+        const newCount =
+          data.likesCount !== undefined
+            ? data.likesCount
+            : data.liked
+              ? likesCount + 1
+              : Math.max(0, likesCount - 1)
         setIsLiked(data.liked)
-        setLikesCount(data.liked ? likesCount + 1 : likesCount - 1)
+        setLikesCount(newCount)
+        hasUserToggledLike.current = true
+        onLikeUpdated?.(poster.id, { isLiked: data.liked, likesCount: newCount })
       }
     } catch (err) {
       console.error('Error al dar like:', err)

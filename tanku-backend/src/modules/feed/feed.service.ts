@@ -215,7 +215,8 @@ export class FeedService {
         postersDataResult,
         metricsResult,
         userLikesResult,
-        wishlistItemsResult
+        wishlistItemsResult,
+        userPosterReactionsResult,
       ] = await Promise.all([
         // Batch query para productos (una sola query en lugar de N queries)
         (async () => {
@@ -394,7 +395,28 @@ export class FeedService {
             console.error('Error obteniendo productos en wishlists del usuario:', error);
             return [];
           }
-        })()
+        })(),
+        // Batch query para likes del usuario en posters (en paralelo)
+        (async () => {
+          try {
+            if (userId && posterIds.length > 0) {
+              const userPosterReactions = await prisma.posterReaction.findMany({
+                where: {
+                  customerId: userId,
+                  posterId: { in: posterIds },
+                },
+                select: {
+                  posterId: true,
+                },
+              });
+              return userPosterReactions;
+            }
+            return [];
+          } catch (error) {
+            console.error('Error obteniendo likes del usuario en posters:', error);
+            return [];
+          }
+        })(),
       ]);
 
       const productsData = productsDataResult;
@@ -458,6 +480,12 @@ export class FeedService {
       const userWishlistProductsSet = new Set<string>();
       (wishlistItemsResult as any[]).forEach((item: any) => {
         userWishlistProductsSet.add(item.productId);
+      });
+
+      // Procesar likes del usuario en posters
+      const userLikedPostersSet = new Set<string>();
+      (userPosterReactionsResult as any[]).forEach((reaction: any) => {
+        userLikedPostersSet.add(reaction.posterId);
       });
 
       // Mapear items en el orden correcto (mantener orden de intercalación)
@@ -575,6 +603,7 @@ export class FeedService {
           videoUrl: poster.videoUrl || undefined,
           likesCount: poster.likesCount,
           commentsCount: poster.commentsCount,
+          isLiked: userId ? userLikedPostersSet.has(poster.id) : false,
           author: poster.customer ? {
             id: poster.customer.id,
             email: poster.customer.email,

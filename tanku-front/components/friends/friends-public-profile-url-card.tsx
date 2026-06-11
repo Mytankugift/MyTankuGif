@@ -99,12 +99,16 @@ export function FriendsPublicProfileUrlCard() {
       <button
         type="button"
         onClick={() => {
-          if (isBelowLg) setPeekOpen(false)
-          router.push('/profile')
+          if (isBelowLg) {
+            setPeekOpen(false)
+            router.push('/profile')
+            return
+          }
+          collapseRibbon()
         }}
         className="flex shrink-0 items-center justify-center border-l border-white/[0.1] px-3 text-[#66DEDB] transition-colors hover:bg-white/[0.07]"
-        aria-label="Ir a mi perfil"
-        title="Ir a mi perfil"
+        aria-label={isBelowLg ? 'Ir a mi perfil' : 'Ocultar'}
+        title={isBelowLg ? 'Ir a mi perfil' : 'Ocultar'}
       >
         <ChevronRightIcon
           className="h-5 w-5 drop-shadow-[0_0_8px_rgba(102,222,219,0.35)]"
@@ -216,7 +220,7 @@ export function FriendsPublicProfileUrlCard() {
         onClick={expandRibbon}
         className={clsx(
           expandRibbonBtnClass,
-          'fixed z-[29] lg:hidden',
+          'fixed z-[29]',
           ribbonSlidOut
             ? 'translate-x-0 opacity-100'
             : 'pointer-events-none translate-x-[110%] opacity-0',
@@ -231,7 +235,13 @@ export function FriendsPublicProfileUrlCard() {
 
       {/* ——— Escritorio ——— */}
       <div
-        className="pointer-events-none fixed right-3 z-[28] hidden w-[min(100%,20.5rem)] sm:right-5 lg:flex lg:flex-col"
+        className={clsx(
+          'pointer-events-none fixed right-3 z-[28] hidden w-[min(100%,20.5rem)] sm:right-5 lg:flex lg:flex-col',
+          'motion-safe:transition-[transform,opacity] motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]',
+          ribbonSlidOut
+            ? 'translate-x-[calc(100%+12px)] opacity-0'
+            : 'translate-x-0 opacity-100',
+        )}
         style={{ bottom: BOTTOM_OFFSET }}
       >
         <div className={clsx(shellClass, 'pointer-events-auto w-full')}>

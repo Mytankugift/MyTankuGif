@@ -151,8 +151,8 @@ export default function FeedPage() {
     hasMore,
     nextCursorToken,
     loadMore,
-    updateItem,
-    removeItem,
+    updateItem: updateFeedItem,
+    removeItem: removeFeedItem,
   } = useFeed(
     {
       categoryId: selectedCategoryId,
@@ -172,6 +172,22 @@ export default function FeedPage() {
     }
   }, [feedInit.isLoading, feedInit.items.length])
   
+  const patchFeedItem = useCallback(
+    (itemId: string, updates: Partial<FeedItemDTO>) => {
+      feedInit.updateItem(itemId, updates)
+      updateFeedItem(itemId, updates)
+    },
+    [feedInit.updateItem, updateFeedItem],
+  )
+
+  const removeFeedItemEverywhere = useCallback(
+    (itemId: string) => {
+      feedInit.removeItem(itemId)
+      removeFeedItem(itemId)
+    },
+    [feedInit.removeItem, removeFeedItem],
+  )
+
   // Datos finales a usar
   const items = useInitData ? feedInit.items : feedItems
   const isLoading = useInitData ? feedInit.isLoading : feedLoading
@@ -352,6 +368,15 @@ export default function FeedPage() {
             <FeedGrid 
               items={items}
               isAuthenticated={isAuthenticated}
+              onProductLikeUpdated={(productId, updates) => {
+                patchFeedItem(productId, updates)
+              }}
+              onProductWishlistUpdated={(productId, updates) => {
+                patchFeedItem(productId, updates)
+              }}
+              onPosterLikeUpdated={(posterId, updates) => {
+                patchFeedItem(posterId, updates)
+              }}
               onPosterClick={(poster) => {
                 setSelectedPosterId(poster.id)
                 setIsPosterModalOpen(true)
@@ -369,6 +394,7 @@ export default function FeedPage() {
                   handle: product.handle,
                   likesCount: product.likesCount,
                   isLiked: product.isLiked,
+                  isInWishlist: product.isInWishlist,
                 } as FeedItemDTO)
                 setIsProductModalOpen(true)
               }}
@@ -393,12 +419,10 @@ export default function FeedPage() {
           setSelectedPosterId(null)
         }}
         onPostDeleted={(posterId) => {
-          // Remover el post del feed sin recargar
-          removeItem(posterId)
+          removeFeedItemEverywhere(posterId)
         }}
         onPostUpdated={(posterId, updates) => {
-          // Actualizar solo ese item en el feed (sin recargar)
-          updateItem(posterId, updates)
+          patchFeedItem(posterId, updates)
         }}
       />
 
@@ -408,6 +432,12 @@ export default function FeedPage() {
         onClose={() => {
           setIsProductModalOpen(false)
           setSelectedProduct(null)
+        }}
+        onProductUpdated={(productId, updates) => {
+          patchFeedItem(productId, updates)
+          setSelectedProduct((prev) =>
+            prev?.id === productId ? { ...prev, ...updates } : prev,
+          )
         }}
       />
 

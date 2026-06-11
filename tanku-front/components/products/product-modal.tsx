@@ -18,9 +18,20 @@ interface ProductModalProps {
   product: FeedItemDTO | null
   isOpen: boolean
   onClose: () => void
+  onProductUpdated?: (
+    productId: string,
+    updates: { isLiked?: boolean; likesCount?: number; isInWishlist?: boolean },
+  ) => void
+  copyLinkOnShare?: boolean
 }
 
-export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
+export function ProductModal({
+  product,
+  isOpen,
+  onClose,
+  onProductUpdated,
+  copyLinkOnShare = false,
+}: ProductModalProps) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -37,6 +48,15 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isOpen, onClose])
+
   const handleClose = () => {
     onClose()
   }
@@ -45,39 +65,48 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
 
   const modal = (
     <div
-      className="pointer-events-none fixed inset-0 isolate flex items-center justify-center p-2 sm:px-4 sm:pt-4 md:p-4 max-md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+      className={clsx(
+        'fixed inset-0 flex cursor-default items-center justify-center touch-manipulation p-2 sm:px-4 sm:pt-4 md:p-4 max-md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]',
+      )}
       style={{ zIndex: PRODUCT_MODAL_Z }}
       role="presentation"
     >
       <div
-        className={clsx(
-          'pointer-events-auto absolute inset-0 cursor-default touch-manipulation',
-          tankuOrderModalBackdropClass,
-        )}
-        aria-hidden
-        onClick={handleClose}
+        role="button"
+        tabIndex={0}
+        aria-label="Cerrar"
+        className={clsx('absolute inset-0 touch-manipulation', tankuOrderModalBackdropClass)}
+        onPointerDown={(e) => {
+          e.preventDefault()
+          handleClose()
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            handleClose()
+          }
+        }}
       />
-
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="product-modal-title"
         className={clsx(
-          'pointer-events-auto relative z-10 flex w-full max-w-6xl flex-col overflow-hidden',
+          'relative z-10 flex w-full max-w-6xl flex-col overflow-hidden',
           tankuOrderModalPanelClass,
           'max-md:max-h-[calc(100dvh-6rem-env(safe-area-inset-bottom,0px))]',
           'md:h-[580px] md:max-h-[580px]',
           'lg:h-[680px] lg:max-h-[680px]',
         )}
         style={{ borderRadius: `${TANKU_CARD_SHELL_RADIUS_PX}px` }}
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex-shrink-0 border-b border-white/[0.08] bg-[#171B21]">
-          <div className="flex items-center gap-2 px-4 py-3 md:justify-center">
-            <div className="h-9 w-9 flex-shrink-0 md:hidden" aria-hidden />
+          <div className="flex items-center gap-2 px-4 py-3">
             <h2
               id="product-modal-title"
-              className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-white md:flex-none"
+              className="min-w-0 flex-1 truncate text-sm font-semibold text-white md:text-center"
             >
               {product.title}
             </h2>
@@ -87,7 +116,7 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
                 e.stopPropagation()
                 handleClose()
               }}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10 md:hidden"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10"
               aria-label="Cerrar"
             >
               <XMarkIcon className="h-6 w-6" aria-hidden />
@@ -111,6 +140,8 @@ export function ProductModal({ product, isOpen, onClose }: ProductModalProps) {
             product={product}
             isPageView={false}
             onAgeRestrictedClose={handleClose}
+            onProductUpdated={onProductUpdated}
+            copyLinkOnShare={copyLinkOnShare}
           />
         </div>
       </div>

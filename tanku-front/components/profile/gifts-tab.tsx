@@ -282,18 +282,19 @@ function GiftItemShippingDetail({
       <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-500">
         Estado del envío
       </p>
-      {item.dropiStatus ? (
-        <GiftItemShippingStatusChip status={item.dropiStatus} />
-      ) : (
-        <span className="text-[11px] text-gray-500">Sin actualizar aún</span>
-      )}
-      <OrderItemDropiShippingActions
-        item={item}
-        onViewShipping={onViewHistory}
-        linkLabel="Ver historial"
-        title="Ver historial del envío"
-        className="mt-1.5"
-      />
+      <div className="flex flex-col items-start gap-1.5">
+        {item.dropiStatus ? (
+          <GiftItemShippingStatusChip status={item.dropiStatus} />
+        ) : (
+          <span className="text-[11px] text-gray-500">Sin actualizar aún</span>
+        )}
+        <OrderItemDropiShippingActions
+          item={item}
+          onViewShipping={onViewHistory}
+          linkLabel="Ver historial"
+          title="Ver historial del envío"
+        />
+      </div>
     </div>
   )
 }

@@ -339,11 +339,10 @@ function CheckoutContent() {
         console.log('[CHECKOUT] Tiene cartId:', !!response.data?.cartId)
         console.log('[CHECKOUT] Tiene id (orden):', !!response.data?.id)
 
-        // Si es Epayco, solo se prepararon los datos (no se creó orden)
+        // Si es Epayco, la orden awaiting ya fue creada en el backend
         if (paymentMethod === 'epayco') {
-          // Verificar que la respuesta tiene cartId (no id, que sería de una orden)
-          if (!response.data.cartId) {
-            console.error('[CHECKOUT] Error: Respuesta del backend no tiene cartId para Epayco:', response.data)
+          if (!response.data.orderId) {
+            console.error('[CHECKOUT] Error: Respuesta del backend no tiene orderId para Epayco:', response.data)
             setButtonTooltip('Error: El backend no retornó los datos esperados para Epayco. ¿El método de pago es correcto?')
             setIsSubmitting(false)
             setShowConfirmationModal(false)
@@ -351,7 +350,7 @@ function CheckoutContent() {
           }
 
           const preparedData = response.data
-          console.log('[CHECKOUT] Datos preparados para Epayco:', preparedData)
+          console.log('[CHECKOUT] Orden awaiting + datos Epayco:', preparedData)
           
           // Guardar items seleccionados para el webhook
           if (typeof window !== 'undefined' && selectedItemIds.size > 0) {
@@ -368,7 +367,8 @@ function CheckoutContent() {
             }
 
             console.log('[EPAYCO] Iniciando configuración de Epayco...')
-            console.log('[EPAYCO] Cart ID:', preparedData.cartId)
+            console.log('[EPAYCO] Order ID:', preparedData.orderId)
+            console.log('[EPAYCO] Order Ref:', preparedData.orderRef)
             console.log('[EPAYCO] Total:', preparedData.total)
 
             // Crear contenedor para Epayco
@@ -399,7 +399,7 @@ function CheckoutContent() {
             // ✅ Obtener URL del webhook desde el backend
             // El backend genera la URL correcta según el entorno (proxy en producción, ngrok en desarrollo)
             const webhookResponse = await apiClient.get<{ webhookUrl: string }>(
-              `/api/v1/checkout/webhook-url?cartId=${preparedData.cartId}`
+              `/api/v1/checkout/webhook-url?orderId=${preparedData.orderId}`
             )
 
             if (!webhookResponse.success || !webhookResponse.data?.webhookUrl) {
@@ -410,15 +410,21 @@ function CheckoutContent() {
             console.log('[EPAYCO] URL de webhook obtenida del backend:', webhookUrl)
 
             // Preparar opciones para Epayco (usar cartId en lugar de orderId)
+            const orderLabel = preparedData.orderRef || preparedData.orderId.slice(0, 8)
+            const successParams = new URLSearchParams()
+            if (preparedData.orderRef) successParams.set('orderRef', preparedData.orderRef)
+            successParams.set('orderId', preparedData.orderId)
             const epaycoOptions = {
               amount: preparedData.total,
-              name: `Orden Tanku ${preparedData.cartId.slice(0, 8)}`,
-              description: `Pedido Tanku - ${selectedItems.length} producto(s)`,
+              name: `Orden Tanku ${orderLabel}`,
+              description: `Pedido Tanku - ${orderLabel}`,
               currency: 'cop',
               country: 'co',
-              external: false,
-              // Epayco añadirá automáticamente ref_payco como parámetro de query
-              response: `${window.location.origin}/checkout/success`,
+              external: preparedData.orderRef || preparedData.orderId,
+              extra1: orderLabel,
+              extra2: 'cart',
+              extra3: preparedData.cartId,
+              response: `${window.location.origin}/checkout/success?${successParams.toString()}`,
               confirmation: webhookUrl,
               name_billing: selectedAddress?.firstName || '',
               mobilephone_billing: selectedAddress?.phone || '',

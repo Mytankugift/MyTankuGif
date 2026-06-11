@@ -175,6 +175,38 @@ export class CheckoutService {
   }
 
   /**
+   * Preparar checkout ePayco (flujo cart): metadata en carrito + orden awaiting antes del pago.
+   */
+  async prepareEpaycoCartOrder(
+    dataForm: CheckoutOrderRequest,
+    dataCart: DataCart,
+    userId?: string
+  ): Promise<{
+    orderId: string;
+    orderRef: string | null;
+    cartId: string;
+    total: number;
+    subtotal: number;
+    shippingTotal: number;
+  }> {
+    if (dataForm.payment_method !== 'epayco') {
+      throw new BadRequestError('prepareEpaycoCartOrder solo aplica con payment_method epayco');
+    }
+
+    await this.prepareEpaycoCheckout(dataForm, dataCart, userId);
+    const order = await this.createOrderFromCheckout(dataForm, dataCart, userId);
+
+    return {
+      orderId: order.id,
+      orderRef: order.ref ?? null,
+      cartId: dataCart.cart_id,
+      total: order.total,
+      subtotal: order.subtotal,
+      shippingTotal: order.shippingTotal,
+    };
+  }
+
+  /**
    * Crear orden desde checkout
    * 
    * @param dataForm - Datos del formulario de checkout
@@ -390,8 +422,9 @@ export class CheckoutService {
       paymentStatus: order.paymentStatus,
     });
 
-    // Si es orden de regalo, crear notificación para el destinatario
-    if (isGiftCart && giftRecipientId) {
+    // Si es orden de regalo con contra entrega, notificar al destinatario.
+    // Con ePayco la notificación se crea en el webhook tras confirmar el pago.
+    if (isGiftCart && giftRecipientId && dataForm.payment_method !== 'epayco') {
       try {
         console.log(`🎁 [CHECKOUT] Creando notificación de regalo para destinatario: ${giftRecipientId}`);
         await this.notificationsService.createGiftNotification(

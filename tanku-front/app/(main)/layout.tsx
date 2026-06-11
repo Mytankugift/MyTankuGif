@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/layout/sidebar'
 import MobileBottomNav from '@/components/layout/mobile-bottom-nav'
 import { useAuthInit } from '@/lib/hooks/use-auth-init'
+import { useWishlistsInit } from '@/lib/hooks/use-wishlists-init'
 import { OnboardingProvider } from '@/components/onboarding/onboarding-provider'
 import { ProfileNavigationProvider } from '@/lib/context/profile-navigation-context'
 import { FeedInitProvider } from '@/lib/context/feed-init-context'
@@ -21,6 +22,7 @@ export default function MainLayout({
 }) {
   // Inicializar auth una sola vez
   useAuthInit()
+  useWishlistsInit()
   
   const pathname = usePathname()
   const { user, isAuthenticated, checkAuth } = useAuthStore()

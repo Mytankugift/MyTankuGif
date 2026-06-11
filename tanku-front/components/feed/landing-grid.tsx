@@ -9,11 +9,23 @@ import type { FeedItem } from '@/lib/types/feed.types'
 
 interface LandingGridProps {
   items: FeedItem[]
+  onProductClick?: (product: FeedItem) => void
   onPosterClick?: (poster: FeedItem) => void
+  onPosterLikeUpdated?: (posterId: string, updates: { isLiked: boolean; likesCount: number }) => void
+  onProductLikeUpdated?: (productId: string, updates: { isLiked: boolean; likesCount: number }) => void
+  onProductWishlistUpdated?: (productId: string, updates: { isInWishlist: boolean }) => void
   onAuthRequired?: () => void
 }
 
-export function LandingGrid({ items, onPosterClick, onAuthRequired }: LandingGridProps) {
+export function LandingGrid({
+  items,
+  onProductClick,
+  onPosterClick,
+  onPosterLikeUpdated,
+  onProductLikeUpdated,
+  onProductWishlistUpdated,
+  onAuthRequired,
+}: LandingGridProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   const breakpointColumnsObj = useMemo(
@@ -123,6 +135,9 @@ export function LandingGrid({ items, onPosterClick, onAuthRequired }: LandingGri
                         isLiked: item.isLiked,
                         isInWishlist: item.isInWishlist,
                       }}
+                      onOpenModal={onProductClick}
+                      onLikeUpdated={onProductLikeUpdated}
+                      onWishlistUpdated={onProductWishlistUpdated}
                       isLightMode={false}
                       isAboveFold={isAboveFold}
                       isLanding={true}
@@ -148,11 +163,13 @@ export function LandingGrid({ items, onPosterClick, onAuthRequired }: LandingGri
                         likesCount: item.likesCount ?? 0,
                         commentsCount: item.commentsCount ?? 0,
                         createdAt: item.createdAt,
+                        isLiked: item.isLiked,
                         author: item.author,
                       }}
                       isLightMode={false}
                       isAboveFold={isAboveFold}
                       onOpenModal={() => onPosterClick?.(item)}
+                      onLikeUpdated={onPosterLikeUpdated}
                       onAuthRequired={onAuthRequired}
                     />
                   </div>

@@ -94,9 +94,10 @@ export interface FeedItemDTO {
   }
   reactionsCount?: number
   commentsCount?: number
-  // Para productos: likes
+  // Para productos: likes y wishlist
   likesCount?: number
   isLiked?: boolean
+  isInWishlist?: boolean
 }
 
 export interface FeedResponseDTO {

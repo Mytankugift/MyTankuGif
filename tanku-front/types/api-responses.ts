@@ -6,6 +6,7 @@
 // Respuestas de reacciones/likes
 export interface LikeResponse {
   liked: boolean
+  likesCount?: number
 }
 
 // Respuestas de perfil de usuario
