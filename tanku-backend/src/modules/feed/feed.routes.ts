@@ -25,6 +25,24 @@ const feedController = new FeedController();
 router.get('/init', optionalAuthenticate, feedController.getFeedInit);
 
 /**
+ * GET /api/v1/feed/init-critical
+ * Carga progresiva (Fase 2): feed (primera página) + categorías.
+ * Lo mínimo para renderizar el feed y permitir scroll desde el primer segundo.
+ *
+ * Autenticación: Opcional
+ */
+router.get('/init-critical', optionalAuthenticate, feedController.getFeedInitCritical);
+
+/**
+ * GET /api/v1/feed/init-secondary
+ * Carga progresiva (Fase 2): chrome no bloqueante (cart, stories, conversations,
+ * unreadCounts, notifications, user, onboardingData). Vacío para anónimos.
+ *
+ * Autenticación: Opcional
+ */
+router.get('/init-secondary', optionalAuthenticate, feedController.getFeedInitSecondary);
+
+/**
  * GET /api/v1/feed
  * Obtener feed combinado (productos + posters) con cursor-based pagination
  * 

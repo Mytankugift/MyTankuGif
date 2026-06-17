@@ -234,5 +234,96 @@ export class FeedController {
       next(error);
     }
   };
+
+  /**
+   * GET /api/v1/feed/init-critical
+   * Carga progresiva (Fase 2): solo lo que el usuario necesita para ver y hacer
+   * scroll desde el primer segundo. NO bloquea con datos que no se ven.
+   *
+   * Retorna:
+   * - feed: FeedResponseDTO (primera página)
+   * - categories: CategoryDTO[]
+   */
+  getFeedInitCritical = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req as RequestWithUser).user?.id;
+      const birthDate = await getBirthDateForUserId(userId);
+      const hideAdultCategories = viewerCannotSeeAdultCatalog(Boolean(userId), birthDate);
+
+      const [feed, categories] = await Promise.all([
+        this.feedService.getFeed(undefined, userId),
+        this.categoriesService.listCategoriesNormalized(hideAdultCategories),
+      ]);
+
+      res.status(200).json(successResponse({ feed, categories }));
+    } catch (error: any) {
+      console.error(`❌ [FEED-CONTROLLER] Error en getFeedInitCritical:`, error?.message);
+      console.error(`❌ [FEED-CONTROLLER] Stack:`, error?.stack);
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/feed/init-secondary
+   * Carga progresiva (Fase 2): el "chrome" no bloqueante (nav, badges, etc.).
+   * Para anónimos retorna estructura vacía sin tocar la BD.
+   *
+   * Retorna:
+   * - cart, stories, conversations, unreadCounts, notifications, user, onboardingData
+   */
+  getFeedInitSecondary = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req as RequestWithUser).user?.id;
+
+      if (!userId) {
+        return res.status(200).json(successResponse({
+          cart: null,
+          stories: [],
+          conversations: [],
+          unreadCounts: { chat: 0, notifications: 0 },
+          notifications: [],
+          user: null,
+          onboardingData: null,
+        }));
+      }
+
+      const [
+        cart,
+        stories,
+        conversations,
+        chatUnreadCount,
+        notifications,
+        notificationUnreadCount,
+        user,
+        onboardingData,
+      ] = await Promise.all([
+        this.cartService.getUserCart(userId).catch(() => null),
+        this.storiesService.getFeedStories(userId, 50).catch(() => []),
+        this.chatService.getConversations(userId).catch(() => []),
+        this.chatService.getUnreadCount(userId).catch(() => 0),
+        this.notificationsService.getNotifications(userId, { limit: 10 }).catch(() => []),
+        this.notificationsService.getUnreadCount(userId).catch(() => ({ unreadCount: 0, totalCount: 0 })),
+        this.authService.getCurrentUser(userId).catch(() => null),
+        this.usersService.getOnboardingData(userId).catch(() => null),
+      ]);
+
+      res.status(200).json(successResponse({
+        cart,
+        stories,
+        conversations,
+        unreadCounts: {
+          chat: chatUnreadCount || 0,
+          notifications: notificationUnreadCount?.unreadCount || 0,
+        },
+        notifications,
+        user,
+        onboardingData,
+      }));
+    } catch (error: any) {
+      console.error(`❌ [FEED-CONTROLLER] Error en getFeedInitSecondary:`, error?.message);
+      console.error(`❌ [FEED-CONTROLLER] Stack:`, error?.stack);
+      next(error);
+    }
+  };
 }
 

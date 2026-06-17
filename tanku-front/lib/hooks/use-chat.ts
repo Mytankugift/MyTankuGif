@@ -64,6 +64,98 @@ export interface Message {
   } | null
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Cache compartido entre instancias de useChat (FeedNav, MessagesDropdown, etc.)
+// y semilla desde feedInit. Evita pedir /chat/conversations varias veces en la
+// misma pantalla. Dentro del TTL se reutiliza; las peticiones concurrentes se
+// deduplican con el "inflight". Las mutaciones siguen forzando datos frescos.
+// ───────────────────────────────────────────────────────────────────────────
+const conversationsCacheByUser = new Map<string, Conversation[]>()
+const conversationsFetchedAtByUser = new Map<string, number>()
+const conversationsInflightByUser = new Map<string, Promise<Conversation[]>>()
+const CONVERSATIONS_CACHE_TTL = 60 * 1000 // 1 min
+
+function sortConversations(list: Conversation[]): Conversation[] {
+  return [...list].sort((a, b) => {
+    const aTime = a.messages && a.messages.length > 0
+      ? new Date(a.messages[0].createdAt).getTime()
+      : new Date(a.updatedAt).getTime()
+    const bTime = b.messages && b.messages.length > 0
+      ? new Date(b.messages[0].createdAt).getTime()
+      : new Date(b.updatedAt).getTime()
+    return bTime - aTime
+  })
+}
+
+/**
+ * Sembrar el cache de conversaciones (lo usa feedInit con lo que ya trajo
+ * /feed/init para que useChat no vuelva a pedir /chat/conversations).
+ */
+export function seedChatConversations(userId: string | null | undefined, convs: Conversation[]) {
+  if (!userId) return
+  conversationsCacheByUser.set(userId, sortConversations(convs))
+  conversationsFetchedAtByUser.set(userId, Date.now())
+}
+
+async function loadConversationsShared(userId: string, force = false): Promise<Conversation[]> {
+  if (!force) {
+    const cached = conversationsCacheByUser.get(userId)
+    const fetchedAt = conversationsFetchedAtByUser.get(userId) ?? 0
+    if (cached && Date.now() - fetchedAt < CONVERSATIONS_CACHE_TTL) {
+      return cached
+    }
+    const inflight = conversationsInflightByUser.get(userId)
+    if (inflight) return inflight
+  }
+
+  const promise = (async () => {
+    const response = await apiClient.get<Conversation[]>(API_ENDPOINTS.CHAT.CONVERSATIONS)
+    if (response.success && response.data) {
+      const sorted = sortConversations(response.data)
+      conversationsCacheByUser.set(userId, sorted)
+      conversationsFetchedAtByUser.set(userId, Date.now())
+      return sorted
+    }
+    return conversationsCacheByUser.get(userId) ?? []
+  })().finally(() => {
+    conversationsInflightByUser.delete(userId)
+  })
+
+  conversationsInflightByUser.set(userId, promise)
+  return promise
+}
+
+// Mismo patrón para el contador de no leídos (colapsa las llamadas concurrentes
+// de varias instancias de useChat en una sola dentro del TTL).
+const unreadCountCacheByUser = new Map<string, number>()
+const unreadCountFetchedAtByUser = new Map<string, number>()
+const unreadCountInflightByUser = new Map<string, Promise<number>>()
+
+async function loadUnreadCountShared(userId: string): Promise<number> {
+  const cached = unreadCountCacheByUser.get(userId)
+  const fetchedAt = unreadCountFetchedAtByUser.get(userId) ?? 0
+  if (cached !== undefined && Date.now() - fetchedAt < CONVERSATIONS_CACHE_TTL) {
+    return cached
+  }
+  const inflight = unreadCountInflightByUser.get(userId)
+  if (inflight) return inflight
+
+  const promise = (async () => {
+    const response = await apiClient.get<{ count: number }>(API_ENDPOINTS.CHAT.UNREAD_COUNT)
+    if (response.success && response.data) {
+      unreadCountCacheByUser.set(userId, response.data.count)
+      unreadCountFetchedAtByUser.set(userId, Date.now())
+      return response.data.count
+    }
+    return unreadCountCacheByUser.get(userId) ?? 0
+  })().finally(() => {
+    unreadCountInflightByUser.delete(userId)
+  })
+
+  unreadCountInflightByUser.set(userId, promise)
+  return promise
+}
+
 export function useChat() {
   const { user } = useAuthStore()
   // ✅ NUEVO: Usar ChatService en lugar de useSocket para mensajes
@@ -143,7 +235,7 @@ export function useChat() {
   /**
    * Cargar todas las conversaciones
    */
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (force = false) => {
     // ✅ Verificar autenticación antes de hacer la llamada
     if (!user?.id) {
       console.log('[useChat] Usuario no autenticado, omitiendo fetchConversations')
@@ -153,20 +245,10 @@ export function useChat() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await apiClient.get<Conversation[]>(API_ENDPOINTS.CHAT.CONVERSATIONS)
-      if (response.success && response.data) {
-        // Ordenar por último mensaje (más reciente primero)
-        const sorted = [...response.data].sort((a, b) => {
-          const aTime = a.messages && a.messages.length > 0 
-            ? new Date(a.messages[0].createdAt).getTime() 
-            : new Date(a.updatedAt).getTime()
-          const bTime = b.messages && b.messages.length > 0 
-            ? new Date(b.messages[0].createdAt).getTime() 
-            : new Date(b.updatedAt).getTime()
-          return bTime - aTime // Más reciente primero
-        })
-        setConversations(sorted)
-      }
+      // ✅ Loader compartido: reutiliza cache/semilla de feedInit y deduplica
+      // peticiones concurrentes. force=true para refrescar tras una mutación.
+      const sorted = await loadConversationsShared(user.id, force)
+      setConversations(sorted)
     } catch (err: any) {
       // ✅ Solo mostrar error si el usuario está autenticado
       if (user?.id) {
@@ -201,7 +283,7 @@ export function useChat() {
         })
         if (response.success && response.data) {
           // Actualizar lista de conversaciones
-          await fetchConversations()
+          await fetchConversations(true)
           return response.data
         }
       } else {
@@ -223,7 +305,7 @@ export function useChat() {
         })
         if (response.success && response.data) {
           // Actualizar lista de conversaciones
-          await fetchConversations()
+          await fetchConversations(true)
           return response.data
         }
       }
@@ -436,10 +518,8 @@ export function useChat() {
     }
 
     try {
-      const response = await apiClient.get<{ count: number }>(API_ENDPOINTS.CHAT.UNREAD_COUNT)
-      if (response.success && response.data) {
-        setUnreadCount(response.data.count)
-      }
+      const count = await loadUnreadCountShared(user.id)
+      setUnreadCount(count)
     } catch (err) {
       // ✅ Solo loggear si el usuario está autenticado
       if (user?.id) {
@@ -454,7 +534,7 @@ export function useChat() {
   const closeConversation = useCallback(async (conversationId: string) => {
     try {
       await apiClient.put(API_ENDPOINTS.CHAT.CLOSE(conversationId))
-      await fetchConversations()
+      await fetchConversations(true)
     } catch (err: any) {
       setError(err.message || 'Error al cerrar conversación')
     }

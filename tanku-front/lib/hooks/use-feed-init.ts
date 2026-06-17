@@ -5,8 +5,17 @@ import { apiClient } from '@/lib/api/client'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useCartStore } from '@/lib/stores/cart-store'
 import { useFeedInitContext } from '@/lib/context/feed-init-context'
+import { seedChatConversations } from '@/lib/hooks/use-chat'
+import { seedFeedStories } from '@/lib/hooks/use-stories'
+import { logger } from '@/lib/utils/logger'
 import type { FeedItem, FeedResponse } from '@/lib/types/feed.types'
 import { mapCategoryFromApi, type FeedCategoryItem } from '@/lib/feed/category-tree'
+
+// ✅ Fase 2 (carga progresiva): si está activo, useFeedInit pide primero
+// /feed/init-critical (desbloquea render) y luego /feed/init-secondary (rellena
+// nav/badges). Apagado por defecto → mantiene el comportamiento monolítico
+// (/feed/init) como fallback seguro.
+const FEED_PROGRESSIVE_INIT = process.env.NEXT_PUBLIC_FEED_PROGRESSIVE_INIT === 'true'
 
 type AuthPersistApi = {
   hasHydrated: () => boolean
@@ -42,6 +51,11 @@ interface FeedInitResponse {
   onboardingData: any | null
 }
 
+type SecondaryData = Pick<
+  FeedInitResponse,
+  'cart' | 'stories' | 'conversations' | 'unreadCounts' | 'notifications' | 'user' | 'onboardingData'
+>
+
 export function useFeedInit() {
   const { token, isAuthenticated, checkAuth } = useAuthStore()
   const { markComplete } = useFeedInitContext()
@@ -61,124 +75,195 @@ export function useFeedInit() {
   const [nextCursorToken, setNextCursorToken] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const hasLoadedRef = useRef(false) // ✅ Guard para evitar múltiples cargas
+  const hasLoadedRef = useRef(false) // ✅ Guard para evitar múltiples cargas (tras completar)
+  const isLoadingFeedInitRef = useRef(false) // ✅ Guard in-flight: evita /feed/init concurrentes mientras la 1ª está en vuelo
 
-  // Cargar datos iniciales usando endpoint batch
+  // Procesa la primera página del feed. Para anónimos, encadena hasta 3 páginas
+  // de /feed/public para tener ≥100 productos (igual que el comportamiento previo).
+  const applyFeed = useCallback(async (feed: FeedResponse | undefined): Promise<FeedItem[]> => {
+    const { isAuthenticated: currentAuth } = useAuthStore.getState()
+    let validItems = feed?.items || []
+    let safeCursor = typeof feed?.nextCursorToken === 'string' ? feed.nextCursorToken : null
+
+    if (!currentAuth && safeCursor && validItems.length > 0) {
+      let currentCursor: string | null = safeCursor
+      let attempts = 0
+      const maxAttempts = 3
+
+      while (currentCursor && attempts < maxAttempts && validItems.length < 100) {
+        try {
+          const moreHeaders: HeadersInit = { 'X-Feed-Cursor': currentCursor }
+          const moreResponse: Awaited<ReturnType<typeof apiClient.get<FeedResponse>>> =
+            await apiClient.get<FeedResponse>('/api/v1/feed/public', moreHeaders)
+
+          if (moreResponse.success && moreResponse.data) {
+            const moreItems = moreResponse.data.items || []
+            if (moreItems.length > 0) {
+              validItems = [...validItems, ...moreItems]
+              currentCursor = typeof moreResponse.data.nextCursorToken === 'string'
+                ? moreResponse.data.nextCursorToken
+                : null
+              attempts++
+              logger.log(`[useFeedInit] Página ${attempts + 1} cargada:`, {
+                itemsCount: moreItems.length,
+                totalItems: validItems.length,
+                hasNextCursorToken: !!currentCursor,
+              })
+            } else {
+              break
+            }
+          } else {
+            break
+          }
+        } catch (err) {
+          console.error(`[useFeedInit] Error cargando página ${attempts + 2}:`, err)
+          break
+        }
+      }
+      safeCursor = currentCursor
+    }
+
+    setFeedItems(validItems)
+    setNextCursorToken(safeCursor)
+    setHasMore(!!safeCursor)
+    return validItems
+  }, [])
+
+  const applyCategories = useCallback((cats: FeedInitResponse['categories'] | undefined) => {
+    if (Array.isArray(cats)) {
+      setCategories(cats.map((c) => mapCategoryFromApi(c)))
+    }
+  }, [])
+
+  // Aplica el "chrome" no bloqueante y siembra los caches compartidos para que
+  // otros componentes no vuelvan a pedir /chat/conversations, /stories ni /cart.
+  const applySecondary = useCallback((data: SecondaryData) => {
+    setCart(data.cart || null)
+    setStories(data.stories || [])
+    setConversations(data.conversations || [])
+    setUnreadCounts(data.unreadCounts || { chat: 0, notifications: 0 })
+    setNotifications(data.notifications || [])
+    setUser(data.user || null)
+    setOnboardingData(data.onboardingData || null)
+
+    if (data.cart) {
+      useCartStore.getState().setNormalCart(data.cart, { silent: true })
+    }
+
+    const { user: currentUser } = useAuthStore.getState()
+    if (currentUser?.id) {
+      seedChatConversations(currentUser.id, data.conversations || [])
+      seedFeedStories(currentUser.id, data.stories || [])
+    }
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('feedInit_complete', 'true')
+    }
+  }, [])
+
+  // Camino legacy (fallback): un solo /feed/init monolítico.
+  const loadLegacy = useCallback(async () => {
+    const { token: currentToken } = useAuthStore.getState()
+    const headers: HeadersInit = {}
+    if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`
+
+    const response = await apiClient.get<FeedInitResponse>('/api/v1/feed/init', headers)
+    if (!response.success || !response.data) {
+      throw new Error(response.error?.message || 'Error cargando datos iniciales')
+    }
+
+    const data = response.data
+    const validItems = await applyFeed(data.feed)
+    applyCategories(data.categories)
+    applySecondary(data)
+
+    markComplete({
+      feed: validItems.length > 0,
+      stories: (data.stories || []).length > 0,
+      conversations: (data.conversations || []).length > 0,
+      notifications: (data.notifications || []).length > 0,
+      cart: !!data.cart,
+      onboarding: !!data.onboardingData,
+    })
+  }, [applyFeed, applyCategories, applySecondary, markComplete])
+
+  // Camino progresivo (Fase 2): crítico desbloquea render, secundario rellena.
+  const loadProgressive = useCallback(async () => {
+    const { token: currentToken } = useAuthStore.getState()
+    const headers: HeadersInit = {}
+    if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`
+
+    // 1) Crítico (bloqueante): feed + categorías → render lo antes posible.
+    const criticalRes = await apiClient.get<{ feed: FeedResponse; categories: FeedInitResponse['categories'] }>(
+      '/api/v1/feed/init-critical',
+      headers,
+    )
+    if (!criticalRes.success || !criticalRes.data) {
+      throw new Error(criticalRes.error?.message || 'Error cargando feed inicial')
+    }
+    const validItems = await applyFeed(criticalRes.data.feed)
+    applyCategories(criticalRes.data.categories)
+    setIsLoading(false) // ✅ render desbloqueado; el resto llega después
+
+    // 2) Secundario (no bloqueante): si falla, el feed ya funciona.
+    let secondary: SecondaryData = {
+      cart: null,
+      stories: [],
+      conversations: [],
+      unreadCounts: { chat: 0, notifications: 0 },
+      notifications: [],
+      user: null,
+      onboardingData: null,
+    }
+    try {
+      const secRes = await apiClient.get<SecondaryData>('/api/v1/feed/init-secondary', headers)
+      if (secRes.success && secRes.data) {
+        secondary = secRes.data
+        applySecondary(secondary)
+      }
+    } catch (err) {
+      logger.log('[useFeedInit] init-secondary falló (no bloqueante):', err)
+    }
+
+    // markComplete tras sembrar caches para no re-disparar fetches en cascada.
+    markComplete({
+      feed: validItems.length > 0,
+      stories: (secondary.stories || []).length > 0,
+      conversations: (secondary.conversations || []).length > 0,
+      notifications: (secondary.notifications || []).length > 0,
+      cart: !!secondary.cart,
+      onboarding: !!secondary.onboardingData,
+    })
+  }, [applyFeed, applyCategories, applySecondary, markComplete])
+
+  // Cargar datos iniciales (con guard in-flight y de "ya cargado").
   const loadFeedInit = useCallback(async () => {
-    // ✅ Si ya se cargó, no volver a cargar
-    if (hasLoadedRef.current) {
-      console.log('[useFeedInit] Ya se cargó, omitiendo carga duplicada')
+    // ✅ Si ya se cargó O hay una carga en vuelo, no volver a cargar.
+    // El guard in-flight es clave: el init tarda ~segundos y, sin él, los
+    // re-renders durante ese lapso disparaban varias peticiones concurrentes.
+    if (hasLoadedRef.current || isLoadingFeedInitRef.current) {
+      logger.log('[useFeedInit] Ya se cargó o está en curso, omitiendo carga duplicada')
       return
     }
+    isLoadingFeedInitRef.current = true
 
     setIsLoading(true)
     setError(null)
 
     try {
-      const { token: currentToken, isAuthenticated: currentAuth } = useAuthStore.getState()
-      const headers: HeadersInit = {}
-      if (currentToken) {
-        headers['Authorization'] = `Bearer ${currentToken}`
-      }
-
-      const response = await apiClient.get<FeedInitResponse>('/api/v1/feed/init', headers)
-
-      if (response.success && response.data) {
-        // Procesar feed
-        let validItems = response.data.feed?.items || []
-        let safeCursor = typeof response.data.feed?.nextCursorToken === 'string' 
-          ? response.data.feed.nextCursorToken 
-          : null
-
-        // ✅ Si no está autenticado, cargar más páginas automáticamente para tener al menos 100 productos
-        if (!currentAuth && safeCursor && validItems.length > 0) {
-          let currentCursor: string | null = safeCursor
-          let attempts = 0
-          const maxAttempts = 3 // Cargar hasta 3 páginas más (50 + 50 + 50 = 150 productos)
-          
-          while (currentCursor && attempts < maxAttempts && validItems.length < 100) {
-            try {
-              const moreHeaders: HeadersInit = {
-                'X-Feed-Cursor': currentCursor, // currentCursor ya está verificado en el while
-              }
-              
-              const moreResponse: Awaited<ReturnType<typeof apiClient.get<FeedResponse>>> = await apiClient.get<FeedResponse>('/api/v1/feed/public', moreHeaders)
-              
-              if (moreResponse.success && moreResponse.data) {
-                const moreItems = moreResponse.data.items || []
-                if (moreItems.length > 0) {
-                  // Combinar items de la nueva página
-                  validItems = [...validItems, ...moreItems]
-                  // Actualizar cursor con el de la nueva página
-                  currentCursor = typeof moreResponse.data.nextCursorToken === 'string' 
-                    ? moreResponse.data.nextCursorToken 
-                    : null
-                  attempts++
-                  
-                  console.log(`[useFeedInit] Página ${attempts + 1} cargada:`, {
-                    itemsCount: moreItems.length,
-                    totalItems: validItems.length,
-                    hasNextCursorToken: !!currentCursor,
-                  })
-                } else {
-                  break // No hay más items, salir del loop
-                }
-              } else {
-                break // Error en la respuesta, salir del loop
-              }
-            } catch (err) {
-              console.error(`[useFeedInit] Error cargando página ${attempts + 2}:`, err)
-              break // Salir del loop si hay error
-            }
-          }
-          
-          // Actualizar el cursor final
-          safeCursor = currentCursor
-        }
-
-        setFeedItems(validItems)
-        setNextCursorToken(safeCursor)
-        setHasMore(!!safeCursor)
-
-        // Procesar categorías
-        if (Array.isArray(response.data.categories)) {
-          setCategories(response.data.categories.map((c) => mapCategoryFromApi(c)))
-        }
-
-        // Procesar otros datos
-        setCart(response.data.cart || null)
-        setStories(response.data.stories || [])
-        setConversations(response.data.conversations || [])
-        setUnreadCounts(response.data.unreadCounts || { chat: 0, notifications: 0 })
-        setNotifications(response.data.notifications || [])
-        setUser(response.data.user || null)
-        setOnboardingData(response.data.onboardingData || null)
-        
-        // ✅ Actualizar el store del carrito si hay datos
-        if (response.data.cart) {
-          useCartStore.getState().setNormalCart(response.data.cart)
-        }
-        
-        // ✅ Marcar feedInit como completado en el contexto (fuente única de verdad)
-        markComplete({
-          feed: validItems.length > 0,
-          stories: (response.data.stories || []).length > 0,
-          conversations: (response.data.conversations || []).length > 0,
-          notifications: (response.data.notifications || []).length > 0,
-          cart: !!response.data.cart,
-          onboarding: !!response.data.onboardingData,
-        })
-        
-        hasLoadedRef.current = true // ✅ Marcar como cargado
+      if (FEED_PROGRESSIVE_INIT) {
+        await loadProgressive()
       } else {
-        setError(new Error(response.error?.message || 'Error cargando datos iniciales'))
+        await loadLegacy()
       }
+      hasLoadedRef.current = true // ✅ Marcar como cargado
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Error desconocido'))
     } finally {
       setIsLoading(false)
+      isLoadingFeedInitRef.current = false
     }
-  }, [markComplete])
+  }, [loadProgressive, loadLegacy])
 
   // Cargar más items del feed (usando endpoint normal, no batch)
   const loadMore = useCallback(async () => {

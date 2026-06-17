@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useFeedInitContext } from '@/lib/context/feed-init-context'
+import { logger } from '@/lib/utils/logger'
 import type { FeedItem, FeedResponse, FeedFilters } from '@/lib/types/feed.types'
 
 export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?: boolean }) {
@@ -16,6 +17,23 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
   const [hasMore, setHasMore] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const hasLoadedRef = useRef(false) // ✅ Guard para evitar múltiples cargas
+  // ✅ Esperar a que el store de auth hidrate antes de decidir feed privado vs público,
+  // si no, un usuario logueado dispara /feed/public durante el render pre-hidratación.
+  const [authHydrated, setAuthHydrated] = useState(false)
+
+  useEffect(() => {
+    const persist = (useAuthStore as unknown as {
+      persist?: { hasHydrated: () => boolean; onFinishHydration: (fn: () => void) => () => void }
+    }).persist
+    if (!persist || typeof persist.hasHydrated !== 'function') {
+      setAuthHydrated(true)
+      return
+    }
+    if (persist.hasHydrated()) {
+      setAuthHydrated(true)
+    }
+    return persist.onFinishHydration(() => setAuthHydrated(true))
+  }, [])
 
   // ✅ REMOVIDO: Ya no filtramos items sin imágenes
   // El backend ahora permite productos sin imágenes (se mostrarán con placeholder)
@@ -65,7 +83,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
 
       if (response.success && response.data) {
         // Log detallado para debugging
-        console.log('[FEED] Respuesta inicial:', {
+        logger.log('[FEED] Respuesta inicial:', {
           hasData: !!response.data,
           hasItems: !!response.data.items,
           itemsCount: response.data.items?.length || 0,
@@ -118,7 +136,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
                     : null
                   attempts++
                   
-                  console.log(`[FEED] Página ${attempts + 1} cargada:`, {
+                  logger.log(`[FEED] Página ${attempts + 1} cargada:`, {
                     itemsCount: moreItems.length,
                     totalItems: validItems.length,
                     hasNextCursorToken: !!currentCursor,
@@ -139,7 +157,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
           safeCursor = currentCursor
         }
         
-        console.log('[FEED] Cursor procesado:', {
+        logger.log('[FEED] Cursor procesado:', {
           original: response.data.nextCursorToken,
           safe: safeCursor,
           type: typeof safeCursor,
@@ -195,7 +213,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
 
       if (response.success && response.data) {
         // Log detallado para debugging
-        console.log('[FEED] Respuesta loadMore:', {
+        logger.log('[FEED] Respuesta loadMore:', {
           hasData: !!response.data,
           hasItems: !!response.data.items,
           itemsCount: response.data.items?.length || 0,
@@ -209,7 +227,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
         
         // Si no hay items nuevos, no actualizar nada
         if (validItems.length === 0) {
-          console.log('[FEED] No hay items nuevos en loadMore')
+          logger.log('[FEED] No hay items nuevos en loadMore')
           setHasMore(false)
           setIsLoadingMore(false)
           return
@@ -220,7 +238,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
           ? response.data.nextCursorToken 
           : (response.data.nextCursorToken === null ? null : null)
         
-        console.log('[FEED] Cursor procesado (loadMore):', {
+        logger.log('[FEED] Cursor procesado (loadMore):', {
           original: response.data.nextCursorToken,
           safe: safeCursor,
           type: typeof safeCursor,
@@ -239,11 +257,11 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
           const newItems = validItems.filter(item => !existingIds.has(item.id))
           
           if (newItems.length === 0) {
-            console.log('[FEED] Todos los items ya están cargados, no se agregan duplicados')
+            logger.log('[FEED] Todos los items ya están cargados, no se agregan duplicados')
             return prev
           }
           
-          console.log('[FEED] Agregando', newItems.length, 'items nuevos de', validItems.length, 'recibidos')
+          logger.log('[FEED] Agregando', newItems.length, 'items nuevos de', validItems.length, 'recibidos')
           return [...prev, ...newItems]
         })
         
@@ -277,6 +295,11 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
   const previousSearchRef = useRef<string>('')
   
   useEffect(() => {
+    // ✅ No decidir nada hasta que el store de auth haya hidratado (evita /feed/public pre-auth)
+    if (!authHydrated) {
+      return
+    }
+
     // Detectar cambio de categoría o búsqueda
     const categoryChanged = previousCategoryRef.current !== categoryId
     const searchChanged = previousSearchRef.current !== searchQuery
@@ -333,7 +356,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, isAuthenticated, categoryId, searchQuery, isComplete, hasData.feed, options?.skipInitialLoad])
+  }, [authHydrated, token, isAuthenticated, categoryId, searchQuery, isComplete, hasData.feed, options?.skipInitialLoad])
 
   // Función para actualizar un item específico sin recargar todo
   const updateItem = useCallback((itemId: string, updates: Partial<FeedItem>) => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react'
 
 interface FeedInitContextValue {
   isInitializing: boolean
@@ -31,13 +31,15 @@ export function FeedInitProvider({ children }: { children: ReactNode }) {
     onboarding: false,
   })
 
-  const markComplete = (data: Partial<typeof hasData>) => {
+  // ✅ Memoizadas: si cambian de identidad en cada render, los consumidores
+  // (useFeedInit, useFeed, useStories…) se re-renderizan en cascada y redisparan fetches.
+  const markComplete = useCallback((data: Partial<typeof hasData>) => {
     setHasData(prev => ({ ...prev, ...data }))
     setIsComplete(true)
     setIsInitializing(false)
-  }
+  }, [])
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setIsInitializing(true)
     setIsComplete(false)
     setHasData({
@@ -48,10 +50,15 @@ export function FeedInitProvider({ children }: { children: ReactNode }) {
       cart: false,
       onboarding: false,
     })
-  }
+  }, [])
+
+  const value = useMemo(
+    () => ({ isInitializing, isComplete, hasData, markComplete, reset }),
+    [isInitializing, isComplete, hasData, markComplete, reset]
+  )
 
   return (
-    <FeedInitContext.Provider value={{ isInitializing, isComplete, hasData, markComplete, reset }}>
+    <FeedInitContext.Provider value={value}>
       {children}
     </FeedInitContext.Provider>
   )

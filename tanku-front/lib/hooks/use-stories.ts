@@ -9,6 +9,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useFeedInitContext } from '@/lib/context/feed-init-context'
+import { logger } from '@/lib/utils/logger'
 
 export type StoryDTO = {
   id: string
@@ -50,11 +51,54 @@ interface UseStoriesResult {
   error: string | null
 
   // Acciones
-  fetchFeedStories: () => Promise<void>
+  fetchFeedStories: (force?: boolean) => Promise<void>
   fetchWishlistStories: (userId?: string) => Promise<void>
   markStoryAsViewed: (storyId: string) => Promise<void>
   refreshStories: () => Promise<void>
   deleteStoryById: (storyId: string) => Promise<boolean>
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Cache compartido entre instancias de useStories (hay 2 carruseles en el feed)
+// + semilla desde feedInit. Evita pedir /stories varias veces por carga.
+// ───────────────────────────────────────────────────────────────────────────
+const feedStoriesCacheByUser = new Map<string, StoryDTO[]>()
+const feedStoriesFetchedAtByUser = new Map<string, number>()
+const feedStoriesInflightByUser = new Map<string, Promise<StoryDTO[]>>()
+const FEED_STORIES_CACHE_TTL = 60 * 1000 // 1 min
+
+/** Sembrar el cache con lo que ya trajo /feed/init (incluido el caso vacío). */
+export function seedFeedStories(userId: string | null | undefined, stories: StoryDTO[]) {
+  if (!userId) return
+  feedStoriesCacheByUser.set(userId, stories)
+  feedStoriesFetchedAtByUser.set(userId, Date.now())
+}
+
+async function loadFeedStoriesShared(userId: string, force = false): Promise<StoryDTO[]> {
+  if (!force) {
+    const cached = feedStoriesCacheByUser.get(userId)
+    const fetchedAt = feedStoriesFetchedAtByUser.get(userId) ?? 0
+    if (cached && Date.now() - fetchedAt < FEED_STORIES_CACHE_TTL) {
+      return cached
+    }
+    const inflight = feedStoriesInflightByUser.get(userId)
+    if (inflight) return inflight
+  }
+
+  const promise = (async () => {
+    const response = await apiClient.get<StoryDTO[]>(API_ENDPOINTS.STORIES.FEED)
+    if (response.success && response.data) {
+      feedStoriesCacheByUser.set(userId, response.data)
+      feedStoriesFetchedAtByUser.set(userId, Date.now())
+      return response.data
+    }
+    return feedStoriesCacheByUser.get(userId) ?? []
+  })().finally(() => {
+    feedStoriesInflightByUser.delete(userId)
+  })
+
+  feedStoriesInflightByUser.set(userId, promise)
+  return promise
 }
 
 export function useStories(): UseStoriesResult {
@@ -68,7 +112,7 @@ export function useStories(): UseStoriesResult {
   /**
    * Obtener feed de stories (amigos + propias)
    */
-  const fetchFeedStories = useCallback(async () => {
+  const fetchFeedStories = useCallback(async (force = false) => {
     if (!isAuthenticated || !user?.id) {
       setFeedStories([])
       return
@@ -78,12 +122,10 @@ export function useStories(): UseStoriesResult {
     setError(null)
 
     try {
-      const response = await apiClient.get<StoryDTO[]>(API_ENDPOINTS.STORIES.FEED)
-      if (response.success && response.data) {
-        setFeedStories(response.data)
-      } else {
-        setError(response.error?.message || 'Error al obtener stories')
-      }
+      // ✅ Loader compartido: reutiliza la semilla de feedInit y deduplica las
+      // peticiones concurrentes de las 2 instancias del carrusel. force tras mutación.
+      const data = await loadFeedStoriesShared(user.id, force)
+      setFeedStories(data)
     } catch (err: any) {
       setError(err.message || 'Error al obtener stories')
     } finally {
@@ -181,7 +223,7 @@ export function useStories(): UseStoriesResult {
     if (!isComplete) {
       // Si feedInit ya tiene datos de stories, usarlos
       if (hasData.stories && feedStories.length > 0) {
-        console.log('[useStories] feedInit tiene stories, esperando a que termine')
+        logger.log('[useStories] feedInit tiene stories, esperando a que termine')
         hasLoadedRef.current = true
       }
       return
@@ -190,14 +232,14 @@ export function useStories(): UseStoriesResult {
     // ✅ feedInit ya completó
     // Si feedInit tiene datos de stories, no hacer fetch
     if (hasData.stories && feedStories.length > 0) {
-      console.log('[useStories] feedInit completó y ya hay stories, omitiendo fetch')
+      logger.log('[useStories] feedInit completó y ya hay stories, omitiendo fetch')
       hasLoadedRef.current = true
       return
     }
 
     // ✅ feedInit completó pero no tiene stories, hacer fetch
     if (isComplete && !hasData.stories && feedStories.length === 0 && !hasLoadedRef.current) {
-      console.log('[useStories] feedInit completó pero no tiene stories, haciendo fetch')
+      logger.log('[useStories] feedInit completó pero no tiene stories, haciendo fetch')
       hasLoadedRef.current = true
       fetchFeedStories()
     }

@@ -14,7 +14,6 @@ import { ProductModal } from '@/components/products/product-modal'
 import { FeedSkeleton } from '@/components/feed/feed-skeleton'
 import { useFeed } from '@/lib/hooks/use-feed'
 import { useFeedInit } from '@/lib/hooks/use-feed-init'
-import { useCategories } from '@/lib/hooks/use-categories'
 import { useInfiniteScroll } from '@/lib/hooks/use-infinite-scroll'
 import { useFeedScrollNav } from '@/lib/hooks/use-feed-scroll-nav'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -26,7 +25,11 @@ import './feed-grid.css'
 export default function FeedPage() {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
-  
+  // ✅ No decidir el redirect hasta que el store de auth hidrate: si no, un usuario
+  // logueado rebota a `/` (la landing dispara feed/public + categories) y vuelve,
+  // duplicando feed/init.
+  const [authHydrated, setAuthHydrated] = useState(false)
+
   // ✅ MOVER TODOS LOS HOOKS ANTES DEL RETURN CONDICIONAL
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   /** Texto del input (cambia al escribir) */
@@ -59,13 +62,28 @@ export default function FeedPage() {
     useWindowScroll
   )
 
-  // Proteger ruta: redirigir no autenticados a landing
+  // Esperar a que el store de auth hidrate antes de decidir el redirect
   useEffect(() => {
-    if (!isAuthenticated) {
+    const persist = (useAuthStore as unknown as {
+      persist?: { hasHydrated: () => boolean; onFinishHydration: (fn: () => void) => () => void }
+    }).persist
+    if (!persist || typeof persist.hasHydrated !== 'function') {
+      setAuthHydrated(true)
+      return
+    }
+    if (persist.hasHydrated()) {
+      setAuthHydrated(true)
+    }
+    return persist.onFinishHydration(() => setAuthHydrated(true))
+  }, [])
+
+  // Proteger ruta: redirigir no autenticados a landing (solo tras hidratar)
+  useEffect(() => {
+    if (authHydrated && !isAuthenticated) {
       logger.log('[FEED] Usuario no autenticado, redirigiendo a landing...')
       router.replace('/')
     }
-  }, [isAuthenticated, router])
+  }, [authHydrated, isAuthenticated, router])
 
   // Debounce: no llamar al API en cada tecla; sí al terminar de escribir (~450 ms) o al pulsar Enter (onSearchCommit)
   useEffect(() => {
@@ -191,8 +209,8 @@ export default function FeedPage() {
   // Datos finales a usar
   const items = useInitData ? feedInit.items : feedItems
   const isLoading = useInitData ? feedInit.isLoading : feedLoading
-  const { categories: categoriesFromApi } = useCategories()
-  const categories = categoriesFromApi.length > 0 ? categoriesFromApi : feedInit.categories
+  // ✅ Reutilizar las categorías que ya trajo feedInit (evita un fetch duplicado a /categories)
+  const categories = feedInit.categories
 
   const activeCategoryFilter = useMemo(() => {
     if (!selectedCategoryId) return null
@@ -262,8 +280,9 @@ export default function FeedPage() {
   }, [])
 
   // ✅ AHORA SÍ: return condicional DESPUÉS de todos los hooks
-  // Si no está autenticado, no renderizar nada (se está redirigiendo)
-  if (!isAuthenticated) {
+  // Mientras la sesión no hidrate, mostrar loading (sin redirigir). Si tras hidratar
+  // no está autenticado, mostrar loading mientras se redirige a la landing.
+  if (!authHydrated || !isAuthenticated) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -271,7 +290,7 @@ export default function FeedPage() {
       >
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#73FFA2] mx-auto mb-4"></div>
-          <p className="text-white">Redirigiendo...</p>
+          <p className="text-white">Cargando...</p>
         </div>
       </div>
     )
@@ -401,7 +420,7 @@ export default function FeedPage() {
             />
             <FeedInfiniteScroll
               hasMore={currentHasMore && !!currentNextCursorToken}
-              isLoadingMore={isLoadingMore}
+              isLoadingMore={isLoadingMoreCombined}
               sentinelRef={sentinelRef}
             />
             

@@ -55,7 +55,7 @@ export class FeedService {
   private readonly MAX_CURSOR_TOKENS = 10000; // Límite máximo de tokens en memoria
 
   // CONFIGURACIÓN HARDCODEADA
-  private readonly DEFAULT_LIMIT = 50;
+  private readonly DEFAULT_LIMIT = 20;
   private readonly DEFAULT_POSTS_PER_PRODUCTS = 5;
 
   // CACHE PARA FEED PÚBLICO

@@ -27,7 +27,7 @@ interface CartState {
   getCartId: () => string | null
   getItemCount: () => number
   setCart: (cart: Cart | null) => void
-  setNormalCart: (cart: Cart | null) => void
+  setNormalCart: (cart: Cart | null, options?: { silent?: boolean }) => void
   setGiftCart: (cart: Cart | null) => void
 }
 
@@ -513,9 +513,11 @@ export const useCartStore = create<CartState>((set, get) => ({
   /**
    * Establecer carrito normal manualmente
    */
-  setNormalCart: (cart: Cart | null) => {
+  setNormalCart: (cart: Cart | null, options?: { silent?: boolean }) => {
     set({ normalCart: cart, cart: cart, error: null })
-    if (typeof window !== 'undefined') {
+    // ✅ silent: feedInit siembra el carrito sin disparar 'cartUpdated' (evita que
+    // CartButton vuelva a pedir /cart en cada carga del feed).
+    if (!options?.silent && typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('cartUpdated'))
     }
   },

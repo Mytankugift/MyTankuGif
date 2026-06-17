@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
 import { useStories, type StoryDTO } from '@/lib/hooks/use-stories'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { useFeedInitContext } from '@/lib/context/feed-init-context'
 import { prefetchWishlistStoryProducts } from '@/lib/stories/wishlist-story-product'
 import { StoryViewer } from './story-viewer'
 import { CreateStoryModal } from './create-story-modal'
@@ -33,6 +34,7 @@ export function StoriesCarousel({
 }: StoriesCarouselProps) {
   const { feedStories, fetchFeedStories, isLoading } = useStories()
   const { user } = useAuthStore()
+  const { isComplete: feedInitComplete } = useFeedInitContext()
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -89,10 +91,12 @@ export function StoriesCarousel({
   )
 
   useEffect(() => {
-    if (!hasPrefetchedStories) {
+    // ✅ Esperar a que feedInit termine antes de pedir /stories por cuenta propia.
+    // Evita el burst pre-auth y deja que la semilla/cache compartido eviten duplicados.
+    if (!hasPrefetchedStories && feedInitComplete) {
       fetchFeedStories()
     }
-  }, [fetchFeedStories, hasPrefetchedStories])
+  }, [fetchFeedStories, hasPrefetchedStories, feedInitComplete])
 
   /** Precargar productos de historias wishlist visibles en el carrusel */
   useEffect(() => {
@@ -115,7 +119,7 @@ export function StoriesCarousel({
     setSelectedUserId(null)
     if (!hasPrefetchedStories) {
       setTimeout(() => {
-        fetchFeedStories()
+        fetchFeedStories(true)
       }, 500)
     }
   }
@@ -276,7 +280,7 @@ export function StoriesCarousel({
           onClose={() => setCreateModalOpen(false)}
           onStoryCreated={() => {
             setCreateModalOpen(false)
-            fetchFeedStories()
+            fetchFeedStories(true)
           }}
         />
       </>
@@ -298,7 +302,7 @@ export function StoriesCarousel({
           onClose={() => setCreateModalOpen(false)}
           onStoryCreated={() => {
             setCreateModalOpen(false)
-            fetchFeedStories()
+            fetchFeedStories(true)
           }}
         />
         {isViewerOpen && selectedUserId && viewerUserQueue.length > 0 && (
@@ -307,7 +311,7 @@ export function StoriesCarousel({
             userQueue={viewerUserQueue}
             isOpen={isViewerOpen}
             onClose={handleCloseViewer}
-            onStoryDeleted={() => fetchFeedStories()}
+            onStoryDeleted={() => fetchFeedStories(true)}
             seedStories={storiesToUse}
           />
         )}
@@ -342,7 +346,7 @@ export function StoriesCarousel({
           userQueue={viewerUserQueue}
           isOpen={isViewerOpen}
           onClose={handleCloseViewer}
-          onStoryDeleted={() => fetchFeedStories()}
+          onStoryDeleted={() => fetchFeedStories(true)}
           seedStories={storiesToUse}
         />
       )}
@@ -352,7 +356,7 @@ export function StoriesCarousel({
         onClose={() => setCreateModalOpen(false)}
         onStoryCreated={() => {
           setCreateModalOpen(false)
-          fetchFeedStories()
+          fetchFeedStories(true)
         }}
       />
     </>

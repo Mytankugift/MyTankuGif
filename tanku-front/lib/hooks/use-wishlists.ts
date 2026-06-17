@@ -4,6 +4,7 @@
 
 'use client'
 
+import { useCallback } from 'react'
 import { useWishlistsStore } from '@/lib/stores/wishlists-store'
 
 export function useWishLists() {
@@ -18,11 +19,19 @@ export function useWishLists() {
   const addItemToWishList = useWishlistsStore((s) => s.addItemToWishList)
   const removeItemFromWishList = useWishlistsStore((s) => s.removeItemFromWishList)
 
+  // ✅ Estable: sin esto, el wrapper se recreaba en cada render y los consumidores
+  // que lo ponen en deps de useEffect (wishlist-viewer, my-wishlists) entraban en
+  // bucle infinito de /wishlists.
+  const fetchWishListsForced = useCallback(
+    () => fetchWishLists({ force: true }),
+    [fetchWishLists],
+  )
+
   return {
     wishLists,
     isLoading,
     error,
-    fetchWishLists: () => fetchWishLists({ force: true }),
+    fetchWishLists: fetchWishListsForced,
     ensureWishListsLoaded,
     createWishList,
     updateWishList,
