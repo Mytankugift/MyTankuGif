@@ -93,8 +93,8 @@ export default function AdminHomePage() {
       description: 'Reportes y métricas del sistema',
       icon: ChartBarIcon,
       color: 'bg-indigo-500',
-      href: '#',
-      status: 'coming-soon'
+      href: '/analytics',
+      status: 'active'
     },
     {
       id: 'settings',

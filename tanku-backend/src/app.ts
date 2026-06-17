@@ -376,6 +376,10 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/support-cases`, supportCasesRoutes);
 import adminSupportCasesRoutes from './modules/admin/admin-support-cases/admin-support-cases.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/admin/support-cases`, adminSupportCasesRoutes);
 
+// Admin Analytics routes
+import adminAnalyticsRoutes from './modules/admin/admin-analytics/admin-analytics.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/admin/analytics`, adminAnalyticsRoutes);
+
 /**
  * Manejo de errores 404
  */

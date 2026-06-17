@@ -68,6 +68,10 @@ export function buildAdminNavPath(pathname: string | null): NavSegment[] | null 
     return [{ label: 'Postventa', href: '/support-cases' }]
   }
 
+  if (pathname === '/analytics' || pathname.startsWith('/analytics/')) {
+    return [{ label: 'Analíticas', href: '/analytics' }]
+  }
+
   if (pathname === '/settings' || pathname.startsWith('/settings/')) {
     const segments: NavSegment[] = [{ label: 'Configuración', href: '/settings' }]
     const sub = SETTINGS_PAGES[pathname]
@@ -122,6 +126,10 @@ export function buildAdminNavDescription(pathname: string | null): string | null
 
   if (pathname === '/support-cases' || pathname.startsWith('/support-cases/')) {
     return 'Solicitudes de postventa reportadas por usuarios'
+  }
+
+  if (pathname === '/analytics' || pathname.startsWith('/analytics/')) {
+    return 'Métricas y reportes de la plataforma'
   }
 
   const settingsSub = SETTINGS_PAGES[pathname]

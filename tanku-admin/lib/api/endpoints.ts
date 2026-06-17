@@ -5,6 +5,22 @@ const normalizeUrl = (url: string): string => {
 
 const API_BASE = normalizeUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000')
 
+export interface AnalyticsRangeParams {
+  from?: string
+  to?: string
+  granularity?: 'day' | 'week' | 'month'
+}
+
+const buildAnalyticsQuery = (params?: AnalyticsRangeParams): string => {
+  if (!params) return ''
+  const search = new URLSearchParams()
+  if (params.from) search.set('from', params.from)
+  if (params.to) search.set('to', params.to)
+  if (params.granularity) search.set('granularity', params.granularity)
+  const qs = search.toString()
+  return qs ? `?${qs}` : ''
+}
+
 export const API_ENDPOINTS = {
   EMAIL: {
     TEST: `${API_BASE}/api/v1/email/test`,
@@ -109,6 +125,24 @@ export const API_ENDPOINTS = {
       EMAIL_GIFT_PREVIEW: `${API_BASE}/api/v1/admin/system/email/gift-preview`,
       EMAIL_GIFT_PREVIEW_RENDER: `${API_BASE}/api/v1/admin/system/email/gift-preview/render`,
       SUPPORT_CASES_CONFIG: `${API_BASE}/api/v1/admin/system/support-cases/config`,
+    },
+    ANALYTICS: {
+      OVERVIEW: (params?: AnalyticsRangeParams) =>
+        `${API_BASE}/api/v1/admin/analytics/overview${buildAnalyticsQuery(params)}`,
+      SALES: (params?: AnalyticsRangeParams) =>
+        `${API_BASE}/api/v1/admin/analytics/sales${buildAnalyticsQuery(params)}`,
+      USERS: (params?: AnalyticsRangeParams) =>
+        `${API_BASE}/api/v1/admin/analytics/users${buildAnalyticsQuery(params)}`,
+      GIFTS: (params?: AnalyticsRangeParams) =>
+        `${API_BASE}/api/v1/admin/analytics/gifts${buildAnalyticsQuery(params)}`,
+      SUPPORT: (params?: AnalyticsRangeParams) =>
+        `${API_BASE}/api/v1/admin/analytics/support${buildAnalyticsQuery(params)}`,
+      OPERATIONS: (params?: AnalyticsRangeParams) =>
+        `${API_BASE}/api/v1/admin/analytics/operations${buildAnalyticsQuery(params)}`,
+      CATALOG: (params?: AnalyticsRangeParams) =>
+        `${API_BASE}/api/v1/admin/analytics/catalog${buildAnalyticsQuery(params)}`,
+      SOCIAL: (params?: AnalyticsRangeParams) =>
+        `${API_BASE}/api/v1/admin/analytics/social${buildAnalyticsQuery(params)}`,
     },
   },
 } as const
