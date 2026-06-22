@@ -213,7 +213,7 @@ export function ShareWithFriendsModal({
             placeholder="Buscar amigos…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={clsx(tankuOrderModalInputClass, 'py-2 text-sm')}
+            className={clsx(tankuOrderModalInputClass, 'py-2')}
           />
         </div>
 

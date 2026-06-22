@@ -1275,11 +1275,11 @@ export function PosterDetailContent({
               role="presentation"
             >
               <div
-                className={`absolute bottom-0 left-0 right-0 grid max-h-[92dvh] min-h-0 w-full grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-t-2xl transition-transform duration-200 ${
+                className={`absolute bottom-0 left-0 right-0 grid max-h-[92dvh] min-h-0 w-full grid-rows-[auto_minmax(0,1fr)_auto] rounded-t-2xl transition-transform duration-200 ${
                   isPageView
                     ? 'h-[min(72dvh,92dvh)] bg-[#171B21]'
                     : 'h-[min(72dvh,92dvh)] border-t border-white/10 bg-[var(--color-surface-191e23-20)]'
-                } ${isCommentsSheetOpen ? 'translate-y-0' : 'translate-y-full'}`}
+                } ${isCommentsSheetOpen ? 'translate-y-0' : 'translate-y-full'} overflow-visible`}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div
@@ -1348,12 +1348,12 @@ export function PosterDetailContent({
 
                 {token ? (
                   <div
-                    className={`shrink-0 border-t p-4 pb-[max(1rem,calc(1rem+env(safe-area-inset-bottom,0px)))] ${postPageBg} ${
+                    className={`relative z-20 shrink-0 overflow-visible border-t p-4 pb-[max(1rem,calc(1rem+env(safe-area-inset-bottom,0px)))] ${postPageBg} ${
                       isPageView ? 'border-white/[0.08]' : 'border-white/10'
                     }`}
                   >
-                    <form onSubmit={handleComment} className="flex gap-2">
-                      <div className="relative min-w-0 flex-1">
+                    <form onSubmit={handleComment} className="flex gap-2 overflow-visible">
+                      <div className="relative min-w-0 flex-1 overflow-visible">
                         <UserMentionAutocomplete
                           value={commentText}
                           onChange={setCommentText}
