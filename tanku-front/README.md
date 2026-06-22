@@ -73,6 +73,16 @@ NEXT_PUBLIC_SOCKET_URL=http://localhost:9000
 
 Ver `ROADMAP_FRONTEND.md` para el plan completo de desarrollo.
 
+Documentación interna del equipo (carpeta `_meta`, no en git): abre **`_meta/README.md`** → tabla **«Resumen de features»** con estado, fechas y pendientes de analíticas, feed, notificaciones, tracking, etc.
+
+### Rendimiento en desarrollo local
+
+Al abrir el **modal de producto** desde el feed, `GET /api/v1/products/:handle` puede tardar más en local que en producción. En prod el comportamiento observado es rápido. Causas habituales en dev: API + PostgreSQL en la misma máquina, queries secuenciales del backend y ausencia de la red del deploy.
+
+El front ya hace **prefetch** al tocar la card (`pointerDown`/`touchStart`/hover) y cachea 10 min (`lib/hooks/use-product.ts`). Si la segunda apertura del mismo producto es instantánea, el cuello es la petición inicial, no el render.
+
+Detalle completo: `_meta/README.md` → sección «Notas: rendimiento local vs producción».
+
 ## 🎯 Estado Actual
 
 - ✅ FASE 0: Setup inicial completado

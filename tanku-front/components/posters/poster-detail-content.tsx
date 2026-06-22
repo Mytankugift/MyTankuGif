@@ -580,10 +580,10 @@ export function PosterDetailContent({
   const mediaMinHeightClass = embeddedInModal
     ? isVideoPost
       ? 'max-md:min-h-0 max-md:max-h-none md:min-h-0 md:flex-1'
-      : 'max-md:min-h-[220px] max-md:max-h-[50vh] md:min-h-0 md:flex-1'
+      : 'max-md:min-h-0 max-md:flex-1 max-md:max-h-[min(48dvh,calc(100vw*5/4))] md:min-h-0 md:flex-1'
     : isVideoPost
-      ? 'min-h-0 max-md:max-h-none lg:min-h-0 lg:flex-1'
-      : 'min-h-[58dvh] lg:min-h-0 lg:flex-1'
+      ? 'min-h-0 max-md:max-h-[min(52dvh,calc(100vw-2rem))] lg:min-h-0 lg:flex-1'
+      : 'min-h-0 max-md:max-h-[min(52dvh,calc(100vw-2rem))] lg:min-h-0 lg:flex-1'
   /** Desktop página: imagen centrada en el espacio libre; descripción anclada abajo */
   const pageViewMediaWrapperClass = isPageView
     ? embeddedInModal
@@ -659,7 +659,7 @@ export function PosterDetailContent({
             embeddedInModal
               ? 'block w-full max-w-full object-contain max-md:max-h-[min(42dvh,calc(100vw-1.5rem))] md:max-h-full md:max-w-full md:h-full md:w-full'
               : usePageLikeMobile
-                ? 'block w-full max-w-full object-contain max-h-[min(58dvh,calc(100vw-2rem))] lg:max-h-full lg:h-full lg:w-full'
+                ? 'block w-full max-w-full object-contain max-h-[min(52dvh,calc(100vw-2rem))] lg:max-h-full lg:h-full lg:w-full'
                 : 'h-full w-full max-h-full max-w-full object-contain'
           }
         />
@@ -702,7 +702,7 @@ export function PosterDetailContent({
       className={
         isPageView
           ? embeddedInModal
-            ? 'flex min-h-0 flex-col max-md:h-auto md:h-full'
+            ? 'flex min-h-0 flex-col max-md:h-full max-md:min-h-0 md:h-full'
             : 'flex h-full min-h-0 flex-col'
           : 'flex h-full flex-col'
       }
@@ -777,11 +777,28 @@ export function PosterDetailContent({
               )}
             </button>
             {!embeddedInModal ? (
-              <h2 className="min-w-0 flex-1 text-center text-sm font-semibold text-white">Publicación</h2>
+              <>
+                <button
+                  type="button"
+                  onClick={handleGoToProfile}
+                  className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-left lg:hidden"
+                >
+                  <UserAvatar user={poster.author} size={32} />
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold leading-tight text-white">{authorName}</p>
+                    {accountHandle ? (
+                      <p className="truncate text-[11px] leading-tight text-gray-400">{accountHandle}</p>
+                    ) : null}
+                  </div>
+                </button>
+                <h2 className="hidden min-w-0 flex-1 truncate text-center text-sm font-semibold text-white lg:block">
+                  Publicación
+                </h2>
+              </>
             ) : (
               <div className="hidden min-w-0 flex-1 md:block" aria-hidden />
             )}
-            <div className="flex max-w-[min(72%,300px)] shrink-0 items-center gap-2 sm:max-w-[min(65%,340px)]">
+            <div className={`flex shrink-0 items-center gap-2 ${embeddedInModal ? 'max-w-[min(72%,300px)] sm:max-w-[min(65%,340px)]' : ''}`}>
               {isOwner && (
                 <div className="relative flex-shrink-0">
                   <button
@@ -813,27 +830,6 @@ export function PosterDetailContent({
             </div>
           </div>
           <div className={`h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/[0.14] to-transparent ${embeddedInModal ? 'max-md:hidden' : ''}`} aria-hidden />
-            </>
-          )}
-          {!embeddedInModal && (
-            <>
-          {/* Debajo del nav: nombre + @ + avatar alineados a la derecha — tablet / móvil */}
-          <div className={`flex justify-end px-4 py-2.5 ${hideBelowSplit} ${postPageBg}`}>
-            <button
-              type="button"
-              onClick={handleGoToProfile}
-              className="flex max-w-full items-center gap-3 rounded-xl py-1 pl-2 text-right transition-colors hover:bg-white/[0.04]"
-            >
-              <div className="min-w-0 text-right">
-                <p className="truncate font-semibold text-white">{authorName}</p>
-                {accountHandle ? (
-                  <p className="truncate text-sm text-gray-400">{accountHandle}</p>
-                ) : null}
-              </div>
-              <UserAvatar user={poster.author} size={40} />
-            </button>
-          </div>
-          <div className={`h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/[0.1] to-transparent ${hideBelowSplit}`} aria-hidden />
             </>
           )}
         </div>
@@ -909,12 +905,12 @@ export function PosterDetailContent({
 
       {/* Content */}
       <div
-        className={`flex min-h-0 flex-col overflow-hidden ${embeddedInModal ? 'max-md:flex-none md:flex-1' : 'flex-1'} ${splitRowClass} ${isPageView && !embeddedInModal ? 'lg:min-h-0 lg:flex-1' : ''} ${!embeddedInModal && !isPageView ? 'overflow-y-auto' : ''} ${postPageBg}`}
+        className={`flex min-h-0 flex-col overflow-hidden ${embeddedInModal ? 'max-md:min-h-0 max-md:flex-1 md:flex-1' : 'flex-1'} ${splitRowClass} ${isPageView && !embeddedInModal ? 'lg:min-h-0 lg:flex-1' : ''} ${!embeddedInModal && !isPageView ? 'overflow-y-auto' : ''} ${postPageBg}`}
       >
         {isPageView ? (
-          <div className={`flex min-h-0 flex-col ${leftColClass} ${postPageBg} ${embeddedInModal ? '' : 'lg:h-full'}`}>
+          <div className={`flex min-h-0 flex-col ${leftColClass} ${postPageBg} ${embeddedInModal ? 'max-md:flex-1 max-md:min-h-0' : 'lg:h-full'}`}>
             <div
-              className={`relative flex ${mediaMinHeightClass} max-md:flex-none items-center justify-center px-2 pt-2 ${pageViewMediaWrapperClass} ${
+              className={`relative flex ${mediaMinHeightClass} ${embeddedInModal ? 'max-md:flex-1 max-md:min-h-0' : 'max-md:flex-none'} items-center justify-center px-2 pt-2 ${pageViewMediaWrapperClass} ${
                 isVideoPost ? 'max-md:overflow-visible max-md:pb-2' : 'overflow-hidden'
               }`}
             >
@@ -948,7 +944,7 @@ export function PosterDetailContent({
         {/* Bloque inferior en mobile page view: acciones + fecha + descripción */}
         {usePageLikeMobile && (
           <div
-            className={`space-y-2.5 px-4 py-3 ${hideBelowSplit} ${postPageBg} ${
+            className={`space-y-2.5 px-4 py-3 shrink-0 ${hideBelowSplit} ${postPageBg} ${
               isPageView ? 'border-t border-white/[0.08]' : innerRule(`border-t ${postPageDivider}`)
             }`}
           >

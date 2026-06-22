@@ -17,3 +17,5 @@ export const tankuVerticalModalPanelClass = 'tanku-vertical-modal-panel'
 export const TANKU_POSTER_MODAL_Z = 1_000_003
 /** Sheet de comentarios en móvil — debe quedar sobre el modal de publicación */
 export const TANKU_POSTER_COMMENTS_SHEET_Z = TANKU_POSTER_MODAL_Z + 1
+/** Dropdown de menciones @ — sobre modal y sheet de comentarios */
+export const TANKU_MENTION_SUGGESTIONS_Z = TANKU_POSTER_COMMENTS_SHEET_Z + 1

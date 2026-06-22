@@ -80,9 +80,9 @@ export class UsersService {
   }
 
   /**
-   * Buscar usuarios por nombre o email (para autocompletado de menciones)
-   * Si query está vacío, retorna usuarios recientes
-   * Filtra usuarios bloqueados si se proporciona viewerUserId
+   * Buscar usuarios para autocompletado de menciones.
+   * Sin query: amigos aceptados del viewer. Con query: amigos primero, luego resto.
+   * Filtra bloqueados si hay viewerUserId.
    */
   async searchUsers(query: string, limit: number = 10, viewerUserId?: string): Promise<Array<{
     id: string;
@@ -91,102 +91,126 @@ export class UsersService {
     lastName: string | null;
     username: string | null;
     avatar: string | null;
+    isFriend: boolean;
   }>> {
-    let users;
+    const cappedLimit = Math.min(Math.max(limit, 1), 50);
+    const trimmedQuery = typeof query === 'string' ? query.trim() : '';
 
-    if (!query || query.trim().length < 1) {
-      // Si no hay query, retornar usuarios recientes (últimos creados)
-      users = await prisma.user.findMany({
-        orderBy: {
-          createdAt: 'desc',
-        },
-        take: limit,
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          username: true,
-          profile: {
-            select: {
-              avatar: true,
-            },
-          },
-        },
-      });
-    } else {
-      const searchTerm = query.trim().toLowerCase();
+    const userSelect = {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      username: true,
+      profile: { select: { avatar: true } },
+    } as const;
 
-      // Priorizar búsqueda por nombre completo, luego username
-      // Buscar por firstName + lastName combinado primero
-      users = await prisma.user.findMany({
-        where: {
-          OR: [
-            // Buscar por firstName o lastName individual
-            { firstName: { contains: searchTerm, mode: 'insensitive' } },
-            { lastName: { contains: searchTerm, mode: 'insensitive' } },
-            // Buscar por username
-            { username: { contains: searchTerm, mode: 'insensitive' } },
-            // Email solo como último recurso (no debería mostrarse)
-            { email: { contains: searchTerm, mode: 'insensitive' } },
-          ],
-        },
-        take: limit,
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          username: true,
-          profile: {
-            select: {
-              avatar: true,
-            },
-          },
-        },
-      });
-    }
+    const blockedUserIds = new Set<string>();
+    const friendIds = new Set<string>();
 
-    // Filtrar usuarios bloqueados si hay viewerUserId
     if (viewerUserId) {
-      const blockedUserIds = new Set<string>();
-      
-      // Usuarios que el viewer bloqueó
-      const blockedByViewer = await prisma.friend.findMany({
-        where: {
-          userId: viewerUserId,
-          status: 'blocked',
-        },
-        select: {
-          friendId: true,
-        },
-      });
-      blockedByViewer.forEach(b => blockedUserIds.add(b.friendId));
+      const [blockedByViewer, blockedViewer, acceptedRelations] = await Promise.all([
+        prisma.friend.findMany({
+          where: { userId: viewerUserId, status: 'blocked' },
+          select: { friendId: true },
+        }),
+        prisma.friend.findMany({
+          where: { friendId: viewerUserId, status: 'blocked' },
+          select: { userId: true },
+        }),
+        prisma.friend.findMany({
+          where: {
+            status: 'accepted',
+            OR: [{ userId: viewerUserId }, { friendId: viewerUserId }],
+          },
+          select: { userId: true, friendId: true },
+        }),
+      ]);
 
-      // Usuarios que bloquearon al viewer
-      const blockedViewer = await prisma.friend.findMany({
-        where: {
-          friendId: viewerUserId,
-          status: 'blocked',
-        },
-        select: {
-          userId: true,
-        },
+      blockedByViewer.forEach((b) => blockedUserIds.add(b.friendId));
+      blockedViewer.forEach((b) => blockedUserIds.add(b.userId));
+      acceptedRelations.forEach((r) => {
+        const otherId = r.userId === viewerUserId ? r.friendId : r.userId;
+        if (!blockedUserIds.has(otherId)) friendIds.add(otherId);
       });
-      blockedViewer.forEach(b => blockedUserIds.add(b.userId));
-
-      // Filtrar usuarios bloqueados
-      users = users.filter(user => !blockedUserIds.has(user.id));
     }
 
-    return users.map(user => ({
+    const mapUser = (user: {
+      id: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      username: string | null;
+      profile: { avatar: string | null } | null;
+    }, isFriend: boolean) => ({
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
       username: user.username || null,
       avatar: user.profile?.avatar || null,
-    }));
+      isFriend,
+    });
+
+    if (!viewerUserId) {
+      return [];
+    }
+
+    if (!trimmedQuery) {
+      const friendIdList = Array.from(friendIds);
+      if (friendIdList.length === 0) return [];
+
+      const friends = await prisma.user.findMany({
+        where: { id: { in: friendIdList } },
+        take: cappedLimit,
+        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }, { username: 'asc' }],
+        select: userSelect,
+      });
+
+      return friends.map((u) => mapUser(u, true));
+    }
+
+    const searchTerm = trimmedQuery.toLowerCase();
+    const textMatch = {
+      OR: [
+        { firstName: { contains: searchTerm, mode: 'insensitive' as const } },
+        { lastName: { contains: searchTerm, mode: 'insensitive' as const } },
+        { username: { contains: searchTerm, mode: 'insensitive' as const } },
+        { email: { contains: searchTerm, mode: 'insensitive' as const } },
+      ],
+    };
+
+    const friendIdList = Array.from(friendIds);
+    const friendMatches =
+      friendIdList.length > 0
+        ? await prisma.user.findMany({
+            where: { id: { in: friendIdList }, ...textMatch },
+            take: cappedLimit,
+            orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }, { username: 'asc' }],
+            select: userSelect,
+          })
+        : [];
+
+    const excludeIds = new Set<string>([viewerUserId, ...blockedUserIds, ...friendMatches.map((u) => u.id)]);
+    const remaining = cappedLimit - friendMatches.length;
+
+    const otherMatches =
+      remaining > 0
+        ? await prisma.user.findMany({
+            where: {
+              id: { notIn: Array.from(excludeIds) },
+              ...textMatch,
+            },
+            take: remaining,
+            orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }, { username: 'asc' }],
+            select: userSelect,
+          })
+        : [];
+
+    return [
+      ...friendMatches.map((u) => mapUser(u, true)),
+      ...otherMatches.map((u) => mapUser(u, false)),
+    ];
   }
 
   /**

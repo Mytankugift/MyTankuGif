@@ -238,5 +238,6 @@ export interface BehaviorAnalytics {
     items: { key: string; label: string; actors: number; conversionFromOpen: number | null }[]
   }
   retention: { cohorts: RetentionCohort[]; weekOffsets: number[] }
+  /** Productos con más aperturas (`product_click`). `value` = totales; `extra` = actores únicos. */
   topOpenedProducts: RankingItem[]
 }

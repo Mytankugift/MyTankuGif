@@ -580,7 +580,7 @@ export class UsersController {
 
   /**
    * GET /api/v1/users/search?q=...
-   * Buscar usuarios para autocompletado de menciones
+   * Autocompletado de menciones: sin q devuelve amigos; con q prioriza amigos y rellena con otros usuarios.
    */
   searchUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {

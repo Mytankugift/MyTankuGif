@@ -6,8 +6,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import Image from 'next/image'
 
-/** Por encima de modales de post/producto (1000003), por debajo del nav móvil global cuando el modal no está abierto */
-const MENTION_SUGGESTIONS_Z = 100_600
+import { TANKU_MENTION_SUGGESTIONS_Z } from '@/lib/ui/tanku-modal-surface'
 
 interface User {
   id: string
@@ -16,6 +15,7 @@ interface User {
   lastName: string | null
   username: string | null
   avatar: string | null
+  isFriend?: boolean
 }
 
 interface UserMentionAutocompleteProps {
@@ -71,6 +71,7 @@ function UserSuggestionItem({
   return (
     <button
       type="button"
+      onPointerDown={(e) => e.preventDefault()}
       onClick={onSelect}
       className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-700 transition-colors ${
         isSelected ? 'bg-gray-700' : ''
@@ -121,13 +122,36 @@ export function UserMentionAutocomplete({
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [mentionQuery, setMentionQuery] = useState('')
   const [mentionStart, setMentionStart] = useState(-1)
-  const [suggestionsPosition, setSuggestionsPosition] = useState({ top: 0, left: 0, width: 0 })
+  const [suggestionsPosition, setSuggestionsPosition] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+    placement: 'above' as 'above' | 'below',
+  })
   const [displayValue, setDisplayValue] = useState('') // Valor mostrado (sin IDs)
   const [internalValue, setInternalValue] = useState('') // Valor real (con IDs)
   const mentionMapRef = useRef<Map<string, string>>(new Map()) // Mapa userId -> @NombreCompleto
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const updateSuggestionsPosition = () => {
+    if (!inputRef.current) return
+    const rect = inputRef.current.getBoundingClientRect()
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+    const dropdownMaxHeight = 240
+    const spaceAbove = rect.top
+    const spaceBelow = viewportHeight - rect.bottom
+    const placement =
+      spaceAbove >= dropdownMaxHeight || spaceAbove >= spaceBelow ? 'above' : 'below'
+
+    setSuggestionsPosition({
+      top: placement === 'above' ? rect.top - 4 : rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+      placement,
+    })
+  }
   
   // Sincronizar displayValue cuando cambia el value externo
   // IMPORTANTE: Siempre ocultar IDs en displayValue, incluso si value viene con IDs
@@ -232,16 +256,8 @@ export function UserMentionAutocomplete({
           }
         }, 300)
         
-        // Actualizar posición del popup (arriba del input)
-        if (inputRef.current) {
-          const rect = inputRef.current.getBoundingClientRect()
-          // Portal + position:fixed → solo coordenadas de viewport (sin scrollY/scrollX)
-          setSuggestionsPosition({
-            top: rect.top - 4,
-            left: rect.left,
-            width: rect.width,
-          })
-        }
+        // Actualizar posición del popup
+        updateSuggestionsPosition()
       } else {
         // Limpiar timeout si no hay @ activo
         if (searchTimeoutRef.current) {
@@ -269,22 +285,16 @@ export function UserMentionAutocomplete({
   useEffect(() => {
     if (!showSuggestions) return
 
-    const updatePos = () => {
-      if (!inputRef.current) return
-      const rect = inputRef.current.getBoundingClientRect()
-      setSuggestionsPosition({
-        top: rect.top - 4,
-        left: rect.left,
-        width: rect.width,
-      })
-    }
+    const updatePos = () => updateSuggestionsPosition()
 
     updatePos()
     window.addEventListener('scroll', updatePos, true)
     window.addEventListener('resize', updatePos)
+    window.visualViewport?.addEventListener('resize', updatePos)
     return () => {
       window.removeEventListener('scroll', updatePos, true)
       window.removeEventListener('resize', updatePos)
+      window.visualViewport?.removeEventListener('resize', updatePos)
     }
   }, [showSuggestions])
 
@@ -557,26 +567,40 @@ export function UserMentionAutocomplete({
           ref={suggestionsRef}
           className="fixed bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto custom-scrollbar"
           style={{
-            zIndex: MENTION_SUGGESTIONS_Z,
+            zIndex: TANKU_MENTION_SUGGESTIONS_Z,
             top: `${suggestionsPosition.top}px`,
             left: `${suggestionsPosition.left}px`,
             width: `${suggestionsPosition.width || 300}px`,
-            transform: 'translateY(-100%)',
-            marginTop: '-4px',
+            transform: suggestionsPosition.placement === 'above' ? 'translateY(-100%)' : undefined,
           }}
         >
           {suggestions.map((user, index) => {
             const displayName = getUserDisplayName(user)
             const username = getUserUsername(user)
+            const showOthersHeader =
+              index > 0 &&
+              suggestions[index - 1]?.isFriend === true &&
+              user.isFriend === false
             return (
-              <UserSuggestionItem
-                key={user.id}
-                user={user}
-                displayName={displayName}
-                username={username}
-                isSelected={index === selectedIndex}
-                onSelect={() => insertMention(user)}
-              />
+              <React.Fragment key={user.id}>
+                {index === 0 && user.isFriend ? (
+                  <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                    Amigos
+                  </p>
+                ) : null}
+                {showOthersHeader ? (
+                  <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                    Otros
+                  </p>
+                ) : null}
+                <UserSuggestionItem
+                  user={user}
+                  displayName={displayName}
+                  username={username}
+                  isSelected={index === selectedIndex}
+                  onSelect={() => insertMention(user)}
+                />
+              </React.Fragment>
             )
           })}
         </div>,

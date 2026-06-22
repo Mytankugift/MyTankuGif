@@ -52,6 +52,9 @@ const BEHAVIOR_FUNNEL_STEPS: { key: string; label: string }[] = [
   { key: 'add_to_cart', label: 'Agregó al carrito' },
 ];
 
+/** Impresiones pasivas del feed global: excluidas del donut «Eventos por tipo». */
+const BEHAVIOR_DONUT_EXCLUDED_EVENT_TYPES = ['product_view'] as const;
+
 export class AdminAnalyticsService {
   // ----------------------------------------------------------------------------
   // VENTAS
@@ -1122,7 +1125,10 @@ export class AdminAnalyticsService {
   private async behaviorEventsByType(from: Date, to: Date): Promise<DistributionItem[]> {
     const grouped = await prisma.analyticsEvent.groupBy({
       by: ['eventType'],
-      where: { createdAt: { gte: from, lt: to } },
+      where: {
+        createdAt: { gte: from, lt: to },
+        eventType: { notIn: [...BEHAVIOR_DONUT_EXCLUDED_EVENT_TYPES] },
+      },
       _count: { _all: true },
     });
     return grouped
@@ -1340,7 +1346,10 @@ export class AdminAnalyticsService {
   // NO usa `product_view` (impresión por scroll), que mide exposición pasiva.
   private async behaviorTopOpenedProducts(from: Date, to: Date): Promise<RankingItem[]> {
     const sql = `
-      SELECT p.id AS id, p.title AS title, COUNT(*)::int AS opens
+      SELECT p.id AS id,
+        p.title AS title,
+        COUNT(*)::int AS opens,
+        COUNT(DISTINCT ${BEHAVIOR_ACTOR})::int AS unique_actors
       FROM analytics_events ae
       JOIN products p ON p.id = ae.entity_id
       WHERE ae.event_type = 'product_click'
@@ -1351,7 +1360,12 @@ export class AdminAnalyticsService {
       LIMIT ${TOP_LIMIT}
     `;
     const rows = await prisma.$queryRawUnsafe<any[]>(sql, from, to);
-    return rows.map((r) => ({ id: r.id, label: r.title, value: Number(r.opens) }));
+    return rows.map((r) => ({
+      id: r.id,
+      label: r.title,
+      value: Number(r.opens),
+      extra: Number(r.unique_actors),
+    }));
   }
 
   private rangeMeta(range: ResolvedRange): RangeMeta {

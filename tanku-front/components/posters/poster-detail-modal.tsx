@@ -145,7 +145,8 @@ export function PosterDetailModal({
         className={clsx(
           'relative flex w-full max-w-6xl flex-col overflow-hidden',
           tankuOrderModalPanelClass,
-          'max-md:h-auto max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-bottom,0px))]',
+          'max-md:h-[min(88dvh,calc(100dvh-2rem-env(safe-area-inset-bottom,0px)))]',
+          'max-md:min-h-[min(88dvh,calc(100dvh-2rem-env(safe-area-inset-bottom,0px)))]',
           'md:h-[580px] md:max-h-[580px]',
           'lg:h-[680px] lg:max-h-[680px]',
         )}
@@ -175,7 +176,7 @@ export function PosterDetailModal({
         <div
           className={clsx(
             'tanku-modal-scrollbar flex min-h-0 flex-col pr-0.5',
-            'max-md:min-h-0 max-md:overflow-x-hidden max-md:overflow-y-auto max-md:overscroll-y-contain max-md:touch-pan-y max-md:[-webkit-overflow-scrolling:touch]',
+            'max-md:min-h-0 max-md:flex-1 max-md:overflow-hidden max-md:overscroll-y-contain max-md:touch-pan-y max-md:[-webkit-overflow-scrolling:touch]',
             'md:h-full md:min-h-0 md:flex-1 md:overflow-hidden md:pr-0',
           )}
           style={{

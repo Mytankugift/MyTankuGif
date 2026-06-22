@@ -44,9 +44,9 @@ const METRIC_HELP: { term: string; desc: string }[] = [
   { term: 'Usuarios activos diarios (DAU)', desc: 'Serie con los actores únicos por día y el total de eventos por día. Útil para ver tendencia de actividad.' },
   { term: 'Embudo de adquisición', desc: 'Pasos secuenciales: Vio en feed (impresión) → Abrió detalle → Agregó al carrito. El % a la derecha es la conversión respecto al paso anterior (dónde se cae la gente). La impresión es exposición pasiva (la card pasó por pantalla); abrir detalle ya es interés real.' },
   { term: 'Resultados', desc: 'Desenlaces alternativos desde «Abrió detalle» (NO son secuenciales entre sí): Agregó a wishlist, Compró para sí (compra propia, no regalo) e Inició regalo. El % es respecto a los actores que abrieron detalle. Un mismo actor puede caer en varios.' },
-  { term: 'Eventos por tipo', desc: 'Distribución de los eventos según su tipo (impresiones, aperturas, carrito, etc.) en el rango.' },
+  { term: 'Eventos por tipo', desc: 'Distribución de interacciones reales en el rango (clics, carrito, wishlist, compra, etc.). No incluye impresiones pasivas del feed (`product_view`), que con el ranking global actual distorsionan el gráfico; esas impresiones sí aparecen en el embudo como paso de exposición.' },
   { term: 'Retención semanal por cohorte', desc: 'Agrupa a los usuarios registrados por la semana de su primer evento (cohorte) y muestra el % que vuelve en las semanas siguientes (S0, S1, S2…). Necesita varias semanas de datos para llenarse.' },
-  { term: 'Top productos abiertos', desc: 'Productos con más aperturas de detalle (evento product_click: abrir el modal del feed o entrar a la página del producto). Mide interés real, no impresiones de scroll.' },
+  { term: 'Top productos abiertos', desc: 'Productos con más aperturas de detalle (`product_click`: modal del feed o página del producto). «Aperturas totales» cuenta cada apertura; «Usuarios únicos» cuenta cuentas o sesiones distintas que abrieron al menos una vez. Mide interés activo, no impresiones de scroll.' },
 ]
 
 const FUNNEL_HELP: { term: string; desc: string }[] = [
@@ -242,11 +242,21 @@ export function BehaviorTab({ data }: { data: BehaviorAnalytics }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Eventos por tipo" subtitle="Distribución en el periodo">
+        <ChartCard
+          title="Eventos por tipo"
+          subtitle="Interacciones reales (sin impresiones pasivas del feed)"
+        >
           <DistributionDonut data={data.eventsByType} labels={EVENT_TYPE_LABELS} />
         </ChartCard>
-        <ChartCard title="Top productos abiertos" subtitle="Por aperturas de detalle (modal o página)">
-          <RankingTable items={data.topOpenedProducts} valueLabel="Aperturas" />
+        <ChartCard
+          title="Top productos abiertos"
+          subtitle="Aperturas de detalle (modal o página); ordenado por total"
+        >
+          <RankingTable
+            items={data.topOpenedProducts}
+            valueLabel="Aperturas totales"
+            extraColumns={[{ label: 'Usuarios únicos', getValue: (item) => item.extra }]}
+          />
         </ChartCard>
       </div>
 
