@@ -40,6 +40,8 @@ interface PosterDetailModalProps {
   onPostDeleted?: (posterId: string) => void
   onPostUpdated?: (posterId: string, updates: { likesCount?: number; isLiked?: boolean; commentsCount?: number }) => void
   onAuthRequired?: () => void
+  /** Feed / perfil: acciones junto a cerrar (⋯ propias, ir a /posts/:id si no). Landing: omitir. */
+  showModalHeaderActions?: boolean
 }
 
 interface Comment {
@@ -80,7 +82,16 @@ interface PosterDetail {
   }
 }
 
-export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose, onPostDeleted, onPostUpdated, onAuthRequired }: PosterDetailModalProps) {
+export function PosterDetailModal({
+  isOpen,
+  posterId,
+  initialPosterData,
+  onClose,
+  onPostDeleted,
+  onPostUpdated,
+  onAuthRequired,
+  showModalHeaderActions = false,
+}: PosterDetailModalProps) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -141,24 +152,26 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
         style={{ borderRadius: `${TANKU_CARD_SHELL_RADIUS_PX}px` }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative hidden flex-shrink-0 border-b border-white/[0.08] bg-[#171B21] md:block">
-          <div className="flex items-center gap-2 px-4 py-3">
-            <h2 className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-white">
-              Publicación
-            </h2>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                handleClose()
-              }}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10"
-              aria-label="Cerrar"
-            >
-              <XMarkIcon className="h-6 w-6" aria-hidden />
-            </button>
+        {!showModalHeaderActions ? (
+          <div className="relative hidden flex-shrink-0 border-b border-white/[0.08] bg-[#171B21] md:block">
+            <div className="flex items-center gap-2 px-4 py-3">
+              <h2 className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-white">
+                Publicación
+              </h2>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleClose()
+                }}
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10"
+                aria-label="Cerrar"
+              >
+                <XMarkIcon className="h-6 w-6" aria-hidden />
+              </button>
+            </div>
           </div>
-        </div>
+        ) : null}
         <div
           className={clsx(
             'tanku-modal-scrollbar flex min-h-0 flex-col pr-0.5',
@@ -174,6 +187,7 @@ export function PosterDetailModal({ isOpen, posterId, initialPosterData, onClose
             posterId={posterId}
             initialPosterData={initialPosterData}
             isPageView
+            showModalHeaderActions={showModalHeaderActions}
             onModalClose={handleClose}
             onPostDeleted={handlePostDeleted}
             onPostUpdated={onPostUpdated}

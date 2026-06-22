@@ -16,6 +16,7 @@ import { PosterCard } from '@/components/feed/poster-card'
 import { CreatePostModal } from '@/components/posters/create-post-modal'
 import { PosterDetailModal } from '@/components/posters/poster-detail-modal'
 import Image from 'next/image'
+import Link from 'next/link'
 import { CameraIcon, PlusIcon } from '@heroicons/react/24/outline'
 import { BaseNav } from '@/components/layout/base-nav'
 import { NavBackToFeedLink } from '@/components/layout/nav-back-to-feed'
@@ -448,10 +449,13 @@ function ProfileContent() {
               style={{ background: 'linear-gradient(135deg, #73FFA2 0%, #4A6153 20%, #4A6153 81%, #73FFA2 100%)' }}
             >
               <div className="grid grid-cols-2 items-center px-1 sm:px-2">
-                <div className="flex flex-col items-center justify-center">
+                <Link
+                  href="/friends"
+                  className="flex flex-col items-center justify-center transition-opacity hover:opacity-80"
+                >
                   <p className="text-lg sm:text-xl md:text-xl font-bold text-white">{friendsCount}</p>
                   <p className="text-[#73FFA2] text-xs sm:text-sm md:text-xs font-semibold">Amigos</p>
-                </div>
+                </Link>
                 <div className="flex flex-col items-center justify-center">
                   <p className="text-lg sm:text-xl md:text-xl font-bold text-white">{postsCount}</p>
                   <p className="text-[#73FFA2] text-xs sm:text-sm md:text-xs font-semibold">Publicaciones</p>
@@ -619,6 +623,7 @@ function ProfileContent() {
         <PosterDetailModal
           isOpen={isPosterModalOpen}
           posterId={selectedPosterId}
+          showModalHeaderActions
           initialPosterData={
             selectedPosterId
               ? (() => {

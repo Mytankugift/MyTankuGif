@@ -16,6 +16,13 @@ export interface ResolvedRange {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_RANGE_DAYS = 30;
 
+/** Fecha sin hora, p. ej. "2026-06-17" (lo que envía el filtro del ERP). */
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isDateOnly(value: unknown): boolean {
+  return typeof value === 'string' && DATE_ONLY_RE.test(value.trim());
+}
+
 function parseDate(value: unknown, field: string): Date | null {
   if (value === undefined || value === null || value === '') return null;
   const date = new Date(String(value));
@@ -45,7 +52,14 @@ export function resolveRange(query: {
 }): ResolvedRange {
   const granularity = parseGranularity(query.granularity);
 
-  const to = parseDate(query.to, 'to') ?? new Date();
+  let to = parseDate(query.to, 'to') ?? new Date();
+  // El ERP envía `to` como fecha sin hora (YYYY-MM-DD), que `new Date()` interpreta
+  // como medianoche UTC de ese día. Con el límite superior exclusivo (`created_at < to`)
+  // eso excluiría TODO lo ocurrido ese día. Avanzamos al inicio del día siguiente
+  // para incluir el día completo (clave para ver eventos de "hoy").
+  if (isDateOnly(query.to)) {
+    to = new Date(to.getTime() + DAY_MS);
+  }
   const from =
     parseDate(query.from, 'from') ?? new Date(to.getTime() - DEFAULT_RANGE_DAYS * DAY_MS);
 

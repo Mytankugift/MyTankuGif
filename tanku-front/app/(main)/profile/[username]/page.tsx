@@ -16,6 +16,7 @@ import { SocialLinksDisplay } from '@/components/profile/social-links-display'
 import { OtherProfileInsights } from '@/components/profile/other-profile-insights'
 import type { ProfileInsightsDTO } from '@/types/api'
 import { useFriends } from '@/lib/hooks/use-friends'
+import { track } from '@/lib/analytics/tracker'
 import { BaseNav } from '@/components/layout/base-nav'
 import { NavBackToFeedLink } from '@/components/layout/nav-back-to-feed'
 import { clsx } from 'clsx'
@@ -74,6 +75,7 @@ export default function OtherUserProfilePage() {
   const [isBlocking, setIsBlocking] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const trackedProfileRef = useRef<string | null>(null)
   const {
     sendFriendRequest,
     removeFriend,
@@ -83,6 +85,7 @@ export default function OtherUserProfilePage() {
     fetchRequests,
     requests,
     acceptRequest,
+    rejectRequest,
     fetchFriends,
     friends,
     cancelSentRequest,
@@ -202,6 +205,20 @@ export default function OtherUserProfilePage() {
     return () => clearTimeout(timeoutId)
   }, [friends, profileUser?.id, profileUser?.areFriends, username, currentUser?.id])
 
+  // ✅ Tracking: profile_view (una vez por perfil ajeno visitado)
+  useEffect(() => {
+    const viewedId = profileUser?.id
+    if (!viewedId || profileUser?.isOwnProfile) return
+    if (currentUser?.id && currentUser.id === viewedId) return
+    if (trackedProfileRef.current === viewedId) return
+    trackedProfileRef.current = viewedId
+    track('profile_view', {
+      entityType: 'user',
+      entityId: viewedId,
+      metadata: { source: 'profile', areFriends: profileUser?.areFriends ?? false },
+    })
+  }, [profileUser?.id, profileUser?.isOwnProfile, profileUser?.areFriends, currentUser?.id])
+
   // El conteo de amigos ahora viene del backend en getUserById
 
   // Verificar si hay solicitud pendiente o si son amigos
@@ -238,6 +255,20 @@ export default function OtherUserProfilePage() {
       } finally {
         setIsSendingRequest(false)
       }
+    }
+  }
+
+  const handleRejectRequest = async () => {
+    const request = requests.find((req) => req.userId === userId)
+    if (!request) return
+    setIsSendingRequest(true)
+    try {
+      await rejectRequest(request.id)
+      await fetchRequests()
+    } catch (error) {
+      console.error('Error rechazando solicitud:', error)
+    } finally {
+      setIsSendingRequest(false)
     }
   }
 
@@ -587,13 +618,24 @@ export default function OtherUserProfilePage() {
                   </button>
                 )}
                 {hasReceivedRequest && (
-                  <button
-                    onClick={handleAcceptRequest}
-                    disabled={isSendingRequest}
-                    className="w-full px-4 py-2 bg-[#73FFA2] hover:bg-[#66e891] text-gray-900 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSendingRequest ? 'Aceptando...' : 'Aceptar solicitud'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAcceptRequest}
+                      disabled={isSendingRequest}
+                      className="flex min-h-[2.75rem] flex-1 items-center justify-center rounded-[22px] border border-[#5bbf8a]/80 bg-[#73FFA2] px-3 py-2.5 text-sm font-semibold leading-snug text-gray-900 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-[opacity,transform] hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isSendingRequest ? '…' : 'Aceptar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRejectRequest}
+                      disabled={isSendingRequest}
+                      className="flex min-h-[2.75rem] flex-1 items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm font-semibold leading-snug text-zinc-300 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-colors hover:bg-white/[0.07] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isSendingRequest ? '…' : 'Rechazar'}
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -731,6 +773,7 @@ export default function OtherUserProfilePage() {
       <PosterDetailModal
         isOpen={isPosterModalOpen}
         posterId={selectedPosterId}
+        showModalHeaderActions
         initialPosterData={
           selectedPosterId
             ? (() => {

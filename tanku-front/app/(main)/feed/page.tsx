@@ -433,6 +433,7 @@ export default function FeedPage() {
         isOpen={isPosterModalOpen}
         posterId={selectedPosterId}
         initialPosterData={selectedPosterId ? items.find(item => item.id === selectedPosterId && item.type === 'poster') as any : null}
+        showModalHeaderActions
         onClose={() => {
           setIsPosterModalOpen(false)
           setSelectedPosterId(null)

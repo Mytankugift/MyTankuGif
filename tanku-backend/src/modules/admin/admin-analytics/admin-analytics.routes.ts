@@ -21,5 +21,6 @@ router.get('/support', adminAnalyticsController.getSupport);
 router.get('/operations', adminAnalyticsController.getOperations);
 router.get('/catalog', adminAnalyticsController.getCatalog);
 router.get('/social', adminAnalyticsController.getSocial);
+router.get('/behavior', adminAnalyticsController.getBehavior);
 
 export default router;

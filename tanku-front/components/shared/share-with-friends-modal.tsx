@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CheckIcon, LinkIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { CheckIcon, ArrowUpTrayIcon, LinkIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useChat } from '@/lib/hooks/use-chat'
 import { useSocket } from '@/lib/hooks/use-socket'
+import { canUseNativeShare, copyTextToClipboard, shareViaNative } from '@/lib/utils/web-share'
 import { UserAvatar } from '@/components/shared/user-avatar'
 import { TankuDialogOverlay } from '@/components/ui/tanku-dialog-overlay'
 import { tankuOrderModalInputClass } from '@/lib/ui/tanku-modal-surface'
@@ -54,6 +55,7 @@ export function ShareWithFriendsModal({
   const [isSending, setIsSending] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
+  const [canNativeShare, setCanNativeShare] = useState(false)
   const { createOrGetConversation, sendMessage: sendMessageChat } = useChat()
   const { sendMessage: sendSocketMessage, isConnected } = useSocket()
 
@@ -66,6 +68,14 @@ export function ShareWithFriendsModal({
     }
     void loadFriends()
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen || !shareUrl) {
+      setCanNativeShare(false)
+      return
+    }
+    setCanNativeShare(canUseNativeShare({ title, url: shareUrl }))
+  }, [isOpen, shareUrl, title])
 
   const loadFriends = async () => {
     setIsLoading(true)
@@ -91,13 +101,18 @@ export function ShareWithFriendsModal({
     })
   }
 
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl)
+  const handleShareLink = async () => {
+    const result = await shareViaNative({
+      title,
+      text: getShareMessage(),
+      url: shareUrl,
+    })
+    if (result === 'aborted' || result === 'shared') return
+
+    const ok = await copyTextToClipboard(shareUrl)
+    if (ok) {
       setLinkCopied(true)
       window.setTimeout(() => setLinkCopied(false), 2000)
-    } catch (err) {
-      console.error('Error copiando al portapapeles:', err)
     }
   }
 
@@ -168,16 +183,23 @@ export function ShareWithFriendsModal({
         <div className="shrink-0 space-y-3 border-b border-white/[0.08] px-4 py-3 sm:px-5">
           <button
             type="button"
-            onClick={() => void handleCopyLink()}
+            onClick={() => void handleShareLink()}
             className={clsx(
               actionButtonClass,
-              'flex w-full items-center justify-center gap-2 border border-white/15 bg-transparent text-gray-200 hover:bg-white/[0.06]',
+              canNativeShare
+                ? 'flex w-full items-center justify-center gap-2 bg-[#73FFA2] text-[#262626] hover:bg-[#66e891]'
+                : 'flex w-full items-center justify-center gap-2 border border-white/15 bg-transparent text-gray-200 hover:bg-white/[0.06]',
             )}
           >
             {linkCopied ? (
               <>
                 <CheckIcon className="h-4 w-4 text-[#73FFA2]" />
                 Enlace copiado
+              </>
+            ) : canNativeShare ? (
+              <>
+                <ArrowUpTrayIcon className="h-4 w-4" />
+                Compartir…
               </>
             ) : (
               <>

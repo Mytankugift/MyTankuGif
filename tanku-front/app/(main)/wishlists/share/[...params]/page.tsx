@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { apiClient } from '@/lib/api/client'
+import { track } from '@/lib/analytics/tracker'
 import { WishlistProductsModal } from '@/components/wishlists/wishlist-products-modal'
 import { startGoogleOAuth } from '@/lib/auth/google-oauth'
 import Image from 'next/image'
@@ -26,6 +27,7 @@ export default function SharedWishlistPage() {
   const [isSaved, setIsSaved] = useState(false)
   const [selectedWishlist, setSelectedWishlist] = useState<WishListDTO | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const trackedWishlistRef = useRef<string | null>(null)
 
   useEffect(() => {
     const loadWishlist = async () => {
@@ -50,6 +52,19 @@ export default function SharedWishlistPage() {
     }
     loadWishlist()
   }, [tokenOrPath])
+
+  // ✅ Tracking: wishlist_view (una vez por wishlist compartida abierta)
+  useEffect(() => {
+    if (!wishlist?.id || trackedWishlistRef.current === wishlist.id) return
+    trackedWishlistRef.current = wishlist.id
+    const ownerId = (wishlist as { userId?: string; ownerId?: string }).userId
+      ?? (wishlist as { userId?: string; ownerId?: string }).ownerId
+    track('wishlist_view', {
+      entityType: 'wishlist',
+      entityId: wishlist.id,
+      metadata: { source: 'share', ownerId, itemCount: wishlist.items?.length ?? 0 },
+    })
+  }, [wishlist])
 
   const handleAcceptWishlist = async () => {
     if (!isAuthenticated || !user?.id || !wishlist) {

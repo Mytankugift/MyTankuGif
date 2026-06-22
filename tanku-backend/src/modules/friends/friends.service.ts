@@ -5,6 +5,10 @@
  */
 
 import { prisma } from '../../config/database';
+import {
+  getFriendAcceptedCopy,
+  getFriendRequestCopy,
+} from '../notifications/friend-notification-copy';
 import { NotFoundError, BadRequestError, ConflictError, ForbiddenError } from '../../shared/errors/AppError';
 import {
   FriendDTO,
@@ -156,18 +160,24 @@ export class FriendsService {
         throw new ConflictError('Ya son amigos');
       }
       if (existingFriend.status === 'pending') {
+        if (existingFriend.userId === userId) {
+          const pending = await prisma.friend.findUnique({
+            where: { id: existingFriend.id },
+            include: {
+              friend: { include: { profile: true } },
+              user: { include: { profile: true } },
+            },
+          });
+          if (pending) {
+            return this.mapFriendToDTO(pending);
+          }
+        }
         throw new ConflictError('Ya existe una solicitud pendiente');
       }
       if (existingFriend.status === 'blocked') {
         throw new ConflictError('No puedes enviar solicitud a este usuario');
       }
     }
-
-    // Obtener información del usuario que envía la solicitud
-    const fromUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { firstName: true, lastName: true },
-    });
 
     // Crear solicitud de amistad
     const friend = await prisma.friend.create({
@@ -192,15 +202,18 @@ export class FriendsService {
 
     // Crear notificación para el usuario destino
     try {
-      const fromUserName = fromUser?.firstName || 'Alguien';
+      const { title, message } = getFriendRequestCopy(friend.user);
       await this.notificationsService.createNotification({
         userId: friendId,
         type: 'friend_request',
-        title: 'Nueva solicitud de amistad',
-        message: `${fromUserName} te envió una solicitud de amistad`,
+        title,
+        message,
         data: {
           fromUserId: userId,
+          actorId: userId,
           friendRequestId: friend.id,
+          fromUsername: friend.user.username,
+          fromAvatar: friend.user.profile?.avatar ?? null,
         },
       });
     } catch (error) {
@@ -313,12 +326,6 @@ export class FriendsService {
     }
 
     if (status === 'accepted') {
-      // Obtener información del usuario que acepta
-      const acceptingUser = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { firstName: true, lastName: true },
-      });
-
       // Aceptar: actualizar el estado
       const updated = await prisma.friend.update({
         where: { id: requestId },
@@ -347,17 +354,30 @@ export class FriendsService {
         console.error('Error creando conversación al aceptar amistad:', error);
       }
 
-      // Crear notificación para el usuario que envió la solicitud
+      // Quitar la solicitud pendiente del destinatario (ya la resolvió)
       try {
-        const acceptingUserName = acceptingUser?.firstName || 'Alguien';
-        await this.notificationsService.createNotification({
-          userId: request.userId,
-          type: 'friend_accepted',
-          title: 'Solicitud de amistad aceptada',
-          message: `${acceptingUserName} aceptó tu solicitud de amistad`,
+        await this.notificationsService.removeFriendRequestNotifications(request.friendId, {
+          friendRequestId: requestId,
+          fromUserId: request.userId,
+        });
+      } catch (error) {
+        console.error('Error eliminando notificación de solicitud aceptada:', error);
+      }
+
+      // Notificación agrupada para quien envió la solicitud (una fila por persona)
+      try {
+        const { title, message } = getFriendAcceptedCopy(request.friend);
+        await this.notificationsService.syncFriendAcceptedNotification({
+          recipientUserId: request.userId,
+          acceptedByUserId: userId,
+          title,
+          message,
           data: {
             friendId: userId,
+            actorId: userId,
             friendRequestId: requestId,
+            friendUsername: request.friend.username,
+            friendAvatar: request.friend.profile?.avatar ?? null,
           },
         });
       } catch (error) {
@@ -367,6 +387,15 @@ export class FriendsService {
 
       return this.mapFriendToDTO(updated);
     } else if (status === 'rejected') {
+      try {
+        await this.notificationsService.removeFriendRequestNotifications(request.friendId, {
+          friendRequestId: requestId,
+          fromUserId: request.userId,
+        });
+      } catch (error) {
+        console.error('Error eliminando notificación de solicitud rechazada:', error);
+      }
+
       // Rechazar: eliminar la solicitud
       await prisma.friend.delete({
         where: { id: requestId },
@@ -449,13 +478,20 @@ export class FriendsService {
     await prisma.friend.delete({
       where: { id: friendship.id },
     });
+
+    try {
+      await this.notificationsService.removeFriendAcceptedBetweenUsers(userId, friendId);
+    } catch (error) {
+      console.error('Error eliminando notificaciones de amistad aceptada:', error);
+    }
   }
 
   /**
    * Obtener sugerencias de amigos
    */
   async getFriendSuggestions(userId: string, limit: number = 10): Promise<FriendSuggestionDTO[]> {
-    // Obtener IDs de usuarios que ya son amigos o tienen solicitud pendiente
+    // Excluir: yo, amigos aceptados, bloqueados y solicitudes que ME enviaron (van al tab solicitudes).
+    // No excluir solicitudes que YO envié: siguen en sugerencias con opción de cancelar.
     const existingRelations = await prisma.friend.findMany({
       where: {
         OR: [{ userId }, { friendId: userId }],
@@ -463,13 +499,24 @@ export class FriendsService {
       select: {
         userId: true,
         friendId: true,
+        status: true,
       },
     });
 
-    const excludedUserIds = new Set([
-      userId,
-      ...existingRelations.map((r) => (r.userId === userId ? r.friendId : r.userId)),
-    ]);
+    const excludedUserIds = new Set<string>([userId]);
+    for (const relation of existingRelations) {
+      const otherUserId =
+        relation.userId === userId ? relation.friendId : relation.userId;
+
+      if (relation.status === 'accepted' || relation.status === 'blocked') {
+        excludedUserIds.add(otherUserId);
+        continue;
+      }
+
+      if (relation.status === 'pending' && relation.friendId === userId) {
+        excludedUserIds.add(relation.userId);
+      }
+    }
 
     // Obtener intereses del usuario (categorías)
     const userInterests = await prisma.userCategoryInterest.findMany({
@@ -972,15 +1019,9 @@ export class FriendsService {
 
     // Eliminar notificación asociada si existe
     try {
-      await prisma.notification.deleteMany({
-        where: {
-          userId: request.friendId,
-          type: 'friend_request',
-          data: {
-            path: ['friendRequestId'],
-            equals: requestId,
-          },
-        },
+      await this.notificationsService.removeFriendRequestNotifications(request.friendId, {
+        friendRequestId: requestId,
+        fromUserId: userId,
       });
     } catch (error) {
       // Si falla, no es crítico

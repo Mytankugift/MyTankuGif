@@ -7,10 +7,11 @@ import { useCartStore } from '@/lib/stores/cart-store'
 import { ProductModal } from '@/components/products/product-modal'
 import { fetchProductByHandle } from '@/lib/hooks/use-product'
 import { WishlistSelectorModal } from '@/components/wishlists/wishlist-selector-modal'
-import { useWishLists } from '@/lib/hooks/use-wishlists'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { logger } from '@/lib/utils/logger'
+import { track } from '@/lib/analytics/tracker'
+import { useImpression } from '@/lib/analytics/use-impression'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
 import type { FeedItemDTO } from '@/types/api'
 import { productHappinessLabel } from '@/lib/utils/product-happiness-label'
@@ -51,7 +52,6 @@ export const ProductCard = memo(function ProductCard({
 }: ProductCardProps) {
   const { isAuthenticated } = useAuthStore()
   const { addItem } = useCartStore()
-  const { wishLists } = useWishLists()
   const [showTitle, setShowTitle] = useState(false)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -69,6 +69,18 @@ export const ProductCard = memo(function ProductCard({
   const cardRef = useRef<HTMLDivElement>(null)
   /** Ignorar «click» tras scroll/drag para no abrir el modal en móvil */
   const pointerDownRef = useRef<{ clientX: number; clientY: number } | null>(null)
+  /** Evita prefetch repetido del producto completo (caché de useProduct ya calentado) */
+  const prefetchedRef = useRef(false)
+
+  /**
+   * Precarga el producto completo "por intención" (hover/press) para que el modal
+   * abra al instante: calienta el mismo caché que usa `useProduct` en el modal.
+   */
+  const prefetchProduct = useCallback(() => {
+    if (prefetchedRef.current || !product?.handle) return
+    prefetchedRef.current = true
+    void fetchProductByHandle(product.handle).catch(() => {})
+  }, [product?.handle])
 
   // Formatear precio
   const formatPrice = (price: number) => {
@@ -82,6 +94,7 @@ export const ProductCard = memo(function ProductCard({
 
   // Manejar hover para mostrar título después de 1 segundo
   const handleMouseEnter = () => {
+    prefetchProduct() // precargar el producto completo al pasar el mouse (desktop)
     hoverTimeoutRef.current = setTimeout(() => {
       setShowTitle(true)
     }, 1000)
@@ -128,13 +141,10 @@ export const ProductCard = memo(function ProductCard({
     }
   }, [product.id, product.isLiked, product.likesCount, product.isInWishlist])
 
-  useEffect(() => {
-    if (!isAuthenticated || hasUserToggledWishlist.current) return
-    const inStore = wishLists.some((list) =>
-      list.items?.some((item) => item.product?.id === product.id),
-    )
-    if (inStore) setIsInWishlist(true)
-  }, [wishLists, product.id, isAuthenticated])
+  // ✅ Fase 4.2: el estado inicial de wishlist viene del feed (product.isInWishlist).
+  // Las altas en caliente las cubre el evento `wishlistUpdated` (abajo) y los
+  // updates optimistas del modal. Ya no suscribimos cada card al store global de
+  // wishlists (evitaba re-render de TODAS las cards ante cualquier cambio).
 
   useEffect(() => {
     const onWishlistEvent = (e: Event) => {
@@ -148,6 +158,18 @@ export const ProductCard = memo(function ProductCard({
     window.addEventListener('wishlistUpdated', onWishlistEvent)
     return () => window.removeEventListener('wishlistUpdated', onWishlistEvent)
   }, [product.id, onWishlistUpdated])
+
+  // ✅ Tracking: impresión del producto (product_view) una sola vez al entrar en
+  // viewport, vía IntersectionObserver compartido (no uno por card).
+  const trackSource = isLanding ? 'landing' : 'feed'
+  const handleImpression = useCallback(() => {
+    track('product_view', {
+      entityType: 'product',
+      entityId: product.id,
+      metadata: { source: trackSource },
+    })
+  }, [product.id, trackSource])
+  useImpression(cardRef, handleImpression)
 
 
   // Manejar like/unlike
@@ -242,12 +264,17 @@ export const ProductCard = memo(function ProductCard({
     window.matchMedia('(hover: none) and (pointer: coarse)').matches
 
   const openProductModal = useCallback(() => {
+    track('product_click', {
+      entityType: 'product',
+      entityId: product.id,
+      metadata: { source: isLanding ? 'landing' : 'feed' },
+    })
     if (onOpenModal) {
       onOpenModal(product)
     } else {
       setIsModalOpen(true)
     }
-  }, [onOpenModal, product])
+  }, [onOpenModal, product, isLanding])
 
   const handleCardClick = useCallback(
     (e: React.MouseEvent) => {
@@ -383,11 +410,13 @@ export const ProductCard = memo(function ProductCard({
       onPointerDown={(e) => {
         if (e.button !== 0) return
         pointerDownRef.current = { clientX: e.clientX, clientY: e.clientY }
+        prefetchProduct() // press en móvil/desktop: adelantar la carga antes del click
       }}
       onTouchStart={(e) => {
         if (e.touches.length !== 1) return
         const t = e.touches[0]
         pointerDownRef.current = { clientX: t.clientX, clientY: t.clientY }
+        prefetchProduct()
       }}
       onClick={handleCardClick}
       onMouseEnter={handleMouseEnter}

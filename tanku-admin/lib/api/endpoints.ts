@@ -143,6 +143,8 @@ export const API_ENDPOINTS = {
         `${API_BASE}/api/v1/admin/analytics/catalog${buildAnalyticsQuery(params)}`,
       SOCIAL: (params?: AnalyticsRangeParams) =>
         `${API_BASE}/api/v1/admin/analytics/social${buildAnalyticsQuery(params)}`,
+      BEHAVIOR: (params?: AnalyticsRangeParams) =>
+        `${API_BASE}/api/v1/admin/analytics/behavior${buildAnalyticsQuery(params)}`,
     },
   },
 } as const

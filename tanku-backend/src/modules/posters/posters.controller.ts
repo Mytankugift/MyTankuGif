@@ -202,7 +202,7 @@ export class PostersController {
       }
 
       const { posterId } = req.params;
-      const { content, parentId } = req.body;
+      const { content, parentId, replyToUserId } = req.body;
 
       if (!content || !content.trim()) {
         return res.status(400).json(errorResponse(ErrorCode.BAD_REQUEST, 'content es requerido'));
@@ -221,7 +221,8 @@ export class PostersController {
         posterId,
         requestWithUser.user.id,
         content.trim(),
-        parentId
+        parentId,
+        replyToUserId
       );
 
       res.status(201).json(successResponse(comment));

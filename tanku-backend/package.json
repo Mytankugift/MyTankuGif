@@ -29,7 +29,9 @@
     "clean:invalid-products-from-ranking": "tsx scripts/clean-invalid-products-from-ranking.ts",
     "update:global-score-to-one": "tsx scripts/update-global-score-to-one.ts",
     "create:admin": "tsx scripts/create-admin-user.ts",
-    "backfill:entity-refs": "tsx scripts/backfill-entity-refs.ts"
+    "backfill:entity-refs": "tsx scripts/backfill-entity-refs.ts",
+    "backfill:dropi-shipping": "tsx scripts/backfill-dropi-shipping.ts",
+    "backfill:notification-groups": "tsx scripts/backfill-notification-groups.ts"
   },
   "keywords": [
     "ecommerce",

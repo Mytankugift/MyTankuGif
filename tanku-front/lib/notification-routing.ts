@@ -23,11 +23,19 @@ export function getNotificationHref(n: NotificationLike): string | null {
       if (data.posterId) return `/posts/${data.posterId}`
       return null
     case 'comment_mention':
+    case 'comment_reply':
+    case 'comment_like':
       if (data.posterId) return `/posts/${data.posterId}`
       return null
     case 'gift_received':
       if (typeof data.orderId === 'string') return `/orders/${data.orderId}`
       return '/profile'
+    case 'order_update':
+    case 'stalkergift_order_update':
+      if (typeof data.orderId === 'string') {
+        return `/profile?tab=MIS_TANKUS&orderId=${encodeURIComponent(data.orderId)}`
+      }
+      return '/profile?tab=MIS_TANKUS'
     case 'support_case_reply':
     case 'support_case_status': {
       const caseId =

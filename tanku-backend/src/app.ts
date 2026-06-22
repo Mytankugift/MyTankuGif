@@ -380,6 +380,10 @@ app.use(`${APP_CONSTANTS.API_PREFIX}/admin/support-cases`, adminSupportCasesRout
 import adminAnalyticsRoutes from './modules/admin/admin-analytics/admin-analytics.routes';
 app.use(`${APP_CONSTANTS.API_PREFIX}/admin/analytics`, adminAnalyticsRoutes);
 
+// Analytics events (tracking de comportamiento, ingesta append-only)
+import analyticsEventsRoutes from './modules/analytics-events/analytics-events.routes';
+app.use(`${APP_CONSTANTS.API_PREFIX}/analytics`, analyticsEventsRoutes);
+
 /**
  * Manejo de errores 404
  */

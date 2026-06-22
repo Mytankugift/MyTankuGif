@@ -21,12 +21,19 @@ export interface RankingItem {
   label: string
   value: number
   extra?: number
+  supplierCost?: number
+  shippingCost?: number
 }
 
 export interface Kpi {
   current: number
   previous: number
   delta: number | null
+}
+
+export interface SalesSegment {
+  orders: number
+  revenue: number
 }
 
 export interface SalesAnalytics {
@@ -37,13 +44,22 @@ export interface SalesAnalytics {
     averageOrderValue: number
     unitsSold: number
     profit: number
+    supplierCost: number
+    realShippingCost: number
+    dropiFees: number
     shippingCost: number
+    bySegment: {
+      normal: SalesSegment
+      directGift: SalesSegment
+      stalkerGift: SalesSegment
+    }
   }
   codPending: { orders: number; amount: number }
   series: SeriesPoint[]
   byStatus: DistributionItem[]
   byPaymentStatus: DistributionItem[]
   byPaymentMethod: DistributionItem[]
+  byOrderType: DistributionItem[]
   topProducts: RankingItem[]
   topCategories: RankingItem[]
 }
@@ -57,18 +73,39 @@ export interface UsersAnalytics {
   registrationOrigin: { google: number; email: number }
 }
 
-export interface GiftsAnalytics {
-  range: RangeMeta
+export interface StalkerGiftAnalytics {
   scalars: {
+    activeInPeriod: number
     created: number
+    paid: number
     accepted: number
+    shipped: number
+    shippedRevenue: number
     acceptanceRate: number
-    avgTimeToAcceptHours: number | null
     paidRate: number
+    avgTimeToAcceptHours: number | null
   }
   series: SeriesPoint[]
   byEstado: DistributionItem[]
   topSenders: RankingItem[]
+}
+
+export interface DirectGiftAnalytics {
+  scalars: {
+    orders: number
+    revenue: number
+    averageOrderValue: number
+    unitsSold: number
+  }
+  series: SeriesPoint[]
+  topSenders: RankingItem[]
+  topRecipients: RankingItem[]
+}
+
+export interface GiftsAnalytics {
+  range: RangeMeta
+  stalkerGift: StalkerGiftAnalytics
+  directGift: DirectGiftAnalytics
 }
 
 export interface OverviewAnalytics {
@@ -156,4 +193,50 @@ export interface SocialAnalytics {
   postersActivity: { active: number; inactive: number }
   storiesActivity: { active: number; inactive: number }
   topCreators: RankingItem[]
+}
+
+// ---------------------------------------------------------------------------
+// Fase 3 - Comportamiento (analytics_events)
+// ---------------------------------------------------------------------------
+
+export interface FunnelStep {
+  key: string
+  label: string
+  actors: number
+  events: number
+  conversionFromPrev: number | null
+  conversionFromStart: number | null
+}
+
+export interface DauPoint {
+  date: string
+  dau: number
+  events: number
+}
+
+export interface RetentionCohort {
+  cohort: string
+  size: number
+  values: (number | null)[]
+}
+
+export interface BehaviorAnalytics {
+  range: RangeMeta
+  scalars: {
+    totalEvents: number
+    activeActors: number
+    registeredUsers: number
+    anonymousEvents: number
+    eventsPerActor: number
+  }
+  eventsByType: DistributionItem[]
+  dauSeries: DauPoint[]
+  stickiness: { avgDau: number; mau: number; ratio: number }
+  funnel: FunnelStep[]
+  outcomes: {
+    openActors: number
+    items: { key: string; label: string; actors: number; conversionFromOpen: number | null }[]
+  }
+  retention: { cohorts: RetentionCohort[]; weekOffsets: number[] }
+  topOpenedProducts: RankingItem[]
 }

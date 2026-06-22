@@ -1,10 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { UserAvatar } from '@/components/shared/user-avatar'
-import { HeartIcon } from '@heroicons/react/24/outline'
-import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -64,6 +63,8 @@ export function CommentItem({
   const router = useRouter()
   const { token, user } = useAuthStore()
   const [isLiking, setIsLiking] = useState(false)
+  const [isLiked, setIsLiked] = useState(comment.isLiked ?? false)
+  const [likesCount, setLikesCount] = useState(comment.likesCount)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isHiding, setIsHiding] = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<CommentConfirmAction | null>(null)
@@ -71,18 +72,23 @@ export function CommentItem({
   const [isDoubleExpanded, setIsDoubleExpanded] = useState(false)
   const [showReplies, setShowReplies] = useState(false) // Colapsar respuestas por defecto
 
+  useEffect(() => {
+    setIsLiked(comment.isLiked ?? false)
+    setLikesCount(comment.likesCount)
+  }, [comment.id, comment.isLiked, comment.likesCount])
+
   // Construir nombre del autor
   const commentAuthorName = comment.author?.firstName && comment.author?.lastName
     ? `${comment.author.firstName} ${comment.author.lastName}`
     : comment.author?.username || comment.author?.email?.split('@')[0] || 'Usuario'
 
-  // Si es una respuesta (level === 1), mostrar "Perfil A > Perfil B"
+  // Si es una respuesta (level === 1), mostrar "quien responde > a quien responde"
   const displayAuthorName = level === 1 && parentComment
     ? (() => {
         const parentAuthorName = parentComment.author?.firstName && parentComment.author?.lastName
           ? `${parentComment.author.firstName} ${parentComment.author.lastName}`
           : parentComment.author?.username || parentComment.author?.email?.split('@')[0] || 'Usuario'
-        return `${parentAuthorName} > ${commentAuthorName}`
+        return `${commentAuthorName} > ${parentAuthorName}`
       })()
     : commentAuthorName
 
@@ -241,7 +247,7 @@ export function CommentItem({
 
   const handleLike = async () => {
     if (!token || isLiking || !posterId) return
-    
+
     setIsLiking(true)
     try {
       const response = await apiClient.post(
@@ -250,8 +256,12 @@ export function CommentItem({
       )
 
       if (response.success && response.data) {
-        if (onUpdate) {
-          onUpdate()
+        const data = response.data as { liked?: boolean; likesCount?: number }
+        if (typeof data.liked === 'boolean') {
+          setIsLiked(data.liked)
+        }
+        if (typeof data.likesCount === 'number') {
+          setLikesCount(data.likesCount)
         }
       }
     } catch (err) {
@@ -494,15 +504,18 @@ export function CommentItem({
                 onClick={handleLike}
                 disabled={isLiking}
                 className={`flex items-center gap-1 text-xs transition-colors disabled:opacity-50 ${
-                  comment.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+                  isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
                 }`}
               >
-                {comment.isLiked ? (
-                  <HeartSolidIcon className="w-4 h-4" />
-                ) : (
-                  <HeartIcon className="w-4 h-4" />
-                )}
-                {comment.likesCount > 0 && <span>{comment.likesCount}</span>}
+                <Image
+                  src={isLiked ? '/icons_tanku/tanku_megusta_relleno.svg' : '/icons_tanku/tanku_megusta_lineas_azul.svg'}
+                  alt={isLiked ? 'Quitar me gusta' : 'Me gusta'}
+                  width={16}
+                  height={16}
+                  className="w-4 h-4 object-contain"
+                  unoptimized
+                />
+                {likesCount > 0 && <span>{likesCount}</span>}
               </button>
             )}
           </div>

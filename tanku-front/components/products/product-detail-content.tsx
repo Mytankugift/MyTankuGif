@@ -18,6 +18,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { ProductDTO, FeedItemDTO } from '@/types/api'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
+import { copyTextToClipboard, shareViaNative } from '@/lib/utils/web-share'
 import { productHappinessLabel } from '@/lib/utils/product-happiness-label'
 import { isAgeRestrictedApiError } from '@/lib/api/error-codes'
 import {
@@ -262,17 +263,58 @@ export function ProductDetailContent({
     }
   }
 
-  if (isLoadingProduct) {
+  // Vista de carga instantánea: usa lo que ya trae la card del feed (imagen,
+  // título, precio) para que el modal muestre contenido real de inmediato y solo
+  // los controles (variantes, cantidad, botones) aparezcan como placeholders.
+  if ((isLoadingProduct || !fullProduct) && !productError) {
+    const feedImage = product.imageUrl || ''
+    const feedTitle = product.title || ''
+    const feedPriceStr =
+      typeof product.price === 'number'
+        ? new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(product.price)
+        : null
+
     return (
-      <div className="min-h-[62dvh] max-md:min-h-[68dvh] w-full animate-pulse p-4 sm:p-5 md:p-6">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="h-[42dvh] rounded-2xl bg-[#20252B]" />
-          <div className="space-y-3">
-            <div className="h-7 w-2/3 rounded-xl bg-[#20252B]" />
-            <div className="h-5 w-1/3 rounded-xl bg-[#20252B]" />
-            <div className="h-20 w-full rounded-2xl bg-[#20252B]" />
-            <div className="h-11 w-full rounded-2xl bg-[#20252B]" />
-            <div className="h-11 w-full rounded-2xl bg-[#20252B]" />
+      <div className="w-full bg-[#171B21] p-4 sm:p-5 md:p-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+          <div className="relative mx-auto aspect-square w-full max-w-[14rem] overflow-hidden rounded-2xl bg-[#20252B] md:mx-0 md:max-w-sm">
+            {feedImage ? (
+              <Image
+                src={feedImage}
+                alt={feedTitle}
+                fill
+                className="object-contain"
+                unoptimized={isRemoteImageSrc(feedImage)}
+                priority
+              />
+            ) : null}
+          </div>
+          <div className="space-y-4">
+            {feedPriceStr ? (
+              <span className="text-2xl font-semibold md:text-3xl" style={{ color: '#3B9BC3' }}>
+                {feedPriceStr}
+              </span>
+            ) : (
+              <div className="h-8 w-1/3 animate-pulse rounded-xl bg-[#20252B]" />
+            )}
+            {feedTitle ? (
+              <h2 className="line-clamp-2 text-base font-medium" style={{ color: '#66DEDB' }}>
+                {feedTitle}
+              </h2>
+            ) : (
+              <div className="h-6 w-2/3 animate-pulse rounded-xl bg-[#20252B]" />
+            )}
+            <div className="h-5 w-1/3 animate-pulse rounded-xl bg-[#20252B]" />
+            <div className="h-11 w-full animate-pulse rounded-2xl bg-[#20252B]" />
+            <div className="flex gap-3">
+              <div className="h-11 flex-1 animate-pulse rounded-2xl bg-[#20252B]" />
+              <div className="h-11 flex-1 animate-pulse rounded-2xl bg-[#20252B]" />
+            </div>
           </div>
         </div>
       </div>
@@ -297,22 +339,7 @@ export function ProductDetailContent({
     )
   }
 
-  if (!fullProduct) {
-    return (
-      <div className="min-h-[62dvh] max-md:min-h-[68dvh] w-full animate-pulse p-4 sm:p-5 md:p-6">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="h-[42dvh] rounded-2xl bg-[#20252B]" />
-          <div className="space-y-3">
-            <div className="h-7 w-2/3 rounded-xl bg-[#20252B]" />
-            <div className="h-5 w-1/3 rounded-xl bg-[#20252B]" />
-            <div className="h-20 w-full rounded-2xl bg-[#20252B]" />
-            <div className="h-11 w-full rounded-2xl bg-[#20252B]" />
-            <div className="h-11 w-full rounded-2xl bg-[#20252B]" />
-          </div>
-        </div>
-      </div>
-    )
-  }
+  if (!fullProduct) return null
 
   const variants = fullProduct.variants || []
   // Asegurar que el índice sea válido
@@ -393,24 +420,19 @@ export function ProductDetailContent({
 
     if (copyLinkOnShare) {
       const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/products/${product.handle}`
-      try {
-        await navigator.clipboard.writeText(url)
+      const productTitle = fullProduct.title || product.title
+      const result = await shareViaNative({
+        title: productTitle,
+        text: productTitle,
+        url,
+      })
+      if (result === 'aborted' || result === 'shared') return
+
+      const ok = await copyTextToClipboard(url)
+      if (ok) {
         showShareCopiedFeedback()
-      } catch {
-        // Fallback para navegadores que bloquean clipboard API
-        try {
-          const textarea = document.createElement('textarea')
-          textarea.value = url
-          textarea.style.position = 'fixed'
-          textarea.style.opacity = '0'
-          document.body.appendChild(textarea)
-          textarea.select()
-          document.execCommand('copy')
-          document.body.removeChild(textarea)
-          showShareCopiedFeedback()
-        } catch {
-          setShareLinkCopied(false)
-        }
+      } else {
+        setShareLinkCopied(false)
       }
       return
     }

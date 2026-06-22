@@ -187,6 +187,7 @@ export interface OrderDTO {
   subtotal: number
   shippingTotal: number
   isStalkerGift?: boolean
+  isGiftOrder?: boolean
   stalkerGift?: StalkerGiftInfoDTO | null // Información del StalkerGift si aplica
   items: Array<{
     id: string
@@ -198,6 +199,8 @@ export interface OrderDTO {
     final_price?: number // Alias para compatibilidad con backend
     dropiOrderId?: number | null
     dropiShippingCost?: number | null
+    dropiShippingAmount?: number | null
+    dropiSupplierCost?: number | null
     dropiDropshipperWin?: number | null
     dropiStatus?: string | null
     dropiWebhookData?: any | null // Payload completo del webhook de Dropi

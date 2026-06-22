@@ -2,6 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/database';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
+  getOrderStatusNotificationCopy,
+  getStalkerGiftOrderNotificationCopy,
+} from '../notifications/order-notification-copy';
+import {
   dropiOrderSyncService,
   hasDropiHistoryInStoredData,
 } from './dropi-order-sync.service';
@@ -22,54 +26,6 @@ export class DropiWebhookController {
 
   constructor() {
     this.notificationsService = new NotificationsService();
-  }
-
-  /**
-   * Mapear estado de Dropi a mensaje amigable
-   * Según documentación de Dropi: PENDIENTE, GUIA_GENERADA, EN_TRANSITO, ENTREGADO, DEVUELTO, NOVEDAD
-   */
-  private getStatusMessage(status: string): { title: string; message: string } {
-    const statusUpper = status.toUpperCase();
-    
-    // Mapeo de estados según documentación oficial de Dropi (en español)
-    const statusMap: Record<string, { title: string; message: string }> = {
-      // Estados en español (documentación oficial de Dropi)
-      'PENDIENTE': {
-        title: 'Orden pendiente',
-        message: 'Tu orden está siendo procesada por el proveedor',
-      },
-      'GUIA_GENERADA': {
-        title: 'Guía generada',
-        message: 'La guía de envío ha sido generada exitosamente',
-      },
-      'EN_TRANSITO': {
-        title: 'En tránsito',
-        message: 'Tu pedido está en camino',
-      },
-      'ENTREGADO': {
-        title: 'Orden entregada',
-        message: 'Tu pedido ha sido entregado exitosamente',
-      },
-      'DEVUELTO': {
-        title: 'Orden devuelta',
-        message: 'Tu pedido ha sido devuelto al remitente',
-      },
-      'NOVEDAD': {
-        title: 'Novedad en la orden',
-        message: 'Hay una incidencia con tu orden',
-      },
-    };
-
-    // Si conocemos el estado, usar mensaje específico
-    if (statusMap[statusUpper]) {
-      return statusMap[statusUpper];
-    }
-
-    // Estado desconocido: mensaje genérico
-    return {
-      title: 'Actualización de orden',
-      message: `El estado de tu orden ha cambiado a: ${status}`,
-    };
   }
 
   /**
@@ -245,83 +201,64 @@ export class DropiWebhookController {
         console.log(`✅ [DROPI-WEBHOOK] Notas: ${notes}`);
       }
 
-      // Crear notificación para el usuario
-      const statusInfo = this.getStatusMessage(status);
-      
-      // Si es un StalkerGift, enviar notificación a ambos (sender y receiver)
+      // Notificación agrupada (una fila por orden, se actualiza en cada cambio de estado)
+      const statusInfo = getOrderStatusNotificationCopy(status);
+      const notificationData = {
+        orderId: orderId,
+        orderItemId: orderItem.id,
+        dropiOrderId: dropiOrderId,
+        oldStatus: oldStatus,
+        newStatus: status,
+        ...(shipping_guide ? { shippingGuide: shipping_guide } : {}),
+        ...(guideUrl ? { guideUrl } : {}),
+        ...(notes ? { notes } : {}),
+      };
+
       if (isStalkerGift && stalkerGift) {
-        // Enviar notificación al receiver (quien recibió el regalo)
+        const receiverCopy = getStalkerGiftOrderNotificationCopy('receiver', status);
         try {
-          await this.notificationsService.createNotification({
-            userId: orderUserId, // receiverId
+          await this.notificationsService.syncOrderUpdateNotification({
+            userId: orderUserId,
             type: 'stalkergift_order_update',
-            title: 'Actualización de tu regalo recibido',
-            message: `${statusInfo.message}`,
-            data: {
-              orderId: orderId,
-              orderItemId: orderItem.id,
-              stalkerGiftId: stalkerGift.id,
-              dropiOrderId: dropiOrderId,
-              oldStatus: oldStatus,
-              newStatus: status,
-              ...(shipping_guide ? { shippingGuide: shipping_guide } : {}),
-              ...(guideUrl ? { guideUrl } : {}),
-              ...(notes ? { notes } : {}),
-            },
+            orderId,
+            title: receiverCopy.title,
+            message: receiverCopy.message,
+            data: { ...notificationData, stalkerGiftId: stalkerGift.id },
           });
-          console.log(`✅ [DROPI-WEBHOOK] Notificación creada para receiver: ${orderUserId}`);
+          console.log(`✅ [DROPI-WEBHOOK] Notificación sincronizada para receiver: ${orderUserId}`);
         } catch (notificationError: any) {
-          console.error(`⚠️ [DROPI-WEBHOOK] Error creando notificación para receiver:`, notificationError?.message);
+          console.error(`⚠️ [DROPI-WEBHOOK] Error notificando receiver:`, notificationError?.message);
         }
 
-        // Enviar notificación al sender (quien envió el regalo) si existe
         if (stalkerGift.senderId) {
+          const senderCopy = getStalkerGiftOrderNotificationCopy('sender', status);
           try {
-            await this.notificationsService.createNotification({
+            await this.notificationsService.syncOrderUpdateNotification({
               userId: stalkerGift.senderId,
               type: 'stalkergift_order_update',
-              title: 'Actualización del regalo que enviaste',
-              message: `${statusInfo.message}`,
-              data: {
-                orderId: orderId,
-                orderItemId: orderItem.id,
-                stalkerGiftId: stalkerGift.id,
-                dropiOrderId: dropiOrderId,
-                oldStatus: oldStatus,
-                newStatus: status,
-                ...(shipping_guide ? { shippingGuide: shipping_guide } : {}),
-                ...(guideUrl ? { guideUrl } : {}),
-                ...(notes ? { notes } : {}),
-              },
+              orderId,
+              title: senderCopy.title,
+              message: senderCopy.message,
+              data: { ...notificationData, stalkerGiftId: stalkerGift.id },
             });
-            console.log(`✅ [DROPI-WEBHOOK] Notificación creada para sender: ${stalkerGift.senderId}`);
+            console.log(`✅ [DROPI-WEBHOOK] Notificación sincronizada para sender: ${stalkerGift.senderId}`);
           } catch (notificationError: any) {
-            console.error(`⚠️ [DROPI-WEBHOOK] Error creando notificación para sender:`, notificationError?.message);
+            console.error(`⚠️ [DROPI-WEBHOOK] Error notificando sender:`, notificationError?.message);
           }
         }
       } else {
-        // Orden normal: solo notificar al usuario de la orden
         try {
-          await this.notificationsService.createNotification({
+          await this.notificationsService.syncOrderUpdateNotification({
             userId: orderUserId,
             type: 'order_update',
+            orderId,
             title: statusInfo.title,
             message: statusInfo.message,
-            data: {
-              orderId: orderId,
-              orderItemId: orderItem.id,
-              dropiOrderId: dropiOrderId,
-              oldStatus: oldStatus,
-              newStatus: status,
-              ...(shipping_guide ? { shippingGuide: shipping_guide } : {}),
-              ...(guideUrl ? { guideUrl } : {}),
-              ...(notes ? { notes } : {}),
-            },
+            data: notificationData,
           });
-          console.log(`✅ [DROPI-WEBHOOK] Notificación creada para usuario: ${orderUserId}`);
+          console.log(`✅ [DROPI-WEBHOOK] Notificación sincronizada para usuario: ${orderUserId}`);
         } catch (notificationError: any) {
-          // No fallar el webhook si la notificación falla
-          console.error(`⚠️ [DROPI-WEBHOOK] Error creando notificación:`, notificationError?.message);
+          console.error(`⚠️ [DROPI-WEBHOOK] Error sincronizando notificación:`, notificationError?.message);
         }
       }
 

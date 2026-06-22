@@ -144,11 +144,13 @@ function FriendsPageContent() {
     friends,
     requests,
     suggestions,
-    isLoading,
+    isPageLoading,
+    hasPageLoaded,
     error,
+    loadFriendsPage,
     fetchFriends,
     fetchRequests,
-    fetchSuggestions,
+    fetchSentRequests,
   } = useFriends()
 
   const [groups, setGroups] = useState<Group[]>([])
@@ -187,13 +189,11 @@ function FriendsPageContent() {
   }, [])
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) return
+    void loadFriendsPage()
+  }, [isAuthenticated, user?.id, loadFriendsPage])
 
-    const load = async () => {
-      await Promise.all([fetchFriends(), fetchRequests(), fetchSuggestions()])
-    }
-    load()
-  }, [isAuthenticated, user?.id, fetchFriends, fetchRequests, fetchSuggestions])
+  /** Evita mensajes vacíos mientras la primera carga de /friends no termina */
+  const isFriendsPageBootstrapping = isPageLoading || !hasPageLoaded
 
   const [searchQuery, setSearchQuery] = useState('')
   const [friendSearchResults, setFriendSearchResults] = useState<FriendSuggestionDTO[] | null>(null)
@@ -350,14 +350,19 @@ function FriendsPageContent() {
   )
 
   const showNavSearchDropdown = navSearchFocused && searchTrim.length > 0
-  const onSendSuggestion = async (friendId: string) => {
-    setFriendSearchResults((prev) => (prev ? prev.filter((s) => s.userId !== friendId) : prev))
-    await fetchSuggestions()
+  const onSendSuggestion = async (_friendId: string) => {
+    await fetchSentRequests({ silent: true })
+  }
+
+  const onCancelSuggestion = async (_requestId: string) => {
+    await fetchSentRequests({ silent: true })
   }
 
   const onRequestAnswered = async () => {
-    await fetchRequests()
-    await fetchFriends()
+    await Promise.all([
+      fetchRequests({ silent: true }),
+      fetchFriends({ silent: true }),
+    ])
   }
 
   return (
@@ -549,7 +554,7 @@ function FriendsPageContent() {
             <>
               <FriendsList
                 friends={friendsDisplayedSorted}
-                isLoading={isLoading}
+                isLoading={isFriendsPageBootstrapping && friendsDisplayedSorted.length === 0}
                 onRefresh={fetchFriends}
                 groupByFriendId={groupByFriendId}
                 visibleCount={friendsVisibleCount}
@@ -574,7 +579,7 @@ function FriendsPageContent() {
               <PanelSectionHead id="friends-requests-heading" title="Solicitudes" />
               <FriendRequestList
                 requests={requests}
-                isLoading={isLoading && requests.length === 0}
+                isLoading={isFriendsPageBootstrapping && requests.length === 0}
                 compact
                 onAccept={onRequestAnswered}
                 onReject={async () => {
@@ -593,7 +598,7 @@ function FriendsPageContent() {
               aria-labelledby="friends-suggestions-heading"
             >
               <PanelSectionHead id="friends-suggestions-heading" title="Sugerencias para ti" />
-              {isLoading && sortedSuggestionsForPage.length === 0 ? (
+              {isFriendsPageBootstrapping && sortedSuggestionsForPage.length === 0 ? (
                 <div className="py-14 text-center text-sm text-zinc-500">Cargando…</div>
               ) : sortedSuggestionsForPage.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-white/10 py-12 text-center text-sm text-zinc-500">
@@ -607,6 +612,7 @@ function FriendsPageContent() {
                       suggestion={s}
                       variant="strip"
                       onSendRequest={onSendSuggestion}
+                      onCancelRequest={onCancelSuggestion}
                     />
                   ))}
                 </div>
@@ -666,12 +672,12 @@ function FriendsPageContent() {
                     </button>
                   )}
                 </div>
-                {sidebarSuggestions.length === 0 && !isLoading ? (
+                {isFriendsPageBootstrapping && sidebarSuggestions.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-zinc-500">Cargando…</div>
+                ) : sidebarSuggestions.length === 0 ? (
                   <p className="rounded-lg border border-dashed border-white/10 py-5 text-center text-xs text-zinc-500">
                     No hay sugerencias ahora.
                   </p>
-                ) : isLoading && suggestions.length === 0 && sidebarSuggestions.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-zinc-500">Cargando…</div>
                 ) : (
                   <div className="flex flex-col gap-2 pt-0.5">
                     {sidebarSuggestions.map((s) => (
@@ -680,6 +686,7 @@ function FriendsPageContent() {
                         suggestion={s}
                         variant="strip"
                         onSendRequest={onSendSuggestion}
+                        onCancelRequest={onCancelSuggestion}
                       />
                     ))}
                   </div>

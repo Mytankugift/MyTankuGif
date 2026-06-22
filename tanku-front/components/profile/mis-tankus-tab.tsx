@@ -1,14 +1,21 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDaysIcon } from '@heroicons/react/24/outline'
 import { OrdersTab } from '@/components/profile/orders-tab'
 import { GiftsTab } from '@/components/profile/gifts-tab'
 import { StalkerGiftPeriodSheet } from '@/components/stalkergift/stalkergift-period-sheet'
+import { apiClient } from '@/lib/api/client'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import {
+  misTankusSegmentForOrder,
+  type MisTankusOrderSegment,
+} from '@/lib/order-list-segment'
 import {
   buildMisTankusPeriodOptions,
   getMisTankusPeriodRange,
 } from '@/lib/utils/mis-tankus-period'
+import type { OrderDTO, SupportCaseDetailDTO } from '@/types/api'
 
 export type MisTankusFilter = 'all' | 'compras' | 'regalos'
 
@@ -34,6 +41,11 @@ export function MisTankusTab({
   const [filter, setFilter] = useState<MisTankusFilter>('all')
   const [periodValue, setPeriodValue] = useState<string>('30d')
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false)
+  const [supportCaseDeepLink, setSupportCaseDeepLink] = useState<{
+    caseId: string
+    segment: MisTankusOrderSegment
+  } | null>(null)
+  const supportCaseResolveRef = useRef<string | null>(null)
 
   /** Se recalcula en cada render para que los años disponibles sigan al calendario (p. ej. 2027, 2030). */
   const periodOptions = buildMisTankusPeriodOptions(new Date())
@@ -52,11 +64,52 @@ export function MisTankusTab({
     [periodValue]
   )
 
+  // Resolver segmento (compras vs regalos) antes de abrir el modal de soporte
   useEffect(() => {
-    if (initialOpenCaseId) {
-      setFilter((f) => (f === 'regalos' ? 'all' : f))
+    if (!initialOpenCaseId) {
+      supportCaseResolveRef.current = null
+      setSupportCaseDeepLink(null)
+      return
+    }
+    if (supportCaseResolveRef.current === initialOpenCaseId) return
+
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const caseResponse = await apiClient.get<SupportCaseDetailDTO>(
+          API_ENDPOINTS.SUPPORT_CASES.BY_ID(initialOpenCaseId)
+        )
+        if (cancelled || !caseResponse.success || !caseResponse.data) return
+
+        const orderResponse = await apiClient.get<OrderDTO>(
+          API_ENDPOINTS.ORDERS.BY_ID(caseResponse.data.orderId)
+        )
+        if (cancelled || !orderResponse.success || !orderResponse.data) return
+
+        const segment = misTankusSegmentForOrder(orderResponse.data)
+        supportCaseResolveRef.current = initialOpenCaseId
+        setSupportCaseDeepLink({ caseId: initialOpenCaseId, segment })
+        setFilter(segment === 'regalos' ? 'regalos' : 'compras')
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error al resolver deep link de soporte:', error)
+          supportCaseResolveRef.current = initialOpenCaseId
+          setSupportCaseDeepLink({ caseId: initialOpenCaseId, segment: 'compras' })
+          setFilter('compras')
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
     }
   }, [initialOpenCaseId])
+
+  const comprasOpenCaseId =
+    supportCaseDeepLink?.segment === 'compras' ? supportCaseDeepLink.caseId : null
+  const regalosOpenCaseId =
+    supportCaseDeepLink?.segment === 'regalos' ? supportCaseDeepLink.caseId : null
 
   return (
     <div className="space-y-4">
@@ -117,7 +170,7 @@ export function MisTankusTab({
           )}
           <OrdersTab
             userId={userId}
-            initialOpenCaseId={initialOpenCaseId}
+            initialOpenCaseId={comprasOpenCaseId}
             checkoutOrderId={checkoutOrderId}
             timeRange={timeRange}
           />
@@ -129,7 +182,11 @@ export function MisTankusTab({
           {filter === 'all' && (
             <h3 className="pt-2 text-[10px] font-medium uppercase tracking-wide text-gray-500">Regalos</h3>
           )}
-          <GiftsTab userId={userId} timeRange={timeRange} />
+          <GiftsTab
+            userId={userId}
+            timeRange={timeRange}
+            initialOpenCaseId={regalosOpenCaseId}
+          />
         </div>
       )}
     </div>

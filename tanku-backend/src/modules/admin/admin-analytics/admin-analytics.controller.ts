@@ -121,4 +121,18 @@ export class AdminAnalyticsController {
       next(error);
     }
   };
+
+  /**
+   * GET /api/v1/admin/analytics/behavior
+   * Comportamiento (analytics_events): embudo, DAU/MAU, retención.
+   */
+  getBehavior = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const range = resolveRange(req.query);
+      const data = await this.analyticsService.getBehavior(range);
+      res.status(200).json(successResponse(data));
+    } catch (error) {
+      next(error);
+    }
+  };
 }

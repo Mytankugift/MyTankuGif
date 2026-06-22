@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { clsx } from 'clsx'
 import { useProduct } from '@/lib/hooks/use-product'
+import { track } from '@/lib/analytics/tracker'
 import { ProductDetailContent } from '@/components/products/product-detail-content'
 import { ProductAgeRestricted } from '@/components/products/product-age-restricted'
 import { isAgeRestrictedApiError } from '@/lib/api/error-codes'
@@ -43,6 +44,20 @@ export default function ProductPage() {
     if (fullProduct) return toFeedItem(fullProduct)
     return product
   }, [fullProduct, product])
+
+  // Entrar a la página de producto cuenta como apertura de detalle (interés real),
+  // igual que abrir el modal del feed. Una vez por producto cargado.
+  const trackedProductRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (fullProduct?.id && trackedProductRef.current !== fullProduct.id) {
+      trackedProductRef.current = fullProduct.id
+      track('product_click', {
+        entityType: 'product',
+        entityId: fullProduct.id,
+        metadata: { source: 'page' },
+      })
+    }
+  }, [fullProduct?.id])
 
   useEffect(() => {
     if (fullProduct) {

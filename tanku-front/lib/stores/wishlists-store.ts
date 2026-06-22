@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { WishListDTO } from '@/types/api'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { track } from '@/lib/analytics/tracker'
 
 export function isProductInWishList(
   wishLists: WishListDTO[],
@@ -220,6 +221,11 @@ export const useWishlistsStore = create<WishListsState>((set, get) => ({
               : list,
           ),
         }))
+        track('wishlist_add', {
+          entityType: 'product',
+          entityId: productId,
+          metadata: { wishListId, variantId },
+        })
         return 'added'
       }
 

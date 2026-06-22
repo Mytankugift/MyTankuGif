@@ -31,6 +31,7 @@ model User {
   supportCases             SupportCase[]
   personalInfo             PersonalInformation?
   posterComments           PosterComment[]
+  posterCommentReactions   PosterCommentReaction[]
   posterReactions          PosterReaction[]
   posters                  Poster[]
   productLikes             ProductLike[]
@@ -299,7 +300,12 @@ model OrderItem {
   price               Int
   createdAt           DateTime       @default(now()) @map("created_at")
   dropiOrderId        Int?           @map("dropi_order_id")
+  /// Costo TOTAL descontado por Dropi (discounted_amount): producto + envío + fees. NO es solo el envío.
   dropiShippingCost   Int?           @default(0) @map("dropi_shipping_cost")
+  /// Envío puro de la transportadora (shipping_amount de Dropi). Subconjunto de dropiShippingCost.
+  dropiShippingAmount Int?           @default(0) @map("dropi_shipping_amount")
+  /// Costo del producto al proveedor (supplier_price de Dropi).
+  dropiSupplierCost   Int?           @default(0) @map("dropi_supplier_cost")
   dropiStatus         String?        @map("dropi_status")
   finalPrice          Int            @default(0) @map("final_price")
   updatedAt           DateTime       @updatedAt @map("updated_at")
@@ -600,10 +606,11 @@ model PosterComment {
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @updatedAt @map("updated_at")
   mentions      Json?
-  customer      User            @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  parent        PosterComment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies       PosterComment[] @relation("CommentReplies")
-  poster        Poster          @relation(fields: [posterId], references: [id], onDelete: Cascade)
+  customer      User                    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  parent        PosterComment?          @relation("CommentReplies", fields: [parentId], references: [id])
+  replies       PosterComment[]         @relation("CommentReplies")
+  poster        Poster                  @relation(fields: [posterId], references: [id], onDelete: Cascade)
+  reactions     PosterCommentReaction[]
 
   @@index([posterId])
   @@index([customerId])
@@ -613,6 +620,21 @@ model PosterComment {
   @@index([deletedAt])
   @@index([hiddenByOwner])
   @@map("poster_comments")
+}
+
+model PosterCommentReaction {
+  id           String        @id @default(cuid())
+  commentId    String        @map("comment_id")
+  customerId   String        @map("customer_id")
+  reactionType String        @default("like") @map("reaction_type")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  comment      PosterComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  customer     User          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, customerId])
+  @@index([commentId])
+  @@index([customerId])
+  @@map("poster_comment_reactions")
 }
 
 model StoriesUser {
@@ -735,10 +757,12 @@ model Notification {
   message   String
   data      Json?
   isRead    Boolean   @default(false) @map("is_read")
+  groupKey  String?   @map("group_key")
   createdAt DateTime  @default(now()) @map("created_at")
   readAt    DateTime? @map("read_at")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, groupKey])
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@map("notifications")
@@ -841,6 +865,26 @@ model UserConsent {
   @@index([userId])
   @@index([consentType])
   @@map("user_consents")
+}
+
+/// Telemetría de comportamiento (append-only). Pieza compartida entre Analíticas
+/// (Fase 3) e Inteligencia de Regalos (PIS). Sin relación a `users` a propósito:
+/// los eventos pueden ser anónimos y deben sobrevivir al borrado de un usuario.
+/// Ver _meta/tracking-eventos.md.
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  eventType  String   @map("event_type")
+  userId     String?  @map("user_id")
+  sessionId  String?  @map("session_id")
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([eventType, createdAt])
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+  @@map("analytics_events")
 }
 
 model Department {

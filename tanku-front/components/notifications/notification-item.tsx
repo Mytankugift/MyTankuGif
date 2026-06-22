@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation'
 import type { NotificationItem as NotificationItemType } from '@/lib/hooks/use-notifications'
 import {
   formatNotificationTimeShort,
+  getNotificationAvatar,
   getNotificationTargetUserId,
+  getNotificationUsername,
   NOTIFICATION_ROW_DIVIDER_STYLE,
 } from '@/lib/notifications-display'
 import { navigateFromNotification, isSupportCaseNotification } from '@/lib/notification-routing'
@@ -12,6 +14,10 @@ import {
   NotificationIcon,
   notificationRowClassName,
 } from '@/components/notifications/notification-icon'
+import {
+  NotificationMessageContent,
+  NotificationTitleContent,
+} from '@/components/notifications/notification-title-content'
 
 interface NotificationItemProps {
   notification: NotificationItemType
@@ -28,23 +34,10 @@ export function NotificationItem({
 }: NotificationItemProps) {
   const router = useRouter()
   const n = notification
-  const data = (n.data || {}) as Record<string, unknown>
 
   const resolvedUserId = getNotificationTargetUserId(n)
-  const avatarCandidate =
-    (resolvedUserId ? resolvedAvatarByUserId[resolvedUserId] : null) ||
-    (typeof data.avatar === 'string' ? data.avatar : null) ||
-    (typeof data.userAvatar === 'string' ? data.userAvatar : null) ||
-    (typeof data.actorAvatar === 'string' ? data.actorAvatar : null) ||
-    (typeof data.senderAvatar === 'string' ? data.senderAvatar : null) ||
-    null
-  const avatar = typeof avatarCandidate === 'string' ? avatarCandidate : null
-  const username =
-    (resolvedUserId ? resolvedUsernameByUserId[resolvedUserId] : null) ||
-    (typeof data.username === 'string' ? data.username : null) ||
-    (typeof data.actorUsername === 'string' ? data.actorUsername : null) ||
-    (typeof data.senderUsername === 'string' ? data.senderUsername : null) ||
-    null
+  const avatar = getNotificationAvatar(n, resolvedAvatarByUserId)
+  const username = getNotificationUsername(n, resolvedUsernameByUserId)
 
   const handleClick = () => {
     if (!n.isRead) {
@@ -61,8 +54,8 @@ export function NotificationItem({
       style={NOTIFICATION_ROW_DIVIDER_STYLE}
       onClick={handleClick}
     >
-      <div className="flex items-center gap-2.5 md:gap-3">
-        <div className="relative flex-shrink-0">
+      <div className="flex items-start gap-2.5 md:gap-3">
+        <div className="relative flex-shrink-0 pt-0.5">
           <NotificationIcon notification={n} avatar={avatar} username={username} />
           {!n.isRead && (
             <div
@@ -73,15 +66,20 @@ export function NotificationItem({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="mb-0.5 flex items-center justify-between gap-2 md:mb-1">
+          <div className="mb-0.5 flex items-start justify-between gap-2 md:mb-1">
             <div
-              className={`truncate text-xs font-semibold leading-none md:text-sm ${
+              className={`line-clamp-2 text-xs font-semibold leading-snug md:text-sm ${
                 isSupport ? 'text-amber-100' : 'text-white'
               }`}
             >
-              {n.title}
+              <NotificationTitleContent
+                title={n.title}
+                type={n.type}
+                message={n.message}
+                isSupport={isSupport}
+              />
             </div>
-            <span className="ml-2 flex-shrink-0 text-[11px] text-gray-300 md:text-sm">
+            <span className="ml-2 flex-shrink-0 text-[11px] text-gray-300 pt-0.5 md:text-sm">
               {formatNotificationTimeShort(n.createdAt)}
             </span>
           </div>
@@ -90,7 +88,11 @@ export function NotificationItem({
               isSupport ? 'text-amber-200/80' : 'text-gray-400'
             }`}
           >
-            {n.message}
+            <NotificationMessageContent
+              message={n.message}
+              type={n.type}
+              isSupport={isSupport}
+            />
           </div>
         </div>
       </div>

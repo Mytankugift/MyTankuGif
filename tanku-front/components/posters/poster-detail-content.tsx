@@ -43,6 +43,8 @@ interface PosterDetailContentProps {
   mobilePageLike?: boolean
   /** Cerrar modal (solo vista modal): muestra … y X en la barra superior */
   onModalClose?: () => void
+  /** Feed / perfil en modal: ⋯ (propias) o ir a /posts/:id (ajenas). No usar en landing. */
+  showModalHeaderActions?: boolean
   onPostDeleted?: (posterId: string) => void
   onPostUpdated?: (posterId: string, updates: { likesCount?: number; isLiked?: boolean; commentsCount?: number }) => void
   /** Sin sesión: abrir login en lugar de navegar al perfil (p. ej. landing) */
@@ -93,6 +95,7 @@ export function PosterDetailContent({
   isPageView = false,
   mobilePageLike = false,
   onModalClose,
+  showModalHeaderActions = false,
   onPostDeleted,
   onPostUpdated,
 }: PosterDetailContentProps) {
@@ -387,7 +390,11 @@ export function PosterDetailContent({
         API_ENDPOINTS.POSTERS.COMMENT(poster.id),
         { 
           content: finalContent,
-          parentId: replyingTo?.commentId || undefined
+          parentId: replyingTo?.commentId || undefined,
+          replyToUserId:
+            replyingTo?.authorId && replyingTo.authorId !== user?.id
+              ? replyingTo.authorId
+              : undefined,
         }
       )
       
@@ -450,8 +457,7 @@ export function PosterDetailContent({
       if (response.ok) {
         if (onPostDeleted && poster) {
           onPostDeleted(poster.id)
-        }
-        if (isPageView) {
+        } else if (isPageView && !onModalClose) {
           router.push('/feed')
         }
       } else {
@@ -595,7 +601,51 @@ export function PosterDetailContent({
     router.push(profileHref)
   }
 
+  const handleGoToPostPage = () => {
+    setShowMenu(false)
+    onModalClose?.()
+    router.push(`/posts/${posterId}`)
+  }
+
   const displayedCommentsCount = Math.max(poster.commentsCount ?? 0, totalComments)
+
+  const modalHeaderToolbar =
+    embeddedInModal && showModalHeaderActions ? (
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <button
+          type="button"
+          onClick={handleGoToPostPage}
+          className="whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-medium text-[#73FFA2] transition-colors hover:bg-white/10 sm:px-3 sm:text-sm"
+        >
+          Ver publicación
+        </button>
+        {isOwner ? (
+          <button
+            type="button"
+            onClick={() => setShowOwnerPageActionsModal(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10"
+            title="Más opciones"
+            aria-expanded={showOwnerPageActionsModal}
+            aria-haspopup="dialog"
+          >
+            <EllipsisVerticalIcon className="h-5 w-5" />
+          </button>
+        ) : null}
+        {onModalClose ? (
+          <button
+            type="button"
+            onClick={() => {
+              setShowMenu(false)
+              onModalClose()
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10"
+            aria-label="Cerrar"
+          >
+            <XMarkIcon className="h-6 w-6" aria-hidden />
+          </button>
+        ) : null}
+      </div>
+    ) : null
 
   const posterMedia = (
     <>
@@ -657,9 +707,38 @@ export function PosterDetailContent({
           : 'flex h-full flex-col'
       }
     >
-      {/* Header - Solo en pageView (móvil en modal; desktop usa barra del PosterDetailModal) */}
+      {/* Header - Solo en pageView (móvil en modal; desktop usa barra del PosterDetailModal salvo showModalHeaderActions) */}
       {isPageView && (
-        <div className={`flex-shrink-0 ${postPageBg} ${embeddedInModal ? 'md:hidden' : ''}`}>
+        <div
+          className={`flex-shrink-0 ${postPageBg} ${
+            embeddedInModal && !showModalHeaderActions ? 'md:hidden' : ''
+          }`}
+        >
+          {embeddedInModal && showModalHeaderActions ? (
+            <>
+              <div className="flex items-center gap-2 px-4 py-3">
+                <button
+                  type="button"
+                  onClick={handleGoToProfile}
+                  className="flex min-w-0 flex-1 items-center justify-start gap-2 overflow-hidden text-left md:hidden"
+                >
+                  <UserAvatar user={poster.author} size={32} />
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold leading-tight text-white">{authorName}</p>
+                    {accountHandle ? (
+                      <p className="truncate text-[11px] leading-tight text-gray-400">{accountHandle}</p>
+                    ) : null}
+                  </div>
+                </button>
+                <h2 className="hidden min-w-0 flex-1 truncate text-center text-sm font-semibold text-white md:block">
+                  Publicación
+                </h2>
+                {modalHeaderToolbar}
+              </div>
+              <div className="h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/[0.14] to-transparent md:hidden" aria-hidden />
+            </>
+          ) : (
+            <>
           <div className={`flex items-center gap-2 px-4 ${embeddedInModal ? 'py-2' : 'py-3'}`}>
             {embeddedInModal && (
               <button
@@ -734,6 +813,8 @@ export function PosterDetailContent({
             </div>
           </div>
           <div className={`h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/[0.14] to-transparent ${embeddedInModal ? 'max-md:hidden' : ''}`} aria-hidden />
+            </>
+          )}
           {!embeddedInModal && (
             <>
           {/* Debajo del nav: nombre + @ + avatar alineados a la derecha — tablet / móvil */}
@@ -789,10 +870,7 @@ export function PosterDetailContent({
                 <div className="absolute right-0 z-20 mt-2 w-48 rounded-lg border border-gray-700 bg-gray-800 shadow-lg">
                   <button
                     type="button"
-                    onClick={() => {
-                      router.push(`/posts/${posterId}`)
-                      setShowMenu(false)
-                    }}
+                    onClick={handleGoToPostPage}
                     className="w-full whitespace-nowrap px-3 py-2 text-left text-xs text-white transition-colors hover:bg-gray-700"
                   >
                     Ver publicación
@@ -954,17 +1032,9 @@ export function PosterDetailContent({
           {/* Comments - scroll interno; formulario anclado abajo en columna derecha */}
           <div
             ref={commentsListRef}
-            className={`tanku-modal-scrollbar min-h-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch] md:pb-0 pb-24 ${
-              isPageView && !embeddedInModal ? 'lg:flex lg:flex-col' : ''
-            }`}
+            className="tanku-modal-scrollbar min-h-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch] md:pb-0 pb-24"
           >
-            <div
-              className={`space-y-4 p-4 ${
-                isPageView && !embeddedInModal
-                  ? 'lg:flex lg:min-h-full lg:flex-col lg:justify-end'
-                  : ''
-              }`}
-            >
+            <div className="space-y-4 p-4">
               {poster.comments && poster.comments.length > 0 ? (
                 <>
                   {poster.comments

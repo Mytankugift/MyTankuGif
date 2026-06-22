@@ -4,6 +4,7 @@ import { FeedService } from '../feed/feed.service';
 import { env } from '../../config/env';
 import type { Prisma } from '@prisma/client';
 import { allocateEntityRef, isEntityRef } from '../../shared/utils/entity-ref';
+import { analyticsEventsService } from '../analytics-events/analytics-events.service';
 
 export interface CreateOrderInput {
   userId: string;
@@ -58,6 +59,7 @@ export interface OrderResponse {
   shippingTotal: number;
   dropiOrderIds: number[]; // Array de IDs de Dropi (uno por OrderItem)
   isStalkerGift: boolean;
+  isGiftOrder: boolean;
   stalkerGift?: StalkerGiftInfo | null; // Información del StalkerGift si aplica
   transactionId: string | null;
   createdAt: Date;
@@ -82,7 +84,9 @@ export interface OrderResponse {
     price: number;
     finalPrice?: number;
     dropiOrderId?: number | null;
-    dropiShippingCost?: number | null; // discounted_amount
+    dropiShippingCost?: number | null; // discounted_amount (costo total Dropi)
+    dropiShippingAmount?: number | null; // shipping_amount (envío puro)
+    dropiSupplierCost?: number | null; // supplier_price (proveedor)
     dropiDropshipperWin?: number | null; // dropshipper_amount_to_win
     dropiStatus?: string | null;
     dropiWebhookData?: any | null; // Payload completo del webhook de Dropi
@@ -735,12 +739,20 @@ export class OrdersService {
         status: true,
         transactionId: true,
         metadata: true,
+        paymentStatus: true,
+        userId: true,
+        isGiftOrder: true,
       },
     });
 
     if (!order) {
       throw new NotFoundError(`Orden ${orderId} no encontrada`);
     }
+
+    // Detectar transición a pagado (idempotente: solo la primera vez).
+    const PAID = new Set(['paid', 'captured']);
+    const wasPaid = PAID.has(order.paymentStatus);
+    const isPaidNow = PAID.has(paymentStatus);
 
     // ✅ Actualizar metadata con refPayco si se proporciona
     const currentMetadata = (order.metadata as Record<string, any>) || {};
@@ -795,6 +807,18 @@ export class OrdersService {
     console.log(
       `✅ [ORDERS] Estado de pago actualizado: ${orderId} -> ${paymentStatus}`
     );
+
+    // Telemetría de compra (append-only, no rompe el flujo de pago). Solo al
+    // confirmarse por primera vez. `isGift` separa compra propia de regalo.
+    if (isPaidNow && !wasPaid) {
+      void analyticsEventsService.recordServerEvent({
+        eventType: 'purchase',
+        userId: order.userId,
+        entityType: 'order',
+        entityId: orderId,
+        metadata: { isGift: order.isGiftOrder },
+      });
+    }
 
     return this.formatOrderResponse(updatedOrder);
   }
@@ -884,6 +908,7 @@ export class OrdersService {
       shippingTotal: order.shippingTotal,
       dropiOrderIds: order.items?.map((item: any) => item.dropiOrderId).filter(Boolean) || [],
       isStalkerGift: order.isStalkerGift,
+      isGiftOrder: order.isGiftOrder ?? false,
       stalkerGift: stalkerGiftInfo, // Incluir información del StalkerGift
       transactionId: order.transactionId,
       createdAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : order.createdAt,
@@ -912,6 +937,8 @@ export class OrdersService {
         total: (item.finalPrice || item.price) * item.quantity, // Total del item
         dropiOrderId: item.dropiOrderId,
         dropiShippingCost: item.dropiShippingCost,
+        dropiShippingAmount: item.dropiShippingAmount,
+        dropiSupplierCost: item.dropiSupplierCost,
         dropiDropshipperWin: item.dropiDropshipperWin,
         dropiStatus: item.dropiStatus,
         dropiWebhookData: item.dropiWebhookData,

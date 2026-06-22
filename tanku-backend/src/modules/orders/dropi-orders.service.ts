@@ -293,7 +293,8 @@ export class DropiOrdersService {
 
     const dropiOrderIds: number[] = [];
     const errors: Array<{ item: string; error: string }> = [];
-    let totalDiscountedAmount = 0; // Acumular discounted_amount de todas las órdenes de Dropi
+    let totalDiscountedAmount = 0; // Acumular discounted_amount (costo total Dropi) de todas las órdenes
+    let totalShippingAmount = 0; // Acumular shipping_amount (envío puro transportadora)
     const dropiResponses: Array<{
       dropiOrderId: number;
       response: any;
@@ -385,17 +386,29 @@ export class DropiOrdersService {
         }
 
         const dropiOrderId = dropiResponse.objects.id || dropiResponse.objects.order_id;
-        // Extraer ambos valores: discounted_amount (envío) y dropshipper_amount_to_win (ganancia)
+        // Extraer valores de Dropi:
+        // - discounted_amount: costo TOTAL descontado a Tanku (producto + envío + fees)
+        // - shipping_amount: envío puro de la transportadora (subconjunto del anterior)
+        // - dropshipper_amount_to_win: ganancia neta de Tanku
         const discountedAmount = dropiResponse.objects.discounted_amount || 0;
+        const shippingAmount = dropiResponse.objects.shipping_amount || 0;
         const dropshipperAmountToWin = dropiResponse.objects.dropshipper_amount_to_win || 0;
+        const orderDetails = dropiResponse.objects.orderdetails;
+        const supplierPrice =
+          Array.isArray(orderDetails) && orderDetails[0]?.supplier_price != null
+            ? Number(orderDetails[0].supplier_price)
+            : 0;
         
         if (dropiOrderId) {
           dropiOrderIds.push(dropiOrderId);
-          // Acumular el discounted_amount (costo de envío)
+          // Acumular costos de Dropi
           totalDiscountedAmount += Math.round(discountedAmount);
+          totalShippingAmount += Math.round(shippingAmount);
           
           console.log(`✅ [DROPI-ORDER] Orden Dropi ${dropiOrderId} creada exitosamente`);
-          console.log(`✅ [DROPI-ORDER] - Discounted Amount (envío): ${discountedAmount}`);
+          console.log(`✅ [DROPI-ORDER] - Discounted Amount (costo total): ${discountedAmount}`);
+          console.log(`✅ [DROPI-ORDER] - Supplier Price (proveedor): ${supplierPrice}`);
+          console.log(`✅ [DROPI-ORDER] - Shipping Amount (envío puro): ${shippingAmount}`);
           console.log(`✅ [DROPI-ORDER] - Dropshipper Win (ganancia): ${dropshipperAmountToWin}`);
           
           // Guardar información en OrderItem: ambos valores
@@ -405,7 +418,9 @@ export class DropiOrdersService {
               where: { id: orderItemId },
               data: {
                 dropiOrderId: dropiOrderId,
-                dropiShippingCost: Math.round(discountedAmount), // discounted_amount (envío)
+                dropiShippingCost: Math.round(discountedAmount), // discounted_amount (costo total Dropi)
+                dropiShippingAmount: Math.round(shippingAmount), // shipping_amount (envío puro)
+                dropiSupplierCost: Math.round(supplierPrice), // supplier_price (proveedor)
                 dropiDropshipperWin: Math.round(dropshipperAmountToWin), // dropshipper_amount_to_win (ganancia)
                 dropiStatus: 'PENDING',
                 finalPrice: product.price,
@@ -462,9 +477,11 @@ export class DropiOrdersService {
       const recalculatedSubtotal = orderItems.reduce((sum, item) => {
         return sum + (item.finalPrice * item.quantity);
       }, 0);
-      
-      // Calcular total final: subtotal + discounted_amount acumulado (envío)
-      const recalculatedTotal = recalculatedSubtotal + Math.round(totalDiscountedAmount);
+
+      // IMPORTANTE: el cliente paga el precio de producto (envío gratis, absorbido en el precio).
+      // El costo de Dropi (discounted_amount) y el envío puro (shipping_amount) son COSTOS de Tanku,
+      // NO parte de lo que paga el cliente. Por eso `total = subtotal` y `shippingTotal = 0`.
+      // Los costos quedan a nivel de order_item (dropi_shipping_cost / dropi_shipping_amount) y en metadata.
       
       // Obtener metadata actual de la orden
       const currentOrder = await prisma.order.findUnique({
@@ -476,18 +493,18 @@ export class DropiOrdersService {
       await prisma.order.update({
         where: { id: orderId },
         data: { 
-          // Actualizar subtotal con finalPrice de cada item
+          // Subtotal con finalPrice de cada item = lo que paga el cliente
           subtotal: recalculatedSubtotal,
-          // Actualizar shippingTotal con la suma de todos los discounted_amount (envío)
-          shippingTotal: Math.round(totalDiscountedAmount),
-          // Actualizar total: subtotal + shippingTotal
-          total: recalculatedTotal,
-          // Guardar respuestas completas de Dropi en metadata
+          // El cliente no paga envío (gratis); el costo de Dropi no infla el total
+          shippingTotal: 0,
+          total: recalculatedSubtotal,
+          // Guardar respuestas completas de Dropi y los costos (para conciliación/analítica) en metadata
           metadata: {
             ...currentMetadata,
             dropi_order_ids: dropiOrderIds,
             dropi_responses: dropiResponses,
             dropi_discounted_amount_total: totalDiscountedAmount,
+            dropi_shipping_amount_total: totalShippingAmount,
           },
         },
       });

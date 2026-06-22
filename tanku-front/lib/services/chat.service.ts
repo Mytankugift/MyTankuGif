@@ -64,6 +64,7 @@ type ChatEventType =
   | 'conversation:left'
   | 'notification' // ✅ Eventos de notificaciones
   | 'notification_count' // ✅ Contador de notificaciones
+  | 'notification_deleted' // ✅ Borrado de notificación (grupo en 0 tras unlike)
   | 'presence' // ✅ Presencia de usuarios (opcional, para futuras features)
 
 type ChatEventListener = (data: any) => void
@@ -240,6 +241,12 @@ class ChatService {
         if (typeof unreadCount === 'number') {
           console.log('🔔 [CHAT-SERVICE] Contador de notificaciones actualizado:', unreadCount)
           this.emit('notification_count', { unreadCount })
+        }
+      } else if (event.type === 'notification_deleted') {
+        const id = event.payload?.id
+        if (id) {
+          console.log('🗑️ [CHAT-SERVICE] Notificación eliminada:', id)
+          this.emit('notification_deleted', { id })
         }
       } else if (event.type === 'presence') {
         // Presencia de usuarios (opcional, para futuras features)

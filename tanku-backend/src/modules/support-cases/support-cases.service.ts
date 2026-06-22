@@ -38,6 +38,12 @@ import {
   storedDataToDropiStatusResponse,
 } from '../orders/dropi-order-sync.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  formatSupportCaseLabel,
+  getSupportCaseRegisteredCopy,
+  getSupportCaseReplyCopy,
+  getSupportCaseStatusCopy,
+} from '../notifications/support-notification-copy';
 import { S3Service } from '../../shared/services/s3.service';
 import { isValidColombiaPhone, normalizeColombiaPhone } from '../../shared/utils/colombia-phone';
 import { allocateEntityRef, isEntityRef } from '../../shared/utils/entity-ref';
@@ -504,15 +510,21 @@ export class SupportCasesService {
 
   private async notifySupportCaseUser(
     userId: string,
-    type: string,
+    type: 'support_case_status' | 'support_case_reply',
     title: string,
     message: string,
     data: Record<string, unknown>
   ): Promise<void> {
+    const orderId = data.orderId;
+    if (typeof orderId !== 'string') {
+      console.error('[SUPPORT-CASE] Notificación sin orderId en data');
+      return;
+    }
     try {
-      await this.notificationsService.createNotification({
+      await this.notificationsService.syncSupportCaseNotification({
         userId,
         type,
+        orderId,
         title,
         message,
         data,
@@ -534,27 +546,18 @@ export class SupportCasesService {
     };
   }
 
-  private statusNotificationCopy(status: SupportCaseStatusDTO): {
+  private statusNotificationCopy(
+    status: SupportCaseStatusDTO,
+    caseLabel: string
+  ): {
     title: string;
     message: string;
   } {
-    switch (status) {
-      case 'IN_REVIEW':
-        return {
-          title: 'Tu solicitud está en revisión',
-          message: 'El equipo de soporte está revisando tu reporte.',
-        };
-      case 'RESOLVED':
-        return {
-          title: 'Solicitud resuelta',
-          message: 'Tu caso de soporte fue marcado como resuelto.',
-        };
-      default:
-        return {
-          title: 'Actualización de tu solicitud',
-          message: 'Hay novedades en tu reporte de soporte.',
-        };
-    }
+    return getSupportCaseStatusCopy(status, caseLabel);
+  }
+
+  private caseLabelFor(supportCase: { id: string; ref: string | null }): string {
+    return formatSupportCaseLabel(supportCase.ref, supportCase.id);
   }
 
   private async assertOrderOwnership(orderId: string, userId: string): Promise<OrderResponse> {
@@ -733,11 +736,13 @@ export class SupportCasesService {
       evidenceCount: attachmentRecords.length,
     });
 
+    const caseLabel = formatSupportCaseLabel(created.supportCase.ref, created.supportCase.id);
+    const registeredCopy = getSupportCaseRegisteredCopy(caseLabel);
     void this.notifySupportCaseUser(
       userId,
       'support_case_status',
-      'Solicitud registrada',
-      'Tu reporte está pendiente de revisión.',
+      registeredCopy.title,
+      registeredCopy.message,
       this.notificationDataForCase({
         id: created.supportCase.id,
         ref: created.supportCase.ref,
@@ -1147,7 +1152,10 @@ export class SupportCasesService {
     });
 
     if (this.shouldNotifyUserStatusChange(status as SupportCaseStatusDTO)) {
-      const copy = this.statusNotificationCopy(status as SupportCaseStatusDTO);
+      const copy = this.statusNotificationCopy(
+        status as SupportCaseStatusDTO,
+        this.caseLabelFor(existing)
+      );
       await this.notifySupportCaseUser(
         existing.userId,
         'support_case_status',
@@ -1248,7 +1256,7 @@ export class SupportCasesService {
     });
 
     if (moveToInReview) {
-      const copy = this.statusNotificationCopy('IN_REVIEW');
+      const copy = this.statusNotificationCopy('IN_REVIEW', this.caseLabelFor(existing));
       await this.notifySupportCaseUser(
         existing.userId,
         'support_case_status',
@@ -1347,12 +1355,13 @@ export class SupportCasesService {
       }
     });
 
-    const caseRef = existing.ref ?? existing.id;
+    const caseLabel = this.caseLabelFor(existing);
+    const replyCopy = getSupportCaseReplyCopy(caseLabel, message);
     await this.notifySupportCaseUser(
       existing.userId,
       'support_case_reply',
-      `Soporte respondió (${caseRef})`,
-      message.length > 120 ? `${message.slice(0, 117)}...` : message,
+      replyCopy.title,
+      replyCopy.message,
       this.notificationDataForCase(existing)
     );
 
@@ -1489,7 +1498,10 @@ export class SupportCasesService {
     });
 
     if (this.shouldNotifyUserStatusChange(newStatus as SupportCaseStatusDTO)) {
-      const copy = this.statusNotificationCopy(newStatus as SupportCaseStatusDTO);
+      const copy = this.statusNotificationCopy(
+        newStatus as SupportCaseStatusDTO,
+        this.caseLabelFor(existing)
+      );
       await this.notifySupportCaseUser(
         existing.userId,
         'support_case_status',

@@ -3,11 +3,9 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { useNotifications } from '@/lib/hooks/use-notifications'
+import { useResolveNotificationActors } from '@/lib/hooks/use-resolve-notification-actors'
 import { NotificationItem } from '@/components/notifications/notification-item'
 import { BaseNav } from '@/components/layout/base-nav'
-import { apiClient } from '@/lib/api/client'
-import { API_ENDPOINTS } from '@/lib/api/endpoints'
-import { getNotificationTargetUserId } from '@/lib/notifications-display'
 
 type FilterType = 'all' | 'unread'
 
@@ -19,9 +17,6 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<FilterType>('unread')
   const [limit] = useState(20)
   const filterRef = useRef(filter)
-
-  const [resolvedAvatars, setResolvedAvatars] = useState<Record<string, string>>({})
-  const [resolvedUsernames, setResolvedUsernames] = useState<Record<string, string>>({})
 
   useEffect(() => {
     filterRef.current = filter
@@ -44,6 +39,8 @@ export default function NotificationsPage() {
     ignoreOptionsIsRead: true,
   })
 
+  const { resolvedAvatars, resolvedUsernames } = useResolveNotificationActors(items)
+
   useEffect(() => {
     const loadNotifications = async () => {
       const currentFilter = filterRef.current
@@ -56,64 +53,6 @@ export default function NotificationsPage() {
     loadNotifications()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, limit])
-
-  useEffect(() => {
-    if (items.length === 0) return
-
-    const shouldResolveAvatar = (n: { type?: string; title?: string; message?: string }) => {
-      const loweredType = (n.type || '').toLowerCase()
-      const loweredTitle = (n.title || '').toLowerCase()
-      const loweredMessage = (n.message || '').toLowerCase()
-      return (
-        loweredType === 'friend_request' ||
-        loweredType.includes('friend_accepted') ||
-        loweredType.includes('accepted') ||
-        (loweredTitle.includes('solicitud') && loweredTitle.includes('acept')) ||
-        (loweredMessage.includes('solicitud') && loweredMessage.includes('acept'))
-      )
-    }
-
-    const userIdsToResolve = items
-      .filter(shouldResolveAvatar)
-      .map((n) => getNotificationTargetUserId(n))
-      .filter((id): id is string => Boolean(id))
-      .filter((id) => !resolvedAvatars[id] || !resolvedUsernames[id])
-
-    if (userIdsToResolve.length === 0) return
-
-    let cancelled = false
-
-    Promise.all(
-      userIdsToResolve.map(async (userId) => {
-        try {
-          const response = await apiClient.get<any>(API_ENDPOINTS.USERS.BY_ID(userId))
-          const avatar = response?.data?.profile?.avatar || null
-          const username = response?.data?.username || null
-          return { userId, avatar, username }
-        } catch {
-          return { userId, avatar: null, username: null }
-        }
-      })
-    ).then((results) => {
-      if (cancelled) return
-      const nextAvatars: Record<string, string> = {}
-      const nextUsernames: Record<string, string> = {}
-      results.forEach(({ userId, avatar, username }) => {
-        if (avatar) nextAvatars[userId] = avatar
-        if (username) nextUsernames[userId] = username
-      })
-      if (Object.keys(nextAvatars).length > 0) {
-        setResolvedAvatars((prev) => ({ ...prev, ...nextAvatars }))
-      }
-      if (Object.keys(nextUsernames).length > 0) {
-        setResolvedUsernames((prev) => ({ ...prev, ...nextUsernames }))
-      }
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [items, resolvedAvatars, resolvedUsernames])
 
   const handleMarkAllAsRead = async () => {
     await markAllAsRead()

@@ -32,6 +32,7 @@ export const createCommentSchema = z.object({
   body: z.object({
     content: z.string().min(1, 'El contenido del comentario es requerido'),
     parentId: z.string().optional(),
+    replyToUserId: z.string().optional(),
   }),
 });
 

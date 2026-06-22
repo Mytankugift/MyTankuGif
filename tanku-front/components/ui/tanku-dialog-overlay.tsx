@@ -56,7 +56,22 @@ export function TankuDialogOverlay({
         tabIndex={dismissible ? 0 : -1}
         aria-label="Cerrar"
         className={clsx('absolute inset-0 touch-manipulation', tankuDialogBackdropClass)}
-        onClick={dismissible ? onClose : undefined}
+        onClick={
+          dismissible
+            ? (e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onClose()
+              }
+            : undefined
+        }
+        onMouseDown={
+          dismissible
+            ? (e) => {
+                e.stopPropagation()
+              }
+            : undefined
+        }
         onKeyDown={
           dismissible
             ? (e) => {

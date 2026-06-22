@@ -13,18 +13,23 @@ import type { FriendSuggestionDTO } from '@/types/api'
 interface SuggestionCardProps {
   suggestion: FriendSuggestionDTO
   onSendRequest: (friendId: string) => Promise<void>
+  onCancelRequest?: (requestId: string) => Promise<void>
   variant?: 'default' | 'strip'
 }
 
 export function SuggestionCard({
   suggestion,
   onSendRequest,
+  onCancelRequest,
   variant = 'default',
 }: SuggestionCardProps) {
   const router = useRouter()
-  const { sendFriendRequest } = useFriends()
+  const { sendFriendRequest, cancelSentRequest, sentRequests } = useFriends()
   const [isSending, setIsSending] = useState(false)
+  const [isCancelling, setIsCancelling] = useState(false)
   const [hoverNames, setHoverNames] = useState(false)
+
+  const pendingRequest = sentRequests.find((r) => r.friendId === suggestion.userId)
 
   const handleSendRequest = async () => {
     setIsSending(true)
@@ -35,6 +40,19 @@ export function SuggestionCard({
       console.error('Error enviando solicitud:', error)
     } finally {
       setIsSending(false)
+    }
+  }
+
+  const handleCancelRequest = async () => {
+    if (!pendingRequest) return
+    setIsCancelling(true)
+    try {
+      await cancelSentRequest(pendingRequest.id)
+      await onCancelRequest?.(pendingRequest.id)
+    } catch (error) {
+      console.error('Error cancelando solicitud:', error)
+    } finally {
+      setIsCancelling(false)
     }
   }
 
@@ -91,12 +109,24 @@ export function SuggestionCard({
 
         <button
           type="button"
-          onClick={handleSendRequest}
-          disabled={isSending}
-          aria-label={isSending ? 'Enviando…' : 'Agregar a tu red'}
-          className="shrink-0 rounded-full bg-[#73FFA2] px-3 py-1.5 text-[11px] font-semibold text-zinc-900 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={pendingRequest ? handleCancelRequest : handleSendRequest}
+          disabled={isSending || isCancelling}
+          aria-label={
+            pendingRequest
+              ? isCancelling
+                ? 'Cancelando…'
+                : 'Cancelar solicitud'
+              : isSending
+                ? 'Enviando…'
+                : 'Agregar a tu red'
+          }
+          className={
+            pendingRequest
+              ? 'shrink-0 rounded-full border border-red-400/45 bg-red-500/15 px-3 py-1.5 text-[11px] font-semibold text-red-200 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-colors hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-50'
+              : 'shrink-0 rounded-full bg-[#73FFA2] px-3 py-1.5 text-[11px] font-semibold text-zinc-900 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50'
+          }
         >
-          {isSending ? '…' : 'Agregar'}
+          {pendingRequest ? (isCancelling ? '…' : 'Cancelar') : isSending ? '…' : 'Agregar'}
         </button>
       </div>
     )
@@ -167,12 +197,30 @@ export function SuggestionCard({
 
         <button
           type="button"
-          onClick={handleSendRequest}
-          disabled={isSending}
-          aria-label={isSending ? 'Enviando…' : 'Agregar a tu red'}
-          className="mt-auto w-full rounded-lg bg-[#73FFA2] py-1.5 text-xs font-semibold text-zinc-900 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={pendingRequest ? handleCancelRequest : handleSendRequest}
+          disabled={isSending || isCancelling}
+          aria-label={
+            pendingRequest
+              ? isCancelling
+                ? 'Cancelando…'
+                : 'Cancelar solicitud'
+              : isSending
+                ? 'Enviando…'
+                : 'Agregar a tu red'
+          }
+          className={
+            pendingRequest
+              ? 'mt-auto w-full rounded-[22px] border border-red-400/45 bg-red-500/15 py-2 text-xs font-semibold text-red-200 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-colors hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-50'
+              : 'mt-auto w-full rounded-[22px] border border-[#5bbf8a]/80 bg-[#73FFA2] py-2 text-xs font-semibold text-zinc-900 shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
+          }
         >
-          {isSending ? '…' : 'Agregar'}
+          {pendingRequest
+            ? isCancelling
+              ? 'Cancelando…'
+              : 'Cancelar solicitud'
+            : isSending
+              ? '…'
+              : 'Agregar'}
         </button>
       </div>
     </div>

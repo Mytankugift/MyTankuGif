@@ -1,8 +1,13 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { LifebuoyIcon } from '@heroicons/react/24/outline'
 import { isSupportCaseNotification } from '@/lib/notification-routing'
+
+/** Mismo asset que el like activo en publicaciones del feed. */
+const POST_LIKE_ICON = '/icons_tanku/tanku_megusta_relleno.svg'
+import { getNotificationAvatarFallback } from '@/lib/notifications-display'
 
 interface NotificationIconProps {
   notification: {
@@ -14,6 +19,70 @@ interface NotificationIconProps {
   username?: string | null
   /** Nav dropdown usa iconos un poco más grandes */
   size?: 'md' | 'lg'
+}
+
+function FriendNotificationAvatar({
+  avatar,
+  username,
+  title,
+  message,
+  box,
+  size,
+}: {
+  avatar?: string | null
+  username?: string | null
+  title?: string
+  message?: string
+  box: string
+  size: 'md' | 'lg'
+}) {
+  const fallbackSrc = getNotificationAvatarFallback(username, message, title)
+  const [imgSrc, setImgSrc] = useState(avatar?.trim() || fallbackSrc)
+  const [imgError, setImgError] = useState(false)
+
+  useEffect(() => {
+    setImgSrc(avatar?.trim() || fallbackSrc)
+    setImgError(false)
+  }, [avatar, fallbackSrc])
+
+  if (imgError) {
+    return (
+      <div
+        className={`relative ${box} shrink-0 overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700`}
+      >
+        <div
+          className={`flex h-full w-full items-center justify-center font-semibold text-gray-300 ${
+            size === 'lg' ? 'text-sm' : 'text-xs md:text-sm'
+          }`}
+        >
+          {(username?.[0] || title?.[0] || 'U').toUpperCase()}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`relative ${box} shrink-0 overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700`}
+    >
+      <Image
+        src={imgSrc}
+        alt=""
+        width={48}
+        height={48}
+        className="h-full w-full object-cover"
+        unoptimized={imgSrc.startsWith('http')}
+        referrerPolicy="no-referrer"
+        onError={() => {
+          if (imgSrc !== fallbackSrc) {
+            setImgSrc(fallbackSrc)
+            return
+          }
+          setImgError(true)
+        }}
+      />
+    </div>
+  )
 }
 
 export function NotificationIcon({
@@ -35,6 +104,11 @@ export function NotificationIcon({
     loweredType.includes('event') ||
     loweredTitle.includes('evento') ||
     loweredMessage.includes('evento')
+  const isPostLike = loweredType === 'post_like' || loweredType === 'comment_like'
+  const isPostComment =
+    loweredType === 'post_comment' ||
+    loweredType === 'comment_mention' ||
+    loweredType === 'comment_reply'
 
   const boxMd = 'h-10 w-10 md:h-12 md:w-12'
   const boxLg = 'h-12 w-12'
@@ -52,28 +126,14 @@ export function NotificationIcon({
 
   if (loweredType === 'friend_request' || isAcceptedRequest) {
     return (
-      <div
-        className={`relative ${box} shrink-0 overflow-hidden rounded-full border border-[#66DEDB] bg-gray-700`}
-      >
-        {avatar ? (
-          <Image
-            src={avatar}
-            alt={username || n.title || ''}
-            width={48}
-            height={48}
-            className="h-full w-full object-cover"
-            unoptimized={avatar.startsWith('http')}
-          />
-        ) : (
-          <div
-            className={`flex h-full w-full items-center justify-center font-semibold text-gray-300 ${
-              size === 'lg' ? 'text-sm' : 'text-xs md:text-sm'
-            }`}
-          >
-            {(username?.[0] || n.title?.[0] || 'U').toUpperCase()}
-          </div>
-        )}
-      </div>
+      <FriendNotificationAvatar
+        avatar={avatar}
+        username={username}
+        title={n.title}
+        message={n.message}
+        box={box}
+        size={size}
+      />
     )
   }
 
@@ -99,6 +159,40 @@ export function NotificationIcon({
     )
   }
 
+  if (isPostLike) {
+    return (
+      <div
+        className={`flex ${box} shrink-0 items-center justify-center rounded-full border border-[#66DEDB]/60 bg-[#66DEDB]/10`}
+      >
+        <Image
+          src={POST_LIKE_ICON}
+          alt=""
+          width={22}
+          height={22}
+          className={
+            size === 'lg'
+              ? 'h-[22px] w-[22px] object-contain'
+              : 'h-[18px] w-[18px] object-contain md:h-[22px] md:w-[22px]'
+          }
+          unoptimized
+        />
+      </div>
+    )
+  }
+
+  if (isPostComment) {
+    return (
+      <FriendNotificationAvatar
+        avatar={avatar}
+        username={username}
+        title={n.title}
+        message={n.message}
+        box={box}
+        size={size}
+      />
+    )
+  }
+
   return (
     <div
       className={`flex ${box} shrink-0 items-center justify-center rounded-full border border-[#66DEDB]/60 bg-[#66DEDB]/10`}
@@ -121,7 +215,7 @@ export function NotificationIcon({
 
 export function notificationRowClassName(notification: { type?: string }): string {
   const base =
-    'cursor-pointer border-b px-3 py-2.5 transition-colors hover:bg-white/[0.03] md:px-4 md:py-3'
+    'cursor-pointer border-b px-3 py-3 transition-colors hover:bg-white/[0.03] md:px-4 md:py-3.5'
   if (isSupportCaseNotification(notification)) {
     return `${base} border-l-2 border-l-amber-400/70 bg-amber-500/[0.06] hover:bg-amber-500/10`
   }

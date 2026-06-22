@@ -3,12 +3,13 @@
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useNotifications } from '@/lib/hooks/use-notifications'
-import { useEffect, useRef, useState } from 'react'
-import { apiClient } from '@/lib/api/client'
-import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { useResolveNotificationActors } from '@/lib/hooks/use-resolve-notification-actors'
+import { useEffect, useRef } from 'react'
 import {
   formatNotificationTimeShort,
+  getNotificationAvatar,
   getNotificationTargetUserId,
+  getNotificationUsername,
   NOTIFICATION_ROW_DIVIDER_STYLE,
 } from '@/lib/notifications-display'
 import { navigateFromNotification, isSupportCaseNotification } from '@/lib/notification-routing'
@@ -16,6 +17,10 @@ import {
   NotificationIcon,
   notificationRowClassName,
 } from '@/components/notifications/notification-icon'
+import {
+  NotificationMessageContent,
+  NotificationTitleContent,
+} from '@/components/notifications/notification-title-content'
 
 interface NotificationsButtonProps {
   // ✅ Props opcionales desde feedInit para evitar llamadas duplicadas
@@ -41,8 +46,8 @@ export function NotificationsButton({
   const router = useRouter()
   const btnRef = useRef<HTMLButtonElement | null>(null)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
-  const [resolvedAvatars, setResolvedAvatars] = useState<Record<string, string>>({})
-  const [resolvedUsernames, setResolvedUsernames] = useState<Record<string, string>>({})
+  const latestItems = items.slice(0, 15)
+  const { resolvedAvatars, resolvedUsernames } = useResolveNotificationActors(latestItems)
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -74,16 +79,8 @@ export function NotificationsButton({
   }
 
   const handleNotificationClick = (n: any) => {
-    const data = (n.data || {}) as Record<string, any>
     const targetUserId = getNotificationTargetUserId(n)
-    const username =
-      (targetUserId ? resolvedUsernames[targetUserId] : null) ||
-      data.friendUsername ||
-      data.fromUsername ||
-      data.username ||
-      data.actorUsername ||
-      data.senderUsername ||
-      null
+    const username = getNotificationUsername(n, resolvedUsernames)
 
     const navigated = navigateFromNotification(router, n, {
       username,
@@ -93,66 +90,6 @@ export function NotificationsButton({
       setIsOpen(false)
     }
   }
-
-  const latestItems = items.slice(0, 15)
-
-  useEffect(() => {
-    if (!isOpen || latestItems.length === 0) return
-
-    const shouldResolveAvatar = (n: { type?: string; title?: string; message?: string }) => {
-      const loweredType = (n.type || '').toLowerCase()
-      const loweredTitle = (n.title || '').toLowerCase()
-      const loweredMessage = (n.message || '').toLowerCase()
-      return (
-        loweredType === 'friend_request' ||
-        loweredType.includes('friend_accepted') ||
-        loweredType.includes('accepted') ||
-        (loweredTitle.includes('solicitud') && loweredTitle.includes('acept')) ||
-        (loweredMessage.includes('solicitud') && loweredMessage.includes('acept'))
-      )
-    }
-
-    const userIdsToResolve = latestItems
-      .filter(shouldResolveAvatar)
-      .map((n) => getNotificationTargetUserId(n))
-      .filter((id): id is string => Boolean(id))
-      .filter((id) => !resolvedAvatars[id] || !resolvedUsernames[id])
-
-    if (userIdsToResolve.length === 0) return
-
-    let cancelled = false
-
-    Promise.all(
-      userIdsToResolve.map(async (userId) => {
-        try {
-          const response = await apiClient.get<any>(API_ENDPOINTS.USERS.BY_ID(userId))
-          const avatar = response?.data?.profile?.avatar || null
-          const username = response?.data?.username || null
-          return { userId, avatar, username }
-        } catch {
-          return { userId, avatar: null, username: null }
-        }
-      })
-    ).then((results) => {
-      if (cancelled) return
-      const nextAvatars: Record<string, string> = {}
-      const nextUsernames: Record<string, string> = {}
-      results.forEach(({ userId, avatar, username }) => {
-        if (avatar) nextAvatars[userId] = avatar
-        if (username) nextUsernames[userId] = username
-      })
-      if (Object.keys(nextAvatars).length > 0) {
-        setResolvedAvatars((prev) => ({ ...prev, ...nextAvatars }))
-      }
-      if (Object.keys(nextUsernames).length > 0) {
-        setResolvedUsernames((prev) => ({ ...prev, ...nextUsernames }))
-      }
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [isOpen, latestItems, resolvedAvatars, resolvedUsernames])
 
   return (
     <div className="relative">
@@ -228,22 +165,8 @@ export function NotificationsButton({
             ) : (
               <ul>
                 {latestItems.map((n) => {
-                  const data = (n.data || {}) as Record<string, any>
-                  const resolvedUserId = getNotificationTargetUserId(n)
-                  const avatarCandidate =
-                    (resolvedUserId ? resolvedAvatars[resolvedUserId] : null) ||
-                    data.avatar ||
-                    data.userAvatar ||
-                    data.actorAvatar ||
-                    data.senderAvatar ||
-                    data.user?.profile?.avatar ||
-                    data.actor?.profile?.avatar ||
-                    data.sender?.profile?.avatar ||
-                    data.profileAvatar ||
-                    null
-                  const avatar = typeof avatarCandidate === 'string' ? avatarCandidate : null
-                  const username =
-                    data.username || data.actorUsername || data.senderUsername || data.userName || null
+                  const avatar = getNotificationAvatar(n, resolvedAvatars)
+                  const username = getNotificationUsername(n, resolvedUsernames)
                   const isSupport = isSupportCaseNotification(n)
 
                   return (
@@ -256,8 +179,8 @@ export function NotificationsButton({
                         handleNotificationClick(n)
                       }}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="relative flex-shrink-0">
+                      <div className="flex items-start gap-3 py-1">
+                        <div className="relative flex-shrink-0 pt-0.5">
                           <NotificationIcon
                             notification={n}
                             avatar={avatar}
@@ -273,24 +196,33 @@ export function NotificationsButton({
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="mb-1 flex items-center justify-between gap-2">
+                          <div className="mb-0.5 flex items-start justify-between gap-2">
                             <div
-                              className={`truncate text-sm font-semibold leading-none ${
+                              className={`line-clamp-2 text-sm font-semibold leading-snug ${
                                 isSupport ? 'text-amber-100' : 'text-white'
                               }`}
                             >
-                              {n.title}
+                              <NotificationTitleContent
+                                title={n.title}
+                                type={n.type}
+                                message={n.message}
+                                isSupport={isSupport}
+                              />
                             </div>
-                            <span className="ml-2 flex-shrink-0 text-sm text-gray-300">
+                            <span className="ml-2 flex-shrink-0 text-xs text-gray-300 pt-0.5">
                               {formatNotificationTimeShort(n.createdAt)}
                             </span>
                           </div>
                           <div
-                            className={`truncate text-sm ${
+                            className={`line-clamp-2 text-sm leading-snug ${
                               isSupport ? 'text-amber-200/80' : 'text-gray-400'
                             }`}
                           >
-                            {n.message}
+                            <NotificationMessageContent
+                              message={n.message}
+                              type={n.type}
+                              isSupport={isSupport}
+                            />
                           </div>
                         </div>
                       </div>

@@ -8,6 +8,7 @@ import { persist } from 'zustand/middleware'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import type { User } from '@/types/api'
+import { useFriendsStore } from '@/lib/stores/friends-store'
 
 interface AuthState {
   user: User | null
@@ -93,6 +94,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         apiClient.setToken(null)
+        useFriendsStore.getState().reset()
         set({ 
           user: null, 
           token: null, 

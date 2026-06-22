@@ -6,6 +6,7 @@
 import { create } from 'zustand'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { track } from '@/lib/analytics/tracker'
 import type { Cart, CartItem } from '@/types/api'
 
 interface CartState {
@@ -207,7 +208,17 @@ export const useCartStore = create<CartState>((set, get) => ({
           normalCart: mappedCart,
           isLoading: false 
         })
-        
+
+        // ✅ Tracking: add_to_cart (carrito normal). Resolver productId desde la respuesta.
+        const addedProductId = mappedCart.items?.find(
+          (i: any) => i.variantId === variantId,
+        )?.productId
+        track('add_to_cart', {
+          entityType: 'product',
+          entityId: addedProductId || variantId,
+          metadata: { variantId, quantity, isGiftCart: false },
+        })
+
         // Emitir evento para actualizar otros componentes
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('cartUpdated'))

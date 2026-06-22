@@ -9,6 +9,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useCartStore } from '@/lib/stores/cart-store'
+import { track } from '@/lib/analytics/tracker'
 import type { Cart } from '@/types/api'
 
 interface GiftRecipientEligibility {
@@ -100,6 +101,9 @@ export function useGiftCart() {
           ? cart.id // Pasar cartId para que el backend elimine items y cambie destinatario si es necesario
           : cartId || null
 
+      // ¿Es el inicio de una sesión de regalo para este destinatario?
+      const isNewGiftSession = !(cart && cart.isGiftCart && cart.giftRecipientId === recipientId)
+
       const response = await apiClient.post<Cart | { cart: Cart }>(API_ENDPOINTS.CART.ADD_GIFT_ITEM, {
         cart_id: currentCartId,
         variant_id: variantId,
@@ -138,6 +142,24 @@ export function useGiftCart() {
           giftRecipientId: recipientId,
         }
         console.log('[useGiftCart] Carrito actualizado:', mappedCart) // Debug
+
+        // ✅ Tracking: inicio de regalo (solo en sesión nueva) + add_to_cart de regalo
+        if (isNewGiftSession) {
+          track('gift_cart_start', {
+            entityType: 'user',
+            entityId: recipientId,
+            metadata: { recipientId },
+          })
+        }
+        const addedGiftProductId = mappedCart.items?.find(
+          (i: any) => i.variantId === variantId,
+        )?.productId
+        track('add_to_cart', {
+          entityType: 'product',
+          entityId: addedGiftProductId || variantId,
+          metadata: { variantId, quantity, isGiftCart: true, recipientId },
+        })
+
         // Actualizar el carrito de regalos en el store
         useCartStore.getState().setGiftCart(mappedCart)
         // También actualizar cart para compatibilidad

@@ -169,6 +169,8 @@ export const PosterCard = memo(function PosterCard({
     window.matchMedia('(hover: none) and (pointer: coarse)').matches
 
   const handleCardClick = (e: React.MouseEvent) => {
+    if (isShareModalOpen) return
+
     const down = pointerDownRef.current
     pointerDownRef.current = null
 
@@ -249,6 +251,7 @@ export const PosterCard = memo(function PosterCard({
   const isProfileVariant = variant === 'profile'
 
   return (
+    <>
     <div
       ref={cardRef}
       className={`touch-manipulation bg-transparent rounded-lg sm:rounded-2xl cursor-pointer ${
@@ -543,13 +546,14 @@ export const PosterCard = memo(function PosterCard({
           </button>
         </div>
       )}
-      <SharePostModal
-        isOpen={isShareModalOpen}
-        postUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${poster.id}`}
-        postDescription={poster.description}
-        onClose={() => setIsShareModalOpen(false)}
-      />
     </div>
+    <SharePostModal
+      isOpen={isShareModalOpen}
+      postUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${poster.id}`}
+      postDescription={poster.description}
+      onClose={() => setIsShareModalOpen(false)}
+    />
+    </>
   )
 }, (prevProps, nextProps) => {
   return (

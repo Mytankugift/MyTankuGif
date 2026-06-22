@@ -16,6 +16,7 @@ import { ProfileTabletOverlayModal } from '@/components/profile/profile-tablet-o
 import { displayOrderRef } from '@/lib/utils/entity-ref-display'
 import { dropiStatusChipClass, formatDropiStatus } from '@/lib/dropi-status'
 import { clearProfileDeepLinkParams } from '@/lib/support-case-navigation'
+import { belongsInPurchasesList } from '@/lib/order-list-segment'
 import type { SupportCaseDetailDTO } from '@/types/api'
 
 /** Superficie alineada con el panel de notificaciones del nav */
@@ -213,12 +214,14 @@ export function OrdersTab({
       if (orderResponse.success && orderResponse.data) {
         setSelectedOrder(orderResponse.data)
         setShowOrderDetails(true)
-        setOrders((prev) => {
-          if (!prev.find((o) => o.id === orderResponse.data!.id)) {
-            return [orderResponse.data!, ...prev]
-          }
-          return prev
-        })
+        if (belongsInPurchasesList(orderResponse.data)) {
+          setOrders((prev) => {
+            if (!prev.find((o) => o.id === orderResponse.data!.id)) {
+              return [orderResponse.data!, ...prev]
+            }
+            return prev
+          })
+        }
       }
     },
     [orders]

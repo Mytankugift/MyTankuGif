@@ -313,6 +313,18 @@ export class SocketService {
   }
 
   /**
+   * Emitir borrado de notificación en tiempo real
+   * Helper para el módulo de notificaciones (caso unlike -> grupo en 0)
+   */
+  async emitNotificationDeleted(userId: string, id: string) {
+    this.emitToUser(userId, {
+      type: 'notification_deleted',
+      payload: { id },
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
    * Emitir contador de notificaciones no leídas
    */
   async emitNotificationCount(userId: string, unreadCount: number) {
@@ -359,8 +371,6 @@ export class SocketService {
           // También mantener room de usuario (para notificaciones)
           socket.join(`user:${userId}`);
           
-          console.log(`✅ [SOCKET-CHAT] Usuario ${userId} unido a conversación ${conversationId}`);
-          
           // Notificar al socket que se unió exitosamente
           socket.emit('chat:joined', { conversationId });
         } catch (error: any) {
@@ -375,7 +385,6 @@ export class SocketService {
       // Handler: Salir de una conversación
       socket.on('chat:leave', (conversationId: string) => {
         socket.leave(`conversation:${conversationId}`);
-        console.log(`✅ [SOCKET-CHAT] Usuario ${userId} salió de conversación ${conversationId}`);
       });
 
       // Handler: Enviar mensaje (SOCKET ES EL CANAL PRINCIPAL)
@@ -457,7 +466,6 @@ export class SocketService {
             },
           });
 
-          console.log(`✅ [SOCKET-CHAT] Mensaje ${message.id} enviado a conversación ${data.conversationId}`);
         } catch (error: any) {
           console.error(`❌ [SOCKET-CHAT] Error enviando mensaje:`, error.message);
           
@@ -572,7 +580,7 @@ export class SocketService {
       socket.join(`user:${userId}`);
 
       if (conversations.length > 0) {
-        console.log(`✅ [SOCKET-CHAT] Usuario ${userId} unido a ${conversations.length} conversaciones`);
+        console.log(`✅ [SOCKET-CHAT] Usuario ${userId} conectado — ${conversations.length} conversación(es)`);
         
         // Notificar al cliente que se unió a las conversaciones
         socket.emit('chat:conversations:synced', {

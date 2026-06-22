@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import {
@@ -22,8 +22,9 @@ import { dropiStatusChipClass, formatDropiStatus } from '@/lib/dropi-status'
 import { OrderItemDropiShippingModal } from '@/components/profile/order-item-dropi-shipping-modal'
 import { OrderItemDropiShippingActions } from '@/components/profile/order-item-dropi-shipping-actions'
 import { OrderSupportSection } from '@/components/profile/order-support-section'
+import { clearProfileDeepLinkParams } from '@/lib/support-case-navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import type { OrderDTO } from '@/types/api'
+import type { OrderDTO, SupportCaseDetailDTO } from '@/types/api'
 
 /** Superficie alineada con compras; `ring` = stroke verde (recibido) o azul Tanku (enviado). */
 const GIFT_SURFACE_CLASS =
@@ -86,6 +87,8 @@ export type GiftWithDirection = GiftOrder & { direction: GiftDirection }
 
 interface GiftsTabProps {
   userId?: string
+  /** Deep link postventa: ?case= (solo regalos; lo resuelve MisTankusTab) */
+  initialOpenCaseId?: string | null
   /** Filtra regalos por `createdAt` dentro del rango (inclusive). */
   timeRange?: { start: Date; end: Date }
 }
@@ -452,7 +455,7 @@ function GiftPurchaseCard({
   )
 }
 
-export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
+export function GiftsTab({ userId, initialOpenCaseId = null, timeRange }: GiftsTabProps) {
   const { user } = useAuthStore()
   const [sentGifts, setSentGifts] = useState<GiftOrder[]>([])
   const [receivedGifts, setReceivedGifts] = useState<GiftOrder[]>([])
@@ -460,6 +463,13 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
   const [selectedGift, setSelectedGift] = useState<GiftWithDirection | null>(null)
   const [showGiftDetails, setShowGiftDetails] = useState(false)
   const [selectedItemForHistory, setSelectedItemForHistory] = useState<string | null>(null)
+  const [deepLinkSupportCaseId, setDeepLinkSupportCaseId] = useState<string | null>(null)
+
+  const supportCaseDeepLinkHandledRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!initialOpenCaseId) supportCaseDeepLinkHandledRef.current = null
+  }, [initialOpenCaseId])
 
   const mergedGifts = useMemo((): GiftWithDirection[] => {
     const sent: GiftWithDirection[] = sentGifts.map((g) => ({ ...g, direction: 'sent' as const }))
@@ -472,12 +482,39 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
     )
   }, [sentGifts, receivedGifts])
 
+  const handleSupportDeepLinkConsumed = useCallback(() => {
+    setDeepLinkSupportCaseId(null)
+    clearProfileDeepLinkParams()
+  }, [])
+
   const filteredGifts = useMemo(() => {
     if (!timeRange) return mergedGifts
     return mergedGifts.filter((g) => isDateInRange(g.createdAt, timeRange))
   }, [mergedGifts, timeRange])
 
-  const loadGifts = async () => {
+  const mergeGiftOrders = (
+    sent: GiftOrder[],
+    received: GiftOrder[]
+  ): GiftWithDirection[] => {
+    const sentRows: GiftWithDirection[] = sent.map((g) => ({ ...g, direction: 'sent' as const }))
+    const receivedRows: GiftWithDirection[] = received.map((g) => ({
+      ...g,
+      direction: 'received' as const,
+    }))
+    return [...sentRows, ...receivedRows].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+  }
+
+  const openGiftFromList = useCallback((orderId: string, list: GiftWithDirection[]): boolean => {
+    const existing = list.find((g) => g.id === orderId)
+    if (!existing) return false
+    setSelectedGift(existing)
+    setShowGiftDetails(true)
+    return true
+  }, [])
+
+  const loadGifts = async (): Promise<GiftWithDirection[]> => {
     try {
       setLoading(true)
 
@@ -489,17 +526,18 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
         `${API_ENDPOINTS.GIFTS.ORDERS}?type=received`
       )
 
-      if (sentResponse.success && sentResponse.data) {
-        setSentGifts(sentResponse.data.orders || [])
-      }
+      const sent = sentResponse.success && sentResponse.data ? sentResponse.data.orders || [] : []
+      const received =
+        receivedResponse.success && receivedResponse.data ? receivedResponse.data.orders || [] : []
 
-      if (receivedResponse.success && receivedResponse.data) {
-        setReceivedGifts(receivedResponse.data.orders || [])
-      }
+      setSentGifts(sent)
+      setReceivedGifts(received)
+      return mergeGiftOrders(sent, received)
     } catch (error) {
       console.error('Error al cargar regalos:', error)
       setSentGifts([])
       setReceivedGifts([])
+      return []
     } finally {
       setLoading(false)
     }
@@ -510,6 +548,40 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
       loadGifts()
     }
   }, [userId])
+
+  // Deep link postventa (?case=): abrir regalo y modal de soporte
+  useEffect(() => {
+    if (!initialOpenCaseId || loading) return
+    if (supportCaseDeepLinkHandledRef.current === initialOpenCaseId) return
+
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const caseResponse = await apiClient.get<SupportCaseDetailDTO>(
+          API_ENDPOINTS.SUPPORT_CASES.BY_ID(initialOpenCaseId)
+        )
+        if (cancelled || !caseResponse.success || !caseResponse.data) return
+
+        const orderId = caseResponse.data.orderId
+        let giftList = mergedGifts
+        if (!openGiftFromList(orderId, giftList)) {
+          giftList = await loadGifts()
+          if (cancelled || !openGiftFromList(orderId, giftList)) return
+        }
+
+        supportCaseDeepLinkHandledRef.current = initialOpenCaseId
+        setDeepLinkSupportCaseId(initialOpenCaseId)
+        clearProfileDeepLinkParams()
+      } catch (error) {
+        console.error('Error al abrir caso de soporte de regalo desde notificación:', error)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [initialOpenCaseId, loading, mergedGifts, openGiftFromList])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -787,7 +859,12 @@ export function GiftsTab({ userId, timeRange }: GiftsTabProps) {
               </div>
 
               {supportOrder ? (
-                <OrderSupportSection order={supportOrder} variant="footer" />
+                <OrderSupportSection
+                  order={supportOrder}
+                  variant="footer"
+                  initialOpenSupportCaseId={deepLinkSupportCaseId}
+                  onSupportDeepLinkConsumed={handleSupportDeepLinkConsumed}
+                />
               ) : null}
             </div>
         </ProfileTabletOverlayModal>
