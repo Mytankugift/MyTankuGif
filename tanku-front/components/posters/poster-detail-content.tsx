@@ -577,13 +577,18 @@ export function PosterDetailContent({
       : 'lg:border-l lg:border-white/[0.08]'
     : innerRule(`border-t lg:border-t-0 lg:border-l ${postPageDivider}`)
   const isVideoPost = Boolean(poster.videoUrl)
+  const isPageMobileStandalone = isPageView && !embeddedInModal
   const mediaMinHeightClass = embeddedInModal
     ? isVideoPost
       ? 'max-md:min-h-0 max-md:max-h-none md:min-h-0 md:flex-1'
-      : 'max-md:min-h-0 max-md:flex-1 max-md:max-h-[min(48dvh,calc(100vw*5/4))] md:min-h-0 md:flex-1'
+      : 'max-md:min-h-0 max-md:flex-1 md:min-h-0 md:flex-1'
     : isVideoPost
-      ? 'min-h-0 max-md:max-h-[min(52dvh,calc(100vw-2rem))] lg:min-h-0 lg:flex-1'
-      : 'min-h-0 max-md:max-h-[min(52dvh,calc(100vw-2rem))] lg:min-h-0 lg:flex-1'
+      ? isPageMobileStandalone
+        ? 'min-h-0 flex-1 max-lg:max-h-none lg:min-h-0 lg:flex-1'
+        : 'min-h-0 max-md:max-h-[min(52dvh,calc(100vw-2rem))] lg:min-h-0 lg:flex-1'
+      : isPageMobileStandalone
+        ? 'min-h-0 flex-1 max-lg:max-h-none lg:min-h-0 lg:flex-1'
+        : 'min-h-0 max-md:max-h-[min(52dvh,calc(100vw-2rem))] lg:min-h-0 lg:flex-1'
   /** Desktop página: imagen centrada en el espacio libre; descripción anclada abajo */
   const pageViewMediaWrapperClass = isPageView
     ? embeddedInModal
@@ -659,7 +664,11 @@ export function PosterDetailContent({
             embeddedInModal
               ? 'block w-full max-w-full object-contain max-md:max-h-[min(42dvh,calc(100vw-1.5rem))] md:max-h-full md:max-w-full md:h-full md:w-full'
               : usePageLikeMobile
-                ? 'block w-full max-w-full object-contain max-h-[min(52dvh,calc(100vw-2rem))] lg:max-h-full lg:h-full lg:w-full'
+                ? isPageMobileStandalone
+                  ? 'block h-full w-full max-h-full max-w-full object-contain'
+                  : embeddedInModal
+                    ? 'block w-full max-w-full object-contain max-h-[min(52dvh,calc(100vw-2rem))] lg:max-h-full lg:h-full lg:w-full'
+                    : 'block w-full max-w-full object-contain max-h-[min(52dvh,calc(100vw-2rem))] lg:max-h-full lg:h-full lg:w-full'
                 : 'h-full w-full max-h-full max-w-full object-contain'
           }
         />
@@ -677,9 +686,11 @@ export function PosterDetailContent({
           }}
           className={`${
             usePageLikeMobile
-              ? mediaOrientation === 'portrait'
-                ? 'h-full w-auto max-w-full object-contain'
-                : 'w-full h-auto max-h-full object-contain'
+              ? embeddedInModal || isPageMobileStandalone
+                ? 'h-full w-full max-h-full max-w-full object-contain'
+                : mediaOrientation === 'portrait'
+                  ? 'h-full w-auto max-w-full object-contain'
+                  : 'w-full h-auto max-h-full object-contain'
               : 'h-full w-full max-h-full max-w-full object-contain'
           }`}
           unoptimized={isRemoteImageSrc(poster.imageUrl)}
@@ -703,7 +714,7 @@ export function PosterDetailContent({
         isPageView
           ? embeddedInModal
             ? 'flex min-h-0 flex-col max-md:h-full max-md:min-h-0 md:h-full'
-            : 'flex h-full min-h-0 flex-col'
+            : 'flex min-h-0 flex-1 flex-col max-lg:h-full'
           : 'flex h-full flex-col'
       }
     >
@@ -905,13 +916,23 @@ export function PosterDetailContent({
 
       {/* Content */}
       <div
-        className={`flex min-h-0 flex-col overflow-hidden ${embeddedInModal ? 'max-md:min-h-0 max-md:flex-1 md:flex-1' : 'flex-1'} ${splitRowClass} ${isPageView && !embeddedInModal ? 'lg:min-h-0 lg:flex-1' : ''} ${!embeddedInModal && !isPageView ? 'overflow-y-auto' : ''} ${postPageBg}`}
+        className={`flex min-h-0 flex-col overflow-hidden ${embeddedInModal ? 'max-md:flex-1 max-md:min-h-0 md:flex-1' : 'flex-1 max-lg:min-h-0'} ${splitRowClass} ${isPageView && !embeddedInModal ? 'lg:min-h-0 lg:flex-1' : ''} ${!embeddedInModal && !isPageView ? 'overflow-y-auto' : ''} ${postPageBg}`}
       >
         {isPageView ? (
-          <div className={`flex min-h-0 flex-col ${leftColClass} ${postPageBg} ${embeddedInModal ? 'max-md:flex-1 max-md:min-h-0' : 'lg:h-full'}`}>
+          <div
+            className={`flex min-h-0 flex-col ${leftColClass} ${postPageBg} ${
+              embeddedInModal ? 'max-md:flex-1 max-md:min-h-0' : 'max-lg:flex-1 max-lg:min-h-0 lg:h-full'
+            }`}
+          >
             <div
-              className={`relative flex ${mediaMinHeightClass} ${embeddedInModal ? 'max-md:flex-1 max-md:min-h-0' : 'max-md:flex-none'} items-center justify-center px-2 pt-2 ${pageViewMediaWrapperClass} ${
-                isVideoPost ? 'max-md:overflow-visible max-md:pb-2' : 'overflow-hidden'
+              className={`relative flex ${mediaMinHeightClass} ${
+                embeddedInModal
+                  ? 'max-md:flex-1 max-md:min-h-0'
+                  : isPageMobileStandalone
+                    ? 'max-lg:flex-1 max-lg:min-h-0'
+                    : 'max-md:flex-none'
+              } items-center justify-center overflow-hidden px-2 ${embeddedInModal ? 'max-md:pt-0' : 'max-lg:pt-0 pt-2'} ${pageViewMediaWrapperClass} ${
+                isVideoPost ? 'max-md:overflow-visible max-md:pb-2' : ''
               }`}
             >
               {posterMedia}
@@ -944,9 +965,9 @@ export function PosterDetailContent({
         {/* Bloque inferior en mobile page view: acciones + fecha + descripción */}
         {usePageLikeMobile && (
           <div
-            className={`space-y-2.5 px-4 py-3 shrink-0 ${hideBelowSplit} ${postPageBg} ${
+            className={`flex flex-col gap-2 px-4 shrink-0 ${embeddedInModal ? 'py-2.5' : 'max-lg:py-2 py-2'} ${hideBelowSplit} ${postPageBg} ${
               isPageView ? 'border-t border-white/[0.08]' : innerRule(`border-t ${postPageDivider}`)
-            }`}
+            } ${isPageMobileStandalone ? 'max-lg:mt-auto' : ''}`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1014,7 +1035,9 @@ export function PosterDetailContent({
                       : undefined
                   }
                 >
-                  <p className="text-sm leading-relaxed text-white">{poster.description}</p>
+                  <p className={`text-sm text-white ${embeddedInModal ? 'leading-relaxed' : 'leading-snug'}`}>
+                    {poster.description}
+                  </p>
                 </div>
               </>
             ) : null}

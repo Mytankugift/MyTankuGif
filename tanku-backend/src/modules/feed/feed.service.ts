@@ -197,7 +197,13 @@ export class FeedService {
       const posts = postsResult;
 
       // Intercalar productos y posts según la regla
-      const intercalated = this.intercalateItems(products, posts, limit, postsPerProducts);
+      const intercalated = this.intercalateItems(
+        products,
+        posts,
+        limit,
+        postsPerProducts,
+        cursor?.consecutiveProductsSinceLastPoster ?? 0
+      );
 
       // Separar productos y posters para batch queries
       const productIds = intercalated.items
@@ -1285,38 +1291,27 @@ export class FeedService {
     products: any[],
     posts: any[],
     limit: number,
-    postsPerProducts: number
+    postsPerProducts: number,
+    initialConsecutiveProducts: number = 0
   ): {
     items: Array<{ itemId: string; itemType: 'product' | 'poster'; createdAt: Date; globalScore?: number }>;
     lastProductIndex: number;
     lastPostIndex: number;
+    consecutiveProductsAtEnd: number;
   } {
     const intercalated: Array<{ itemId: string; itemType: 'product' | 'poster'; createdAt: Date; globalScore?: number }> = [];
     let productIndex = 0;
     let postIndex = 0;
     let itemsAdded = 0;
+    let consecutiveProducts = Math.max(0, initialConsecutiveProducts);
 
     while (itemsAdded < limit && (productIndex < products.length || postIndex < posts.length)) {
-      // Contar cuántos productos consecutivos hemos insertado (sin contar posters intermedios)
-      // Necesitamos contar desde el último poster o desde el inicio
-      let consecutiveProducts = 0;
-      for (let i = intercalated.length - 1; i >= 0; i--) {
-        if (intercalated[i].itemType === 'poster') {
-          break; // Detener al encontrar el último poster
-        }
-        if (intercalated[i].itemType === 'product') {
-          consecutiveProducts++;
-        }
-      }
-      
-      // Si ya insertamos 5 productos consecutivos (postsPerProducts), insertar 1 poster
-      // Pero solo si hay posts disponibles y no es el primer item
-      const shouldInsertPost = intercalated.length > 0 && 
-        consecutiveProducts >= postsPerProducts && 
+      const shouldInsertPost =
+        intercalated.length > 0 &&
+        consecutiveProducts >= postsPerProducts &&
         postIndex < posts.length;
 
       if (shouldInsertPost) {
-        // Insertar post después de cada grupo de 5 productos
         intercalated.push({
           itemId: posts[postIndex].itemId,
           itemType: 'poster',
@@ -1324,8 +1319,8 @@ export class FeedService {
         });
         postIndex++;
         itemsAdded++;
+        consecutiveProducts = 0;
       } else if (productIndex < products.length) {
-        // Insertar producto
         intercalated.push({
           itemId: products[productIndex].itemId,
           itemType: 'product',
@@ -1334,17 +1329,9 @@ export class FeedService {
         });
         productIndex++;
         itemsAdded++;
-      } else if (postIndex < posts.length) {
-        // Si no hay más productos, seguir con posts
-        intercalated.push({
-          itemId: posts[postIndex].itemId,
-          itemType: 'poster',
-          createdAt: posts[postIndex].createdAt,
-        });
-        postIndex++;
-        itemsAdded++;
+        consecutiveProducts++;
       } else {
-        // No hay más items
+        // Sin más productos en este lote: no volcar posts restantes; quedan para la siguiente página
         break;
       }
     }
@@ -1353,6 +1340,7 @@ export class FeedService {
       items: intercalated,
       lastProductIndex: productIndex,
       lastPostIndex: postIndex,
+      consecutiveProductsAtEnd: consecutiveProducts,
     };
   }
 
@@ -1360,7 +1348,12 @@ export class FeedService {
    * Crear cursor híbrido para siguiente página
    */
   private createHybridCursor(
-    intercalated: { items: any[]; lastProductIndex: number; lastPostIndex: number },
+    intercalated: {
+      items: any[];
+      lastProductIndex: number;
+      lastPostIndex: number;
+      consecutiveProductsAtEnd: number;
+    },
     products: any[],
     posts: any[],
     previousCursor: FeedCursorDTO | undefined,
@@ -1375,6 +1368,7 @@ export class FeedService {
     const cursor: FeedCursorDTO = {
       lastItemType: lastItem.itemType,
       lastItemIndex: intercalated.items.length - 1,
+      consecutiveProductsSinceLastPoster: intercalated.consecutiveProductsAtEnd,
     };
 
     // Si el último item es un producto, trackear cursor de productos
@@ -2041,7 +2035,8 @@ export class FeedService {
         products,
         posts,
         PUBLIC_FEED_MAX_PRODUCTS,
-        this.DEFAULT_POSTS_PER_PRODUCTS
+        this.DEFAULT_POSTS_PER_PRODUCTS,
+        cursor?.consecutiveProductsSinceLastPoster ?? 0
       );
 
       const intercalatedProductIds = intercalated.items

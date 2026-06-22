@@ -20,6 +20,8 @@ export type FeedCursorDTO = {
   // Información del último item mostrado (para continuidad)
   lastItemType?: 'product' | 'poster';
   lastItemIndex?: number; // Posición en la intercalación (0-based)
+  /** Productos consecutivos desde el último poster (para intercalar entre páginas) */
+  consecutiveProductsSinceLastPoster?: number;
   
   // Compatibilidad con cursor anterior (legacy)
   lastGlobalScore?: number;
