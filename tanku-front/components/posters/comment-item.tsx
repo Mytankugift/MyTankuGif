@@ -503,19 +503,19 @@ export function CommentItem({
               <button
                 onClick={handleLike}
                 disabled={isLiking}
-                className={`flex items-center gap-1 text-xs transition-colors disabled:opacity-50 ${
-                  isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
-                }`}
+                className="flex items-center gap-1 text-xs transition-opacity hover:opacity-80 disabled:opacity-50"
               >
                 <Image
                   src={isLiked ? '/icons_tanku/tanku_megusta_relleno.svg' : '/icons_tanku/tanku_megusta_lineas_azul.svg'}
                   alt={isLiked ? 'Quitar me gusta' : 'Me gusta'}
                   width={16}
                   height={16}
-                  className="w-4 h-4 object-contain"
+                  className="h-4 w-4 object-contain"
                   unoptimized
                 />
-                {likesCount > 0 && <span>{likesCount}</span>}
+                {likesCount > 0 && (
+                  <span className={isLiked ? 'text-[#73FFA2]' : 'text-white'}>{likesCount}</span>
+                )}
               </button>
             )}
           </div>

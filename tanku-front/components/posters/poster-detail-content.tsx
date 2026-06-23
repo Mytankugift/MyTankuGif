@@ -1004,19 +1004,21 @@ export function PosterDetailContent({
                 <button
                   onClick={handleLike}
                   disabled={isLiking}
-                  className={`flex items-center gap-1.5 transition-colors ${
-                    poster.isLiked ? 'text-red-500' : 'text-white hover:text-red-500'
-                  }`}
+                  className="flex items-center gap-1.5 transition-opacity hover:opacity-80 disabled:opacity-50"
                 >
                   <Image
                     src={poster.isLiked ? '/icons_tanku/tanku_megusta_relleno.svg' : '/icons_tanku/tanku_megusta_lineas_azul.svg'}
                     alt={poster.isLiked ? 'Quitar me gusta' : 'Me gusta'}
                     width={20}
                     height={20}
-                    className="w-5 h-5 object-contain"
+                    className="h-5 w-5 object-contain"
                     unoptimized
                   />
-                  <span className="text-sm font-semibold">{poster.likesCount}</span>
+                  <span
+                    className={`text-sm font-semibold ${poster.isLiked ? 'text-[#73FFA2]' : 'text-white'}`}
+                  >
+                    {poster.likesCount}
+                  </span>
                 </button>
                 <button
                   onClick={() => {
@@ -1140,9 +1142,7 @@ export function PosterDetailContent({
                     type="button"
                     onClick={handleLike}
                     disabled={isLiking}
-                    className={`flex items-center gap-1.5 transition-colors ${
-                      poster.isLiked ? 'text-red-500' : 'text-white hover:text-red-500'
-                    }`}
+                    className="flex items-center gap-1.5 transition-opacity hover:opacity-80 disabled:opacity-50"
                   >
                     <Image
                       src={poster.isLiked ? '/icons_tanku/tanku_megusta_relleno.svg' : '/icons_tanku/tanku_megusta_lineas_azul.svg'}
@@ -1152,7 +1152,11 @@ export function PosterDetailContent({
                       className="h-5 w-5 object-contain"
                       unoptimized
                     />
-                    <span className="text-sm font-semibold">{poster.likesCount}</span>
+                    <span
+                      className={`text-sm font-semibold ${poster.isLiked ? 'text-[#73FFA2]' : 'text-white'}`}
+                    >
+                      {poster.likesCount}
+                    </span>
                   </button>
                   <button
                     type="button"

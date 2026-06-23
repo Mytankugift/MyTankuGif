@@ -524,7 +524,11 @@ export const PosterCard = memo(function PosterCard({
               alt={isLiked ? 'Quitar me gusta' : 'Me gusta'}
               className="mr-1 h-4 w-auto sm:mr-1.5 sm:h-5 md:mr-2"
             />
-            <span className={`text-xs sm:text-sm ${isLightMode ? 'text-black' : 'text-white'}`}>
+            <span
+              className={`text-xs sm:text-sm ${
+                isLiked ? 'text-[#73FFA2]' : isLightMode ? 'text-black' : 'text-white'
+              }`}
+            >
               {likesCount}
             </span>
           </button>
