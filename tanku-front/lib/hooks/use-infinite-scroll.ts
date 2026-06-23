@@ -16,6 +16,12 @@ interface UseInfiniteScrollOptions {
   /** Margen inferior para disparar antes (px) */
   rootMargin?: string
   threshold?: number | number[]
+  /**
+   * Si es false, no se arma el observer (la paginación no se auto-dispara).
+   * Útil para esperar a que el usuario haga scroll y evitar cargar varias
+   * páginas seguidas cuando la primera no llena el viewport. Default: true.
+   */
+  enabled?: boolean
 }
 
 /**
@@ -32,6 +38,7 @@ export function useInfiniteScroll({
   onLoadMore,
   rootMargin = '0px 0px 320px 0px',
   threshold = 0,
+  enabled = true,
 }: UseInfiniteScrollOptions) {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const loadLockRef = useRef(false)
@@ -54,6 +61,7 @@ export function useInfiniteScroll({
   }, [onLoadMore])
 
   useLayoutEffect(() => {
+    if (!enabled) return
     if (!useWindowRoot && !scrollRootReady) return
     const root = scrollRootRef.current
     const sentinel = sentinelRef.current
@@ -99,7 +107,7 @@ export function useInfiniteScroll({
 
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [scrollRootRef, scrollRootReady, useWindowRoot, hasMore, nextCursorToken, rootMargin, threshold])
+  }, [enabled, scrollRootRef, scrollRootReady, useWindowRoot, hasMore, nextCursorToken, rootMargin, threshold])
 
   return { sentinelRef }
 }

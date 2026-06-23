@@ -18,6 +18,12 @@ import {
   buildCommentLikeCopy,
   formatCommentPreviewResolved,
 } from './post-notification-copy';
+import {
+  FRIEND_REQUEST_DIGEST_GROUP_KEY,
+  FRIEND_REQUEST_DIGEST_THRESHOLD,
+  getFriendRequestCopy,
+  getFriendRequestDigestCopy,
+} from './friend-notification-copy';
 
 export class NotificationsService {
   /**
@@ -57,6 +63,7 @@ export class NotificationsService {
         title: data.title,
         message: data.message,
         data: data.data || null,
+        groupKey: data.groupKey ?? null,
         isRead: false,
       },
     });
@@ -140,6 +147,7 @@ export class NotificationsService {
 
     for (const row of rows) {
       const data = row.data as Record<string, unknown> | null;
+      if (data?.digest === true) continue;
       const fromUserId =
         typeof data?.fromUserId === 'string' ? data.fromUserId : null;
       const friendRequestId =
@@ -183,6 +191,209 @@ export class NotificationsService {
       }
       const unreadCount = await this.getUnreadCount(userId);
       await socketService.emitNotificationCount(userId, unreadCount.unreadCount);
+    }
+
+    await this.syncFriendRequestNotifications({ recipientUserId: userId, bump: false });
+  }
+
+  /**
+   * Sincroniza notificaciones de solicitudes de amistad pendientes.
+   * ≤5 pendientes → una fila por remitente; ≥6 → fila digest única.
+   */
+  async syncFriendRequestNotifications(params: {
+    recipientUserId: string;
+    bump?: boolean;
+  }): Promise<void> {
+    const { recipientUserId } = params;
+    const bump = params.bump ?? true;
+
+    try {
+      const pending = await prisma.friend.findMany({
+        where: { friendId: recipientUserId, status: 'pending' },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            include: { profile: true },
+          },
+        },
+      });
+
+      const count = pending.length;
+      const socketService = getSocketService();
+
+      const deleteByIds = async (ids: string[]) => {
+        if (ids.length === 0) return;
+        await prisma.notification.deleteMany({ where: { id: { in: ids } } });
+        if (socketService.isUserConnected(recipientUserId)) {
+          for (const id of ids) {
+            await socketService.emitNotificationDeleted(recipientUserId, id);
+          }
+        }
+      };
+
+      const emitCount = async () => {
+        if (!socketService.isUserConnected(recipientUserId)) return;
+        const unreadCount = await this.getUnreadCount(recipientUserId);
+        await socketService.emitNotificationCount(
+          recipientUserId,
+          unreadCount.unreadCount
+        );
+      };
+
+      if (count === 0) {
+        const rows = await prisma.notification.findMany({
+          where: { userId: recipientUserId, type: 'friend_request' },
+          select: { id: true },
+        });
+        await deleteByIds(rows.map((r) => r.id));
+        await emitCount();
+        return;
+      }
+
+      if (count > FRIEND_REQUEST_DIGEST_THRESHOLD) {
+        const allRows = await prisma.notification.findMany({
+          where: { userId: recipientUserId, type: 'friend_request' },
+          select: { id: true, groupKey: true },
+        });
+        const staleIds = allRows
+          .filter((r) => r.groupKey !== FRIEND_REQUEST_DIGEST_GROUP_KEY)
+          .map((r) => r.id);
+        await deleteByIds(staleIds);
+
+        const names = pending.slice(0, 3).map((r) => resolveActorName(r.user));
+        const lastRequest = pending[0];
+        const { title, message } = getFriendRequestDigestCopy(names, count);
+        const data = {
+          digest: true,
+          type: 'friend_request',
+          actorId: lastRequest.userId,
+          actorName: names[0],
+          count,
+          fromUserId: lastRequest.userId,
+          fromUsername: lastRequest.user.username,
+          fromAvatar: lastRequest.user.profile?.avatar ?? null,
+        };
+
+        const notification = await prisma.notification.upsert({
+          where: {
+            userId_groupKey: {
+              userId: recipientUserId,
+              groupKey: FRIEND_REQUEST_DIGEST_GROUP_KEY,
+            },
+          },
+          create: {
+            userId: recipientUserId,
+            type: 'friend_request',
+            title,
+            message,
+            data,
+            groupKey: FRIEND_REQUEST_DIGEST_GROUP_KEY,
+            isRead: false,
+          },
+          update: bump
+            ? {
+                title,
+                message,
+                data,
+                isRead: false,
+                readAt: null,
+                createdAt: new Date(),
+              }
+            : { title, message, data },
+        });
+
+        if (socketService.isUserConnected(recipientUserId)) {
+          await socketService.emitNotification(
+            recipientUserId,
+            this.mapNotificationToDTO(notification)
+          );
+        }
+        await emitCount();
+        return;
+      }
+
+      const digestRow = await prisma.notification.findUnique({
+        where: {
+          userId_groupKey: {
+            userId: recipientUserId,
+            groupKey: FRIEND_REQUEST_DIGEST_GROUP_KEY,
+          },
+        },
+        select: { id: true },
+      });
+      if (digestRow) {
+        await deleteByIds([digestRow.id]);
+      }
+
+      const pendingFromUserIds = new Set(pending.map((r) => r.userId));
+      const existingRows = await prisma.notification.findMany({
+        where: { userId: recipientUserId, type: 'friend_request' },
+        select: { id: true, groupKey: true, data: true },
+      });
+      const staleIds = existingRows
+        .filter((row) => {
+          if (row.groupKey === FRIEND_REQUEST_DIGEST_GROUP_KEY) return false;
+          const rowData = row.data as Record<string, unknown> | null;
+          const fromUserId =
+            typeof rowData?.fromUserId === 'string' ? rowData.fromUserId : null;
+          if (fromUserId) return !pendingFromUserIds.has(fromUserId);
+          return true;
+        })
+        .map((r) => r.id);
+      await deleteByIds(staleIds);
+
+      for (let i = 0; i < pending.length; i++) {
+        const request = pending[i];
+        const groupKey = `friend_request:${request.userId}`;
+        const { title, message } = getFriendRequestCopy(request.user);
+        const data = {
+          fromUserId: request.userId,
+          actorId: request.userId,
+          friendRequestId: request.id,
+          fromUsername: request.user.username,
+          fromAvatar: request.user.profile?.avatar ?? null,
+        };
+        const shouldBump = bump && i === 0;
+
+        const notification = await prisma.notification.upsert({
+          where: {
+            userId_groupKey: { userId: recipientUserId, groupKey },
+          },
+          create: {
+            userId: recipientUserId,
+            type: 'friend_request',
+            title,
+            message,
+            data,
+            groupKey,
+            isRead: false,
+          },
+          update: shouldBump
+            ? {
+                title,
+                message,
+                data,
+                isRead: false,
+                readAt: null,
+                createdAt: new Date(),
+              }
+            : { title, message, data },
+        });
+
+        if (socketService.isUserConnected(recipientUserId)) {
+          await socketService.emitNotification(
+            recipientUserId,
+            this.mapNotificationToDTO(notification)
+          );
+        }
+      }
+
+      await emitCount();
+    } catch (error: any) {
+      console.error(
+        'Error sincronizando notificaciones de solicitud de amistad:',
+        error?.message
+      );
     }
   }
 

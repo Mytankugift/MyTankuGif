@@ -7,7 +7,6 @@
 import { prisma } from '../../config/database';
 import {
   getFriendAcceptedCopy,
-  getFriendRequestCopy,
 } from '../notifications/friend-notification-copy';
 import { NotFoundError, BadRequestError, ConflictError, ForbiddenError } from '../../shared/errors/AppError';
 import {
@@ -200,25 +199,14 @@ export class FriendsService {
       },
     });
 
-    // Crear notificación para el usuario destino
+    // Sincronizar notificación para el usuario destino (individual o digest según pendientes)
     try {
-      const { title, message } = getFriendRequestCopy(friend.user);
-      await this.notificationsService.createNotification({
-        userId: friendId,
-        type: 'friend_request',
-        title,
-        message,
-        data: {
-          fromUserId: userId,
-          actorId: userId,
-          friendRequestId: friend.id,
-          fromUsername: friend.user.username,
-          fromAvatar: friend.user.profile?.avatar ?? null,
-        },
+      await this.notificationsService.syncFriendRequestNotifications({
+        recipientUserId: friendId,
+        bump: true,
       });
     } catch (error) {
-      // Si falla la notificación, no fallar la solicitud
-      console.error('Error creando notificación de solicitud de amistad:', error);
+      console.error('Error sincronizando notificación de solicitud de amistad:', error);
     }
 
     return this.mapFriendToDTO(friend);
@@ -360,6 +348,10 @@ export class FriendsService {
           friendRequestId: requestId,
           fromUserId: request.userId,
         });
+        await this.notificationsService.syncFriendRequestNotifications({
+          recipientUserId: request.friendId,
+          bump: false,
+        });
       } catch (error) {
         console.error('Error eliminando notificación de solicitud aceptada:', error);
       }
@@ -391,6 +383,10 @@ export class FriendsService {
         await this.notificationsService.removeFriendRequestNotifications(request.friendId, {
           friendRequestId: requestId,
           fromUserId: request.userId,
+        });
+        await this.notificationsService.syncFriendRequestNotifications({
+          recipientUserId: request.friendId,
+          bump: false,
         });
       } catch (error) {
         console.error('Error eliminando notificación de solicitud rechazada:', error);
@@ -1023,8 +1019,11 @@ export class FriendsService {
         friendRequestId: requestId,
         fromUserId: userId,
       });
+      await this.notificationsService.syncFriendRequestNotifications({
+        recipientUserId: request.friendId,
+        bump: false,
+      });
     } catch (error) {
-      // Si falla, no es crítico
       console.error('Error eliminando notificación de solicitud cancelada:', error);
     }
   }

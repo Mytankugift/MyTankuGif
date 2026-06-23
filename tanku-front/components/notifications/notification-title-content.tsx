@@ -187,8 +187,13 @@ export function NotificationMessageContent({
     return <>Ahora son amigos</>
   }
 
-  if (!isSupport && lowered === 'friend_request' && sentRequestRe.test(message)) {
-    return <>Quiere ser tu amigo</>
+  if (!isSupport && lowered === 'friend_request') {
+    if (message === 'Quieren ser tu amigo') {
+      return <>{message}</>
+    }
+    if (sentRequestRe.test(message)) {
+      return <>Quiere ser tu amigo</>
+    }
   }
 
   let displayMessage = message

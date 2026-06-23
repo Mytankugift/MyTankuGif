@@ -83,6 +83,18 @@ El front ya hace **prefetch** al tocar la card (`pointerDown`/`touchStart`/hover
 
 Detalle completo: `_meta/README.md` → sección «Notas: rendimiento local vs producción».
 
+### Landing (`/`) — carga de productos
+
+La landing (invitados) muestra productos del ranking + **publicaciones de cuentas globales** (1 post cada 5 productos). Optimización 2026-06-22:
+
+- **Primera pintura:** `GET /api/v1/feed/public` (~20 ítems). Sin categorías (el nav de landing no las muestra).
+- **F5:** grid desde `sessionStorage` (`tanku-landing-feed-v1`, TTL 5 min) aplicado en `useLayoutEffect` (evita hydration mismatch); revalidación en background.
+- **Scroll tras F5:** `lib/landing/landing-scroll.ts` — `scrollRestoration = manual`, reset en `window` + `#app-main`, altura del nav cacheada (`tanku-landing-nav-height-v1`).
+- **Resto en background:** páginas con `X-Feed-Cursor` hasta 100 productos; banners en 48 y 100.
+- **Imágenes:** las 8 primeras cards usan carga eager/`priority`; el resto lazy (CDN directo, sin optimizador Vercel).
+
+Detalle: `_meta/optimizacion-landing-performance.md`.
+
 ## 🎯 Estado Actual
 
 - ✅ FASE 0: Setup inicial completado

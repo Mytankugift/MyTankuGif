@@ -65,9 +65,9 @@ router.get('/', optionalAuthenticate, feedController.getFeed);
  * 
  * Características:
  * - Productos del ranking global intercalados con posts de cuentas globales (1 cada 5)
- * - Máximo 100 productos
+ * - Máximo 100 productos en total; 20 ítems por página (paginación con X-Feed-Cursor)
  * - Sin boost personalizado
- * - Cacheable (60 segundos TTL)
+ * - Cacheable primera página (60 segundos TTL)
  * - Sin información sensible (no incluye isLiked)
  * 
  * Headers:
@@ -79,6 +79,8 @@ router.get('/', optionalAuthenticate, feedController.getFeed);
  * 
  * Autenticación: No requerida
  */
+router.get('/public/init', optionalAuthenticate, feedController.getPublicFeedInit);
+
 router.get('/public', optionalAuthenticate, feedController.getPublicFeed);
 
 export default router;

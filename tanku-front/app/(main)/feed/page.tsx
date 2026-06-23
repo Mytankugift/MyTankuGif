@@ -53,6 +53,10 @@ export default function FeedPage() {
   const hasInitialized = useRef(false)
   const [feedExplorarActivated, setFeedExplorarActivated] = useState(false)
   const [categoriesModalOpen, setCategoriesModalOpen] = useState(false)
+  // Gate del scroll infinito: solo paginamos tras la primera intención de scroll del
+  // usuario. Evita que, si la primera página no llena el viewport, el sentinel visible
+  // encadene varias cargas de /feed sin que nadie haya tocado nada.
+  const [hasUserScrolled, setHasUserScrolled] = useState(false)
   /** Scroll en `#feed-scroll-root` (Chrome Android, mismo criterio que /cart). */
   const useWindowScroll = false
 
@@ -61,6 +65,23 @@ export default function FeedPage() {
     feedScrollAttached,
     useWindowScroll
   )
+
+  // Detecta la primera intención de scroll (scroll/wheel/touchmove). Escuchamos también
+  // wheel/touchmove para captar la intención aunque el contenido aún no llene el viewport.
+  useEffect(() => {
+    if (hasUserScrolled) return
+    const root = feedScrollRootRef.current
+    const scrollTarget: HTMLElement | Window = useWindowScroll || !root ? window : root
+    const markScrolled = () => setHasUserScrolled(true)
+    scrollTarget.addEventListener('scroll', markScrolled, { passive: true })
+    window.addEventListener('wheel', markScrolled, { passive: true })
+    window.addEventListener('touchmove', markScrolled, { passive: true })
+    return () => {
+      scrollTarget.removeEventListener('scroll', markScrolled)
+      window.removeEventListener('wheel', markScrolled)
+      window.removeEventListener('touchmove', markScrolled)
+    }
+  }, [feedScrollAttached, hasUserScrolled, useWindowScroll])
 
   // Esperar a que el store de auth hidrate antes de decidir el redirect
   useEffect(() => {
@@ -263,6 +284,7 @@ export default function FeedPage() {
     nextCursorToken: currentNextCursorToken,
     onLoadMore: handleFeedLoadMore,
     rootMargin: '0px 0px 400px 0px',
+    enabled: hasUserScrolled,
   })
 
   // Sidebar / nav móvil: "My TANKU" en /feed → limpiar filtros como "Todas" + búsqueda vacía

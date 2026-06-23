@@ -5,9 +5,21 @@
 
 const isDev = process.env.NODE_ENV === 'development'
 
+// Logs de alta frecuencia (peticiones API, eventos de socket, paginación de feed)
+// quedan apagados por defecto incluso en dev para mantener la consola en mínimos.
+// Actívalos con NEXT_PUBLIC_VERBOSE_LOGS=true en .env.local cuando necesites depurar.
+const isVerbose = isDev && process.env.NEXT_PUBLIC_VERBOSE_LOGS === 'true'
+
 export const logger = {
   log: (...args: any[]) => {
     if (isDev) console.log(...args)
+  },
+  /**
+   * Logs ruidosos de depuración (por petición/evento). Solo en dev + flag verbose.
+   * Úsalo en lugar de console.log para trazas que se repiten muchas veces.
+   */
+  debug: (...args: any[]) => {
+    if (isVerbose) console.log(...args)
   },
   warn: (...args: any[]) => {
     if (isDev) console.warn(...args)
@@ -18,8 +30,8 @@ export const logger = {
     // TODO: Agregar Sentry, LogRocket, etc. aquí si es necesario
   },
   api: (message: string, data?: any) => {
-    if (isDev) {
-      console.log(`[API] ${message}`, data || '')
+    if (isVerbose) {
+      console.log(`[API] ${message}`, data ?? '')
     }
   },
   info: (...args: any[]) => {

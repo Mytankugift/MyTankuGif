@@ -186,14 +186,10 @@ export function FeedNav({
                       onClick={() => setIsMessagesDropdownOpen(!isMessagesDropdownOpen)}
                       className="group relative flex cursor-pointer items-center justify-center rounded-lg p-2 transition-colors hover:bg-white/10"
                     >
-                      <Image
+                      <img
                         src="/icons_tanku/tanku_nav_mensajes_verde.svg"
                         alt="Mensajes"
-                        width={30}
-                        height={30}
-                        className="object-contain"
-                        style={{ width: '30px', height: '30px' }}
-                        unoptimized
+                        className="h-[30px] w-auto"
                       />
                       {totalUnread > 0 && (
                         <div className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-[#1E1E1E] bg-[#66DEDB]" />
@@ -433,24 +429,18 @@ export function FeedNav({
                   aria-label="Categorías"
                   onClick={() => onOpenCategoriesModal()}
                 >
-                  <Image
+                  <img
                     src="/icons_tanku/mobile_tanku_icono_nueva_historia.svg"
                     alt=""
-                    width={22}
-                    height={22}
-                    className="h-[22px] w-[22px] object-contain"
-                    unoptimized
+                    className="h-[22px] w-auto"
                   />
                 </button>
               ) : null}
               <Link href="/cart" className="flex shrink-0 items-center justify-center md:hidden" aria-label="Ir al carrito">
-                <Image
+                <img
                   src="/icons_tanku/tanku_nav_carrito_verde.svg"
                   alt=""
-                  width={30}
-                  height={30}
-                  className="h-[30px] w-[30px] object-contain"
-                  unoptimized
+                  className="h-[30px] w-auto"
                 />
               </Link>
             </>

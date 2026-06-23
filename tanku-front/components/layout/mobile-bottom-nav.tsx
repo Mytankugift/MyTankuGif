@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { FEED_RESET_FILTERS_EVENT } from '@/lib/constants/feed-events'
@@ -74,13 +73,10 @@ export default function MobileBottomNav() {
               : 'drop-shadow(0 0 4px rgba(115, 255, 162, 0.5))',
           }}
         >
-          <Image
+          <img
             src="/icons_tanku/tanku_logo_menu_MyTanku_verde.svg"
             alt="My TANKU"
-            width={28}
-            height={28}
-            className="object-contain"
-            style={{ width: '28px', height: '28px' }}
+            className="h-7 w-auto"
           />
         </Link>
       )}
@@ -97,24 +93,18 @@ export default function MobileBottomNav() {
               : 'drop-shadow(0 0 4px rgba(115, 255, 162, 0.5))',
           }}
         >
-          <Image
+          <img
             src="/icons_tanku/tanku_nav_notificaciones_verde.svg"
             alt="Notificaciones"
-            width={28}
-            height={28}
-            className="object-contain"
-            style={{ width: '28px', height: '28px' }}
+            className="h-7 w-auto"
           />
         </Link>
       ) : (
         <div className="flex flex-col items-center justify-center p-1 rounded-lg opacity-30 cursor-not-allowed">
-          <Image
+          <img
             src="/icons_tanku/tanku_nav_notificaciones_verde.svg"
             alt="Notificaciones"
-            width={28}
-            height={28}
-            className="object-contain"
-            style={{ width: '28px', height: '28px' }}
+            className="h-7 w-auto"
           />
         </div>
       ))}
@@ -155,24 +145,18 @@ export default function MobileBottomNav() {
               : 'drop-shadow(0 0 4px rgba(115, 255, 162, 0.5))',
           }}
         >
-          <Image
+          <img
             src="/icons_tanku/tanku_nav_mensajes_verde.svg"
             alt="Mensajes"
-            width={28}
-            height={28}
-            className="object-contain"
-            style={{ width: '28px', height: '28px' }}
+            className="h-7 w-auto"
           />
         </Link>
       ) : (
         <div className="flex flex-col items-center justify-center p-1 rounded-lg opacity-30 cursor-not-allowed">
-          <Image
+          <img
             src="/icons_tanku/tanku_nav_mensajes_verde.svg"
             alt="Mensajes"
-            width={28}
-            height={28}
-            className="object-contain"
-            style={{ width: '28px', height: '28px' }}
+            className="h-7 w-auto"
           />
         </div>
       ))}
@@ -189,24 +173,18 @@ export default function MobileBottomNav() {
               : 'drop-shadow(0 0 4px rgba(115, 255, 162, 0.5))',
           }}
         >
-          <Image
+          <img
             src="/icons_tanku/tanku_logo_menu_miperfil_verde.svg"
             alt="Mi Perfil"
-            width={28}
-            height={28}
-            className="object-contain"
-            style={{ width: '28px', height: '28px' }}
+            className="h-7 w-auto"
           />
         </Link>
       ) : (
         <div className="flex flex-col items-center justify-center p-1 rounded-lg opacity-30 cursor-not-allowed">
-          <Image
+          <img
             src="/icons_tanku/tanku_logo_menu_miperfil_verde.svg"
             alt="Mi Perfil"
-            width={28}
-            height={28}
-            className="object-contain"
-            style={{ width: '28px', height: '28px' }}
+            className="h-7 w-auto"
           />
         </div>
       ))}

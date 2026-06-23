@@ -83,7 +83,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
 
       if (response.success && response.data) {
         // Log detallado para debugging
-        logger.log('[FEED] Respuesta inicial:', {
+        logger.debug('[FEED] Respuesta inicial:', {
           hasData: !!response.data,
           hasItems: !!response.data.items,
           itemsCount: response.data.items?.length || 0,
@@ -157,7 +157,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
           safeCursor = currentCursor
         }
         
-        logger.log('[FEED] Cursor procesado:', {
+        logger.debug('[FEED] Cursor procesado:', {
           original: response.data.nextCursorToken,
           safe: safeCursor,
           type: typeof safeCursor,
@@ -213,7 +213,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
 
       if (response.success && response.data) {
         // Log detallado para debugging
-        logger.log('[FEED] Respuesta loadMore:', {
+        logger.debug('[FEED] Respuesta loadMore:', {
           hasData: !!response.data,
           hasItems: !!response.data.items,
           itemsCount: response.data.items?.length || 0,
@@ -227,7 +227,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
         
         // Si no hay items nuevos, no actualizar nada
         if (validItems.length === 0) {
-          logger.log('[FEED] No hay items nuevos en loadMore')
+          logger.debug('[FEED] No hay items nuevos en loadMore')
           setHasMore(false)
           setIsLoadingMore(false)
           return
@@ -238,7 +238,7 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
           ? response.data.nextCursorToken 
           : (response.data.nextCursorToken === null ? null : null)
         
-        logger.log('[FEED] Cursor procesado (loadMore):', {
+        logger.debug('[FEED] Cursor procesado (loadMore):', {
           original: response.data.nextCursorToken,
           safe: safeCursor,
           type: typeof safeCursor,
@@ -257,11 +257,11 @@ export function useFeed(filters: FeedFilters = {}, options?: { skipInitialLoad?:
           const newItems = validItems.filter(item => !existingIds.has(item.id))
           
           if (newItems.length === 0) {
-            logger.log('[FEED] Todos los items ya están cargados, no se agregan duplicados')
+            logger.debug('[FEED] Todos los items ya están cargados, no se agregan duplicados')
             return prev
           }
           
-          logger.log('[FEED] Agregando', newItems.length, 'items nuevos de', validItems.length, 'recibidos')
+          logger.debug('[FEED] Agregando', newItems.length, 'items nuevos de', validItems.length, 'recibidos')
           return [...prev, ...newItems]
         })
         

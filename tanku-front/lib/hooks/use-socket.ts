@@ -23,6 +23,7 @@ import { Socket } from 'socket.io-client'
 import { initSocket, disconnectSocket, getSocket } from '@/lib/realtime/socket'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { chatService } from '@/lib/services/chat.service'
+import { logger } from '@/lib/utils/logger'
 
 // Callback para actualizar último mensaje (sin refresh en background)
 let updateConversationLastMessageCallback: ((conversationId: string, message: ChatMessage) => void) | null = null
@@ -87,7 +88,7 @@ export function useSocket() {
 
     // ✅ NUEVO: Si ChatService está activo, no crear socket para chat
     if (isChatServiceActive) {
-      console.log('ℹ️ [SOCKET] ChatService está activo, omitiendo inicialización de socket para chat')
+      logger.debug('ℹ️ [SOCKET] ChatService está activo, omitiendo inicialización de socket para chat')
       // Limpiar socket existente si hay
       if (socket) {
         disconnectSocket()
@@ -97,10 +98,10 @@ export function useSocket() {
       return
     }
 
-    console.log('🔌 [SOCKET] Inicializando socket con token...')
+    logger.debug('🔌 [SOCKET] Inicializando socket con token...')
     const newSocket = initSocket(token)
     if (!newSocket) {
-      console.error('❌ [SOCKET] No se pudo inicializar socket')
+      logger.error('❌ [SOCKET] No se pudo inicializar socket')
       setSocket(null)
       setIsConnected(false)
       return
@@ -110,13 +111,13 @@ export function useSocket() {
 
     // Verificar si ya está conectado
     if (newSocket.connected) {
-      console.log('✅ [SOCKET] Ya estaba conectado')
+      logger.debug('✅ [SOCKET] Ya estaba conectado')
       setIsConnected(true)
     }
 
     // Handlers de conexión
     const onConnect = () => {
-      console.log('✅ [SOCKET] Conectado exitosamente')
+      logger.debug('✅ [SOCKET] Conectado exitosamente')
       setIsConnected(true)
       
       // ✅ Re-unión automática a conversaciones activas al reconectar
@@ -126,19 +127,19 @@ export function useSocket() {
         activeConversations.forEach(convId => {
           if (!convId.startsWith('temp-')) {
             newSocket.emit('chat:join', convId)
-            console.log(`🔄 [SOCKET] Re-uniendo a conversación ${convId} después de reconexión`)
+            logger.debug(`🔄 [SOCKET] Re-uniendo a conversación ${convId} después de reconexión`)
           }
         })
       }
     }
 
     const onDisconnect = (reason: string) => {
-      console.log('❌ [SOCKET] Desconectado:', reason)
+      logger.debug('❌ [SOCKET] Desconectado:', reason)
       setIsConnected(false)
     }
 
     const onConnectError = (error: Error) => {
-      console.error('❌ [SOCKET] Error de conexión:', error.message)
+      logger.error('❌ [SOCKET] Error de conexión:', error.message)
       setIsConnected(false)
     }
 
@@ -148,13 +149,13 @@ export function useSocket() {
 
     // Handler de eventos genéricos (solo para debug)
     const onEvent = (event: any) => {
-      console.log('📨 [SOCKET] Evento recibido:', event.type)
+      logger.debug('📨 [SOCKET] Evento recibido:', event.type)
     }
     newSocket.on('event', onEvent)
 
     // Cleanup
     return () => {
-      console.log('🧹 [SOCKET] Limpiando listeners')
+      logger.debug('🧹 [SOCKET] Limpiando listeners')
       newSocket.off('connect', onConnect)
       newSocket.off('disconnect', onDisconnect)
       newSocket.off('connect_error', onConnectError)
@@ -207,7 +208,7 @@ export function useSocket() {
           return prev // Ya existe, no hacer nada
         }
         
-        console.log('📨 [SOCKET] Mensaje nuevo recibido:', {
+        logger.debug('📨 [SOCKET] Mensaje nuevo recibido:', {
           conversationId,
           senderId: message.senderId,
           content: message.content.substring(0, 50),
@@ -225,7 +226,7 @@ export function useSocket() {
       const { tempId, message } = data
       const conversationId = message.conversationId
       
-      console.log('✅ [SOCKET] ACK recibido para mensaje:', { tempId, messageId: message.id })
+      logger.debug('✅ [SOCKET] ACK recibido para mensaje:', { tempId, messageId: message.id })
       
       // ✅ Solo actualizar mensajes, sin callbacks
       setMessages((prev) => {

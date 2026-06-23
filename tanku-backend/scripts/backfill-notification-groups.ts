@@ -12,6 +12,7 @@
  *   npm run backfill:notification-groups -- --scope=posts
  *   npm run backfill:notification-groups -- --scope=support
  *   npm run backfill:notification-groups -- --scope=social
+ *   npm run backfill:notification-groups -- --scope=events
  */
 
 import { prisma } from '../src/config/database';
@@ -38,10 +39,16 @@ import { NotificationsService } from '../src/modules/notifications/notifications
 
 const DRY_RUN = process.argv.includes('--dry') || process.argv.includes('--dry-run');
 
-function parseScope(): 'all' | 'orders' | 'posts' | 'support' | 'social' {
+function parseScope(): 'all' | 'orders' | 'posts' | 'support' | 'social' | 'events' {
   const arg = process.argv.find((a) => a.startsWith('--scope='));
   const value = arg?.split('=')[1];
-  if (value === 'orders' || value === 'posts' || value === 'support' || value === 'social') {
+  if (
+    value === 'orders' ||
+    value === 'posts' ||
+    value === 'support' ||
+    value === 'social' ||
+    value === 'events'
+  ) {
     return value;
   }
   return 'all';
@@ -628,10 +635,10 @@ async function backfillSocialNotifications(): Promise<void> {
   if (DRY_RUN) console.log('   (dry-run, no se escribió)');
 
   if (!DRY_RUN) {
-    await pruneStaleFriendRequestNotificationsBackfill();
+    await backfillFriendRequestDigest();
     await backfillFriendAcceptedGroups();
   } else {
-    console.log('\n   (dry-run: omitida limpieza de friend_request obsoletas)');
+    console.log('\n   (dry-run: omitida sync friend_request digest/individuales)');
     await backfillFriendAcceptedGroups();
   }
 }
@@ -728,6 +735,94 @@ async function backfillFriendAcceptedGroups(): Promise<void> {
   }
 }
 
+async function backfillFriendRequestDigest(): Promise<void> {
+  console.log('\n👥 friend_request → digest/individuales (sync desde Friend pendientes)\n');
+
+  const [pendingRecipients, notificationUsers] = await Promise.all([
+    prisma.friend.findMany({
+      where: { status: 'pending' },
+      distinct: ['friendId'],
+      select: { friendId: true },
+    }),
+    prisma.notification.findMany({
+      where: { type: 'friend_request' },
+      distinct: ['userId'],
+      select: { userId: true },
+    }),
+  ]);
+
+  const userIds = new Set([
+    ...pendingRecipients.map((r) => r.friendId),
+    ...notificationUsers.map((u) => u.userId),
+  ]);
+
+  console.log(`   Usuarios a sincronizar: ${userIds.size}`);
+  if (DRY_RUN || userIds.size === 0) return;
+
+  const service = new NotificationsService();
+  for (const userId of userIds) {
+    await service.syncFriendRequestNotifications({
+      recipientUserId: userId,
+      bump: false,
+    });
+  }
+
+  const remaining = await prisma.notification.count({ where: { type: 'friend_request' } });
+  console.log(`   Sincronizados: ${userIds.size}`);
+  console.log(`   friend_request restantes: ${remaining}`);
+}
+
+async function backfillEventReminderTypes(): Promise<void> {
+  console.log('\n📅 EVENT_REMINDER → event_reminder + groupKey\n');
+
+  const rows = await prisma.notification.findMany({
+    where: { type: 'EVENT_REMINDER' },
+    select: { id: true, userId: true, data: true },
+  });
+
+  console.log(`   Filas legacy: ${rows.length}`);
+  if (DRY_RUN || rows.length === 0) return;
+
+  let updated = 0;
+  let skipped = 0;
+
+  for (const row of rows) {
+    const data = row.data as { eventId?: string; daysUntilEvent?: number } | null;
+    const eventId = data?.eventId;
+    const daysUntilEvent = data?.daysUntilEvent;
+    const groupKey =
+      typeof eventId === 'string' && typeof daysUntilEvent === 'number'
+        ? `event_reminder:${eventId}:${daysUntilEvent}`
+        : null;
+
+    if (groupKey) {
+      const conflict = await prisma.notification.findUnique({
+        where: {
+          userId_groupKey: { userId: row.userId, groupKey },
+        },
+        select: { id: true },
+      });
+      if (conflict && conflict.id !== row.id) {
+        await prisma.notification.delete({ where: { id: row.id } });
+        skipped++;
+        continue;
+      }
+    }
+
+    await prisma.notification.update({
+      where: { id: row.id },
+      data: {
+        type: 'event_reminder',
+        ...(groupKey ? { groupKey } : {}),
+      },
+    });
+    updated++;
+  }
+
+  console.log(`   Actualizadas: ${updated}`);
+  if (skipped > 0) console.log(`   Duplicados legacy eliminados: ${skipped}`);
+}
+
 async function pruneStaleFriendRequestNotificationsBackfill(): Promise<void> {
   console.log('\n🧹 Limpieza friend_request ya resueltas\n');
   const service = new NotificationsService();
@@ -764,6 +859,9 @@ async function main(): Promise<void> {
     }
     if (scope === 'all' || scope === 'social') {
       await backfillSocialNotifications();
+    }
+    if (scope === 'all' || scope === 'events') {
+      await backfillEventReminderTypes();
     }
     console.log('\n✅ Backfill completado.\n');
   } catch (err) {

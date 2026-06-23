@@ -18,6 +18,8 @@ export function getNotificationHref(n: NotificationLike): string | null {
   switch (type) {
     case 'friend_request':
       return '/friends'
+    case 'event_reminder':
+      return '/events'
     case 'post_like':
     case 'post_comment':
       if (data.posterId) return `/posts/${data.posterId}`

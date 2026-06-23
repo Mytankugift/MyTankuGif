@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { useCartStore } from '@/lib/stores/cart-store'
 import type { CartItem } from '@/types/api'
 import { isRemoteImageSrc } from '@/lib/utils/remote-image'
+import { logger } from '@/lib/utils/logger'
 
 interface CartButtonProps {
   /** Nav móvil: icono y badge más pequeños */
@@ -37,7 +38,7 @@ export function CartButton({ compact = false }: CartButtonProps = {}) {
       
       // ✅ Si feedInit ya terminó y hay carrito, no hacer fetch
       if (feedInitComplete && currentCart) {
-        console.log('[CartButton] feedInit ya cargó el carrito, omitiendo fetch')
+        logger.debug('[CartButton] feedInit ya cargó el carrito, omitiendo fetch')
         return
       }
       
@@ -185,7 +186,7 @@ export function CartButton({ compact = false }: CartButtonProps = {}) {
     try {
       await removeItem(itemId)
     } catch (error) {
-      console.error('Error eliminando item:', error)
+      logger.error('Error eliminando item:', error)
     }
   }
 
@@ -202,14 +203,10 @@ export function CartButton({ compact = false }: CartButtonProps = {}) {
           aria-label="Carrito"
           aria-expanded={isOpen}
         >
-          <Image
+          <img
             src="/icons_tanku/tanku_nav_carrito_verde.svg"
             alt=""
-            width={compact ? 22 : 30}
-            height={compact ? 22 : 30}
-            className="object-contain"
-            style={{ width: compact ? '22px' : '30px', height: compact ? '22px' : '30px' }}
-            unoptimized
+            className={compact ? 'h-[22px] w-auto' : 'h-[30px] w-auto'}
           />
           {itemCount > 0 && (
             <span
@@ -246,13 +243,10 @@ export function CartButton({ compact = false }: CartButtonProps = {}) {
           {/* Header */}
           <div className="border-b p-4" style={rowDividerStyle}>
             <div className="flex items-center gap-2">
-              <Image
+              <img
                 src="/icons_tanku/tanku_nav_carrito_verde.svg"
                 alt=""
-                width={28}
-                height={28}
-                className="h-7 w-7 object-contain"
-                unoptimized
+                className="h-7 w-auto"
               />
               <h3 className="text-base font-semibold text-white">Carrito</h3>
             </div>

@@ -933,8 +933,8 @@ export function ProductDetailContent({
         </div>
       )}
 
-      {/* Modal de compartir */}
-      {product?.handle && (
+      {/* Modal de compartir (montar solo al abrir: evita useSocket()/useChat() en background) */}
+      {product?.handle && showShareModal && (
         <ShareProductModal
           isOpen={showShareModal}
           productUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/products/${product.handle}`}

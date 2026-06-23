@@ -8,6 +8,24 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { clearCategoriesCache } from '@/lib/hooks/use-categories'
 import type { OnboardingDataDTO, UpdateOnboardingDataDTO } from '@/types/api'
 
+function isOnboardingFetchUnavailable(err: unknown): boolean {
+  const errorMessage = err instanceof Error ? err.message : String(err)
+  return (
+    errorMessage.includes('No se pudo conectar al servidor') ||
+    errorMessage.includes('Failed to fetch') ||
+    errorMessage.includes('NetworkError') ||
+    errorMessage.includes('NETWORK_ERROR_SILENT') ||
+    errorMessage.startsWith('Timeout:')
+  )
+}
+
+function isOnboardingCompleted(data: OnboardingDataDTO): boolean {
+  const hasBirthDate = !!data.birthDate
+  const hasCategories = (data.categoryIds?.length || 0) > 0
+  const hasActivities = (data.activities?.length || 0) > 0
+  return hasBirthDate && hasCategories && hasActivities
+}
+
 export function useOnboarding() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -31,14 +49,7 @@ export function useOnboarding() {
       return null
     } catch (err) {
       // Silenciar errores de conexión cuando el backend no está disponible
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      
-      // No mostrar error si es un error de conexión (backend no disponible)
-      // Solo mostrar errores reales de la API
-      if (errorMessage.includes('No se pudo conectar al servidor') || 
-          errorMessage.includes('Failed to fetch') ||
-          errorMessage.includes('NetworkError')) {
-        // Silenciar el error, solo retornar null
+      if (isOnboardingFetchUnavailable(err)) {
         return null
       }
       
@@ -85,22 +96,37 @@ export function useOnboarding() {
   )
 
   /**
-   * Verificar si el usuario ha completado el onboarding básico
-   * Consideramos completado si tiene birthDate, al menos 1 categoría y 1 actividad
+   * Verificar si el usuario ha completado el onboarding básico.
+   * - true: completado
+   * - false: la API respondió y falta información
+   * - null: no se pudo verificar (p. ej. backend caído); no inferir incompleto
    */
-  const checkIsCompleted = useCallback(async (): Promise<boolean> => {
-    const data = await getOnboardingData()
+  const checkIsCompleted = useCallback(async (): Promise<boolean | null> => {
+    setIsLoading(true)
+    setError(null)
 
-    if (!data) {
+    try {
+      const response = await apiClient.get<OnboardingDataDTO>(
+        API_ENDPOINTS.USERS.ONBOARDING_DATA.GET
+      )
+
+      if (response.success && response.data) {
+        return isOnboardingCompleted(response.data)
+      }
+
       return false
+    } catch (err) {
+      if (isOnboardingFetchUnavailable(err)) {
+        return null
+      }
+
+      const error = err instanceof Error ? err : new Error('Error al verificar onboarding')
+      setError(error)
+      return null
+    } finally {
+      setIsLoading(false)
     }
-
-    const hasBirthDate = !!data.birthDate
-    const hasCategories = (data.categoryIds?.length || 0) > 0
-    const hasActivities = (data.activities?.length || 0) > 0
-
-    return hasBirthDate && hasCategories && hasActivities
-  }, [getOnboardingData])
+  }, [])
 
   return {
     getOnboardingData,

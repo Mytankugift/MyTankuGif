@@ -16,6 +16,7 @@
 import { io, Socket } from 'socket.io-client'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import { logger } from '@/lib/utils/logger'
 
 export interface ChatMessage {
   id: string
@@ -99,19 +100,19 @@ class ChatService {
   initialize(userId: string, token: string): void {
     // ✅ Si ya está conectado con el mismo usuario, no hacer nada
     if (this.socket?.connected && this.userId === userId) {
-      console.log('✅ [CHAT-SERVICE] Ya inicializado y conectado, omitiendo')
+      logger.debug('✅ [CHAT-SERVICE] Ya inicializado y conectado, omitiendo')
       return
     }
 
     // ✅ Si está en proceso de inicialización, no hacer nada
     if (this.isInitializing) {
-      console.log('✅ [CHAT-SERVICE] Inicialización ya en proceso, omitiendo')
+      logger.debug('✅ [CHAT-SERVICE] Inicialización ya en proceso, omitiendo')
       return
     }
 
     // ✅ Si está en proceso de conexión con el mismo usuario, no hacer nada
     if (this.socket && this.userId === userId && !this.socket.disconnected) {
-      console.log('✅ [CHAT-SERVICE] Conexión ya en proceso, omitiendo')
+      logger.debug('✅ [CHAT-SERVICE] Conexión ya en proceso, omitiendo')
       return
     }
 
@@ -120,13 +121,13 @@ class ChatService {
 
     // ✅ Si hay socket existente pero es de otro usuario o está desconectado, limpiarlo
     if (this.socket) {
-      console.log('🧹 [CHAT-SERVICE] Limpiando conexión anterior')
+      logger.debug('🧹 [CHAT-SERVICE] Limpiando conexión anterior')
       this.disconnect()
     }
 
     this.userId = userId
 
-    console.log('🔌 [CHAT-SERVICE] Inicializando nueva conexión...')
+    logger.debug('🔌 [CHAT-SERVICE] Inicializando nueva conexión...')
     
     // ✅ Usar forceNew: true para asegurar una conexión limpia
     this.socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000', {
@@ -153,7 +154,7 @@ class ChatService {
 
     // Conexión
     this.socket.on('connect', () => {
-      console.log('✅ [CHAT-SERVICE] Conectado')
+      logger.debug('✅ [CHAT-SERVICE] Conectado')
       this.isConnected = true
       this.reconnectAttempts = 0
       this.isInitializing = false // ✅ Marcar como inicializado
@@ -169,36 +170,31 @@ class ChatService {
       this.startHeartbeat()
     })
 
-    // Error de conexión
+    // Error de conexión (handler único; antes había uno duplicado que doblaba el log)
     this.socket.on('connect_error', (error: Error) => {
-      console.error('❌ [CHAT-SERVICE] Error de conexión:', error.message)
+      logger.error('❌ [CHAT-SERVICE] Error de conexión:', error.message)
       this.isInitializing = false // ✅ Resetear flag al error
+      this.reconnectAttempts++
     })
 
     // Desconexión
     this.socket.on('disconnect', (reason: string) => {
-      console.log('❌ [CHAT-SERVICE] Desconectado:', reason)
+      logger.debug('❌ [CHAT-SERVICE] Desconectado:', reason)
       this.isInitializing = false // ✅ Resetear flag al desconectar
       this.isConnected = false
       this.emit('disconnected', { reason })
       this.stopHeartbeat()
     })
 
-    // Error de conexión
-    this.socket.on('connect_error', (error: Error) => {
-      console.error('❌ [CHAT-SERVICE] Error de conexión:', error.message)
-      this.reconnectAttempts++
-    })
-
     // Eventos de chat
     this.socket.on('chat:joined', (data: { conversationId: string }) => {
-      console.log('✅ [CHAT-SERVICE] Unido a conversación:', data.conversationId)
+      logger.debug('✅ [CHAT-SERVICE] Unido a conversación:', data.conversationId)
       this.activeConversations.add(data.conversationId)
       this.emit('conversation:joined', data)
     })
 
     this.socket.on('chat:conversations:synced', (data: { conversationIds: string[] }) => {
-      console.log('🔄 [CHAT-SERVICE] Conversaciones sincronizadas:', data.conversationIds.length)
+      logger.debug('🔄 [CHAT-SERVICE] Conversaciones sincronizadas:', data.conversationIds.length)
       // Actualizar conversaciones activas
       data.conversationIds.forEach(id => {
         this.activeConversations.add(id)
@@ -233,19 +229,19 @@ class ChatService {
       if (event.type === 'notification') {
         const notification = event.payload?.notification
         if (notification) {
-          console.log('📬 [CHAT-SERVICE] Notificación recibida:', notification.id)
+          logger.debug('📬 [CHAT-SERVICE] Notificación recibida:', notification.id)
           this.emit('notification', { notification })
         }
       } else if (event.type === 'notification_count') {
         const unreadCount = event.payload?.unreadCount
         if (typeof unreadCount === 'number') {
-          console.log('🔔 [CHAT-SERVICE] Contador de notificaciones actualizado:', unreadCount)
+          logger.debug('🔔 [CHAT-SERVICE] Contador de notificaciones actualizado:', unreadCount)
           this.emit('notification_count', { unreadCount })
         }
       } else if (event.type === 'notification_deleted') {
         const id = event.payload?.id
         if (id) {
-          console.log('🗑️ [CHAT-SERVICE] Notificación eliminada:', id)
+          logger.debug('🗑️ [CHAT-SERVICE] Notificación eliminada:', id)
           this.emit('notification_deleted', { id })
         }
       } else if (event.type === 'presence') {
@@ -262,7 +258,7 @@ class ChatService {
     if (!this.socket || !this.isConnected) return
 
     const conversations = Array.from(this.activeConversations)
-    console.log(`🔄 [CHAT-SERVICE] Re-suscribiendo a ${conversations.length} conversaciones`)
+    logger.debug(`🔄 [CHAT-SERVICE] Re-suscribiendo a ${conversations.length} conversaciones`)
     
     conversations.forEach(conversationId => {
       if (!conversationId.startsWith('temp-')) {
@@ -277,7 +273,7 @@ class ChatService {
   private flushPendingMessages(): void {
     if (!this.socket || !this.isConnected || this.pendingMessages.length === 0) return
 
-    console.log(`📤 [CHAT-SERVICE] Enviando ${this.pendingMessages.length} mensajes pendientes`)
+    logger.debug(`📤 [CHAT-SERVICE] Enviando ${this.pendingMessages.length} mensajes pendientes`)
     
     const messagesToSend = [...this.pendingMessages]
     this.pendingMessages = []
@@ -320,12 +316,12 @@ class ChatService {
    */
   joinConversation(conversationId: string): void {
     if (!this.socket || !this.isConnected) {
-      console.warn('⚠️ [CHAT-SERVICE] No conectado, no se puede unir a conversación')
+      logger.debug('⚠️ [CHAT-SERVICE] No conectado, no se puede unir a conversación')
       return
     }
 
     if (this.activeConversations.has(conversationId)) {
-      console.log('ℹ️ [CHAT-SERVICE] Ya está unido a la conversación:', conversationId)
+      logger.debug('ℹ️ [CHAT-SERVICE] Ya está unido a la conversación:', conversationId)
       return
     }
 
@@ -350,14 +346,14 @@ class ChatService {
    */
   sendMessage(conversationId: string, content: string, type: 'TEXT' | 'IMAGE' | 'FILE' = 'TEXT'): string | null {
     if (!content || content.trim().length === 0) {
-      console.warn('⚠️ [CHAT-SERVICE] Mensaje vacío')
+      logger.warn('⚠️ [CHAT-SERVICE] Mensaje vacío')
       return null
     }
 
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
     if (!this.socket || !this.isConnected) {
-      console.warn('⚠️ [CHAT-SERVICE] No conectado, agregando a queue')
+      logger.debug('⚠️ [CHAT-SERVICE] No conectado, agregando a queue')
       this.pendingMessages.push({
         conversationId,
         content: content.trim(),
@@ -413,7 +409,7 @@ class ChatService {
       tempId,
     }, (response: { success: boolean; messageId?: string; error?: string }) => {
       if (!response.success) {
-        console.error('❌ [CHAT-SERVICE] Error enviando mensaje:', response.error)
+        logger.error('❌ [CHAT-SERVICE] Error enviando mensaje:', response.error)
         // Remover mensaje optimista si falla
         const currentMessages = this.messages.get(conversationId) || []
         const filtered = currentMessages.filter(m => m.id !== tempId)
@@ -468,7 +464,7 @@ class ChatService {
       this.lastReceivedMessage = message
     }
 
-    console.log('📨 [CHAT-SERVICE] Mensaje nuevo:', {
+    logger.debug('📨 [CHAT-SERVICE] Mensaje nuevo:', {
       conversationId,
       senderId: message.senderId,
       content: message.content.substring(0, 50),
@@ -667,7 +663,7 @@ class ChatService {
         return response.data
       }
     } catch (error) {
-      console.error('❌ [CHAT-SERVICE] Error cargando mensajes:', error)
+      logger.error('❌ [CHAT-SERVICE] Error cargando mensajes:', error)
     }
 
     return []
@@ -712,7 +708,7 @@ class ChatService {
         try {
           listener(data)
         } catch (error) {
-          console.error(`❌ [CHAT-SERVICE] Error en listener de ${event}:`, error)
+          logger.error(`❌ [CHAT-SERVICE] Error en listener de ${event}:`, error)
         }
       })
     }

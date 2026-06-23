@@ -114,10 +114,26 @@ export class EventsRemindersService {
 
         // Verificar si hoy corresponde a algún recordatorio configurado
         if (reminders.includes(daysUntilEvent)) {
+          const groupKey = `event_reminder:${event.id}:${daysUntilEvent}`;
+
+          const existingByGroupKey = await prisma.notification.findUnique({
+            where: {
+              userId_groupKey: { userId: event.userId, groupKey },
+            },
+            select: { id: true },
+          });
+
+          if (existingByGroupKey) {
+            console.log(
+              `[EVENTS-REMINDERS] Notificación ya existe (groupKey) para evento ${event.id} - ${daysUntilEvent} días antes`
+            );
+            continue;
+          }
+
           const existingNotifications = await prisma.notification.findMany({
             where: {
               userId: event.userId,
-              type: 'EVENT_REMINDER',
+              type: { in: ['event_reminder', 'EVENT_REMINDER'] },
               createdAt: {
                 gte: dedupeStart,
                 lt: dedupeEnd,
@@ -125,10 +141,9 @@ export class EventsRemindersService {
             },
           });
 
-          // Verificar si ya existe una notificación para este evento y días antes
           const existingNotification = existingNotifications.find((n) => {
-            const data = n.data as any
-            return data?.eventId === event.id && data?.daysUntilEvent === daysUntilEvent
+            const data = n.data as { eventId?: string; daysUntilEvent?: number } | null;
+            return data?.eventId === event.id && data?.daysUntilEvent === daysUntilEvent;
           });
 
           if (existingNotification) {
@@ -151,9 +166,10 @@ export class EventsRemindersService {
           // Crear notificación
           await this.notificationsService.createNotification({
             userId: event.userId,
-            type: 'EVENT_REMINDER',
+            type: 'event_reminder',
             title: 'Recordatorio de Evento',
             message,
+            groupKey,
             data: {
               eventId: event.id,
               eventTitle: event.title,

@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useNotifications } from '@/lib/hooks/use-notifications'
 import { useResolveNotificationActors } from '@/lib/hooks/use-resolve-notification-actors'
@@ -102,14 +101,10 @@ export function NotificationsButton({
         className={`relative rounded-lg hover:bg-white/10 transition-colors ${compact ? 'p-1' : 'p-2'}`}
         aria-label="Notificaciones"
       >
-        <Image
+        <img
           src="/icons_tanku/tanku_nav_notificaciones_verde.svg"
           alt="Notificaciones"
-          width={compact ? 22 : 30}
-          height={compact ? 22 : 30}
-          className="object-contain"
-          style={{ width: compact ? '22px' : '30px', height: compact ? '22px' : '30px' }}
-          unoptimized
+          className={compact ? 'h-[22px] w-auto' : 'h-[30px] w-auto'}
         />
         {unreadCount > 0 && (
           <span
@@ -138,13 +133,10 @@ export function NotificationsButton({
           <div className="border-b p-4" style={NOTIFICATION_ROW_DIVIDER_STYLE}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Image
+                <img
                   src="/icons_tanku/tanku_nav_notificaciones_verde.svg"
                   alt=""
-                  width={28}
-                  height={28}
-                  className="h-7 w-7 object-contain"
-                  unoptimized
+                  className="h-7 w-auto"
                 />
                 <h4 className="text-base font-semibold text-white">Notificaciones</h4>
               </div>

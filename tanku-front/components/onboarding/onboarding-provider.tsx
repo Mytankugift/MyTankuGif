@@ -50,10 +50,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           }
 
           const isCompleted = await checkIsCompleted()
-          
-          // Mostrar modal solo si el onboarding no está completado
-          // y el usuario está autenticado con un ID válido
-          if (!isCompleted && isAuthenticated && user?.id) {
+
+          // Mostrar modal solo si la API confirmó que falta onboarding.
+          // null = no se pudo verificar (backend caído, timeout, etc.) → no abrir.
+          if (isCompleted === false && isAuthenticated && user?.id) {
             // Esperar un poco antes de mostrar el modal para no interrumpir el flujo inicial
             setTimeout(() => {
               // Verificar nuevamente antes de mostrar (por si el estado cambió durante el timeout)

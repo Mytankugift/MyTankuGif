@@ -57,6 +57,9 @@ export class FeedService {
   // CONFIGURACIÓN HARDCODEADA
   private readonly DEFAULT_LIMIT = 20;
   private readonly DEFAULT_POSTS_PER_PRODUCTS = 5;
+  private readonly FEED_RANKING_BATCH_SIZE = 50;
+  private readonly FEED_POST_BATCH_SIZE = 12;
+  private readonly FEED_MAX_ASSEMBLY_ROUNDS = 12;
 
   // CACHE PARA FEED PÚBLICO
   private publicFeedCache: {
@@ -69,6 +72,8 @@ export class FeedService {
     globalAccountsVersion?: number;
   } | null = null;
   private readonly PUBLIC_FEED_CACHE_TTL = 60000; // 60 segundos
+  private readonly PUBLIC_FEED_MAX_PRODUCTS = 100;
+  private readonly PUBLIC_FEED_PAGE_LIMIT = 20;
 
   // CACHE PARA CATEGORÍAS BLOQUEADAS
   private blockedCategoryIdsCache: string[] | null = null;
@@ -110,110 +115,66 @@ export class FeedService {
       if (cursor) {
       }
 
-      // Valores hardcodeados
       const limit = this.DEFAULT_LIMIT;
       const postsPerProducts = this.DEFAULT_POSTS_PER_PRODUCTS;
-      
-      // Aplicar boost temporal si hay userId (onboarding)
+
+      const hasSearch = !!(search && search.trim());
+      const hasCategoryFilter = !!(categoryId && String(categoryId).trim());
+      const mixPosters = !hasSearch && !hasCategoryFilter;
+
       let boostFactor = 1.0;
       if (userId) {
         try {
           boostFactor = await this.getBoostFactor(userId);
         } catch (boostError: any) {
           console.warn(`⚠️ [FEED-SERVICE] Error obteniendo boost factor:`, boostError?.message);
-          boostFactor = 1.0; // Usar valor por defecto si falla
+          boostFactor = 1.0;
         }
       }
 
-      // Calcular cuántos productos y posts necesitamos
-      // Si limit=20 y postsPerProducts=5, necesitamos ~17 productos y ~3 posts
-      const estimatedProducts = Math.ceil((limit * postsPerProducts) / (postsPerProducts + 1));
-      const estimatedPosts = Math.ceil(limit / (postsPerProducts + 1));
-      
-      const hasSearch = !!(search && search.trim());
-      /** Con categoría solo productos de esa categoría; no mezclar posters (muy repetitivos en vista filtrada). */
-      const hasCategoryFilter = !!(categoryId && String(categoryId).trim());
+      const blockedCategoryIds = await this.getBlockedCategoryIdsCached();
 
-      // ✅ Ejecutar queries independientes en paralelo para mejor performance
-      const [productsResult, postsResult, blockedCategoryIds] = await Promise.all([
-        // Obtener productos por ranking o búsqueda (solo productos)
-        (async () => {
-          try {
-            // Si hay búsqueda, usar método de búsqueda que busca en todos los productos
-            if (hasSearch) {
-              return await this.getProductsBySearch(
-                search!.trim(),
-                cursor,
-                estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
-                categoryId,
-                userId,
-                birthDate
-              );
-            } else {
-              return await this.getProductsByRanking(
-                cursor,
-                estimatedProducts + 5, // Buffer extra para asegurar suficientes productos
-                boostFactor,
-                categoryId,
-                userId,
-                birthDate
-              );
-            }
-          } catch (productsError: any) {
-            // Si es error de tabla no existente, continuar solo con posts
-            if (productsError?.code === 'P2021' || productsError?.message?.includes('does not exist')) {
-              console.warn(`⚠️ [FEED-SERVICE] Tabla global_ranking no existe. Continuando solo con posts.`);
-              console.warn(`⚠️ [FEED-SERVICE] Para habilitar productos, ejecutar: npm run fix:feed:tables`);
-              return [];
-            } else {
-              console.error(`❌ [FEED-SERVICE] Error obteniendo productos:`, productsError?.message);
-              console.error(`❌ [FEED-SERVICE] Stack:`, productsError?.stack);
-              // Continuar con array vacío en lugar de fallar completamente
-              return [];
-            }
-          }
-        })(),
-        // Con búsqueda o filtro por categoría: solo productos (no mezclar posters)
-        hasSearch || hasCategoryFilter
-          ? Promise.resolve([])
-          : (async () => {
-              try {
-                return await this.getPostsByDate(
-                  cursor,
-                  estimatedPosts + 2, // Buffer extra
-                  userId // Pasar userId para filtrar por amigos + propio
-                );
-              } catch (postsError: any) {
-                console.error(`❌ [FEED-SERVICE] Error obteniendo posts:`, postsError?.message);
-                console.error(`❌ [FEED-SERVICE] Stack:`, postsError?.stack);
-                return [];
-              }
-            })(),
-        // Obtener categorías bloqueadas (con cache)
-        this.getBlockedCategoryIdsCached()
-      ]);
+      const fetchProducts = async (productCursor: FeedCursorDTO | undefined, take: number) => {
+        if (hasSearch) {
+          return this.getProductsBySearch(
+            search!.trim(),
+            productCursor,
+            take,
+            categoryId,
+            userId,
+            birthDate
+          );
+        }
+        return this.getProductsByRanking(
+          productCursor,
+          take,
+          boostFactor,
+          categoryId,
+          userId,
+          birthDate
+        );
+      };
 
-      const products = productsResult;
-      const posts = postsResult;
-
-      // Intercalar productos y posts según la regla
-      const intercalated = this.intercalateItems(
-        products,
-        posts,
+      const assembled = await this.assembleIntercalatedPage({
         limit,
         postsPerProducts,
-        cursor?.consecutiveProductsSinceLastPoster ?? 0
-      );
+        cursor,
+        mixPosters,
+        fetchProducts,
+        fetchPosts: (postCursor, take) => this.getPostsByDate(postCursor, take, userId),
+        filterEligibleProductIds: (ids) =>
+          this.filterFeedEligibleProductIds(ids, blockedCategoryIds),
+      });
 
-      // Separar productos y posters para batch queries
+      const intercalated = { items: assembled.items };
+
       const productIds = intercalated.items
-        .filter(item => item.itemType === 'product')
-        .map(item => item.itemId);
-      
-      const posterIds = intercalated.items
-        .filter(item => item.itemType === 'poster')
-        .map(item => item.itemId);
+        .filter((item) => item.itemType === 'product')
+        .map((item) => item.itemId);
 
+      const posterIds = intercalated.items
+        .filter((item) => item.itemType === 'poster')
+        .map((item) => item.itemId);
 
       // ✅ PARALELIZAR: Ejecutar todas las batch queries en paralelo
       const [
@@ -427,48 +388,8 @@ export class FeedService {
 
       const productsData = productsDataResult;
       const postersData = postersDataResult;
-
-      // Crear mapas para acceso rápido O(1)
-      const productMap = new Map(productsData.map(p => [p.id, p]));
-      const posterMap = new Map(postersData.map(p => [p.id, p]));
-
-      // ✅ FILTRAR productos del ranking que no existen en BD ANTES de procesarlos
-      // Esto evita warnings y asegura que solo procesamos productos válidos
-      const validProductIds = new Set(productMap.keys());
-      const missingProducts: string[] = [];
-      const productItems = intercalated.items.filter(item => item.itemType === 'product');
-      for (const item of productItems) {
-        if (!validProductIds.has(item.itemId)) {
-          missingProducts.push(item.itemId);
-        }
-      }
-      
-      // Solo loggear si hay muchos productos faltantes (más de 10% del total)
-      // Y solo una vez cada 5 minutos para evitar spam de logs
-      if (missingProducts.length > 0 && missingProducts.length > productItems.length * 0.10) {
-        const now = Date.now();
-        const timeSinceLastWarning = now - this.lastRankingWarningTime;
-        if (timeSinceLastWarning > 300000) { // 5 minutos = 300000 ms
-          this.lastRankingWarningTime = now;
-          console.warn(`⚠️ [FEED-SERVICE] ${missingProducts.length} productos en ranking no encontrados en BD (de ${productItems.length} productos en ranking)`);
-          console.warn(`⚠️ [FEED-SERVICE] Esto puede indicar un problema de sincronización. Considerar limpiar el ranking.`);
-          console.warn(`⚠️ [FEED-SERVICE] Primeros 10 IDs faltantes:`, missingProducts.slice(0, 10));
-        }
-      }
-      
-      // Filtrar items intercalados para excluir productos que no existen en BD
-      const validIntercalatedItems = intercalated.items.filter(item => {
-        if (item.itemType === 'product') {
-          return validProductIds.has(item.itemId);
-        }
-        return true; // Mantener todos los posters
-      });
-      
-      // Actualizar intercalated con solo items válidos
-      intercalated.items = validIntercalatedItems;
-
-      // ✅ Procesar resultados de queries paralelas
-      const productIdsForMetrics = Array.from(productMap.keys());
+      const productMap = new Map(productsData.map((p) => [p.id, p]));
+      const posterMap = new Map(postersData.map((p) => [p.id, p]));
       
       // Procesar métricas de likes
       const itemMetricsMap = new Map<string, { likesCount: number }>();
@@ -628,14 +549,16 @@ export class FeedService {
       }
 
       // Crear cursor híbrido para siguiente página
-      const nextCursor = this.createHybridCursor(
-        intercalated,
-        products,
-        posts,
-        cursor,
-        estimatedProducts + 5, // Límite solicitado para productos
-        estimatedPosts + 2     // Límite solicitado para posts
-      );
+      const nextCursor = this.buildNextFeedCursor({
+        items: assembled.items,
+        consecutiveProductsAtEnd: assembled.consecutiveProductsAtEnd,
+        productCursor: assembled.productCursor,
+        postCursor: assembled.postCursor,
+        productsExhausted: assembled.productsExhausted,
+        postsExhausted: assembled.postsExhausted,
+        limit,
+        mixPosters,
+      });
 
       // Generar token para siguiente página si hay más items
       const nextCursorToken = nextCursor ? this.generateCursorToken(nextCursor) : null;
@@ -729,6 +652,250 @@ export class FeedService {
         this.cursorTokens.delete(token);
       }
     }
+  }
+
+  private async filterFeedEligibleProductIds(
+    productIds: string[],
+    blockedCategoryIds: string[]
+  ): Promise<Set<string>> {
+    if (productIds.length === 0) return new Set();
+
+    const rows = await prisma.product.findMany({
+      where: {
+        id: { in: productIds },
+        active: true,
+        ...(blockedCategoryIds.length > 0
+          ? { categoryId: { notIn: blockedCategoryIds } }
+          : {}),
+      },
+      select: { id: true, title: true },
+    });
+
+    const eligible = new Set<string>();
+    for (const row of rows) {
+      if (row.title?.trim()) eligible.add(row.id);
+    }
+    return eligible;
+  }
+
+  private touchProductCursor(
+    cursor: FeedCursorDTO,
+    row: { itemId: string; globalScore: number; createdAt: Date }
+  ): FeedCursorDTO {
+    return {
+      ...cursor,
+      lastProductScore: row.globalScore,
+      lastProductCreatedAt: row.createdAt.toISOString(),
+      lastProductId: row.itemId,
+    };
+  }
+
+  private touchPostCursor(
+    cursor: FeedCursorDTO,
+    row: { itemId: string; createdAt: Date }
+  ): FeedCursorDTO {
+    return {
+      ...cursor,
+      lastPostCreatedAt: row.createdAt.toISOString(),
+      lastPostId: row.itemId,
+    };
+  }
+
+  private buildNextFeedCursor(params: {
+    items: Array<{ itemId: string; itemType: 'product' | 'poster'; createdAt: Date }>;
+    consecutiveProductsAtEnd: number;
+    productCursor: FeedCursorDTO;
+    postCursor: FeedCursorDTO;
+    productsExhausted: boolean;
+    postsExhausted: boolean;
+    limit: number;
+    mixPosters: boolean;
+  }): FeedCursorDTO | null {
+    const {
+      items,
+      consecutiveProductsAtEnd,
+      productCursor,
+      postCursor,
+      productsExhausted,
+      postsExhausted,
+      mixPosters,
+    } = params;
+
+    const hasMore = !productsExhausted || (mixPosters && !postsExhausted);
+    if (!hasMore) return null;
+
+    const next: FeedCursorDTO = {
+      consecutiveProductsSinceLastPoster: consecutiveProductsAtEnd,
+    };
+
+    if (productCursor.lastProductId) {
+      next.lastProductScore = productCursor.lastProductScore;
+      next.lastProductCreatedAt = productCursor.lastProductCreatedAt;
+      next.lastProductId = productCursor.lastProductId;
+    }
+    if (postCursor.lastPostId) {
+      next.lastPostCreatedAt = postCursor.lastPostCreatedAt;
+      next.lastPostId = postCursor.lastPostId;
+    }
+    if (items.length > 0) {
+      next.lastItemType = items[items.length - 1].itemType;
+    }
+
+    return next;
+  }
+
+  /**
+   * Arma una página del feed validando productos antes de intercalar.
+   * Sigue pidiendo lotes del ranking hasta reunir `limit` ítems válidos o agotar fuentes.
+   */
+  private async assembleIntercalatedPage(params: {
+    limit: number;
+    postsPerProducts: number;
+    cursor?: FeedCursorDTO;
+    mixPosters: boolean;
+    fetchProducts: (
+      cursor: FeedCursorDTO | undefined,
+      take: number
+    ) => Promise<
+      Array<{ itemId: string; itemType: 'product'; globalScore: number; createdAt: Date }>
+    >;
+    fetchPosts: (
+      cursor: FeedCursorDTO | undefined,
+      take: number
+    ) => Promise<Array<{ itemId: string; itemType: 'poster'; createdAt: Date }>>;
+    filterEligibleProductIds: (ids: string[]) => Promise<Set<string>>;
+  }): Promise<{
+    items: Array<{
+      itemId: string;
+      itemType: 'product' | 'poster';
+      createdAt: Date;
+      globalScore?: number;
+    }>;
+    consecutiveProductsAtEnd: number;
+    productCursor: FeedCursorDTO;
+    postCursor: FeedCursorDTO;
+    productsExhausted: boolean;
+    postsExhausted: boolean;
+  }> {
+    const { limit, postsPerProducts, mixPosters, fetchProducts, fetchPosts, filterEligibleProductIds } =
+      params;
+
+    let consecutive = params.cursor?.consecutiveProductsSinceLastPoster ?? 0;
+    let productCursor: FeedCursorDTO = { ...(params.cursor ?? {}) };
+    let postCursor: FeedCursorDTO = { ...(params.cursor ?? {}) };
+
+    const output: Array<{
+      itemId: string;
+      itemType: 'product' | 'poster';
+      createdAt: Date;
+      globalScore?: number;
+    }> = [];
+
+    let postQueue: Array<{ itemId: string; itemType: 'poster'; createdAt: Date }> = [];
+    let postQueueIdx = 0;
+    let productsExhausted = false;
+    let postsExhausted = false;
+
+    const refillPosts = async (): Promise<void> => {
+      if (!mixPosters || postsExhausted) return;
+      if (postQueueIdx < postQueue.length) return;
+
+      const batch = await fetchPosts(postCursor, this.FEED_POST_BATCH_SIZE);
+      postQueue = batch;
+      postQueueIdx = 0;
+      if (batch.length === 0) {
+        postsExhausted = true;
+        return;
+      }
+      postCursor = this.touchPostCursor(postCursor, batch[batch.length - 1]);
+      if (batch.length < this.FEED_POST_BATCH_SIZE) {
+        postsExhausted = true;
+      }
+    };
+
+    const tryInsertPost = (): boolean => {
+      if (!mixPosters || consecutive < postsPerProducts || postQueueIdx >= postQueue.length) {
+        return false;
+      }
+      const post = postQueue[postQueueIdx++];
+      output.push({
+        itemId: post.itemId,
+        itemType: 'poster',
+        createdAt: post.createdAt,
+      });
+      postCursor = this.touchPostCursor(postCursor, post);
+      consecutive = 0;
+      return true;
+    };
+
+    let rounds = 0;
+    while (output.length < limit && rounds < this.FEED_MAX_ASSEMBLY_ROUNDS) {
+      rounds++;
+
+      let batch: Array<{
+        itemId: string;
+        itemType: 'product';
+        globalScore: number;
+        createdAt: Date;
+      }>;
+      try {
+        batch = await fetchProducts(productCursor, this.FEED_RANKING_BATCH_SIZE);
+      } catch (productsError: any) {
+        if (
+          productsError?.code === 'P2021' ||
+          productsError?.message?.includes('does not exist')
+        ) {
+          console.warn(`⚠️ [FEED-SERVICE] Tabla global_ranking no existe.`);
+          productsExhausted = true;
+          break;
+        }
+        throw productsError;
+      }
+
+      if (batch.length === 0) {
+        productsExhausted = true;
+        break;
+      }
+
+      const eligibleSet = await filterEligibleProductIds(batch.map((r) => r.itemId));
+
+      for (const row of batch) {
+        productCursor = this.touchProductCursor(productCursor, row);
+        if (!eligibleSet.has(row.itemId)) continue;
+
+        await refillPosts();
+        if (tryInsertPost() && output.length >= limit) break;
+
+        output.push({
+          itemId: row.itemId,
+          itemType: 'product',
+          createdAt: row.createdAt,
+          globalScore: row.globalScore,
+        });
+        consecutive++;
+        if (output.length >= limit) break;
+      }
+
+      if (batch.length < this.FEED_RANKING_BATCH_SIZE) {
+        productsExhausted = true;
+      }
+      if (output.length >= limit) break;
+    }
+
+    while (mixPosters && output.length < limit && !postsExhausted) {
+      await refillPosts();
+      if (postQueueIdx >= postQueue.length) break;
+      if (!tryInsertPost()) break;
+    }
+
+    return {
+      items: output,
+      consecutiveProductsAtEnd: consecutive,
+      productCursor,
+      postCursor,
+      productsExhausted,
+      postsExhausted,
+    };
   }
 
   /**
@@ -1940,9 +2107,201 @@ export class FeedService {
   }
 
   /**
+   * Hidrata ítems intercalados del feed público (productos + posts globales).
+   * Queries en paralelo; sin datos de sesión (likes/wishlist).
+   */
+  private async hydratePublicFeedItems(
+    intercalatedItems: Array<{
+      itemId: string;
+      itemType: 'product' | 'poster';
+      createdAt: Date;
+    }>,
+    blockedCategoryIds: string[]
+  ): Promise<FeedItemDTO[]> {
+    const intercalatedProductIds = intercalatedItems
+      .filter((i) => i.itemType === 'product')
+      .map((i) => i.itemId);
+    const intercalatedPosterIds = intercalatedItems
+      .filter((i) => i.itemType === 'poster')
+      .map((i) => i.itemId);
+
+    const [productsData, postersData, metricsResult] = await Promise.all([
+      intercalatedProductIds.length > 0
+        ? prisma.product
+            .findMany({
+              where: {
+                id: { in: intercalatedProductIds },
+                ...(blockedCategoryIds.length > 0 && {
+                  categoryId: { notIn: blockedCategoryIds },
+                }),
+              },
+              select: {
+                id: true,
+                title: true,
+                handle: true,
+                images: true,
+                hiddenImages: true,
+                createdAt: true,
+                category: {
+                  select: { id: true, name: true, handle: true },
+                },
+                variants: {
+                  where: { active: true },
+                  orderBy: { price: 'asc' },
+                  take: 1,
+                  select: { tankuPrice: true },
+                },
+              },
+            })
+            .catch((err: any) => {
+              console.error(
+                `❌ [FEED-SERVICE] Error en batch query de productos (feed público):`,
+                err?.message
+              );
+              return [];
+            })
+        : Promise.resolve([]),
+      intercalatedPosterIds.length > 0
+        ? prisma.poster
+            .findMany({
+              where: { id: { in: intercalatedPosterIds } },
+              select: {
+                id: true,
+                description: true,
+                imageUrl: true,
+                videoUrl: true,
+                likesCount: true,
+                commentsCount: true,
+                createdAt: true,
+                customer: {
+                  select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    username: true,
+                    profile: { select: { avatar: true } },
+                  },
+                },
+              },
+            })
+            .catch((err: any) => {
+              console.error(
+                `❌ [FEED-SERVICE] Error en batch query de posters (feed público):`,
+                err?.message
+              );
+              return [];
+            })
+        : Promise.resolve([]),
+      intercalatedProductIds.length > 0
+        ? (prisma as any).itemMetric
+            .findMany({
+              where: {
+                itemId: { in: intercalatedProductIds },
+                itemType: 'product',
+              },
+              select: { itemId: true, likesCount: true },
+            })
+            .catch((err: any) => {
+              console.warn(`⚠️ [FEED-SERVICE] Error obteniendo métricas (feed público):`, err?.message);
+              return [];
+            })
+        : Promise.resolve([]),
+    ]);
+
+    const productMap = new Map(productsData.map((p) => [p.id, p]));
+    const posterMap = new Map(postersData.map((p) => [p.id, p]));
+    const itemMetricsMap = new Map<string, { likesCount: number }>();
+    (metricsResult as any[]).forEach((m: any) => {
+      itemMetricsMap.set(m.itemId, { likesCount: m.likesCount || 0 });
+    });
+
+    const feedItems: FeedItemDTO[] = [];
+
+    for (const item of intercalatedItems) {
+      if (item.itemType === 'product') {
+        const product = productMap.get(item.itemId);
+        if (!product || !product.title?.trim()) continue;
+
+        const firstVariant = product.variants?.[0];
+        let imagesArray: string[] = [];
+        if (product.images) {
+          if (Array.isArray(product.images)) {
+            imagesArray = product.images
+              .map((img: any) => {
+                if (typeof img === 'string') return img;
+                if (typeof img === 'object' && img !== null) return img.url || img.urlS3 || img;
+                return img;
+              })
+              .filter((img: any) => img && typeof img === 'string');
+          } else if (typeof product.images === 'string') {
+            try {
+              const parsed = JSON.parse(product.images);
+              if (Array.isArray(parsed)) {
+                imagesArray = parsed.filter((img: any) => typeof img === 'string');
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+        const hiddenImages = (product.hiddenImages || []) as string[];
+        imagesArray = imagesArray.filter((img) => !hiddenImages.includes(img));
+        const firstImage = imagesArray.length > 0 ? imagesArray[0] : null;
+        const imageUrl = firstImage ? (this.normalizeImageUrl(firstImage) || '') : '';
+
+        const metrics = itemMetricsMap.get(product.id);
+        feedItems.push({
+          id: product.id,
+          type: 'product',
+          createdAt: product.createdAt.toISOString(),
+          title: product.title,
+          imageUrl,
+          price: firstVariant?.tankuPrice || undefined,
+          handle: product.handle,
+          category: product.category
+            ? {
+                id: product.category.id,
+                name: product.category.name,
+                handle: product.category.handle,
+              }
+            : undefined,
+          likesCount: metrics?.likesCount || 0,
+        });
+      } else {
+        const poster = posterMap.get(item.itemId);
+        if (!poster) continue;
+        feedItems.push({
+          id: poster.id,
+          type: 'poster',
+          createdAt: poster.createdAt.toISOString(),
+          imageUrl: poster.imageUrl,
+          description: poster.description || undefined,
+          videoUrl: poster.videoUrl || undefined,
+          likesCount: poster.likesCount,
+          commentsCount: poster.commentsCount,
+          author: poster.customer
+            ? {
+                id: poster.customer.id,
+                email: poster.customer.email,
+                firstName: poster.customer.firstName,
+                lastName: poster.customer.lastName,
+                username: poster.customer.username || null,
+                avatar: poster.customer.profile?.avatar || null,
+              }
+            : undefined,
+        });
+      }
+    }
+
+    return feedItems;
+  }
+
+  /**
    * Obtener feed público (productos + posts de cuentas globales, sin autenticación)
-   * Cacheable y limitado a 100 ítems máximo
-   * 
+   * Paginado (20 ítems/página), máximo 100 productos en total.
+   * Posts de cuentas globales intercalados (1 cada 5 productos) cuando no hay filtros.
+   *
    * @param cursorToken Token del cursor (opcional, para paginación)
    * @param categoryId ID de categoría para filtrar (opcional)
    * @param search Query de búsqueda para filtrar productos (opcional)
@@ -1958,7 +2317,6 @@ export class FeedService {
       const restricted = viewerCannotSeeAdultCatalog(Boolean(userId), birthDate);
       const globalAccountsVersion = getGlobalAccountsCacheVersion();
 
-      // Verificar cache primero
       const now = Date.now();
 
       if (
@@ -1967,251 +2325,79 @@ export class FeedService {
         this.publicFeedCache.search === search &&
         this.publicFeedCache.restricted === restricted &&
         this.publicFeedCache.globalAccountsVersion === globalAccountsVersion &&
-        (now - this.publicFeedCache.timestamp) < this.PUBLIC_FEED_CACHE_TTL &&
+        now - this.publicFeedCache.timestamp < this.PUBLIC_FEED_CACHE_TTL &&
         !cursorToken
       ) {
-        // Solo usar cache si no hay cursor (primera página)
         return this.publicFeedCache.data || { items: [], nextCursorToken: null };
       }
 
-      // Limpiar tokens expirados
       this.cleanExpiredTokens();
 
-      // Obtener cursor del token si existe
       const cursor = cursorToken ? this.getCursorFromToken(cursorToken) : undefined;
 
-      // Límite máximo para feed público: 100 productos total
-      const PUBLIC_FEED_MAX_PRODUCTS = 100;
-      // Si no hay cursor, devolver todos los 100 productos de una vez
-      // Si hay cursor, ya estamos en segunda página, no debería haber más productos
-      const limit = cursorToken ? 0 : PUBLIC_FEED_MAX_PRODUCTS;
-
-      // Obtener productos por ranking o búsqueda (solo productos, sin boost)
-      // Para feed público sin cursor, pedir suficientes productos para asegurar 100 válidos
-      let products: any[] = [];
-      try {
-        if (search && search.trim()) {
-          // Para búsqueda, pedir más productos para compensar filtros
-          products = await this.getProductsBySearch(
-            search.trim(),
-            cursor,
-            limit > 0 ? limit + 100 : 0, // Buffer grande para compensar filtros
-            categoryId,
-            userId,
-            birthDate
-          );
-        } else {
-          // Para ranking, pedir más productos para asegurar 100 válidos
-          products = await this.getProductsByRanking(
-            cursor,
-            limit > 0 ? limit + 100 : 0, // Buffer grande para compensar filtros
-            1.0, // Sin boost (boostFactor = 1.0)
-            categoryId,
-            userId,
-            birthDate
-          );
-        }
-      } catch (productsError: any) {
-        if (productsError?.code === 'P2021' || productsError?.message?.includes('does not exist')) {
-          console.warn(`⚠️ [FEED-SERVICE] Tabla global_ranking no existe. Retornando feed vacío.`);
-          products = [];
-        } else {
-          console.error(`❌ [FEED-SERVICE] Error obteniendo productos para feed público:`, productsError?.message);
-          products = [];
-        }
+      if ((cursor?.publicProductsDelivered ?? 0) >= this.PUBLIC_FEED_MAX_PRODUCTS) {
+        return { items: [], nextCursorToken: null };
       }
 
-      const estimatedPosts =
-        Math.ceil(PUBLIC_FEED_MAX_PRODUCTS / (this.DEFAULT_POSTS_PER_PRODUCTS + 1)) + 2;
-      let posts: any[] = [];
-      try {
-        posts = await this.getPostsByDate(cursor, estimatedPosts, undefined);
-      } catch (postsError: any) {
-        console.warn(`⚠️ [FEED-SERVICE] Error obteniendo posts globales (feed público):`, postsError?.message);
-        posts = [];
-      }
-
-      const intercalated = this.intercalateItems(
-        products,
-        posts,
-        PUBLIC_FEED_MAX_PRODUCTS,
-        this.DEFAULT_POSTS_PER_PRODUCTS,
-        cursor?.consecutiveProductsSinceLastPoster ?? 0
-      );
-
-      const intercalatedProductIds = intercalated.items
-        .filter((i) => i.itemType === 'product')
-        .map((i) => i.itemId);
-      const intercalatedPosterIds = intercalated.items
-        .filter((i) => i.itemType === 'poster')
-        .map((i) => i.itemId);
-
-      let productsData: any[] = [];
-      let postersData: any[] = [];
+      const hasSearch = !!(search && search.trim());
+      const hasCategoryFilter = !!(categoryId && String(categoryId).trim());
+      const mixPosters = !hasSearch && !hasCategoryFilter;
       const blockedCategoryIds = await this.getBlockedCategoryIdsCached();
+      const pageLimit = this.PUBLIC_FEED_PAGE_LIMIT;
 
-      try {
-        if (intercalatedProductIds.length > 0) {
-          productsData = await prisma.product.findMany({
-            where: {
-              id: { in: intercalatedProductIds },
-              ...(blockedCategoryIds.length > 0 && {
-                categoryId: { notIn: blockedCategoryIds },
-              }),
-            },
-            include: {
-              category: true,
-              variants: {
-                where: { active: true },
-                orderBy: { price: 'asc' },
-                take: 1,
-              },
-            },
-          });
-        }
-      } catch (productsDataError: any) {
-        console.error(`❌ [FEED-SERVICE] Error en batch query de productos (feed público):`, productsDataError?.message);
-      }
-
-      try {
-        if (intercalatedPosterIds.length > 0) {
-          postersData = await prisma.poster.findMany({
-            where: { id: { in: intercalatedPosterIds } },
-            select: {
-              id: true,
-              customerId: true,
-              title: true,
-              description: true,
-              imageUrl: true,
-              videoUrl: true,
-              likesCount: true,
-              commentsCount: true,
-              isActive: true,
-              createdAt: true,
-              customer: {
-                select: {
-                  id: true,
-                  email: true,
-                  firstName: true,
-                  lastName: true,
-                  username: true,
-                  profile: { select: { avatar: true } },
-                },
-              },
-            },
-          });
-        }
-      } catch (postersDataError: any) {
-        console.error(`❌ [FEED-SERVICE] Error en batch query de posters (feed público):`, postersDataError?.message);
-      }
-
-      const productMap = new Map(productsData.map((p) => [p.id, p]));
-      const posterMap = new Map(postersData.map((p) => [p.id, p]));
-
-      const itemMetricsMap = new Map<string, { likesCount: number }>();
-      const productIdsForMetrics = Array.from(productMap.keys());
-      if (productIdsForMetrics.length > 0) {
-        try {
-          const metrics = await (prisma as any).itemMetric.findMany({
-            where: {
-              itemId: { in: productIdsForMetrics },
-              itemType: 'product',
-            },
-            select: { itemId: true, likesCount: true },
-          });
-          metrics.forEach((m: any) => {
-            itemMetricsMap.set(m.itemId, { likesCount: m.likesCount || 0 });
-          });
-        } catch (metricsError: any) {
-          console.warn(`⚠️ [FEED-SERVICE] Error obteniendo métricas (feed público):`, metricsError?.message);
-        }
-      }
-
-      const feedItems: FeedItemDTO[] = [];
-
-      for (const item of intercalated.items) {
-        if (item.itemType === 'product') {
-          const product = productMap.get(item.itemId);
-          if (!product || !product.title?.trim()) continue;
-
-          const firstVariant = product.variants?.[0];
-          let imagesArray: string[] = [];
-          if (product.images) {
-            if (Array.isArray(product.images)) {
-              imagesArray = product.images
-                .map((img: any) => {
-                  if (typeof img === 'string') return img;
-                  if (typeof img === 'object' && img !== null) return img.url || img.urlS3 || img;
-                  return img;
-                })
-                .filter((img: any) => img && typeof img === 'string');
-            } else if (typeof product.images === 'string') {
-              try {
-                const parsed = JSON.parse(product.images);
-                if (Array.isArray(parsed)) {
-                  imagesArray = parsed.filter((img: any) => typeof img === 'string');
-                }
-              } catch {
-                /* ignore */
-              }
-            }
+      const assembled = await this.assembleIntercalatedPage({
+        limit: pageLimit,
+        postsPerProducts: this.DEFAULT_POSTS_PER_PRODUCTS,
+        cursor,
+        mixPosters,
+        fetchProducts: (productCursor, take) => {
+          if (hasSearch) {
+            return this.getProductsBySearch(
+              search!.trim(),
+              productCursor,
+              take,
+              categoryId,
+              userId,
+              birthDate
+            );
           }
-          const hiddenImages = (product.hiddenImages || []) as string[];
-          imagesArray = imagesArray.filter((img) => !hiddenImages.includes(img));
-          const firstImage = imagesArray.length > 0 ? imagesArray[0] : null;
-          let imageUrl = firstImage ? (this.normalizeImageUrl(firstImage) || '') : '';
+          return this.getProductsByRanking(
+            productCursor,
+            take,
+            1.0,
+            categoryId,
+            userId,
+            birthDate
+          );
+        },
+        fetchPosts: (postCursor, take) => this.getPostsByDate(postCursor, take, undefined),
+        filterEligibleProductIds: (ids) =>
+          this.filterFeedEligibleProductIds(ids, blockedCategoryIds),
+      });
 
-          const metrics = itemMetricsMap.get(product.id);
-          feedItems.push({
-            id: product.id,
-            type: 'product',
-            createdAt: product.createdAt.toISOString(),
-            title: product.title,
-            imageUrl,
-            price: firstVariant?.tankuPrice || undefined,
-            handle: product.handle,
-            category: product.category
-              ? {
-                  id: product.category.id,
-                  name: product.category.name,
-                  handle: product.category.handle,
-                }
-              : undefined,
-            likesCount: metrics?.likesCount || 0,
-          });
-        } else {
-          const poster = posterMap.get(item.itemId);
-          if (!poster) continue;
-          feedItems.push({
-            id: poster.id,
-            type: 'poster',
-            createdAt: poster.createdAt.toISOString(),
-            imageUrl: poster.imageUrl,
-            description: poster.description || undefined,
-            videoUrl: poster.videoUrl || undefined,
-            likesCount: poster.likesCount,
-            commentsCount: poster.commentsCount,
-            author: poster.customer
-              ? {
-                  id: poster.customer.id,
-                  email: poster.customer.email,
-                  firstName: poster.customer.firstName,
-                  lastName: poster.customer.lastName,
-                  username: poster.customer.username || null,
-                  avatar: poster.customer.profile?.avatar || null,
-                }
-              : undefined,
-          });
+      const feedItems = await this.hydratePublicFeedItems(assembled.items, blockedCategoryIds);
+
+      const productsInPage = feedItems.filter((i) => i.type === 'product').length;
+      const productsDelivered = (cursor?.publicProductsDelivered ?? 0) + productsInPage;
+
+      let nextCursor = this.buildNextFeedCursor({
+        items: assembled.items,
+        consecutiveProductsAtEnd: assembled.consecutiveProductsAtEnd,
+        productCursor: assembled.productCursor,
+        postCursor: assembled.postCursor,
+        productsExhausted: assembled.productsExhausted,
+        postsExhausted: assembled.postsExhausted,
+        limit: pageLimit,
+        mixPosters,
+      });
+
+      if (nextCursor) {
+        nextCursor.publicProductsDelivered = productsDelivered;
+        if (productsDelivered >= this.PUBLIC_FEED_MAX_PRODUCTS) {
+          nextCursor = null;
         }
       }
 
-      // Crear cursor para siguiente página (solo productos)
-      // No crear cursor para feed público ya que siempre devolvemos los 100 productos completos en la primera carga
-      let nextCursor: FeedCursorDTO | null = null;
-      // El feed público siempre devuelve 100 productos en la primera carga, sin paginación
-      // No hay más páginas después de los 100 productos
-
-      // Generar token para siguiente página si hay más items
       const nextCursorToken = nextCursor ? this.generateCursorToken(nextCursor) : null;
 
       const result: FeedResponseDTO = {
@@ -2219,7 +2405,6 @@ export class FeedService {
         nextCursorToken,
       };
 
-      // Guardar en cache (solo primera página, sin cursor)
       if (!cursorToken) {
         this.publicFeedCache = {
           data: result,
@@ -2235,7 +2420,7 @@ export class FeedService {
     } catch (error: any) {
       console.error(`❌ [FEED-SERVICE] Error en getPublicFeed:`, error?.message);
       console.error(`❌ [FEED-SERVICE] Stack:`, error?.stack);
-      
+
       return {
         items: [],
         nextCursorToken: null,

@@ -101,3 +101,9 @@ export function clearCategoriesCache() {
     window.dispatchEvent(new Event(INVALIDATE_EVENT))
   }
 }
+
+/** Sembrar cache tras `/feed/public/init` (evita fetch duplicado a /categories). */
+export function seedCategoriesCache(categories: FeedCategoryItem[], token: string | null = null) {
+  const key = cacheKeyForToken(token)
+  categoriesCache[key] = categories
+}

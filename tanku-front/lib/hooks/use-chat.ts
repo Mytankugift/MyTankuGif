@@ -5,6 +5,7 @@ import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { chatService, type ChatMessage as ChatServiceMessage } from '@/lib/services/chat.service'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { logger } from '@/lib/utils/logger'
 export interface Conversation {
   id: string
   type: 'FRIENDS' | 'STALKERGIFT'
@@ -238,7 +239,7 @@ export function useChat() {
   const fetchConversations = useCallback(async (force = false) => {
     // ✅ Verificar autenticación antes de hacer la llamada
     if (!user?.id) {
-      console.log('[useChat] Usuario no autenticado, omitiendo fetchConversations')
+      logger.debug('[useChat] Usuario no autenticado, omitiendo fetchConversations')
       return
     }
 
@@ -463,7 +464,7 @@ export function useChat() {
    */
   const markAsRead = useCallback((conversationId: string, markAsReadSocket?: (convId: string) => void) => {
     if (!markAsReadSocket) {
-      console.warn('⚠️ markAsReadSocket no disponible')
+      logger.debug('⚠️ markAsReadSocket no disponible')
       return
     }
 
@@ -513,7 +514,7 @@ export function useChat() {
   const fetchUnreadCount = useCallback(async () => {
     // ✅ Verificar autenticación antes de hacer la llamada
     if (!user?.id) {
-      console.log('[useChat] Usuario no autenticado, omitiendo fetchUnreadCount')
+      logger.debug('[useChat] Usuario no autenticado, omitiendo fetchUnreadCount')
       return
     }
 
@@ -697,7 +698,7 @@ export function useChat() {
 
     lastProcessedMessageRef.current = lastReceivedMessage.id
 
-    console.log('🔄 [useChat] Actualizando último mensaje de conversación:', {
+    logger.debug('🔄 [useChat] Actualizando último mensaje de conversación:', {
       conversationId: lastReceivedMessage.conversationId,
       messageId: lastReceivedMessage.id,
       content: lastReceivedMessage.content.substring(0, 30),

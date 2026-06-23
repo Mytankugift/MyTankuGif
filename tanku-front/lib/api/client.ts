@@ -89,8 +89,6 @@ export class ApiClient {
         controller.abort()
       }, timeout)
 
-      logger.api(`Iniciando petición a ${endpoint} con timeout de ${timeout}ms`)
-
       let response: Response
       try {
         response = await fetch(url, {

@@ -1456,8 +1456,8 @@ export function PosterDetailContent({
           )
         : null}
 
-      {/* Modal de compartir */}
-      {poster && (
+      {/* Modal de compartir (montar solo al abrir: evita useSocket()/useChat() en background) */}
+      {poster && showShareModal && (
         <SharePostModal
           isOpen={showShareModal}
           postUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${poster.id}`}

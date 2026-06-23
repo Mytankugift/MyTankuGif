@@ -9,6 +9,7 @@ import type { FeedItem } from '@/lib/types/feed.types'
 
 interface LandingGridProps {
   items: FeedItem[]
+  isLoadingMore?: boolean
   onProductClick?: (product: FeedItem) => void
   onPosterClick?: (poster: FeedItem) => void
   onPosterLikeUpdated?: (posterId: string, updates: { isLiked: boolean; likesCount: number }) => void
@@ -19,6 +20,7 @@ interface LandingGridProps {
 
 export function LandingGrid({
   items,
+  isLoadingMore = false,
   onProductClick,
   onPosterClick,
   onPosterLikeUpdated,
@@ -113,7 +115,7 @@ export function LandingGrid({
           >
             {section.items.map((item) => {
               const currentIndex = globalItemIndex++
-              const isAboveFold = currentIndex < 6
+              const isAboveFold = currentIndex < 8
 
               if (item.type === 'product' && item.title) {
                 return (
@@ -181,6 +183,11 @@ export function LandingGrid({
           </Masonry>
         )
       })}
+      {isLoadingMore ? (
+        <div className="flex justify-center py-6" aria-live="polite" aria-busy="true">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#73FFA2] border-t-transparent" />
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { create } from 'zustand'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { track } from '@/lib/analytics/tracker'
+import { logger } from '@/lib/utils/logger'
 import type { Cart, CartItem } from '@/types/api'
 
 interface CartState {
@@ -101,7 +102,7 @@ export const useCartStore = create<CartState>((set, get) => ({
           } else if (mappedCart.userId && typeof window !== 'undefined') {
             // Si el carrito tiene usuario, limpiar el guest-cart-id (ya está asociado)
             localStorage.removeItem('guest-cart-id')
-            console.log('[CART] Carrito asociado al usuario, guest-cart-id limpiado')
+            logger.debug('[CART] Carrito asociado al usuario, guest-cart-id limpiado')
           }
         } else {
           // Si no hay carrito normal, mantener el de regalos si existe
@@ -631,7 +632,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         localStorage.setItem('guest-cart-id', normalCart.id)
       } else if (normalCart?.userId && typeof window !== 'undefined') {
         localStorage.removeItem('guest-cart-id')
-        console.log('[CART] Carrito asociado al usuario, guest-cart-id limpiado')
+        logger.debug('[CART] Carrito asociado al usuario, guest-cart-id limpiado')
       }
       
       // Emitir evento para actualizar otros componentes
@@ -653,7 +654,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 if (typeof window !== 'undefined') {
   // Listener para el evento userAuthenticated
   window.addEventListener('userAuthenticated', () => {
-    console.log('[CART] Usuario autenticado, recargando carrito para asociar carrito guest...')
+    logger.debug('[CART] Usuario autenticado, recargando carrito para asociar carrito guest...')
     // Esperar un momento para que el token esté disponible
     setTimeout(() => {
       useCartStore.getState().fetchCart().catch((error) => {

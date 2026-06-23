@@ -410,13 +410,17 @@ export const ProductCard = memo(function ProductCard({
       onPointerDown={(e) => {
         if (e.button !== 0) return
         pointerDownRef.current = { clientX: e.clientX, clientY: e.clientY }
-        prefetchProduct() // press en móvil/desktop: adelantar la carga antes del click
+        // Solo precargar con ratón (intención de click en desktop). En táctil,
+        // un pointerdown suele ser el inicio de un scroll, no de una apertura:
+        // el detalle se carga al abrir el modal (caché + dedup inflight de useProduct).
+        if (e.pointerType === 'mouse') prefetchProduct()
       }}
       onTouchStart={(e) => {
         if (e.touches.length !== 1) return
         const t = e.touches[0]
+        // Registramos el punto de contacto para distinguir tap de scroll en onClick,
+        // pero NO precargamos aquí: deslizar el dedo sobre la card no debe pedir el producto.
         pointerDownRef.current = { clientX: t.clientX, clientY: t.clientY }
-        prefetchProduct()
       }}
       onClick={handleCardClick}
       onMouseEnter={handleMouseEnter}
@@ -497,13 +501,10 @@ export const ProductCard = memo(function ProductCard({
             {isTogglingLike ? (
               <div className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              <Image
+              <img
                 src={isLiked ? "/icons_tanku/tanku_megusta_relleno.svg" : "/icons_tanku/tanku_megusta_lineas.svg"}
                 alt={isLiked ? "Quitar me gusta" : "Me gusta"}
-                width={24}
-                height={24}
-                className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6"
-                style={{ width: 'clamp(12px, 2vw, 24px)', height: 'clamp(12px, 2vw, 24px)' }}
+                className="h-[clamp(12px,2vw,24px)] w-auto"
               />
             )}
           </button>
@@ -515,17 +516,14 @@ export const ProductCard = memo(function ProductCard({
               onClick={handleAddToWishlist}
               title={isInWishlist ? 'En tu wishlist' : 'Agregar a wishlist'}
             >
-              <Image
+              <img
                 src={
                   isInWishlist
                     ? '/icons_tanku/tanku_agregado_a_whislist_verde.svg'
                     : '/icons_tanku/tanku_agregar_a_whislist_azul.svg'
                 }
                 alt={isInWishlist ? 'En wishlist' : 'Agregar a wishlist'}
-                width={24}
-                height={24}
-                className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6"
-                style={{ width: 'clamp(12px, 2vw, 24px)', height: 'clamp(12px, 2vw, 24px)' }}
+                className="h-[clamp(12px,2vw,24px)] w-auto"
               />
             </button>
           )}
@@ -541,13 +539,10 @@ export const ProductCard = memo(function ProductCard({
               {isAddingToCart ? (
                 <div className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
-                <Image
+                <img
                   src="/icons_tanku/tanku_agregar_a_cart_azul.svg"
                   alt="Agregar al carrito"
-                  width={24}
-                  height={24}
-                  className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6"
-                  style={{ width: 'clamp(12px, 2vw, 24px)', height: 'clamp(12px, 2vw, 24px)' }}
+                  className="h-[clamp(12px,2vw,24px)] w-auto"
                 />
               )}
             </button>
@@ -579,13 +574,10 @@ export const ProductCard = memo(function ProductCard({
 
         {/* Me gusta con contador y texto */}
         <div className="flex items-center gap-1 sm:gap-1.5 mb-1 sm:mb-2">
-          <Image
+          <img
             src={isLiked ? "/icons_tanku/tanku_megusta_relleno.svg" : "/icons_tanku/tanku_megusta_lineas.svg"}
             alt="Me gusta"
-            width={16}
-            height={16}
-            className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4"
-            style={{ width: 'clamp(12px, 1.5vw, 16px)', height: 'clamp(12px, 1.5vw, 16px)' }}
+            className="h-[clamp(12px,1.5vw,16px)] w-auto"
           />
           <span 
             className="text-[10px] sm:text-xs md:text-xs font-normal leading-tight"

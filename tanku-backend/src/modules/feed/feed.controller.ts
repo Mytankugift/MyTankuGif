@@ -134,6 +134,31 @@ export class FeedController {
   };
 
   /**
+   * GET /api/v1/feed/public/init
+   * Primera pintura de la landing: primera página del feed público + categorías en una petición.
+   * Incluye posts de cuentas globales intercalados (sin filtros de categoría/búsqueda).
+   */
+  getPublicFeedInit = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req as RequestWithUser).user?.id;
+      const birthDate = await getBirthDateForUserId(userId);
+      const hideAdultCategories = viewerCannotSeeAdultCatalog(Boolean(userId), birthDate);
+      const categoryId = req.query.categoryId as string | undefined;
+
+      const [feed, categories] = await Promise.all([
+        this.feedService.getPublicFeed(undefined, categoryId, undefined, userId),
+        this.categoriesService.listCategoriesNormalized(hideAdultCategories),
+      ]);
+
+      res.status(200).json(successResponse({ feed, categories }));
+    } catch (error: any) {
+      console.error(`❌ [FEED-CONTROLLER] Error en getPublicFeedInit:`, error?.message);
+      console.error(`❌ [FEED-CONTROLLER] Stack:`, error?.stack);
+      next(error);
+    }
+  };
+
+  /**
    * GET /api/v1/feed/init
    * Endpoint batch para inicialización del feed
    * Retorna todos los datos necesarios para cargar el feed en una sola petición

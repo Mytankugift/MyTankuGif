@@ -519,13 +519,10 @@ export const PosterCard = memo(function PosterCard({
             onClick={handleLike}
             disabled={isLiking}
           >
-            <Image
+            <img
               src={isLiked ? '/icons_tanku/tanku_megusta_relleno.svg' : '/icons_tanku/tanku_megusta_lineas.svg'}
               alt={isLiked ? 'Quitar me gusta' : 'Me gusta'}
-              width={20}
-              height={20}
-              className="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5 mr-1 sm:mr-1.5 md:mr-2"
-              unoptimized
+              className="mr-1 h-4 w-auto sm:mr-1.5 sm:h-5 md:mr-2"
             />
             <span className={`text-xs sm:text-sm ${isLightMode ? 'text-black' : 'text-white'}`}>
               {likesCount}
@@ -535,24 +532,24 @@ export const PosterCard = memo(function PosterCard({
             className="p-1 sm:p-1.5 md:p-2 hover:bg-gray-700 rounded-full transition-colors duration-200"
             onClick={handleShareClick}
           >
-            <Image
+            <img
               src="/icons_tanku/tanku_card_compartir_verde.svg"
               alt="Compartir"
-              width={20}
-              height={20}
-              className="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5"
-              unoptimized
+              className="h-4 w-auto sm:h-5"
             />
           </button>
         </div>
       )}
     </div>
-    <SharePostModal
-      isOpen={isShareModalOpen}
-      postUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${poster.id}`}
-      postDescription={poster.description}
-      onClose={() => setIsShareModalOpen(false)}
-    />
+    {/* Montar solo al abrir: evita ejecutar useSocket()/useChat() por cada card del feed */}
+    {isShareModalOpen && (
+      <SharePostModal
+        isOpen={isShareModalOpen}
+        postUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${poster.id}`}
+        postDescription={poster.description}
+        onClose={() => setIsShareModalOpen(false)}
+      />
+    )}
     </>
   )
 }, (prevProps, nextProps) => {

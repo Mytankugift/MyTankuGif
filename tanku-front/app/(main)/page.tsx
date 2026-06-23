@@ -4,23 +4,21 @@ import React, { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'r
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { LandingNav } from '@/components/feed/landing-nav'
+import { LandingGrid } from '@/components/feed/landing-grid'
 import { FeedSkeleton } from '@/components/feed/feed-skeleton'
 import { useLandingFeed } from '@/lib/hooks/use-landing-feed'
 import { useFeedScrollNav } from '@/lib/hooks/use-feed-scroll-nav'
-import { useCategories } from '@/lib/hooks/use-categories'
+import {
+  landingTopReserveFallbackPx,
+  lockLandingScrollRestoration,
+  persistLandingNavHeight,
+  readStoredLandingNavHeight,
+  resetLandingScroll,
+} from '@/lib/landing/landing-scroll'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { logger } from '@/lib/utils/logger'
 import type { FeedItemDTO } from '@/types/api'
 import './feed/feed-grid.css'
-
-// ✅ Lazy load del grid (puede ser pesado)
-const LandingGrid = dynamic(
-  () => import('@/components/feed/landing-grid').then(mod => ({ default: mod.LandingGrid })),
-  { 
-    loading: () => <FeedSkeleton />,
-    ssr: true // Mantener SSR para SEO
-  }
-)
 
 // ✅ Lazy load del modal de video (solo cuando se necesita)
 const VideoModal = dynamic(
@@ -50,13 +48,6 @@ const WELCOME_VIDEO_URL = 'https://tanku-bucket-us-east-2.s3.us-east-2.amazonaws
  * Aire bajo el nav fijo: medimos el nodo; este gap evita que la primera fila de cards “pegue” al borde inferior del nav.
  */
 const LANDING_NAV_CONTENT_GAP_PX = 12
-
-/** Reserva mínima (antes de medir / si falla la medida). Generosa: nav + búsqueda + categorías varía por breakpoint. */
-function landingTopReserveFallbackPx(viewportW: number): number {
-  if (viewportW < 768) return 100
-  if (viewportW < 1024) return 100
-  return 100
-}
 
 function LandingPageContent() {
   const router = useRouter()
@@ -88,10 +79,16 @@ function LandingPageContent() {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  // Usar hook cacheado para categorías
-  const { categories } = useCategories()
-
-  // Manejar parámetros de autenticación
+  // Feed landing: carga progresiva + sessionStorage (F5 instantáneo); sin fetch de categorías
+  const {
+    items: allItems,
+    isLoading,
+    isLoadingMore,
+    error: feedError,
+    updateItem,
+  } = useLandingFeed({
+    categoryId: selectedCategoryId,
+  })
   useEffect(() => {
     if (hasRedirected.current) return
 
@@ -129,33 +126,47 @@ function LandingPageContent() {
     }
   }, [searchParams, router, setToken, isAuthenticated])
 
-  // Las categorías se cargan con el hook useCategories (cacheado)
+  // Evitar que el navegador restaure scrollY tras F5 (deja el grid medio cortado bajo el nav).
+  useLayoutEffect(() => {
+    return lockLandingScrollRestoration()
+  }, [])
 
-  // Feed landing: productos + posts de cuentas globales (hasta 100 ítems)
-  // Nota: searchQuery no se pasa al hook, la búsqueda se hace localmente
-  const {
-    items: allItems,
-    isLoading,
-    error: feedError,
-    updateItem,
-  } = useLandingFeed({
-    categoryId: selectedCategoryId,
-  })
+  // Tras hidratar / cargar cache: volver arriba antes del paint visible.
+  useLayoutEffect(() => {
+    if (isLoading && allItems.length === 0) return
+    resetLandingScroll()
+  }, [isLoading, allItems.length])
 
   // Nav `fixed` fuera del flujo: medimos el ref antes del paint (useLayoutEffect) y resizeamos el spacer.
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return
+
+    const storedHeight = readStoredLandingNavHeight()
+    if (storedHeight != null) {
+      setNavChromeHeightPx(storedHeight)
+    }
+
+    resetLandingScroll()
+
     const el = landingNavRef.current ?? document.getElementById('landing-nav-chrome')
     if (!el) return
 
     const update = () => {
       const h = el.getBoundingClientRect().height
-      if (h > 0) setNavChromeHeightPx(Math.round(h * 10) / 10)
+      if (h > 0) {
+        const rounded = Math.round(h * 10) / 10
+        setNavChromeHeightPx(rounded)
+        persistLandingNavHeight(rounded)
+      }
     }
 
     update()
+    resetLandingScroll()
+
     const ro = new ResizeObserver(() => {
-      requestAnimationFrame(update)
+      requestAnimationFrame(() => {
+        update()
+      })
     })
     ro.observe(el)
     window.addEventListener('resize', update)
@@ -167,7 +178,7 @@ function LandingPageContent() {
       clearTimeout(t1)
       clearTimeout(t2)
     }
-  }, [categories.length, isLoading, feedNavScroll.minimalMode, feedNavScroll.compactMid])
+  }, [isLoading, allItems.length, feedNavScroll.minimalMode, feedNavScroll.compactMid])
 
   // Filtrar productos localmente basado en searchQuery
   // IMPORTANTE: Este hook debe ir ANTES del return condicional
@@ -245,7 +256,6 @@ function LandingPageContent() {
     >
       <LandingNav
         ref={landingNavRef}
-        categories={categories}
         selectedCategoryId={selectedCategoryId}
         onCategoryChange={setSelectedCategoryId}
         searchQuery={searchQuery}
@@ -254,7 +264,7 @@ function LandingPageContent() {
       />
 
       <div
-        className="px-2 pb-2 transition-all duration-300 ease-in-out max-md:flex-none max-md:overflow-visible max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:py-4 md:px-4 md:py-5"
+        className="px-2 pb-2 transition-colors duration-300 max-md:flex-none max-md:overflow-visible max-md:px-3 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] sm:px-3 sm:py-4 md:px-4 md:py-5"
         style={{
           marginRight: '0',
           scrollBehavior: 'auto',
@@ -281,6 +291,7 @@ function LandingPageContent() {
           <>
             <LandingGrid
               items={items}
+              isLoadingMore={isLoadingMore}
               onProductClick={(product) => {
                 if (!product.handle) return
                 setSelectedProduct({

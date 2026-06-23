@@ -25,5 +25,6 @@ export type CreateNotificationDTO = {
   title: string;
   message: string;
   data?: any;
+  groupKey?: string;
 };
 
