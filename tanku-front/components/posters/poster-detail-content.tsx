@@ -1176,6 +1176,7 @@ export function PosterDetailContent({
                       onChange={setCommentText}
                       placeholder="Escribe un comentario..."
                       disabled={isCommenting}
+                      active={!isCommentsSheetOpen}
                     />
                     <div className="absolute inset-y-0 right-0 z-[1] hidden w-0 items-center justify-end lg:flex lg:w-9">
                       <EmojiPickerButton
@@ -1354,12 +1355,15 @@ export function PosterDetailContent({
                   >
                     <form onSubmit={handleComment} className="flex gap-2 overflow-visible">
                       <div className="relative min-w-0 flex-1 overflow-visible">
-                        <UserMentionAutocomplete
-                          value={commentText}
-                          onChange={setCommentText}
-                          placeholder="Escribe un comentario..."
-                          disabled={isCommenting}
-                        />
+                        {isCommentsSheetOpen ? (
+                          <UserMentionAutocomplete
+                            value={commentText}
+                            onChange={setCommentText}
+                            placeholder="Escribe un comentario..."
+                            disabled={isCommenting}
+                            active
+                          />
+                        ) : null}
                       </div>
                       <button
                         type="submit"

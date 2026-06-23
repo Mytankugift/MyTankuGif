@@ -4,10 +4,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
-import Image from 'next/image'
 import { clsx } from 'clsx'
 
 import { TANKU_MENTION_SUGGESTIONS_Z } from '@/lib/ui/tanku-modal-surface'
+import { UserAvatar } from '@/components/shared/user-avatar'
 
 interface User {
   id: string
@@ -25,6 +25,8 @@ interface UserMentionAutocompleteProps {
   onSelect?: (user: User) => void
   placeholder?: string
   disabled?: boolean
+  /** Si false, no busca ni muestra sugerencias (p. ej. input duplicado oculto en sheet cerrado) */
+  active?: boolean
 }
 
 const hideMentionIds = (text: string, mentionMap?: Map<string, string>): string => {
@@ -50,46 +52,25 @@ function UserSuggestionItem({
   isSelected: boolean
   onSelect: () => void
 }) {
-  const [avatarError, setAvatarError] = useState(false)
-  const [showFallback, setShowFallback] = useState(!user.avatar)
-
-  useEffect(() => {
-    setShowFallback(!user.avatar || avatarError)
-  }, [user.avatar, avatarError])
-
-  const handleImageError = () => {
-    setAvatarError(true)
-    setShowFallback(true)
-  }
-
-  const initial = (user.firstName?.[0] || user.email[0] || 'U').toUpperCase()
-
   return (
     <button
       type="button"
       onPointerDown={(e) => e.preventDefault()}
       onClick={onSelect}
-      className={`flex w-full items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-700 ${
-        isSelected ? 'bg-gray-700' : ''
+      className={`flex w-full items-center gap-3 px-4 py-2 transition-colors hover:bg-white/5 ${
+        isSelected ? 'bg-white/5' : ''
       }`}
     >
-      <div className="relative h-8 w-8 flex-shrink-0">
-        {user.avatar && !avatarError ? (
-          <Image
-            src={user.avatar}
-            alt={displayName}
-            fill
-            className="rounded-full object-cover"
-            unoptimized={user.avatar.startsWith('http')}
-            onError={handleImageError}
-          />
-        ) : null}
-        {showFallback && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-gray-700">
-            <span className="text-xs font-bold text-gray-400">{initial}</span>
-          </div>
-        )}
-      </div>
+      <UserAvatar
+        user={{
+          avatar: user.avatar,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          username: user.username,
+        }}
+        size={32}
+      />
       <div className="min-w-0 flex-1 text-left">
         <p className="truncate text-sm font-medium text-white">{displayName}</p>
         {username ? (
@@ -108,6 +89,7 @@ export function UserMentionAutocomplete({
   onSelect,
   placeholder = 'Escribe un comentario...',
   disabled = false,
+  active = true,
 }: UserMentionAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<User[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -116,7 +98,8 @@ export function UserMentionAutocomplete({
   const [mentionQuery, setMentionQuery] = useState('')
   const [mentionStart, setMentionStart] = useState(-1)
   const [suggestionsPosition, setSuggestionsPosition] = useState({
-    top: 0,
+    top: undefined as number | undefined,
+    bottom: undefined as number | undefined,
     left: 0,
     width: 0,
     maxHeight: 240,
@@ -124,6 +107,7 @@ export function UserMentionAutocomplete({
   })
   const [displayValue, setDisplayValue] = useState('')
   const [internalValue, setInternalValue] = useState('')
+  const [isFocused, setIsFocused] = useState(false)
   const mentionMapRef = useRef<Map<string, string>>(new Map())
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
@@ -135,30 +119,52 @@ export function UserMentionAutocomplete({
     setPortalMounted(true)
   }, [])
 
+  const isInputUsable = useCallback(() => {
+    if (!active || !inputRef.current) return false
+    const rect = inputRef.current.getBoundingClientRect()
+    return rect.width > 0 && rect.height > 0
+  }, [active])
+
+  const isThisInputFocused = useCallback(() => {
+    return document.activeElement === inputRef.current
+  }, [])
+
   const updateSuggestionsPosition = useCallback(() => {
-    if (!inputRef.current) return
+    if (!inputRef.current || !isInputUsable()) return
     const rect = inputRef.current.getBoundingClientRect()
     const vv = window.visualViewport
     const viewportTop = vv?.offsetTop ?? 0
     const viewportHeight = vv?.height ?? window.innerHeight
-    const dropdownMaxHeight = Math.min(240, Math.round(viewportHeight * 0.42))
+    const layoutHeight = window.innerHeight
+    const isMobileLayout = layoutHeight < 768 || rect.width < 420
+    const gap = 8
+    const dropdownMaxHeight = Math.min(240, Math.round(viewportHeight * 0.4))
     const spaceAbove = rect.top - viewportTop
     const spaceBelow = viewportTop + viewportHeight - rect.bottom
-    const placement =
-      spaceBelow >= dropdownMaxHeight || spaceBelow > spaceAbove ? 'below' : 'above'
+    const placement: 'above' | 'below' =
+      isMobileLayout || spaceBelow < dropdownMaxHeight
+        ? 'above'
+        : spaceBelow > spaceAbove
+          ? 'below'
+          : 'above'
     const maxHeight =
       placement === 'below'
-        ? Math.max(120, Math.min(dropdownMaxHeight, spaceBelow - 12))
-        : Math.max(120, Math.min(dropdownMaxHeight, spaceAbove - 12))
+        ? Math.max(120, Math.min(dropdownMaxHeight, spaceBelow - gap))
+        : Math.max(120, Math.min(dropdownMaxHeight, spaceAbove - gap))
+    const width = isMobileLayout
+      ? Math.min(rect.width, window.innerWidth - 16)
+      : Math.max(rect.width, 280)
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))
 
     setSuggestionsPosition({
-      top: placement === 'above' ? rect.top - 8 : rect.bottom + 8,
-      left: rect.left,
-      width: Math.max(rect.width, 280),
+      top: placement === 'below' ? rect.bottom + gap : undefined,
+      bottom: placement === 'above' ? layoutHeight - rect.top + gap : undefined,
+      left,
+      width,
       maxHeight,
       placement,
     })
-  }, [])
+  }, [isInputUsable])
 
   useEffect(() => {
     if (value === undefined || value === null) {
@@ -209,7 +215,18 @@ export function UserMentionAutocomplete({
   )
 
   useEffect(() => {
+    if (!active) {
+      setShowSuggestions(false)
+      setIsSearching(false)
+    }
+  }, [active])
+
+  useEffect(() => {
     const handleInput = (text: string) => {
+      if (!active || (!isFocused && !isThisInputFocused())) {
+        return
+      }
+
       const cursorPos = inputRef.current?.selectionStart || text.length
       const textBeforeCursor = text.substring(0, cursorPos)
 
@@ -256,7 +273,7 @@ export function UserMentionAutocomplete({
 
         searchTimeoutRef.current = setTimeout(() => {
           void searchUsers(textAfterAt)
-        }, 200)
+        }, 300)
       } else {
         if (searchTimeoutRef.current) {
           clearTimeout(searchTimeoutRef.current)
@@ -277,10 +294,10 @@ export function UserMentionAutocomplete({
         searchTimeoutRef.current = null
       }
     }
-  }, [displayValue, searchUsers, updateSuggestionsPosition])
+  }, [displayValue, searchUsers, updateSuggestionsPosition, active, isFocused, isThisInputFocused])
 
   useEffect(() => {
-    if (!showSuggestions) return
+    if (!showSuggestions || !active) return
 
     const updatePos = () => updateSuggestionsPosition()
     updatePos()
@@ -345,65 +362,7 @@ export function UserMentionAutocomplete({
     const cursorPos = e.target.selectionStart || newDisplayValue.length
     setDisplayValue(newDisplayValue)
 
-    const usernameMentionRegex = /@([a-zA-Z0-9_-]+)(?=\s|$|@|,|\.|!|\?)/g
-    const usernameMatches = Array.from(newDisplayValue.matchAll(usernameMentionRegex))
-    const nameMentionRegex =
-      /@([a-zA-ZáéíóúÁÉÍÓÚñÑ][a-zA-ZáéíóúÁÉÍÓÚñÑ\s]{0,20}[a-zA-ZáéíóúÁÉÍÓÚñÑ])(?=\s|$|@|,|\.|!|\?)/g
-    const nameMatches =
-      usernameMatches.length === 0 ? Array.from(newDisplayValue.matchAll(nameMentionRegex)) : []
-    const matches = [...usernameMatches, ...nameMatches]
-
-    matches.forEach(async (match) => {
-      const name = match[1].trim()
-      const existingEntry = Array.from(mentionMapRef.current.entries()).find(([, mentionDisplayName]) => {
-        const nameWithoutAt = mentionDisplayName.substring(1)
-        return (
-          nameWithoutAt.toLowerCase() === name.toLowerCase() ||
-          nameWithoutAt.toLowerCase().includes(name.toLowerCase()) ||
-          name.toLowerCase().includes(nameWithoutAt.toLowerCase())
-        )
-      })
-
-      if (!existingEntry && name.length >= 2) {
-        try {
-          const response = await apiClient.get<User[]>(
-            `${API_ENDPOINTS.USERS.SEARCH}?q=${encodeURIComponent(name)}&limit=5`,
-          )
-          if (response.success && response.data && response.data.length > 0) {
-            const nameLower = name.toLowerCase().trim()
-            const bestMatch =
-              response.data.find((user) => {
-                if (user.username) {
-                  const usernameLower = user.username.toLowerCase()
-                  if (usernameLower === nameLower || usernameLower.includes(nameLower)) return true
-                }
-                if (user.firstName && user.lastName) {
-                  const userFullName = `${user.firstName} ${user.lastName}`.toLowerCase()
-                  return userFullName.includes(nameLower)
-                }
-                return false
-              }) || response.data[0]
-
-            const resolvedName =
-              bestMatch.username ||
-              (bestMatch.firstName && bestMatch.lastName
-                ? `${bestMatch.firstName} ${bestMatch.lastName}`
-                : bestMatch.email.split('@')[0])
-
-            mentionMapRef.current.set(bestMatch.id, `@${resolvedName}`)
-            const updatedInternalValue = newDisplayValue.replace(
-              new RegExp(`@${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$|@|,|\\.|!|\\?)`, 'g'),
-              `@{${bestMatch.id}}`,
-            )
-            setInternalValue(updatedInternalValue)
-            onChange(updatedInternalValue)
-          }
-        } catch {
-          // silenciar
-        }
-      }
-    })
-
+    // Solo convertir menciones ya confirmadas (elegidas en el panel), nunca auto-resolver mientras se escribe
     let newInternalValue = newDisplayValue
     mentionMapRef.current.forEach((mentionDisplayName, userId) => {
       const nameWithoutAt = mentionDisplayName.substring(1)
@@ -495,20 +454,21 @@ export function UserMentionAutocomplete({
   }
 
   const suggestionsPanelClass =
-    'rounded-lg border border-gray-700 bg-gray-800 shadow-lg custom-scrollbar overflow-y-auto overscroll-contain'
+    'rounded-2xl border border-[#414141] bg-[#171B21] shadow-2xl custom-scrollbar overflow-y-auto overscroll-contain'
 
-  const suggestionsPanel = showSuggestions ? (
+  const suggestionsPanel = showSuggestions && active && isInputUsable() ? (
     <div
       ref={suggestionsRef}
       className={clsx(suggestionsPanelClass, 'fixed')}
       style={{
         zIndex: TANKU_MENTION_SUGGESTIONS_Z,
-        top: `${suggestionsPosition.top}px`,
+        ...(suggestionsPosition.top != null ? { top: `${suggestionsPosition.top}px` } : {}),
+        ...(suggestionsPosition.bottom != null
+          ? { bottom: `${suggestionsPosition.bottom}px` }
+          : {}),
         left: `${suggestionsPosition.left}px`,
         width: `${suggestionsPosition.width}px`,
         maxHeight: `${suggestionsPosition.maxHeight}px`,
-        transform:
-          suggestionsPosition.placement === 'above' ? 'translateY(-100%)' : undefined,
       }}
       onPointerDown={(e) => {
         e.preventDefault()
@@ -531,12 +491,14 @@ export function UserMentionAutocomplete({
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
         onFocus={() => {
+          setIsFocused(true)
           if (mentionStart !== -1) {
             setShowSuggestions(true)
             updateSuggestionsPosition()
           }
         }}
         onBlur={() => {
+          setIsFocused(false)
           setTimeout(() => {
             if (!selectingSuggestionRef.current) {
               setShowSuggestions(false)
@@ -548,7 +510,7 @@ export function UserMentionAutocomplete({
         className="tanku-input-text-ios w-full rounded-2xl border border-gray-700 bg-gray-800 px-4 py-2 text-white placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#73FFA2]"
       />
 
-      {portalMounted && showSuggestions
+      {portalMounted && showSuggestions && active
         ? createPortal(suggestionsPanel, document.body)
         : null}
     </div>
