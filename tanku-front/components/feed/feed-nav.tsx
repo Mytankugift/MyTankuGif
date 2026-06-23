@@ -5,16 +5,18 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { NavActionIcons } from '@/components/layout/nav-action-icons'
 import { CartButton } from '@/components/layout/cart-button'
-import { NotificationsButton } from '@/components/layout/notifications-button'
-import { MessagesDropdown } from '@/components/layout/messages-dropdown'
-import { useChat } from '@/lib/hooks/use-chat'
 import { FeedStoriesStrip, FRIENDS_SUGGESTIONS_HREF } from '@/components/feed/feed-stories-strip'
 import type { FeedCategoryActivePillCategory } from '@/components/feed/feed-category-active-pill'
 import { FEED_RESET_FILTERS_EVENT } from '@/lib/constants/feed-events'
 import type { FeedNavScrollState } from '@/lib/hooks/use-feed-scroll-nav'
 import { clsx } from 'clsx'
 import { getGoogleOAuthUrl } from '@/lib/auth/google-oauth'
+
+/** Misma altura de la franja superior que `BaseNav` (perfil, mensajes, carrito, etc.). */
+const FEED_NAV_TOP_CHROME_ROW =
+  'min-h-[52px] items-center gap-2 p-2 pb-2 sm:p-3 md:p-4 md:pb-2 lg:gap-3'
 
 /** Mismos textos rotativos que landing-nav */
 const ROTATING_FEED_NAV_TEXTS = [
@@ -85,8 +87,7 @@ export function FeedNav({
   }, [])
 
   const pathname = usePathname()
-  const { user, isAuthenticated } = useAuthStore()
-  const [isMessagesDropdownOpen, setIsMessagesDropdownOpen] = useState(false)
+  const { isAuthenticated } = useAuthStore()
   const [rotatingTextIndex, setRotatingTextIndex] = useState(0)
   const [textOpacity, setTextOpacity] = useState(1)
 
@@ -101,25 +102,23 @@ export function FeedNav({
     return () => clearInterval(interval)
   }, [])
 
-  // ✅ Siempre llamar useChat (regla de hooks), pero usar propConversations si están disponibles
-  const chatHook = useChat()
-  const conversations = propConversations ?? chatHook.conversations
-  const unreadCount = propUnreadCount ?? (user ? chatHook.getTotalUnreadCount(user.id) : 0)
-  
-  // ✅ Usar totalUnread para badge
-  const totalUnread = unreadCount
-
-  const handleOpenChat = (conversationId: string) => {
-    // El dropdown ahora maneja el chat internamente, no necesitamos abrir ventanas flotantes
-    // Esta función se mantiene por compatibilidad pero no hace nada
-  }
-
   const { showStoriesStrip, compactMid } = feedNavScroll
+  /** Historias visibles en el nav fijo (desktop): al ocultarse, el buscador sube. */
+  const fixedStoriesVisible =
+    showStoriesStripInFixedNav && !activeCategoryFilter && showStoriesStrip
 
   return (
     <div className="w-full bg-transparent">
       {/* Stories Section */}
-      <div className="px-2 sm:px-3 md:px-4 pt-2 sm:pt-3 md:pt-4 pb-0 flex flex-col md:flex-row justify-between items-center w-full gap-0.5 sm:gap-1 md:gap-1">
+      <div
+        className={clsx(
+          'flex w-full flex-col pb-0 md:flex-row md:items-center md:justify-between',
+          'px-2 pt-2 sm:px-3 sm:pt-3 md:px-0',
+          'gap-0.5 sm:gap-1 md:gap-1',
+          !isAuthenticated && FEED_NAV_TOP_CHROME_ROW,
+          isAuthenticated && 'md:pt-0',
+        )}
+      >
         {/* Layout móvil cuando no está autenticado */}
         {!isAuthenticated ? (
           <>
@@ -175,51 +174,30 @@ export function FeedNav({
             </div>
           </>
         ) : (
-          <div className="flex w-full flex-col gap-2 sm:gap-2.5">
-            {/* Tablet/desktop: eslogan centrado + iconos a la derecha */}
-            <div className="relative hidden md:flex w-full items-center justify-center py-0.5">
-              <div className="pointer-events-none absolute inset-y-0 right-0 z-20 flex items-center gap-2 sm:gap-2.5 lg:gap-3">
-                <div className="pointer-events-auto flex items-center gap-2 sm:gap-2.5 lg:gap-3">
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setIsMessagesDropdownOpen(!isMessagesDropdownOpen)}
-                      className="group relative flex cursor-pointer items-center justify-center rounded-lg p-2 transition-colors hover:bg-white/10"
-                    >
-                      <img
-                        src="/icons_tanku/tanku_nav_mensajes_verde.svg"
-                        alt="Mensajes"
-                        className="h-[30px] w-auto"
-                      />
-                      {totalUnread > 0 && (
-                        <div className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-[#1E1E1E] bg-[#66DEDB]" />
-                      )}
-                    </button>
-                    <MessagesDropdown
-                      isOpen={isMessagesDropdownOpen}
-                      onClose={() => setIsMessagesDropdownOpen(false)}
-                      onOpenChat={handleOpenChat}
-                    />
-                  </div>
-                  <div className="flex h-8 w-8 items-center justify-center md:h-9 md:w-9 lg:h-10 lg:w-10">
-                    <NotificationsButton
-                      initialNotifications={propNotifications}
-                      initialUnreadCount={propNotificationsUnreadCount}
-                    />
-                  </div>
-                  <div className="flex h-8 w-8 items-center justify-center md:h-9 md:w-9 lg:h-10 lg:w-10">
-                    <CartButton />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex w-full flex-col items-center transition-all duration-300 ease-out">
-              <div className="hidden w-full justify-center md:flex lg:hidden">
-                <div
+          <div
+            className={clsx(
+              'flex w-full flex-col transition-[gap] duration-300 ease-out',
+              fixedStoriesVisible ? 'gap-2 sm:gap-2.5' : 'gap-0',
+            )}
+          >
+            {/* Tablet/desktop: mismo layout que BaseNav (título centrado + iconos en flujo, no absolute right-0) */}
+            <div
+              className={clsx(
+                'relative hidden w-full items-center justify-between md:flex',
+                FEED_NAV_TOP_CHROME_ROW,
+              )}
+            >
+              <span className="inline-block w-10 shrink-0 sm:w-11" aria-hidden />
+              <div
+                className="pointer-events-none absolute left-1/2 top-1/2 max-w-[min(56vw,28rem)] -translate-x-1/2 -translate-y-1/2 text-center transition-opacity duration-300 ease-in-out"
+                style={{ opacity: textOpacity }}
+              >
+                <span
+                  className="hidden md:inline lg:hidden"
                   style={{
                     fontFamily: 'Montserrat, sans-serif',
                     fontWeight: 'bold',
-                    fontSize: '24px',
+                    fontSize: '20px',
                     lineHeight: '1.2',
                     background: 'linear-gradient(99.34deg, #73FFA2 24.37%, #459961 75.63%)',
                     WebkitBackgroundClip: 'text',
@@ -227,19 +205,16 @@ export function FeedNav({
                     backgroundClip: 'text',
                     color: 'transparent',
                     whiteSpace: 'nowrap',
-                    opacity: textOpacity,
-                    transition: 'opacity 0.3s ease-in-out',
                   }}
                 >
                   {ROTATING_FEED_NAV_TEXTS[rotatingTextIndex]}
-                </div>
-              </div>
-              <div className="hidden w-full justify-center lg:flex">
-                <div
+                </span>
+                <span
+                  className="hidden lg:inline"
                   style={{
                     fontFamily: 'Montserrat, sans-serif',
                     fontWeight: 'bold',
-                    fontSize: '32px',
+                    fontSize: '26px',
                     lineHeight: '1.2',
                     background: 'linear-gradient(99.34deg, #73FFA2 24.37%, #459961 75.63%)',
                     WebkitBackgroundClip: 'text',
@@ -247,13 +222,17 @@ export function FeedNav({
                     backgroundClip: 'text',
                     color: 'transparent',
                     whiteSpace: 'nowrap',
-                    opacity: textOpacity,
-                    transition: 'opacity 0.3s ease-in-out',
                   }}
                 >
                   {ROTATING_FEED_NAV_TEXTS[rotatingTextIndex]}
-                </div>
+                </span>
               </div>
+              <div className="flex shrink-0 items-center">
+                <NavActionIcons
+                  unreadCount={propUnreadCount}
+                  initialNotifications={propNotifications}
+                  initialUnreadCount={propNotificationsUnreadCount}
+                />
               </div>
             </div>
 
@@ -273,12 +252,12 @@ export function FeedNav({
         )}
 
         {!isAuthenticated && (
-          <div className="hidden md:flex lg:hidden flex-1 min-w-0 items-center justify-center">
+          <div className="hidden min-w-0 flex-1 items-center justify-center md:flex lg:hidden">
             <div
               style={{
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 'bold',
-                fontSize: '24px',
+                fontSize: '20px',
                 lineHeight: '1.2',
                 background: 'linear-gradient(99.34deg, #73FFA2 24.37%, #459961 75.63%)',
                 WebkitBackgroundClip: 'text',
@@ -295,12 +274,12 @@ export function FeedNav({
           </div>
         )}
         {!isAuthenticated && (
-          <div className="hidden lg:flex flex-1 min-w-0 items-center justify-center">
+          <div className="hidden min-w-0 flex-1 items-center justify-center lg:flex">
             <div
               style={{
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 'bold',
-                fontSize: '32px',
+                fontSize: '26px',
                 lineHeight: '1.2',
                 background: 'linear-gradient(99.34deg, #73FFA2 24.37%, #459961 75.63%)',
                 WebkitBackgroundClip: 'text',
@@ -318,18 +297,8 @@ export function FeedNav({
         )}
 
         {!isAuthenticated && (
-          <div className="hidden flex-shrink-0 items-center gap-2 self-center md:flex lg:gap-3">
-            <a
-              href={getGoogleOAuthUrl('/feed')}
-              className="inline-block flex-shrink-0 cursor-pointer rounded-full px-4 py-2 text-center text-sm font-semibold text-black transition-all duration-300 hover:scale-105 hover:shadow-lg"
-              style={{
-                fontFamily: 'Poppins, sans-serif',
-                backgroundColor: '#73FFA2',
-                boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset',
-              }}
-            >
-              Únete a TANKU
-            </a>
+          <div className="hidden shrink-0 items-center gap-2 self-center md:flex lg:gap-3">
+            <NavActionIcons showJoinButton />
           </div>
         )}
       </div>
@@ -337,8 +306,11 @@ export function FeedNav({
       {/* Buscador — móvil autenticado: categorías + carrito a la derecha del campo */}
       <div
         className={clsx(
-          'px-2 sm:px-3 md:px-4 mb-0.5 pt-2 sm:pt-3 md:pt-4 transition-all duration-300 ease-out',
-          compactMid && 'origin-top scale-[0.96] [will-change:transform]'
+          'mb-0.5 px-2 transition-all duration-300 ease-out sm:px-3 md:px-4',
+          fixedStoriesVisible
+            ? 'pt-2 sm:pt-3 md:pt-4'
+            : 'pt-1.5 sm:pt-2 md:pt-1 md:-mt-0.5',
+          compactMid && 'origin-top scale-[0.96] [will-change:transform]',
         )}
       >
         <div className="relative flex w-full flex-row items-center gap-2">
@@ -436,13 +408,9 @@ export function FeedNav({
                   />
                 </button>
               ) : null}
-              <Link href="/cart" className="flex shrink-0 items-center justify-center md:hidden" aria-label="Ir al carrito">
-                <img
-                  src="/icons_tanku/tanku_nav_carrito_verde.svg"
-                  alt=""
-                  className="h-[30px] w-auto"
-                />
-              </Link>
+              <div className="flex shrink-0 items-center justify-center md:hidden">
+                <CartButton compact />
+              </div>
             </>
           )}
         </div>

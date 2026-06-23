@@ -31,6 +31,7 @@ export function FeedCategoryBarChip({
 }: FeedCategoryBarChipProps) {
   return (
     <div
+      data-category-chip-id={String(category.id)}
       className={clsx(
         'flex shrink-0 snap-start items-stretch overflow-hidden rounded-full border transition-colors duration-200',
         CATEGORY_SLIDER_ROW_H,
@@ -40,7 +41,10 @@ export function FeedCategoryBarChip({
       <button
         type="button"
         onClick={onSelect}
-        className="flex min-w-0 items-center gap-1.5 py-0 pl-1.5 pr-0.5 sm:gap-2 sm:pl-2"
+        className={clsx(
+          'flex min-w-0 items-center gap-1.5 self-stretch py-0 pl-1.5 sm:gap-2 sm:pl-2',
+          selected ? 'pr-0.5' : 'flex-1 pr-0',
+        )}
       >
         <span className={clsx(CATEGORY_ICON_SHELL_CLASS, 'h-6 w-6 p-0.5 sm:h-7 sm:w-7')}>
           {category.image ? (
@@ -74,26 +78,29 @@ export function FeedCategoryBarChip({
           {category.name}
         </span>
       </button>
-      <span
-        className={clsx(
-          'flex w-7 shrink-0 items-center justify-center sm:w-8',
-          !selected && 'pointer-events-none invisible'
-        )}
-      >
+      {selected ? (
         <button
           type="button"
-          className="flex h-7 w-7 items-center justify-center rounded-full text-base leading-none text-white transition hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#66DEDB] sm:text-lg"
+          className="flex w-7 shrink-0 items-center justify-center self-stretch text-base leading-none text-white transition-colors hover:text-[#73FFA2] focus:outline-none sm:w-8 sm:text-lg"
           aria-label="Quitar filtro de categoría"
-          tabIndex={selected ? 0 : -1}
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
             onClear?.()
           }}
         >
-          ×
+          <span className="block -translate-y-px leading-none" aria-hidden>
+            ×
+          </span>
         </button>
-      </span>
+      ) : (
+        <button
+          type="button"
+          onClick={onSelect}
+          className="flex w-7 shrink-0 cursor-pointer items-center justify-center self-stretch sm:w-8"
+          aria-label={`Seleccionar ${category.name}`}
+        />
+      )}
     </div>
   )
 }

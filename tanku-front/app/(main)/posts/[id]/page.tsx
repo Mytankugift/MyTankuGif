@@ -6,7 +6,12 @@ import { clsx } from 'clsx'
 import { apiClient } from '@/lib/api/client'
 import { API_ENDPOINTS } from '@/lib/api/endpoints'
 import { PosterDetailContent } from '@/components/posters/poster-detail-content'
-import { TANKU_CARD_SHELL_RADIUS_PX } from '@/lib/utils/tanku-card-radius'
+import { BaseNav } from '@/components/layout/base-nav'
+import { NavBackToFeedLink } from '@/components/layout/nav-back-to-feed'
+
+/** Mismo aire bajo BaseNav que /messages (sin buscador en el nav). */
+const DETAIL_PAGE_NAV_TOP_PT =
+  'max-md:pt-[max(4.625rem,calc(env(safe-area-inset-top,0px)+4.125rem))] md:pt-[6.625rem] lg:pt-[4.75rem] xl:pt-[6.5rem]'
 
 interface PosterDetail {
   id: string
@@ -101,30 +106,40 @@ export default function PostPage() {
 
   return (
     <div
-      className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+      className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden"
       style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
     >
+      <div className="pointer-events-none relative z-40 h-0 shrink-0 overflow-visible">
+        <BaseNav
+          showStories={false}
+          canHide={false}
+          isVisible
+          pageTitle="Publicación"
+          pageTitleColor="#FFFFFF"
+          mobileBackCenterTitleCartOnly
+          mobileTranslucentNav
+          desktopNavTitleCentered
+          startContent={<NavBackToFeedLink />}
+          className="pointer-events-auto"
+        />
+      </div>
       <div
+        id="post-scroll-root"
         className={clsx(
-          'flex min-h-0 w-full flex-1 flex-col overflow-x-hidden',
-          'max-lg:overflow-hidden lg:custom-scrollbar lg:overflow-y-auto lg:overscroll-y-contain',
-          'px-4 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] pt-4',
-          'md:pt-6 lg:px-8 lg:pb-8 lg:pt-6 xl:px-10 xl:pt-8',
-          '[-webkit-overflow-scrolling:touch]',
+          'custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+          'px-4 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:px-8 lg:pb-8 xl:px-10',
+          DETAIL_PAGE_NAV_TOP_PT,
         )}
       >
         <div
           className={clsx(
-            'flex w-full flex-col overflow-hidden border border-[#414141] shadow-xl',
-            'max-lg:min-h-0 max-lg:flex-1',
-            'md:min-h-[calc(100dvh-10rem)] lg:min-h-[calc(100vh-11rem)] xl:min-h-[calc(100vh-12rem)]',
+            'flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#414141] shadow-xl',
+            'md:h-[calc(100dvh-10rem)]',
+            'lg:h-[calc(100vh-11rem)] xl:h-[calc(100vh-12rem)]',
             'transition-all duration-300 ease-out',
             fromProfile && (animateIn ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.98]'),
           )}
-          style={{
-            backgroundColor: '#171B21',
-            borderRadius: `${TANKU_CARD_SHELL_RADIUS_PX}px`,
-          }}
+          style={{ backgroundColor: '#171B21' }}
         >
           <PosterDetailContent
             posterId={posterId}

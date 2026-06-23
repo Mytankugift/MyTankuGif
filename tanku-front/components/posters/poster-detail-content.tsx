@@ -718,8 +718,38 @@ export function PosterDetailContent({
           : 'flex h-full flex-col'
       }
     >
-      {/* Header - Solo en pageView (móvil en modal; desktop usa barra del PosterDetailModal salvo showModalHeaderActions) */}
-      {isPageView && (
+      {isPageMobileStandalone && (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/[0.08] bg-[#171B21] px-4 py-3">
+          <button
+            type="button"
+            onClick={handleGoToProfile}
+            className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-left"
+          >
+            <UserAvatar user={poster.author} size={32} />
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold leading-tight text-white">{authorName}</p>
+              {accountHandle ? (
+                <p className="truncate text-[11px] leading-tight text-gray-400">{accountHandle}</p>
+              ) : null}
+            </div>
+          </button>
+          {isOwner ? (
+            <button
+              type="button"
+              onClick={() => setShowOwnerPageActionsModal(true)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10"
+              title="Más opciones"
+              aria-expanded={showOwnerPageActionsModal}
+              aria-haspopup="dialog"
+            >
+              <EllipsisVerticalIcon className="h-5 w-5" />
+            </button>
+          ) : null}
+        </div>
+      )}
+
+      {/* Header - Solo en pageView modal (la ruta /posts/:id usa BaseNav externo) */}
+      {isPageView && embeddedInModal && (
         <div
           className={`flex-shrink-0 ${postPageBg} ${
             embeddedInModal && !showModalHeaderActions ? 'md:hidden' : ''

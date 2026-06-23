@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { CategoryLoginModal } from '@/components/feed/category-login-modal'
 import { FeedCategoryBarChip } from '@/components/feed/feed-category-bar-chip'
 import type { FeedNavScrollState } from '@/lib/hooks/use-feed-scroll-nav'
+import { useHorizontalChipScroll } from '@/lib/hooks/use-horizontal-chip-scroll'
 import { getCategoryBarChips, type FeedCategoryItem } from '@/lib/feed/category-tree'
 import { clsx } from 'clsx'
 import {
@@ -40,12 +42,26 @@ export function FeedCategoryBar({
     [categories, selectedCategoryId]
   )
 
+  const {
+    scrollRef,
+    hasOverflow,
+    canScrollLeft,
+    canScrollRight,
+    scrollByPage,
+    scrollChipFullyVisible,
+  } = useHorizontalChipScroll(selectedCategoryId, barChips.length)
+
   const pickCategory = (categoryId: string | null) => {
     if (!isAuthenticated && categoryId !== null) {
       setShowLoginModal(true)
       return
     }
     onCategoryChange(categoryId)
+    if (categoryId) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => scrollChipFullyVisible(categoryId))
+      })
+    }
   }
 
   if (categories.length === 0) {
@@ -65,7 +81,7 @@ export function FeedCategoryBar({
       >
         <div
           className={clsx(
-            'flex w-full min-w-0 flex-row flex-nowrap items-center gap-2',
+            'flex w-full min-w-0 flex-row flex-nowrap items-center gap-3 md:gap-4',
             CATEGORY_SLIDER_ROW_H
           )}
         >
@@ -74,7 +90,7 @@ export function FeedCategoryBar({
               type="button"
               onClick={onOpenCategoriesModal}
               className={clsx(
-                'flex shrink-0 cursor-pointer items-center gap-2 border-0 bg-transparent px-1.5 text-white outline-none transition-[color] duration-200 hover:text-white/90',
+                'flex shrink-0 cursor-pointer items-center gap-2 border-0 bg-transparent px-1.5 pr-2 text-white outline-none transition-[color] duration-200 hover:text-white/90 md:pr-3',
                 CATEGORY_SLIDER_ROW_H
               )}
               style={{ WebkitTapHighlightColor: 'transparent' }}
@@ -122,39 +138,82 @@ export function FeedCategoryBar({
             </button>
           ) : null}
 
-          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-0.5 scrollbar-hide">
-            {barChips.length > 0 ? (
-              barChips.map((chip) => (
-                <FeedCategoryBarChip
-                  key={String(chip.category.id)}
-                  category={chip.category}
-                  selected={chip.selected}
-                  onSelect={() => pickCategory(String(chip.category.id))}
-                  onClear={() => pickCategory(null)}
-                />
-              ))
-            ) : (
+          <div className="relative min-w-0 flex-1 items-center md:flex">
+            <div
+              ref={scrollRef}
+              className="flex min-w-0 flex-1 items-center gap-2.5 overflow-x-auto pb-0.5 scrollbar-hide sm:gap-3 md:gap-3.5 md:overflow-x-hidden md:px-1"
+            >
+              {barChips.length > 0 ? (
+                barChips.map((chip) => (
+                  <FeedCategoryBarChip
+                    key={String(chip.category.id)}
+                    category={chip.category}
+                    selected={chip.selected}
+                    onSelect={() => pickCategory(String(chip.category.id))}
+                    onClear={() => pickCategory(null)}
+                  />
+                ))
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => pickCategory(null)}
+                  data-category-chip-id="all"
+                  className={clsx(
+                    'shrink-0 rounded-full border px-4 transition-colors duration-200 sm:px-5',
+                    CATEGORY_SLIDER_ROW_H,
+                    'min-w-[84px] sm:min-w-[104px]',
+                    CATEGORY_CHIP_SELECTED_CLASS
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      'text-center text-xs font-semibold leading-tight sm:text-sm',
+                      CATEGORY_CHIP_TEXT_SELECTED_CLASS
+                    )}
+                    style={{ fontFamily: 'Poppins, sans-serif' }}
+                  >
+                    Todas
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Flechas superpuestas (desktop): translúcidas si hay scroll; desaparecen en el extremo */}
+            <div
+              className={clsx(
+                'pointer-events-none absolute inset-y-0 left-0 z-10 hidden w-11 transition-opacity duration-300 md:block',
+                hasOverflow && canScrollLeft ? 'opacity-100' : 'opacity-0',
+              )}
+              aria-hidden={!(hasOverflow && canScrollLeft)}
+            >
+              <div className="absolute inset-y-0 left-0 w-11 bg-gradient-to-r from-[#191E23]/75 via-[#191E23]/40 to-transparent" />
               <button
                 type="button"
-                onClick={() => pickCategory(null)}
-                className={clsx(
-                  'shrink-0 rounded-full border px-4 transition-colors duration-200',
-                  CATEGORY_SLIDER_ROW_H,
-                  'min-w-[80px] sm:min-w-[100px]',
-                  CATEGORY_CHIP_SELECTED_CLASS
-                )}
+                onClick={() => scrollByPage(-1)}
+                className="pointer-events-auto absolute left-0 top-1/2 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-[#73FFA2]/40 bg-[#2a2f34]/55 text-[#73FFA2]/85 backdrop-blur-[2px] transition-[opacity,background-color,border-color] duration-300 hover:border-[#73FFA2]/60 hover:bg-[#2a2f34]/75 hover:text-[#73FFA2]"
+                aria-label="Ver categorías anteriores"
               >
-                <span
-                  className={clsx(
-                    'text-center text-xs font-semibold leading-tight sm:text-sm',
-                    CATEGORY_CHIP_TEXT_SELECTED_CLASS
-                  )}
-                  style={{ fontFamily: 'Poppins, sans-serif' }}
-                >
-                  Todas
-                </span>
+                <ChevronLeftIcon className="h-4 w-4" aria-hidden />
               </button>
-            )}
+            </div>
+
+            <div
+              className={clsx(
+                'pointer-events-none absolute inset-y-0 right-0 z-10 hidden w-11 transition-opacity duration-300 md:block',
+                hasOverflow && canScrollRight ? 'opacity-100' : 'opacity-0',
+              )}
+              aria-hidden={!(hasOverflow && canScrollRight)}
+            >
+              <div className="absolute inset-y-0 right-0 w-11 bg-gradient-to-l from-[#191E23]/75 via-[#191E23]/40 to-transparent" />
+              <button
+                type="button"
+                onClick={() => scrollByPage(1)}
+                className="pointer-events-auto absolute right-0 top-1/2 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-[#73FFA2]/40 bg-[#2a2f34]/55 text-[#73FFA2]/85 backdrop-blur-[2px] transition-[opacity,background-color,border-color] duration-300 hover:border-[#73FFA2]/60 hover:bg-[#2a2f34]/75 hover:text-[#73FFA2]"
+                aria-label="Ver más categorías"
+              >
+                <ChevronRightIcon className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
           </div>
         </div>
       </div>

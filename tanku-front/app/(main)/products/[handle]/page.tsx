@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { clsx } from 'clsx'
 import { useProduct } from '@/lib/hooks/use-product'
 import { track } from '@/lib/analytics/tracker'
@@ -10,9 +9,13 @@ import { ProductDetailContent } from '@/components/products/product-detail-conte
 import { ProductAgeRestricted } from '@/components/products/product-age-restricted'
 import { isAgeRestrictedApiError } from '@/lib/api/error-codes'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import { TANKU_CARD_SHELL_RADIUS_PX } from '@/lib/utils/tanku-card-radius'
-import { tankuOrderModalBackdropClass } from '@/lib/ui/tanku-modal-surface'
+import { BaseNav } from '@/components/layout/base-nav'
+import { NavBackToFeedLink } from '@/components/layout/nav-back-to-feed'
 import type { FeedItemDTO, ProductDTO } from '@/types/api'
+
+/** Mismo aire bajo BaseNav que /messages (sin buscador en el nav). */
+const DETAIL_PAGE_NAV_TOP_PT =
+  'max-md:pt-[max(4.625rem,calc(env(safe-area-inset-top,0px)+4.125rem))] md:pt-[6.625rem] lg:pt-[4.75rem] xl:pt-[6.5rem]'
 
 function toFeedItem(p: ProductDTO): FeedItemDTO {
   return {
@@ -70,7 +73,10 @@ export default function ProductPage() {
 
   if (isLoading || isLoadingProduct) {
     return (
-      <div className={clsx('flex min-h-screen flex-1 items-center justify-center', tankuOrderModalBackdropClass)}>
+      <div
+        className="flex min-h-screen flex-1 items-center justify-center"
+        style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
+      >
         <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#73FFA2]" />
       </div>
     )
@@ -88,7 +94,10 @@ export default function ProductPage() {
 
   if (!displayProduct) {
     return (
-      <div className={clsx('flex min-h-screen flex-1 items-center justify-center', tankuOrderModalBackdropClass)}>
+      <div
+        className="flex min-h-screen flex-1 items-center justify-center"
+        style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
+      >
         <div className="text-center">
           <p className="mb-4 text-xl text-red-400">Producto no encontrado</p>
           <button
@@ -103,50 +112,41 @@ export default function ProductPage() {
   }
 
   return (
-    <div className={clsx('flex min-h-0 w-full flex-1 flex-col overflow-hidden', tankuOrderModalBackdropClass)}>
+    <div
+      className="relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden"
+      style={{ backgroundColor: 'var(--color-surface-191e23-20)' }}
+    >
+      <div className="pointer-events-none relative z-40 h-0 shrink-0 overflow-visible">
+        <BaseNav
+          showStories={false}
+          canHide={false}
+          isVisible
+          pageTitle={displayProduct.title}
+          pageTitleColor="#FFFFFF"
+          mobileBackCenterTitleCartOnly
+          mobileTranslucentNav
+          desktopNavTitleCentered
+          startContent={<NavBackToFeedLink />}
+          className="pointer-events-auto"
+        />
+      </div>
       <div
+        id="product-scroll-root"
         className={clsx(
-          'custom-scrollbar flex min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
-          'px-4 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] pt-4',
-          'md:pt-6 lg:px-8 lg:pb-8 lg:pt-6 xl:px-10 xl:pt-8',
+          'custom-scrollbar relative z-0 min-h-0 w-full flex-1 basis-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+          'px-4 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:px-8 lg:pb-8 xl:px-10',
+          DETAIL_PAGE_NAV_TOP_PT,
         )}
       >
         <div
           className={clsx(
-            'flex min-h-0 w-full flex-1 flex-col overflow-hidden border border-[#414141] shadow-xl',
-            'md:min-h-[calc(100dvh-10rem)] lg:min-h-[calc(100vh-11rem)] xl:min-h-[calc(100vh-12rem)]',
+            'flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#414141] shadow-xl',
+            'md:h-[calc(100dvh-10rem)]',
+            'lg:h-[calc(100vh-11rem)] xl:h-[calc(100vh-12rem)]',
           )}
-          style={{
-            backgroundColor: '#171B21',
-            borderRadius: `${TANKU_CARD_SHELL_RADIUS_PX}px`,
-          }}
+          style={{ backgroundColor: '#171B21' }}
         >
-          <div className="flex-shrink-0 border-b border-white/[0.08] bg-[#171B21]">
-            <div className="flex items-center gap-2 px-4 py-3">
-              <button
-                type="button"
-                onClick={() => router.back()}
-                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/10"
-                aria-label="Volver"
-              >
-                <Image
-                  src="/icons_tanku/mobile_tanku_menu_ir_atras_Universal.svg"
-                  alt=""
-                  width={24}
-                  height={24}
-                  className="h-6 w-6 object-contain"
-                  unoptimized
-                />
-              </button>
-              <h1 className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-white">
-                {displayProduct.title}
-              </h1>
-              <div className="h-9 w-9 flex-shrink-0" aria-hidden />
-            </div>
-          </div>
-          <div className="min-h-0 flex-1">
-            <ProductDetailContent product={displayProduct} isPageView={true} />
-          </div>
+          <ProductDetailContent product={displayProduct} isPageView={true} />
         </div>
       </div>
     </div>

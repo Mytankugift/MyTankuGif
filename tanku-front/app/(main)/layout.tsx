@@ -65,6 +65,7 @@ export default function MainLayout({
   }, [user, isAuthenticated, isChecking, pathname])
 
   const isPostDetailRoute = pathname.startsWith('/posts/')
+  const isProductRoute = pathname.startsWith('/products/')
 
   /** Landing (/): scroll del flujo / documento (invitado + SEO). */
   const isLandingRoute = pathname === '/'
@@ -90,6 +91,7 @@ export default function MainLayout({
     pathname === '/notifications' ||
     pathname === '/messages' ||
     isPostDetailRoute ||
+    isProductRoute ||
     isProfileRoute
 
   const mainLockedToPageScroll = isAppMainInnerScroll || isCheckoutInnerScroll

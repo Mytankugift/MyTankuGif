@@ -5,19 +5,14 @@
 
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import { CartButton } from '@/components/layout/cart-button'
-import { NotificationsButton } from '@/components/layout/notifications-button'
-import { MessagesDropdown } from '@/components/layout/messages-dropdown'
-import { useChat } from '@/lib/hooks/use-chat'
-import { useChatService } from '@/lib/hooks/use-chat-service'
+import { NavActionIcons } from '@/components/layout/nav-action-icons'
 import { StoriesCarousel } from '@/components/stories/stories-carousel'
-import { getGoogleOAuthUrl } from '@/lib/auth/google-oauth'
 
 interface BaseNavProps {
   /** Si se muestra la sección de stories */
@@ -76,21 +71,7 @@ export function BaseNav({
   hidePageHeadingMobile = false,
 }: BaseNavProps) {
   const router = useRouter()
-  const { isAuthenticated, user } = useAuthStore()
-  // ✅ Obtener total de mensajes no leídos para badge
-  const { getTotalUnreadCount, lastReceivedMessage, conversations } = useChat()
-  // ✅ NUEVO: Usar ChatService en lugar de useSocket
-  const { messages: chatServiceMessages } = useChatService()
-  // Usar useMemo para recalcular cuando cambia lastReceivedMessage
-  const totalUnread = React.useMemo(() => {
-    return user ? getTotalUnreadCount(user.id) : 0
-  }, [user, getTotalUnreadCount, lastReceivedMessage, chatServiceMessages, conversations])
-  const [isMessagesDropdownOpen, setIsMessagesDropdownOpen] = useState(false)
-
-  const handleOpenChat = (conversationId: string) => {
-    // El dropdown ahora maneja el chat internamente, no necesitamos abrir ventanas flotantes
-    // Esta función se mantiene por compatibilidad pero no hace nada
-  }
+  const { isAuthenticated } = useAuthStore()
 
   const titleContent = pageTitleRich ?? pageTitle
   const showPageHeading = Boolean(titleContent || pageSubtitle)
@@ -119,56 +100,7 @@ export function BaseNav({
       </div>
     ) : null
 
-  const renderActionIcons = () => (
-    <div className="flex shrink-0 items-center gap-2 lg:gap-3">
-      {showJoinButton && !isAuthenticated && (
-        <a
-          href={getGoogleOAuthUrl('/feed')}
-          className="inline-block flex-shrink-0 cursor-pointer rounded-full px-4 py-2 text-center text-xs font-semibold text-black transition-all duration-300 hover:scale-105 hover:shadow-lg sm:px-5 sm:py-2.5 sm:text-sm whitespace-nowrap"
-          style={{
-            fontFamily: 'Poppins, sans-serif',
-            backgroundColor: '#73FFA2',
-            boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset',
-          }}
-        >
-          Únete a TANKU
-        </a>
-      )}
-      <div className="relative">
-        <button
-          onClick={() => setIsMessagesDropdownOpen(!isMessagesDropdownOpen)}
-          type="button"
-          className="group relative flex cursor-pointer items-center justify-center rounded-lg p-2 transition-colors hover:bg-white/10"
-        >
-          <Image
-            src="/icons_tanku/tanku_nav_mensajes_verde.svg"
-            alt="Mensajes"
-            width={30}
-            height={30}
-            className="object-contain"
-            style={{ width: '30px', height: '30px' }}
-            unoptimized
-          />
-          {totalUnread > 0 && (
-            <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-[#1E1E1E] bg-[#66DEDB]" />
-          )}
-        </button>
-        {isAuthenticated && (
-          <MessagesDropdown
-            isOpen={isMessagesDropdownOpen}
-            onClose={() => setIsMessagesDropdownOpen(false)}
-            onOpenChat={handleOpenChat}
-          />
-        )}
-      </div>
-      <div className="flex h-8 w-8 items-center justify-center md:h-9 md:w-9 lg:h-10 lg:h-10">
-        <NotificationsButton />
-      </div>
-      <div className="flex h-8 w-8 items-center justify-center md:h-9 md:w-9 lg:h-10 lg:h-10">
-        <CartButton />
-      </div>
-    </div>
-  )
+  const renderActionIcons = () => <NavActionIcons showJoinButton={showJoinButton} />
 
   const navSurfaceClass = mobileTranslucentNav
     ? 'max-md:inset-x-0 max-md:border-b max-md:border-white/[0.07] max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150 max-md:shadow-[0_8px_32px_rgba(0,0,0,0.35)] max-md:[-webkit-backdrop-filter:blur(20px)_saturate(1.1)] md:right-4 md:border-0 md:bg-[var(--color-surface-191e23-20)] md:shadow-lg md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none]'
@@ -209,7 +141,7 @@ export function BaseNav({
                   style={{
                     fontFamily: 'Montserrat, sans-serif',
                     fontWeight: 'bold',
-                    fontSize: '32px',
+                    fontSize: '26px',
                     lineHeight: '80px',
                     textAlign: 'center',
                     verticalAlign: 'middle',

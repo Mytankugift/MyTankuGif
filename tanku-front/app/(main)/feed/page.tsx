@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { clsx } from 'clsx'
 import { FeedNav } from '@/components/feed/feed-nav'
 import { FeedCategoryBar } from '@/components/feed/feed-category-bar'
 import { FeedStoriesStrip } from '@/components/feed/feed-stories-strip'
@@ -51,6 +52,7 @@ export default function FeedPage() {
     typeof window !== 'undefined' ? window.innerWidth : 1024
   )
   const hasInitialized = useRef(false)
+  const skipInitialCategoryScrollRef = useRef(true)
   const [feedExplorarActivated, setFeedExplorarActivated] = useState(false)
   const [categoriesModalOpen, setCategoriesModalOpen] = useState(false)
   // Gate del scroll infinito: solo paginamos tras la primera intención de scroll del
@@ -122,6 +124,21 @@ export default function FeedPage() {
     setSearchQuery(searchInput.trim())
   }, [searchInput])
 
+  const handleCategoryChange = useCallback((categoryId: string | null) => {
+    setSelectedCategoryId(categoryId)
+  }, [])
+
+  useEffect(() => {
+    if (skipInitialCategoryScrollRef.current) {
+      skipInitialCategoryScrollRef.current = false
+      return
+    }
+    const root = feedScrollRootRef.current
+    if (root) {
+      root.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [selectedCategoryId])
+
   useEffect(() => {
     const onResize = () => setViewportWidth(window.innerWidth)
     onResize()
@@ -135,7 +152,7 @@ export default function FeedPage() {
    */
   const contentPaddingTop = (() => {
     const w = viewportWidth
-    const { minimalMode, compactMid } = feedNavScroll
+    const { minimalMode, compactMid, showStoriesStrip } = feedNavScroll
     const safeOnly = 'max(10px, env(safe-area-inset-top))'
 
     if (w < 768) {
@@ -143,14 +160,16 @@ export default function FeedPage() {
     }
 
     // Tablet/desktop: hueco acorde al header fijo (eslogán + strip historias + buscador + categorías).
-    // Valores más altos en reposo para que las cards no queden bajo el chrome al abrir el feed.
     if (minimalMode) {
-      return w < 1024 ? '132px' : '160px'
+      return w < 1024 ? '140px' : '168px'
     }
     if (compactMid) {
-      return w < 1024 ? '212px' : '244px'
+      return w < 1024 ? '220px' : '252px'
     }
-    return w < 1024 ? '300px' : '312px'
+    if (!showStoriesStrip) {
+      return w < 1024 ? '256px' : '268px'
+    }
+    return w < 1024 ? '312px' : '324px'
   })()
 
   // ✅ Usar endpoint batch SOLO en la carga inicial (sin filtros)
@@ -325,7 +344,17 @@ export default function FeedPage() {
     >
       {/* Chrome fijo: overlay. Scroll: `#feed-scroll-root` (móvil y desktop). */}
       <div className="pointer-events-none relative z-40 shrink-0 h-0 overflow-visible">
-        <div className="pointer-events-auto fixed inset-x-0 top-0 z-40 flex flex-col flex-shrink-0 overflow-visible border-b border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.35)] max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150 md:inset-x-auto md:left-36 md:right-0 md:bg-[var(--color-surface-191e23-20)] md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none] lg:left-[208px]">
+        <div
+          className={clsx(
+            'pointer-events-auto fixed top-0 left-0 z-50 flex flex-col flex-shrink-0 overflow-visible',
+            'max-md:inset-x-0 max-md:border-b max-md:border-white/[0.07]',
+            'max-md:bg-[rgba(25,30,35,0.62)] max-md:backdrop-blur-xl max-md:backdrop-saturate-150',
+            'max-md:shadow-[0_8px_32px_rgba(0,0,0,0.35)] max-md:[-webkit-backdrop-filter:blur(20px)_saturate(1.1)]',
+            'md:left-36 md:right-4 md:border-0 md:bg-[var(--color-surface-191e23-20)] md:shadow-lg',
+            'md:backdrop-blur-none md:backdrop-saturate-100 md:[-webkit-backdrop-filter:none]',
+            'lg:left-[208px]',
+          )}
+        >
         <FeedNav
           searchInput={searchInput}
           onSearchInputChange={setSearchInput}
@@ -341,13 +370,13 @@ export default function FeedPage() {
           onFeedExplorarActivated={() => setFeedExplorarActivated(true)}
           showStoriesStripInFixedNav
           activeCategoryFilter={activeCategoryFilter}
-          onClearCategoryFilter={() => setSelectedCategoryId(null)}
+          onClearCategoryFilter={() => handleCategoryChange(null)}
         />
         <div className="hidden md:block">
           <FeedCategoryBar
             categories={categories}
             selectedCategoryId={selectedCategoryId}
-            onCategoryChange={setSelectedCategoryId}
+            onCategoryChange={handleCategoryChange}
             feedNavScroll={feedNavScroll}
             onOpenCategoriesModal={() => setCategoriesModalOpen(true)}
           />
@@ -367,7 +396,7 @@ export default function FeedPage() {
             <FeedCategoryActivePill
               category={activeCategoryFilter}
               compact
-              onClear={() => setSelectedCategoryId(null)}
+              onClear={() => handleCategoryChange(null)}
             />
           </div>
         </div>
@@ -488,7 +517,7 @@ export default function FeedPage() {
         onClose={() => setCategoriesModalOpen(false)}
         categories={categories}
         selectedCategoryId={selectedCategoryId}
-        onPickCategory={(categoryId) => setSelectedCategoryId(categoryId)}
+        onPickCategory={handleCategoryChange}
       />
     </div>
   )
