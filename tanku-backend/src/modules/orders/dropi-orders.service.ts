@@ -335,7 +335,7 @@ export class DropiOrdersService {
         dir: `${orderAddress.address1}${orderAddress.detail ? `, ${orderAddress.detail}` : ''}`.trim(),
         phone: orderAddress.phone || '',
         client_email: order.email || '',
-        notes: `Orden Tanku: ${orderId} - Producto ${i + 1}/${dropiProducts.length}`,
+        notes: `Orden Tanku: ${orderRef} - Producto ${i + 1}/${dropiProducts.length}`,
         payment_method_id: 1, // Siempre 1 según manual
         dni: '',
         dni_type: '',
